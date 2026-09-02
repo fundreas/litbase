@@ -1,0 +1,38 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Secrets — never commit. .env.example is the documented template.
+.env
+.env.*
+*.env
+*.env.*
+.envrc
+!.env.example
+
+# Scratch notes holding live Kickbase credentials and bearer tokens.
+kickbase-api.md
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Browser automation artifacts
+.playwright-mcp/
