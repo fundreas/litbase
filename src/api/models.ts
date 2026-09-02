@@ -60,6 +60,24 @@ export interface League {
   unreadCount: number
 }
 
+/**
+ * One team's fixture in a given matchday, seen from that team's perspective —
+ * so `isHome` and `opponent*` are already resolved and no component has to
+ * work out which of `t1`/`t2` it is looking at.
+ */
+export interface TeamFixture {
+  matchId: string
+  /** Kick-off, ISO 8601. */
+  kickoff: string
+  /** True when this team is `t1`. */
+  isHome: boolean
+  opponentId: string
+  /** Short symbol, e.g. `"FCB"`. Falls back to the id when absent. */
+  opponentSymbol: string
+  /** Opponent crest, CDN-relative. */
+  opponentImage?: string
+}
+
 /** A competition the app can filter leagues by. */
 export interface Competition {
   id: string

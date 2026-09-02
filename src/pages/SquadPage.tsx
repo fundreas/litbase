@@ -17,7 +17,7 @@ import { money } from '@/lib/format'
  * Both read the same `useSquad` query, so switching tabs costs no request.
  */
 export function SquadPage() {
-  const { leagueId } = useActiveLeague()
+  const { leagueId, competitionId } = useActiveLeague()
   const { data, isPending, isError, error, refetch } = useSquad(leagueId)
 
   if (isPending) {
@@ -68,7 +68,11 @@ export function SquadPage() {
           <PlayerListTab squad={data} />
         </TabsContent>
         <TabsContent value="lineup">
-          <LineupTab squad={data} leagueId={leagueId} />
+          <LineupTab
+            squad={data}
+            leagueId={leagueId}
+            competitionId={competitionId}
+          />
         </TabsContent>
       </Tabs>
     </div>

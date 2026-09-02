@@ -3,11 +3,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ApiError } from '@/api/errors'
 import { useSaveLineup, type LineupWrite } from '@/api/hooks/useLineup'
+import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import {
   POSITION_LABEL,
   type PositionKey,
   type SquadMember,
+  type TeamFixture,
 } from '@/api/models'
+import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -17,7 +20,7 @@ import { points } from '@/lib/format'
 import {
   canAddPosition,
   countPositions,
-  displayFormation,
+  effectiveFormation,
   formationLabel,
   LINEUP_SIZE,
   removalCandidates,
@@ -58,9 +61,11 @@ const HELD_KEY = 'held'
 export function LineupTab({
   squad,
   leagueId,
+  competitionId,
 }: {
   squad: SquadMember[]
   leagueId: string
+  competitionId: string
 }) {
   const [lineupIds, setLineupIds] = useState<string[]>(() => seedLineup(squad))
   const [incoming, setIncoming] = useState<SquadMember | null>(null)
@@ -88,7 +93,12 @@ export function LineupTab({
     () => countPositions(lineup.map((player) => player.position)),
     [lineup],
   )
-  const formation = useMemo(() => displayFormation(counts), [counts])
+  // The shape actually fielded — not the nearest legal formation. At eleven
+  // players this is guaranteed to be one of the ten allowed formations.
+  const formation = useMemo(() => effectiveFormation(counts), [counts])
+
+  const matchday = useCurrentMatchday(competitionId)
+  const fixtureByTeamId = matchday.data?.fixtureByTeamId
 
   /* ---------------------------------------------------------------------- */
   /* Persistence                                                             */
@@ -269,20 +279,23 @@ export function LineupTab({
 
       <Pitch>
         <div className="flex flex-col gap-1 px-2 py-4">
+          {lineup.length === 0 && (
+            <p className="py-10 text-center text-sm text-white/80">
+              Noch niemand aufgestellt. Tippe unten auf einen Spieler.
+            </p>
+          )}
           {ROW_ORDER.map((position) => {
-            const slots =
-              position === 'gk'
-                ? 1
-                : formation[position as 'def' | 'mid' | 'fwd']
             const players = lineup.filter(
               (player) => player.position === position,
             )
+            // Only what is actually fielded gets drawn — an unfilled row is
+            // simply absent rather than a set of dashed placeholders.
+            if (players.length === 0) return null
             return (
               <PitchRow
                 key={position}
-                position={position}
-                slotCount={slots}
                 players={players}
+                fixtureByTeamId={fixtureByTeamId}
                 onRemove={remove}
               />
             )
@@ -290,11 +303,18 @@ export function LineupTab({
         </div>
       </Pitch>
 
-      <Bench squad={squad} lineupIds={lineupIds} counts={counts} onAdd={add} />
+      <Bench
+        squad={squad}
+        lineupIds={lineupIds}
+        counts={counts}
+        fixtureByTeamId={fixtureByTeamId}
+        onAdd={add}
+      />
 
       <SwapDialog
         incoming={incoming}
         lineup={lineup}
+        fixtureByTeamId={fixtureByTeamId}
         onCancel={() => {
           setIncoming(null)
         }}
@@ -324,33 +344,25 @@ function orderPlayerIds(lineup: SquadMember[]): string[] {
 /* -------------------------------------------------------------------------- */
 
 function PitchRow({
-  position,
-  slotCount,
   players,
+  fixtureByTeamId,
   onRemove,
 }: {
-  position: PositionKey
-  slotCount: number
   players: SquadMember[]
+  fixtureByTeamId: Map<string, TeamFixture> | undefined
   onRemove: (playerId: string) => void
 }) {
-  // Render every slot the formation allows, so empty ones read as invitations
-  // rather than the row simply being short.
-  const empty = Math.max(slotCount - players.length, 0)
-
   return (
-    <div className="flex items-start justify-center gap-1">
+    <div className="flex flex-wrap items-start justify-center gap-1">
       {players.map((player) => (
         <PitchPlayer
           key={player.id}
           player={player}
+          fixture={fixtureByTeamId?.get(player.teamId)}
           onClick={() => {
             onRemove(player.id)
           }}
         />
-      ))}
-      {Array.from({ length: empty }, (_, index) => (
-        <EmptySlot key={index} label={POSITION_LABEL[position]} />
       ))}
     </div>
   )
@@ -358,9 +370,11 @@ function PitchRow({
 
 function PitchPlayer({
   player,
+  fixture,
   onClick,
 }: {
   player: SquadMember
+  fixture: TeamFixture | undefined
   onClick: () => void
 }) {
   return (
@@ -393,18 +407,8 @@ function PitchPlayer({
       <span className="max-w-full truncate rounded bg-black/55 px-1 py-0.5 text-[0.625rem] font-semibold text-white">
         {player.lastName}
       </span>
+      <FixtureBadge fixture={fixture} className="rounded bg-black/45 px-1" />
     </button>
-  )
-}
-
-function EmptySlot({ label }: { label: string }) {
-  return (
-    <span className="flex w-16 shrink-0 flex-col items-center gap-1 p-1">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-dashed border-white/40 text-[0.625rem] font-semibold text-white/60">
-        {label}
-      </span>
-      <span className="h-[1.125rem]" />
-    </span>
   )
 }
 
@@ -416,27 +420,39 @@ function Bench({
   squad,
   lineupIds,
   counts,
+  fixtureByTeamId,
   onAdd,
 }: {
   squad: SquadMember[]
   lineupIds: string[]
   counts: ReturnType<typeof countPositions>
+  fixtureByTeamId: Map<string, TeamFixture> | undefined
   onAdd: (player: SquadMember) => void
 }) {
   const fielded = new Set(lineupIds)
 
+  // The bench is what is *not* fielded. Players move between the pitch and
+  // here rather than appearing in both.
   const grouped = BENCH_ORDER.map((position) => ({
     position,
     players: squad
-      .filter((player) => player.position === position)
+      .filter(
+        (player) => player.position === position && !fielded.has(player.id),
+      )
       .sort((a, b) => b.marketValue - a.marketValue),
   })).filter((group) => group.players.length > 0)
 
   return (
     <section className="flex flex-col gap-2">
       <h2 className="px-0.5 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
-        Kader · tippen zum Aufstellen
+        Bank · tippen zum Aufstellen
       </h2>
+
+      {grouped.length === 0 && (
+        <p className="rounded-card border border-line bg-surface px-3 py-4 text-center text-sm text-muted">
+          Alle Spieler sind aufgestellt.
+        </p>
+      )}
 
       {/* One sideways-scrolling strip, grouped by position with headings, so
           the whole squad stays reachable with a thumb. */}
@@ -451,8 +467,8 @@ function Bench({
                 <BenchPlayer
                   key={player.id}
                   player={player}
-                  isFielded={fielded.has(player.id)}
                   isBlocked={!canAddPosition(counts, player.position)}
+                  fixture={fixtureByTeamId?.get(player.teamId)}
                   onClick={() => {
                     onAdd(player)
                   }}
@@ -468,38 +484,34 @@ function Bench({
 
 function BenchPlayer({
   player,
-  isFielded,
   isBlocked,
+  fixture,
   onClick,
 }: {
   player: SquadMember
-  isFielded: boolean
+  /** No room for this position right now — tapping opens the swap dialog. */
   isBlocked: boolean
+  fixture: TeamFixture | undefined
   onClick: () => void
 }) {
   return (
     <button
       type="button"
-      disabled={isFielded}
       onClick={onClick}
-      aria-label={
-        isFielded
-          ? `${player.lastName} ist aufgestellt`
-          : `${player.lastName} aufstellen`
-      }
+      aria-label={`${player.lastName} aufstellen`}
       className={cn(
-        'flex w-[4.5rem] shrink-0 flex-col items-center gap-1 rounded-card border px-1 py-2',
-        'transition-colors',
-        isFielded
-          ? 'cursor-not-allowed border-accent/40 bg-accent/10 opacity-55'
-          : 'border-line bg-surface hover:border-accent/40 hover:bg-surface-2 active:bg-line',
+        'flex w-[5rem] shrink-0 flex-col items-center gap-1 rounded-card border px-1 py-2',
+        'border-line bg-surface transition-colors',
+        'hover:border-accent/40 hover:bg-surface-2 active:bg-line',
       )}
     >
       <Avatar
         src={player.image}
         name={player.lastName}
         size={36}
-        className={cn(isBlocked && !isFielded && 'opacity-60')}
+        // Dimmed, not disabled: the tap still does something useful, it just
+        // has to go through the swap dialog.
+        className={cn(isBlocked && 'opacity-60')}
       />
       <span className="max-w-full truncate text-[0.6875rem] font-medium text-ink">
         {player.lastName}
@@ -507,6 +519,7 @@ function BenchPlayer({
       <span className="nums text-[0.625rem] text-faint">
         {points(player.averagePoints)} ⌀
       </span>
+      <FixtureBadge fixture={fixture} />
     </button>
   )
 }
@@ -523,11 +536,13 @@ function BenchPlayer({
 function SwapDialog({
   incoming,
   lineup,
+  fixtureByTeamId,
   onCancel,
   onConfirm,
 }: {
   incoming: SquadMember | null
   lineup: SquadMember[]
+  fixtureByTeamId: Map<string, TeamFixture> | undefined
   onCancel: () => void
   onConfirm: (outgoing: SquadMember) => void
 }) {
@@ -610,9 +625,12 @@ function SwapDialog({
                     <span className="block truncate text-sm font-medium text-ink">
                       {player.lastName}
                     </span>
-                    <span className="nums block truncate text-xs text-muted">
+                    <span className="nums flex items-center gap-1.5 truncate text-xs text-muted">
                       {POSITION_LABEL[player.position]} ·{' '}
                       {points(player.averagePoints)} ⌀
+                      <FixtureBadge
+                        fixture={fixtureByTeamId?.get(player.teamId)}
+                      />
                     </span>
                   </span>
                   <span

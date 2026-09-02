@@ -81,38 +81,22 @@ export function isFeasible(counts: PositionCounts): boolean {
   return feasibleFormations(counts).length > 0
 }
 
-const FALLBACK_FORMATION: Formation = { def: 4, mid: 4, fwd: 2 }
-
 /**
- * The formation to draw the pitch with: of the ones still reachable, the one
- * whose *shape* is closest to what is already selected.
+ * The shape actually on the pitch, e.g. `2-1-0` while it is being assembled.
  *
- * Note that total slack is useless as a metric here — every formation fields
- * ten outfield players, so `(def+mid+fwd) - selected` is identical for all of
- * them and would silently reduce to "first in list order". Squared distance
- * per position is what actually discriminates: a 4-4-2 selection scores 0
- * against 4-4-2 and worse against everything else.
+ * Once eleven players are fielded this is guaranteed to be one of
+ * {@link FORMATIONS}: the rules only admit counts that fit *some* formation,
+ * and since every formation fields ten outfield players, a selection of ten
+ * that fits one must equal it exactly. So the label sent to the API on save
+ * is the effective shape, not a best guess at one.
  *
- * Ties break toward the earlier entry in {@link FORMATIONS}, so an empty
- * lineup settles on 3-4-3 instead of flickering as players are added.
+ * (An earlier version picked a "display formation" — the nearest legal
+ * formation to a partial selection — and drew empty slots for the difference.
+ * Showing the effective shape instead means the pitch never implies a
+ * formation the user has not actually built.)
  */
-export function displayFormation(counts: PositionCounts): Formation {
-  const candidates = feasibleFormations(counts)
-  if (candidates.length === 0) return FALLBACK_FORMATION
-
-  let best = candidates[0] ?? FALLBACK_FORMATION
-  let bestDistance = Number.POSITIVE_INFINITY
-  for (const formation of candidates) {
-    const distance =
-      (formation.def - counts.def) ** 2 +
-      (formation.mid - counts.mid) ** 2 +
-      (formation.fwd - counts.fwd) ** 2
-    if (distance < bestDistance) {
-      best = formation
-      bestDistance = distance
-    }
-  }
-  return best
+export function effectiveFormation(counts: PositionCounts): Formation {
+  return { def: counts.def, mid: counts.mid, fwd: counts.fwd }
 }
 
 /** Can one more player of this position join a lineup with these counts? */

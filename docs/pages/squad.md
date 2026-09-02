@@ -256,11 +256,17 @@ because no formation plays six.
 That is what makes "clicking a player automatically adds them" work — the
 lineup reshapes itself, and a picker would only get in the way.
 
-The displayed formation is the feasible one whose **shape** is closest to the
-selection, by squared distance per position. Total slack cannot be used: every
-formation fields ten outfield players, so `(def+mid+fwd) − selected` is
-identical for all of them and would silently collapse to "first in list
-order".
+The label in the header is the **effective shape** — literally the counts on
+the pitch, so a half-built lineup reads `2-1-0`. Once eleven players are
+fielded it is provably one of the ten formations: the rules only admit counts
+that fit *some* formation, and since every formation has ten outfield players,
+a selection of ten that fits one must equal it exactly. That is also the label
+sent to the API on save, so the stored formation is what the user actually
+built rather than a guess.
+
+An earlier version instead picked the nearest legal formation and drew empty
+slots for the difference. Showing the effective shape is both simpler and more
+honest.
 
 ### Interaction
 
@@ -270,7 +276,42 @@ order".
 | Tap a bench player with no room | Swap dialog opens |
 | Tap a player on the pitch | Removed |
 | Any change | Saved after 600 ms; a spinner shows while in flight |
-| Bench player already fielded | `disabled`, dimmed, accent-tinted border |
+| Bench player with no room | Dimmed, but still tappable — it opens the dialog |
+
+#### The bench ("Bank")
+
+The bench holds **only players who are not fielded** — a player moves between
+the pitch and the bench rather than appearing in both, so there is no disabled
+state to reason about. It groups by position (keeper, defence, midfield,
+attack) and sorts by market value within each group, scrolling sideways.
+
+When every player is fielded it says so instead of rendering an empty strip.
+
+#### Next fixture
+
+Bench cards, pitch players and the swap dialog all show who the player's club
+faces this matchday, from
+[`useCurrentMatchday`](../../src/api/hooks/useMatchday.ts) →
+`GET /v4/competitions/{id}/matchdays`.
+
+That endpoint returns the whole season plus a top-level `day` naming the
+current matchday, and within a matchday **each team appears exactly once**
+(verified: 18 teams across 9 fixtures, no repeats). So it inverts into a
+`teamId → fixture` map, which is what lets any player be annotated from
+nothing but their `tid` — the squad payload itself carries no fixture data at
+all.
+
+`t1` is the home team and `t2` the away team; both sides are inserted, each
+from its own perspective, so `isHome` and the opponent are already resolved
+before rendering.
+
+[`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx) shows a house for
+home and a plane for away, plus the opponent's crest and short symbol
+(`FCB`, `VFB`) — a full club name never fits a bench card. Home/away is carried
+by the icon *and* the `title`, never by colour alone. A team with no fixture
+that matchday renders `–` rather than breaking.
+
+Cached for an hour: one payload for the season, and it only shifts weekly.
 
 #### The swap dialog
 
@@ -305,12 +346,17 @@ is drawn **vertically** (own goal at the bottom, attacking upward), which is
 how a lineup reads on a phone, with a turf gradient, mown bands, centre circle
 and both penalty areas.
 
-Rows run attack-first down the page: FWD, MID, DEF, GK. Every slot the
-formation allows is rendered, so unfilled ones show as dashed circles labelled
-with the position rather than the row just being short.
+Rows run attack-first down the page: FWD, MID, DEF, GK. **Only fielded players
+are drawn.** A position with nobody in it is simply absent — no dashed
+placeholder slots — and an empty pitch shows a single prompt instead.
+
+That follows from showing the *effective* formation rather than a nearest legal
+one: placeholders would have to be drawn against some assumed formation, which
+would imply a shape the user has not chosen.
 
 Each fielded player shows their image with a white ring, a name label on a
-dark plate beneath (legible over grass), and a red dot when not match-fit.
+dark plate beneath (legible over grass), a red dot when not match-fit, and
+their next fixture.
 
 ### Verified
 

@@ -492,6 +492,54 @@ export interface CompetitionTableRow {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Matchdays and fixtures                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** `GET /v4/competitions/{competitionId}/matchdays`. */
+export interface MatchdaysResponse {
+  /** The **current** matchday number. */
+  day: number
+  /** Every matchday of the season. */
+  it: MatchdayItem[]
+}
+
+export interface MatchdayItem {
+  /** Matchday number. */
+  day: number
+  /** Display name, e.g. `"2 Match Day"`. */
+  mdln?: string
+  /** Fixtures. A team appears at most once per matchday. */
+  it: FixtureItem[]
+}
+
+export interface FixtureItem {
+  /** Match id. */
+  mi: string
+  day: number
+  /** Kick-off, ISO 8601. */
+  dt: string
+  /** **Home** team id. */
+  t1: string
+  /** **Away** team id. */
+  t2: string
+  /** Home team short symbol, e.g. `"FCB"`. */
+  t1sy?: string
+  /** Away team short symbol. */
+  t2sy?: string
+  /** Home team crest, CDN-relative (an SVG). */
+  t1im?: string
+  /** Away team crest, CDN-relative. */
+  t2im?: string
+  /** Home goals — present once played. */
+  t1g?: number
+  /** Away goals. */
+  t2g?: number
+  /** Match status: 0 = upcoming, 2 = finished (others unconfirmed). */
+  st?: number
+  il?: boolean
+}
+
+/* -------------------------------------------------------------------------- */
 /* User                                                                      */
 /* -------------------------------------------------------------------------- */
 

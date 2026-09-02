@@ -126,6 +126,7 @@ is what makes them safe to call before context has resolved.
 | `useRecommendedLeagues()` | `/leagues/recommended` | 5 min |
 | `useJoinableLeagues(f)` | `/leagues/list` | 2 min |
 | `useCompetitions()` | `/competitions` | 1 hour |
+| `useCurrentMatchday(cid)` | `/competitions/{cid}/matchdays` | 1 hour |
 
 Mutations:
 

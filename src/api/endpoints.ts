@@ -69,5 +69,13 @@ export const endpoints = {
       `/v4/competitions/${competitionId}/players`,
     /** Real-world league table. */
     table: (competitionId: string) => `/v4/competitions/${competitionId}/table`,
+    /**
+     * Every matchday with its fixtures. The top-level `day` is the *current*
+     * matchday; each fixture names the home team as `t1` and the away team as
+     * `t2`. Within one matchday a team appears exactly once, so it doubles as
+     * a team → next-fixture lookup.
+     */
+    matchdays: (competitionId: string) =>
+      `/v4/competitions/${competitionId}/matchdays`,
   },
 } as const

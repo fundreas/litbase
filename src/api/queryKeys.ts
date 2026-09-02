@@ -57,4 +57,6 @@ export const qk = {
     [...qk.competition(competitionId), 'players'] as const,
   competitionTable: (competitionId: string) =>
     [...qk.competition(competitionId), 'table'] as const,
+  competitionMatchdays: (competitionId: string) =>
+    [...qk.competition(competitionId), 'matchdays'] as const,
 } as const
