@@ -24,13 +24,45 @@ Full standings for every manager in the league.
 
 ## Ordering
 
-The list is rendered **in the order the API returns it**. `/leagues/{id}/ranking`
-already sorts by placement, so no client-side sort is applied — and adding one
-would risk disagreeing with Kickbase's own tie-breaking.
+**The API does not return managers in placement order.** A real response led
+with a manager sitting 6th, so the array order is meaningless for display and
+the client sorts explicitly on the placement field.
 
-`seasonPlacement` is displayed from the payload rather than derived from the
-array index, so ties render correctly if Kickbase ever reports two managers at
-the same place.
+Which placement applies depends on the mode — see [Duel mode](#duel-mode).
+Ties break on the points that decide the table, so the order stays stable and
+meaningful if Kickbase ever reports two managers at the same place.
+
+An earlier version trusted the array order on the assumption that the endpoint
+was pre-sorted. It is not.
+
+## Duel mode
+
+Leagues can be played as duels ("Duell"), where the table is head-to-head
+rather than raw points:
+
+| | Normal | Duel |
+| --- | --- | --- |
+| Sorted and numbered by | `spl` | `hhpl` |
+| Headline points | `sp` | `hhsp` |
+| Secondary line | Team value · matchday points (`mdp`) | Season points (`sp`) · matchday duel points (`hhmp`) |
+
+**Detection is from the data, not a flag.** `hhpl` is present only in duel
+leagues; a normal league carries no `hhpl` at all. The response's top-level
+`gpm` was checked and rejected for this — it distinguishes
+classic/arena/beginner/high-management and says nothing about duels. `hhsp`
+alone is not enough either: it appears as `0` in normal leagues.
+
+### Which field is the duel points
+
+`hhsp` is treated as the headline and `hhmp` as the matchday figure, following
+the convention the rest of the API uses without exception — `sp`/`spl` for
+season, `mdp`/`mdpl` for matchday, so `hh` + `sp` is the head-to-head season
+total. `hhpl` being a *season* table position is the corroborating evidence.
+
+This could not be confirmed against live data: no accessible duel league had
+`hhsp` and `hhmp` diverge (in the one real sample both read `3`, consistent
+with a single duel won). Both figures are therefore shown and labelled, so an
+inverted reading would be visible immediately rather than silent.
 
 ## Row anatomy
 
@@ -91,10 +123,11 @@ page shows:
 - **`lp`** — points per matchday, oldest first, `null` for matchdays not
   played. Already mapped as `pointsPerMatchday`. This is the richest unused
   data in the app.
+- `hhoui` — the current duel opponent's user id. Not mapped; would let a duel
+  league show "vs. <opponent>" per row.
 - `mdpl` — matchday placement, mapped as `matchdayPlacement`, displayed only
   as points today.
 - `adm` — league admin flag, mapped as `isAdmin`, not rendered.
-- `hhsp` / `hhmp` / `hhpl` — head-to-head figures, not yet mapped.
 
 ## Possible extensions
 

@@ -288,8 +288,20 @@ export interface RankingResponse {
   /** League name. */
   ti: string
   cpi: string
-  /** Users, already ordered by placement. */
+  /**
+   * Users — **not** in placement order. The API returns them in some other
+   * order entirely (a real response led with a manager sitting 6th), so the
+   * client must sort. See `useRanking`.
+   */
   us: RankingUser[]
+  /** Game play mode, see GAME_PLAY_MODE. */
+  gpm?: number
+  /** Current matchday. */
+  day?: number
+  /** Season label, e.g. "26/27". */
+  sn?: string
+  /** Number of matchdays in the season. */
+  nd?: number
   ish?: boolean
 }
 
@@ -316,6 +328,28 @@ export interface RankingUser {
   adm?: boolean
   /** Placement change vs. previous matchday. */
   ppc?: number
+
+  /* --- Duel ("Duell") mode ------------------------------------------- */
+
+  /**
+   * Head-to-head **season** points — the running duel total.
+   *
+   * Named after the same convention as `sp`/`mdp`: `hh` + `sp` season, `hh` +
+   * `mp` matchday. Present as `0` in leagues without duels.
+   */
+  hhsp?: number
+  /** Head-to-head **matchday** points — this matchday's duel result. */
+  hhmp?: number
+  /**
+   * Head-to-head placement — the duel table position.
+   *
+   * **Only present in duel leagues**, which is what the app uses to detect the
+   * mode: a normal league carries no `hhpl` at all.
+   */
+  hhpl?: number
+  /** Opponent user id for the current duel. */
+  hhoui?: string
+  hll?: boolean
 }
 
 /* -------------------------------------------------------------------------- */

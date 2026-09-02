@@ -179,6 +179,26 @@ export interface RankedManager {
   placementChange: number
   pointsPerMatchday: Array<number | null>
   isAdmin: boolean
+
+  /** Duel table position (`hhpl`). Only set in duel leagues. */
+  duelPlacement?: number
+  /** Duel points for the season (`hhsp`). */
+  duelPoints?: number
+  /** Duel points from this matchday (`hhmp`). */
+  duelMatchdayPoints?: number
+}
+
+/**
+ * A league's standings, plus how to read them.
+ *
+ * Duel ("Duell") leagues are ranked by head-to-head results rather than raw
+ * points, so which number is the headline depends on the mode.
+ */
+export interface LeagueRanking {
+  /** True when the league is played as duels. */
+  isDuelMode: boolean
+  /** Managers, **sorted by the placement that applies to this mode**. */
+  managers: RankedManager[]
 }
 
 export interface SquadMember {

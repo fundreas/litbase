@@ -120,8 +120,6 @@ only handle their own content.
 │           <Outlet />                │  max-w-3xl, px-3, pb-24
 │    (RouteErrorBoundary + Suspense)  │
 │                                     │
-├─────────────────────────────────────┤
-│  Übersicht  Team  Markt  Rangliste  │  BottomNav — phones only
 └─────────────────────────────────────┘
 ```
 
@@ -158,7 +156,7 @@ renews automatically. It deliberately has **no** "switch league" entry —
 `/leagues` forwards straight into a league, so such an item would bounce right
 back.
 
-## Navigation drawer and bottom bar
+## Navigation drawer
 
 Both read from one config, [`navigation.ts`](../src/components/layout/navigation.ts):
 
@@ -173,19 +171,15 @@ Both read from one config, [`navigation.ts`](../src/components/layout/navigation
 { to: 'players',   label: 'Alle Spieler',       icon: … }
 ```
 
-The drawer shows all entries; the bottom bar shows only `primary` ones, and is
-hidden from `md` up where the drawer suffices.
-
-`alsoMatchesInBar` exists because the bar carries a *coarser* set of
-destinations than the drawer. `/lineup` has its own drawer entry, but no bar
-entry — so in the bar, **Mein Team** stands for the whole team page and stays
-highlighted on both routes. `BottomNav` therefore computes the active item with
-`isBarItemActive()` instead of relying on `NavLink`'s own matching, while the
-drawer lets each entry match only itself.
+The drawer is the **only** navigation surface. There is no bottom tab bar: it
+duplicated the drawer, ate a row of screen height on exactly the small screens
+where the pitch needs it, and forced a second, coarser notion of which entry
+was active (`/lineup` had no bar entry of its own, so **Mein Team** had to
+stand in for it).
 
 Pages can claim the leftover viewport height: `main` is a flex column, so a
 page root with `flex-1` fills it. The [lineup](pages/squad.md#lineup-tab) uses
-this.
+this, and gained a row of height when the bar went.
 
 [`NavDrawer`](../src/components/layout/NavDrawer.tsx) is built on
 [`Drawer`](../src/components/ui/Drawer.tsx), which wraps Radix Dialog — so
@@ -216,8 +210,7 @@ render outside the shell (`LeagueGate`).
 3. Add a child route under `AppShell` in
    [`router.tsx`](../src/routes/router.tsx).
 4. Add an entry to [`navigation.ts`](../src/components/layout/navigation.ts) —
-   that alone puts it in the drawer, and in the bottom bar with
-   `primary: true`.
+   that alone puts it in the drawer.
 
 The page body itself:
 

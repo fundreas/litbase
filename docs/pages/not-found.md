@@ -27,7 +27,7 @@ sibling of `RequireAuth` rather than a child of it. Two consequences:
   redirect to `/login`. That is the honest answer: the URL is wrong regardless
   of who is asking, and bouncing them to a login form for a typo would be
   misleading.
-- **No header, drawer or bottom bar.** There is no `:leagueId` in the URL, so
+- **No header or drawer.** There is no `:leagueId` in the URL, so
   there is no league context to populate them with.
 
 Note this only catches URLs that match nothing. A *valid* shape with a bad

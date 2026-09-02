@@ -453,9 +453,18 @@ its content, so the pitch would overflow rather than fit. The bench below is
 left — with a `min-h-72` floor so a short viewport scrolls instead of
 collapsing.
 
-Rows run attack-first down the page: FWD, MID, DEF, GK, spread with
-`justify-around` so the pitch reads as a pitch at any height rather than a
-cluster of players at the top.
+The pitch is a **`grid-rows-4`: four equal bands, one per position**, running
+attack-first down the page — FWD, MID, DEF, GK — and all four are always
+rendered.
+
+Distributing however many rows happened to exist (`justify-around`) made the
+geometry depend on the lineup: a team with no striker sat its midfield at a
+different height from one that had a striker, which was obvious on a wide
+screen. Fixed bands keep every player where the position says they belong.
+Every band always has content, because the mandatory minimums below guarantee
+at least one avatar or placeholder in each. A crowded band — five defenders on
+a narrow phone — wraps and scrolls inside its own band rather than pushing the
+others out of their share.
 
 #### Placeholders stand for mandatory places only
 

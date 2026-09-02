@@ -26,7 +26,7 @@ only types a password. A *Registrieren* link at the bottom leads to
 ## Layout
 
 Centred single column, `max-w-sm`, no app chrome — no header, drawer or
-bottom bar, because there is no league context yet.
+drawer, because there is no league context yet.
 
 ```
         lit·base

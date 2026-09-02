@@ -307,31 +307,25 @@ export function LineupTab({
       )}
 
       <Pitch className="flex-1">
-        {/* `justify-around` spreads whatever rows exist over the full height,
-            so the pitch reads as a pitch at any size instead of a cluster of
-            players at the top. */}
-        <div className="flex h-full flex-col justify-around gap-1 px-2 py-4">
-          {ROW_ORDER.map((position) => {
-            const players = lineup.filter(
-              (player) => player.position === position,
-            )
-            // Placeholders stand for *mandatory* places only — every legal
-            // formation needs at least one keeper, three defenders, two
-            // midfielders and one forward. Filling out an assumed formation's
-            // remaining slots would instead imply a shape nobody chose.
-            const placeholders = missingAtPosition(counts, position)
-            if (players.length === 0 && placeholders === 0) return null
-            return (
-              <PitchRow
-                key={position}
-                position={position}
-                players={players}
-                placeholders={placeholders}
-                fixtureByTeamId={fixtureByTeamId}
-                onRemove={remove}
-              />
-            )
-          })}
+        {/* Four equal bands, one per position, always rendered.
+            Distributing rows with `justify-around` instead made the geometry
+            depend on how many rows happened to exist, so a lineup missing a
+            position sat at a different height from one that had it — obvious
+            on a big screen. Fixed bands keep every player where the position
+            says they belong. Each band always has content: the mandatory
+            minimums guarantee at least one avatar or placeholder in all
+            four. */}
+        <div className="grid h-full grid-rows-4 px-2 py-3">
+          {ROW_ORDER.map((position) => (
+            <PitchRow
+              key={position}
+              position={position}
+              players={lineup.filter((player) => player.position === position)}
+              placeholders={missingAtPosition(counts, position)}
+              fixtureByTeamId={fixtureByTeamId}
+              onRemove={remove}
+            />
+          ))}
         </div>
       </Pitch>
 
@@ -374,7 +368,10 @@ function PitchRow({
   onRemove: (playerId: string) => void
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-center gap-1">
+    // `min-h-0` lets a crowded band (five defenders on a narrow phone) wrap
+    // and scroll inside itself rather than pushing the other bands out of
+    // their share of the pitch.
+    <div className="no-scrollbar flex min-h-0 flex-wrap items-center justify-center gap-1 overflow-y-auto">
       {players.map((player) => (
         <PitchPlayer
           key={player.id}

@@ -76,7 +76,7 @@ src/
 ├── auth/                session, persistence, silent renewal, route guard
 ├── league/              the active league (from the URL) on context
 ├── components/
-│   ├── layout/          AppShell, Header, NavDrawer, BottomNav, …
+│   ├── layout/          AppShell, Header, NavDrawer, LeagueSwitcher, …
 │   └── ui/              Button, Input, Avatar, Drawer, DropdownMenu, …
 ├── pages/               one file per screen
 ├── routes/              route table + lazy page imports
@@ -138,8 +138,7 @@ query cache.
 3. Add a child route in [src/routes/router.tsx](src/routes/router.tsx).
 4. Add an entry to
    [src/components/layout/navigation.ts](src/components/layout/navigation.ts) —
-   that alone puts it in the drawer, and in the bottom tab bar if you set
-   `primary: true`.
+   that alone puts it in the drawer.
 
 Inside a page:
 
@@ -177,7 +176,8 @@ Components should never see abbreviated keys like `mvt` or `spl`.
 
 ## Mobile notes
 
-- Bottom tab bar for the four hottest pages, hamburger drawer for everything.
+- Hamburger drawer as the single navigation surface — no bottom tab bar, so
+  full-height pages like the lineup get that row back.
 - All controls are at least 44px tall; inputs are 16px so iOS Safari does not
   zoom on focus.
 - `viewport-fit=cover` plus `pt-safe` / `pb-safe` utilities handle notches.

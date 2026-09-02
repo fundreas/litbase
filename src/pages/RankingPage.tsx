@@ -39,11 +39,15 @@ export function RankingPage() {
     <div className="flex flex-col gap-4">
       <PageHeading
         title="Rangliste"
-        subtitle={`${String(data.length)} Manager`}
+        subtitle={
+          data.isDuelMode
+            ? `${String(data.managers.length)} Manager · Duell-Modus`
+            : `${String(data.managers.length)} Manager`
+        }
       />
 
       <ul className="flex flex-col gap-2">
-        {data.map((manager) => {
+        {data.managers.map((manager) => {
           const isMe = manager.id === user?.id
           return (
             <li
@@ -54,7 +58,11 @@ export function RankingPage() {
               )}
             >
               <span className="nums w-7 shrink-0 text-center text-sm font-bold text-faint">
-                {placement(manager.seasonPlacement)}
+                {placement(
+                  data.isDuelMode
+                    ? manager.duelPlacement
+                    : manager.seasonPlacement,
+                )}
               </span>
 
               <Avatar src={manager.image} name={manager.name} size={36} />
@@ -67,14 +75,28 @@ export function RankingPage() {
                   )}
                 </p>
                 <p className="nums truncate text-xs text-muted">
-                  {money(manager.teamValue)} Teamwert ·{' '}
-                  {points(manager.matchdayPoints)} am Spieltag
+                  {data.isDuelMode ? (
+                    <>
+                      {points(manager.seasonPoints)} Punkte ·{' '}
+                      {points(manager.duelMatchdayPoints)} am Spieltag
+                    </>
+                  ) : (
+                    <>
+                      {money(manager.teamValue)} Teamwert ·{' '}
+                      {points(manager.matchdayPoints)} am Spieltag
+                    </>
+                  )}
                 </p>
               </div>
 
               <div className="shrink-0 text-right">
+                {/* In a duel league the table is decided by duel points, so
+                    that is the headline; the raw season total moves to the
+                    secondary line rather than disappearing. */}
                 <p className="nums text-sm font-semibold text-ink">
-                  {points(manager.seasonPoints)}
+                  {points(
+                    data.isDuelMode ? manager.duelPoints : manager.seasonPoints,
+                  )}
                 </p>
                 <PlacementChange value={manager.placementChange} />
               </div>

@@ -24,8 +24,16 @@ export function DashboardPage() {
   const detailsQuery = useLeagueDetails(leagueId)
   const rankingQuery = useRanking(leagueId)
 
-  const me = rankingQuery.data?.find((manager) => manager.id === user?.id)
-  const podium = rankingQuery.data?.slice(0, 3) ?? []
+  const ranking = rankingQuery.data
+  const me = ranking?.managers.find((manager) => manager.id === user?.id)
+  const podium = ranking?.managers.slice(0, 3) ?? []
+  const placementOf = (manager: {
+    seasonPlacement: number
+    duelPlacement?: number
+  }) =>
+    ranking?.isDuelMode === true
+      ? manager.duelPlacement
+      : manager.seasonPlacement
 
   if (managerQuery.isError) {
     return (
@@ -69,12 +77,20 @@ export function DashboardPage() {
             <StatTile label="Teamwert" value={money(me?.teamValue)} />
             <StatTile
               label="Punkte"
-              value={points(me?.seasonPoints)}
-              hint={`Spieltag: ${points(me?.matchdayPoints)}`}
+              value={points(
+                ranking?.isDuelMode === true
+                  ? me?.duelPoints
+                  : me?.seasonPoints,
+              )}
+              hint={`Spieltag: ${points(
+                ranking?.isDuelMode === true
+                  ? me?.duelMatchdayPoints
+                  : me?.matchdayPoints,
+              )}`}
             />
             <StatTile
               label="Platz"
-              value={placement(me?.seasonPlacement)}
+              value={placement(me === undefined ? undefined : placementOf(me))}
               hint={`${String(managerQuery.data?.squadSize ?? 0)} Spieler im Kader`}
             />
           </>
@@ -108,7 +124,7 @@ export function DashboardPage() {
                 className="flex items-center gap-3 px-4 py-3"
               >
                 <span className="nums w-6 shrink-0 text-sm font-semibold text-faint">
-                  {placement(manager.seasonPlacement)}
+                  {placement(placementOf(manager))}
                 </span>
                 <Avatar src={manager.image} name={manager.name} size={32} />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
@@ -118,7 +134,11 @@ export function DashboardPage() {
                   )}
                 </span>
                 <span className="nums shrink-0 text-sm font-semibold text-ink">
-                  {points(manager.seasonPoints)}
+                  {points(
+                    ranking?.isDuelMode === true
+                      ? manager.duelPoints
+                      : manager.seasonPoints,
+                  )}
                 </span>
               </li>
             ))}

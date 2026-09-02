@@ -12,7 +12,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | ---- | -------------- |
 | [Infrastructure](infrastructure.md) | Stack, project layout, styling and design tokens, build output, tooling and scripts |
 | [API layer](api-layer.md) | The axios instance, endpoint registry, wire DTOs → domain models, query keys and caching policy |
-| [Routing and layout](routing-and-layout.md) | Route table, auth and league guards, the app shell, header, drawer and bottom bar |
+| [Routing and layout](routing-and-layout.md) | Route table, auth and league guards, the app shell, header and drawer |
 | [Authentication](authentication.md) | Login, token persistence, silent renewal, and why there is no refresh token |
 | [Building and deploying](deployment.md) | `npm run build`, the Docker image, and how nginx serves the SPA |
 
