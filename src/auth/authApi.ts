@@ -39,14 +39,14 @@ export async function login(
 }
 
 /**
- * Create an account.
+ * Create an account and return its session.
  *
- * Kickbase creates the account outright: there is **no email confirmation
- * step**, and the new account can authenticate immediately (it comes back with
- * `emv: false`, which does not gate access). So this resolves to a usable
- * session, exactly like {@link login}.
+ * Kickbase creates the account outright — there is **no email confirmation
+ * step** — and the response already contains a usable bearer token plus its
+ * expiry. So registering signs the user in directly: no second request, and no
+ * trip through the login form.
  *
- * `unm` may be empty — the server then generates a `KickbaseUser####` name.
+ * `unm` may be empty; the server then generates a `KickbaseUser####` name.
  *
  * The fixed flags are per the Kickbase client's own registration call:
  * `tkn: ''` (no invite token), `rek: true` (terms accepted), `rept: false`
@@ -73,14 +73,12 @@ export async function register(input: {
     anonymousRequest,
   )
 
-  // The account exists at this point either way. Whether registration hands
-  // back a token is unconfirmed, so use one if it is there and otherwise sign
-  // in with the credentials we just submitted.
-  if (data.tkn !== undefined && data.tkn !== '') {
-    return toSession(data.tkn, data.tknex, data.u)
-  }
+  // The token is always present in practice. The fallback exists only so a
+  // future API change degrades into an extra login rather than a broken
+  // session with an empty token.
+  if (!data.tkn) return login(input.email, input.password)
 
-  return login(input.email, input.password)
+  return toSession(data.tkn, data.tknex, data.u)
 }
 
 function toSession(

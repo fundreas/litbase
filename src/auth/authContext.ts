@@ -18,14 +18,17 @@ export interface AuthContextValue {
     remember: boolean
   }) => Promise<void>
   /**
-   * Create an account and sign straight into it. Kickbase has no email
-   * confirmation step, so this resolves to an authenticated session.
+   * Create an account and sign straight into it — the register response
+   * carries a usable token, and Kickbase has no email confirmation step.
+   *
+   * Unlike {@link signIn} there is no `remember` flag: a fresh registration
+   * always persists the credentials, so the session renews itself from the
+   * start rather than expiring on a brand-new account.
    */
   signUp: (input: {
     email: string
     username: string
     password: string
-    remember: boolean
   }) => Promise<void>
   signOut: () => void
 }

@@ -11,10 +11,10 @@ import { storageAvailable } from '@/lib/storage'
 /**
  * Account creation against `/v4/user/register`.
  *
- * Kickbase creates the account outright — there is **no confirmation email to
- * click** — and the new account can authenticate immediately. So a successful
- * submit lands the user straight in the app rather than on a "check your
- * inbox" screen. See `docs/pages/register.md`.
+ * Kickbase creates the account outright — no confirmation email to click — and
+ * the response already carries a usable bearer token. So a successful submit
+ * signs the user in on the spot and goes straight to `/leagues`; the login
+ * form is never involved. See `docs/pages/register.md`.
  */
 export function RegisterPage() {
   const { signUp, isBusy } = useAuth()
@@ -23,7 +23,6 @@ export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,8 +39,11 @@ export function RegisterPage() {
     }
 
     try {
-      await signUp({ email, username, password, remember })
-      await navigate('/', { replace: true })
+      await signUp({ email, username, password })
+      // Straight to the league gate, not via `/` — the new account has no
+      // remembered league to restore, and `replace` keeps the form out of
+      // the back-button history now that the session is live.
+      await navigate('/leagues', { replace: true })
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -129,23 +131,16 @@ export function RegisterPage() {
             }
           />
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-surface px-3 py-3">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(event) => {
-                setRemember(event.target.checked)
-              }}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-accent)]"
-            />
-            <span className="text-sm">
-              <span className="font-medium text-ink">Angemeldet bleiben</span>
-              <span className="mt-0.5 block text-xs leading-snug text-faint">
-                Speichert deine Zugangsdaten im Browser, damit die Sitzung im
-                Hintergrund erneuert werden kann.
-              </span>
-            </span>
-          </label>
+          {/* No "stay signed in" choice here: a new account is always kept
+              signed in, so the wording states what happens rather than
+              offering a toggle. */}
+          <p className="rounded-xl border border-line bg-surface px-3 py-2.5 text-xs leading-snug text-faint">
+            Du wirst direkt angemeldet und bleibst es. Dazu speichert litbase
+            deine Zugangsdaten in diesem Browser, damit die Sitzung im
+            Hintergrund erneuert werden kann. Über{' '}
+            <span className="text-muted">Abmelden</span> werden sie wieder
+            gelöscht.
+          </p>
 
           {error !== null && (
             <p
@@ -158,8 +153,9 @@ export function RegisterPage() {
 
           {!storageAvailable && (
             <p className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs text-warning">
-              Dein Browser blockiert die lokale Speicherung. Die Registrierung
-              funktioniert, die Anmeldung gilt aber nur für diesen Tab.
+              Dein Browser blockiert die lokale Speicherung. Das Konto wird
+              angelegt und du wirst angemeldet, die Sitzung gilt aber nur für
+              diesen Tab.
             </p>
           )}
 

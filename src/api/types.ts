@@ -61,21 +61,21 @@ export interface RegisterRequest {
 /**
  * Registration response.
  *
- * Shaped like {@link LoginResponse} but every session field is optional: the
- * account is definitely created, and the observed response leads with `u`, but
- * whether a token accompanies it is unconfirmed. `register()` therefore signs
- * in explicitly when no token comes back — see `authApi.ts`.
+ * Confirmed against a real registration: it carries a **usable bearer token**
+ * and its expiry, so the new account is signed in without a second round trip.
+ *
+ * Differences from {@link LoginResponse}:
+ *  - No `srvl` — a fresh account belongs to no leagues.
+ *  - No `emve` or chat token.
+ *  - `u` has no `profile`/`uim`, so the avatar falls back to initials.
  */
 export interface RegisterResponse {
   u: LoginUser
-  tkn?: string
-  tknex?: string
-  srvl?: LoginLeague[]
-  /** Email verified. `false` on a fresh account — it does not gate access. */
-  emv?: boolean
-  /** Email verification pending. */
-  emvr?: boolean
-  /** Is a new user — set on the first login after registering. */
+  /** Bearer token, ready to use. */
+  tkn: string
+  /** Token expiry, ISO 8601 — same ~7 days as login. */
+  tknex: string
+  /** Is a new user. `true` on registration. */
   isnu?: boolean
 }
 

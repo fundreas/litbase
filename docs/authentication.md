@@ -36,12 +36,16 @@ So "refreshing" can only mean **re-posting the credentials to
 | Tier | Stored | Enabled | Covers |
 | ---- | ------ | ------- | ------ |
 | 1 | Token + expiry | Always | Closing and reopening the page, for ~7 days |
-| 2 | Credentials | Opt-in checkbox | Silent renewal past the 7-day expiry |
+| 2 | Credentials | Opt-in on login, **always on register** | Silent renewal past the 7-day expiry |
 
-Tier 1 is the safe default and handles the common case entirely. Tier 2 is
-what the "Angemeldet bleiben" checkbox on the login form controls, and it
-means **a password sits in `localStorage`** — so it is off by default and the
-trade-off is spelled out in the form itself, not buried.
+Tier 1 is the safe default and handles the common case entirely. Tier 2 means
+**a password sits in `localStorage`**, so on the login form it is a choice —
+the "Angemeldet bleiben" checkbox, off by default, with the trade-off spelled
+out in the form itself rather than buried.
+
+Registration is the exception: it always enables tier 2, because an account
+created today that could not renew itself would simply stop working in a week.
+See [Sign-up](#sign-up).
 
 The obfuscation applied to the stored password (a byte-wise XOR, then base64,
 in [`authStorage.ts`](../src/auth/authStorage.ts)) is deliberately **not**
@@ -79,13 +83,26 @@ confirmation email to click.** This was established by probing, not assumed;
 the published documentation is silent on it. See
 [Register](pages/register.md#what-the-api-actually-does) for the evidence.
 
-Because the account is immediately usable, `signUp` resolves to a live session
-exactly like `signIn`, and the user lands in the app rather than on a
-"check your inbox" screen.
+**The register response already carries a usable `tkn` and `tknex`** — same
+~7-day expiry as login. So registration is a single request: `signUp` adopts
+that token directly, no follow-up login, and the user goes straight to
+`/leagues` without the login form ever appearing.
 
-`register()` uses the token from the register response when one is present and
-otherwise signs in with the credentials just submitted — the account exists
-either way, so both paths end in a session.
+`signUp` differs from `signIn` in one way: it has **no `remember` flag and
+always stores the credentials**. A brand-new account that could not renew
+itself would just stop working after seven days, which is a poor first
+experience, so the register form states what happens instead of offering a
+toggle. The trade-off is the same one described above — a password in
+`localStorage`, obfuscated but not encrypted — and *Abmelden* clears it.
+
+`register()` keeps a fallback to `login()` for an empty `tkn`. It does not run
+today; it exists so a future API change degrades into an extra round trip
+rather than a session holding an empty token.
+
+Two extra details, both handled: the register response has **no `srvl`**, and
+signing up **clears any remembered league id**, so a new account cannot
+inherit a previous user's league. `adoptSession` does the same whenever the
+signed-in user id changes.
 
 ## How the token reaches requests
 
@@ -177,7 +194,7 @@ under the next.
 
 ## Storage
 
-Three keys, all written through
+Four keys, all written through
 [`lib/storage.ts`](../src/lib/storage.ts), a `localStorage` wrapper that never
 throws. Safari in private mode and storage-blocking browser settings both
 throw on plain access, which would otherwise kill the app at startup. Every
@@ -190,6 +207,9 @@ warn about it.
 | `litbase.credentials.v1` | email + obfuscated password | Only when opted in | Yes |
 | `litbase.lastLeagueId.v1` | Active league, for `/` | On every league mount | Yes |
 | `litbase.lastEmail.v1` | Email only, no password | On sign-in and sign-up | **No** |
+
+Sign-up always writes `credentials` (no opt-in); sign-in writes it only when
+"Angemeldet bleiben" is ticked.
 
 `lastEmail` deliberately survives sign-out — its whole purpose is to pre-fill
 the login form on the *next* sign-in, so clearing it would defeat the point. It
@@ -208,7 +228,7 @@ const {
   expiresAt,        // epoch ms, or null
   isRemembered,     // credentials are stored
   signIn,           // ({ email, password, remember }) => Promise<void>
-  signUp,           // ({ email, username, password, remember }) => Promise<void>
+  signUp,           // ({ email, username, password }) => Promise<void>
   signOut,
 } = useAuth()
 ```

@@ -15,16 +15,17 @@ it was determined by probing the live endpoint.
 **The account is created outright. There is no confirmation link to click, and
 the new account can authenticate immediately.**
 
-Evidence: after a successful register, `POST /v4/user/login` with the same
-credentials returns a full session — a bearer token with the usual ~7-day
-expiry — and the account reports:
+Evidence, in two parts. The register response itself returns `tkn` and
+`tknex` — a working bearer token with the usual ~7-day expiry (see
+[Response](#response)). And logging in separately with the same credentials
+also succeeds immediately. A fresh account reports:
 
 | Field | Value on a fresh account | Meaning |
 | ----- | ------------------------ | ------- |
 | `emv` | `false` | Email **not** verified |
-| `emvr` | `true` | Verification pending |
+| `emvr` | `false` on register, `true` after login | Verification pending |
 | `isnu` | `true` | Is a new user |
-| `srvl` | `[]` | No leagues yet |
+| `srvl` | absent on register, `[]` on login | No leagues yet |
 | `trialExpiry` | ~2 weeks out | Pro trial |
 
 `emv: false` does **not** gate access — the token works and API calls succeed.
@@ -80,22 +81,51 @@ Fixed flags, per spec:
 
 Sent `anonymousRequest`, so no `Authorization` header.
 
+## Response
+
+Confirmed against a real registration:
+
+```json
+{
+  "u": { "id": "4477454", "name": "yo-yo", "email": "…", "emv": false,
+         "emvr": false, "trialExpiry": "2026-09-16T17:36:40Z" },
+  "tkn": "eyJhbGciOiJIUzI1NiIs…",
+  "tknex": "2026-09-09T17:36:40Z",
+  "isnu": true
+}
+```
+
+Three differences from the login response worth knowing:
+
+- **No `srvl`.** A fresh account belongs to no leagues, so the array is absent
+  rather than empty.
+- **No `profile` or `uim` on `u`.** There is no avatar yet, so `Avatar` falls
+  back to initials — which it already handles.
+- **No chat token.** `chttkn` is login-only.
+
 ## Flow
 
 ```
 submit → signUp()
            └─ register()  POST /v4/user/register
-                ├─ token in response? → adopt it
-                └─ no token?          → login() with the same credentials
-           └─ persist session, credentials (if opted in), and the email
-      → navigate('/', { replace: true })
-      → HomeRedirect → /leagues → LeagueGate → "Keine Liga gefunden"
+                └─ response carries tkn + tknex → session, no second request
+           └─ persist token, credentials, and the email
+      → navigate('/leagues', { replace: true })
+      → LeagueGate → "Keine Liga gefunden"
 ```
 
-The token-or-login branch exists because the register response's exact shape is
-**unconfirmed** — the observed response led with `u`, and confirming whether it
-also carries `tkn` would mean creating another account. Both branches end in a
-session, so the ambiguity is handled rather than guessed at.
+**One request.** The register response contains a usable bearer token with the
+same ~7-day expiry as login, so there is no follow-up login call and the login
+form is never involved.
+
+`register()` keeps a fallback to `login()` for the case where `tkn` comes back
+empty. It does not run today; it exists so a future API change degrades into
+an extra round trip rather than a session holding an empty token.
+
+Navigation goes to `/leagues` directly rather than `/`. A new account has no
+remembered league for `HomeRedirect` to restore, and `replace` keeps the
+registration form out of the back-button history now that the session is
+live.
 
 ## Layout
 
@@ -111,7 +141,7 @@ Same centred column as [Login](login.md), no app chrome.
   PASSWORT     [ Mindestens 8 Zeichen  👁 ]
                Zahlen und Groß-/Kleinschreibung mischen.
 
-  ☐ Angemeldet bleiben
+  Du wirst direkt angemeldet und bleibst es …
 
   [     Konto erstellen     ]
 
@@ -121,12 +151,28 @@ Same centred column as [Login](login.md), no app chrome.
 `autoComplete="new-password"` on the password field, so password managers offer
 to generate rather than fill.
 
-## Email is remembered
+## What gets stored
 
-On success the address is written to `litbase.lastEmail.v1` and the
-[Login](login.md) page pre-fills from it. Stored on sign-in too, and
-deliberately **not** cleared on sign-out — it holds no secret and its only job
-is to save typing next time.
+On success, three things are written:
+
+| Key | Contents |
+| --- | -------- |
+| `litbase.session.v1` | The token from the register response, plus its expiry and the user |
+| `litbase.credentials.v1` | Email and obfuscated password |
+| `litbase.lastEmail.v1` | Email only |
+
+**Registration always stores the credentials** — there is no "stay signed in"
+choice on this form, unlike [Login](login.md). The reasoning: a brand-new
+account that could not renew itself would simply stop working after seven days,
+which is a poor first experience. The form says so plainly rather than offering
+a toggle, and *Abmelden* clears them.
+
+The trade-off is the one described in
+[Authentication](../authentication.md#two-tiers-of-persistence): a password in
+`localStorage`, obfuscated but not encrypted.
+
+`lastEmail` is deliberately **not** cleared on sign-out — it holds no secret,
+and its only job is to pre-fill the [Login](login.md) form next time.
 
 ## States
 
@@ -135,7 +181,7 @@ is to save typing next time.
 | Submitting | Button spinner, `aria-busy` |
 | Password under 8 chars | Client-side, before any request |
 | API rejection | `role="alert"` panel with the mapped German message |
-| Storage blocked | Amber warning — registration works, session is tab-only |
+| Storage blocked | Amber warning — the account is still created and the session still works, but only for this tab |
 
 The client-side length check is a courtesy to save a round trip. The server
 remains the authority: Kickbase's actual password policy is not documented, so
@@ -143,9 +189,10 @@ remains the authority: Kickbase's actual password policy is not documented, so
 
 ## Not verified in a browser
 
-The endpoint behaviour above is established from direct probing, but the page
-itself has only passed typecheck, lint and build — it has not been submitted
-from a browser, because doing so would create another real Kickbase account.
+The endpoint behaviour above is established from direct probing and from a real
+registration response, but the page itself has only passed typecheck, lint and
+build — it has not been submitted from a browser, because doing so would create
+another real Kickbase account.
 
 ## Possible extensions
 

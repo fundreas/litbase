@@ -101,6 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string,
       remember: boolean,
     ) => {
+      // A different account must not inherit the previous one's league, which
+      // `/` would otherwise try to restore.
+      if (session !== null && session.user.id !== next.user.id) {
+        clearLastLeagueId()
+      }
+
       if (remember) {
         saveCredentials(email, password)
       } else {
@@ -112,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsRemembered(remember)
       applySession(next)
     },
-    [applySession],
+    [applySession, session],
   )
 
   const signIn = useCallback<AuthContextValue['signIn']>(
@@ -128,11 +134,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const signUp = useCallback<AuthContextValue['signUp']>(
-    async ({ email, username, password, remember }) => {
+    async ({ email, username, password }) => {
       setIsBusy(true)
       try {
         const next = await register({ email, username, password })
-        adoptSession(next, email, password, remember)
+        // Always remembered: the register response hands back a token, and
+        // storing the credentials alongside it is what lets a brand-new
+        // account renew itself instead of dying at the 7-day expiry.
+        adoptSession(next, email, password, true)
+        // A fresh account has no leagues, so there is nothing to remember yet.
+        clearLastLeagueId()
       } finally {
         setIsBusy(false)
       }
