@@ -186,7 +186,12 @@ export interface RankedManager {
   duelPoints?: number
   /** Duel points from this matchday (`hhmp`). */
   duelMatchdayPoints?: number
+  /** The manager faced in the current duel (`hhoui`). */
+  duelOpponentId?: string
 }
+
+/** How a manager's current duel is going. */
+export type DuelResult = 'won' | 'drawn' | 'lost'
 
 /**
  * A league's standings, plus how to read them.

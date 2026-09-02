@@ -55,6 +55,40 @@ visible reason to be there.
 
 In a normal league those would be the same number, so only the total is shown.
 
+### The sort toggle
+
+A duel league has **two legitimate tables**, so the heading carries a toggle on
+the right: **Duell** (the default) or **Punkte**.
+
+It switches the whole view at once — order, placement number *and* headline
+figure. Listing duel placements in points order would look broken, so
+`Punkte` renumbers the rows by `spl` and promotes `sp` to the bold figure, with
+the duel total moving to the muted line. The toggle is not rendered outside
+duel mode, where both options would mean the same thing.
+
+Only the non-default view re-sorts: the hook already returns the league's own
+table.
+
+### Duel result icon
+
+The secondary line under each name reads *team value · matchday Kickbase points
+· result icon* — a green check for a win, a grey dash for a draw, a red cross
+for a loss.
+
+Note the figure there is the manager's **real Kickbase points for the
+matchday** (`mdp`), not their duel points. Those are what the duel was decided
+on; the icon says how it went, so printing the duel points as well would be
+redundant.
+
+**The result is computed, not read off a scoring scale.** `hhoui` names the
+opponent and every manager is in the same payload, so
+`duelResultOf()` compares the two matchday totals directly. Reading `hhmp` as
+3/1/0 would instead be an inference about how Kickbase awards duel points, and
+a league scoring them differently would mislabel every row silently. Checked
+that both sides of a duel always agree (one `won` ↔ one `lost`, or both
+`drawn`), and that a missing or out-of-league opponent yields no icon rather
+than a wrong one.
+
 **Detection is from the data, not a flag.** `hhpl` is present only in duel
 leagues; a normal league carries no `hhpl` at all. The response's top-level
 `gpm` was checked and rejected for this — it distinguishes
@@ -81,7 +115,7 @@ inverted reading would be visible immediately rather than silent.
 | Placement change | `placementChange` (`ppc`), directly under the placement |
 | Avatar | `image` (`uim`), initials fallback |
 | Name | `name`, with a `du` tag in accent colour when `id === user?.id` |
-| Secondary line | Team value and matchday points |
+| Secondary line | Team value, matchday Kickbase points (`mdp`), duel result icon |
 | Points | `seasonPoints`, bold, right-aligned |
 | Change | `placementChange` (`ppc`) |
 
@@ -133,8 +167,9 @@ page shows:
 - **`lp`** — points per matchday, oldest first, `null` for matchdays not
   played. Already mapped as `pointsPerMatchday`. This is the richest unused
   data in the app.
-- `hhoui` — the current duel opponent's user id. Not mapped; would let a duel
-  league show "vs. <opponent>" per row.
+- `hhmp` — the duel points awarded this matchday. Mapped, but unused now that
+  the result is derived from the matchday comparison; the scale (3/1/0?) is
+  still unconfirmed.
 - `mdpl` — matchday placement, mapped as `matchdayPlacement`, displayed only
   as points today.
 - `adm` — league admin flag, mapped as `isAdmin`, not rendered.
@@ -144,7 +179,9 @@ page shows:
 - **A sparkline per manager from `pointsPerMatchday`** — no new request needed,
   and it turns a static table into a form guide.
 - Toggle between season and matchday standings (`mdpl` / `mdp` are both
-  already mapped).
+  already mapped) — the duel/points toggle is the pattern to follow.
+- Show the duel opponent's name per row; `hhoui` is mapped as
+  `duelOpponentId` and the whole field is already addressable by id.
 - Tap a manager to open their squad. Kickbase exposes other managers' squads,
   but the endpoint is not in [`endpoints.ts`](../../src/api/endpoints.ts) yet
   and has not been probed.
