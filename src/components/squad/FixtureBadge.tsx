@@ -35,11 +35,15 @@ export function FixtureBadge({
   className?: string
   /** `onPitch` swaps to light colours, for use over the grass. */
   tone?: 'default' | 'onPitch'
-  size?: Size
+  /** A preset, or an explicit crest size in px for continuous scaling. */
+  size?: Size | number
   /** `stacked` puts the icon above the crest, to fill a tall slot. */
   layout?: 'inline' | 'stacked'
 }) {
-  const { icon, crest } = SIZES[size]
+  const { icon, crest } =
+    typeof size === 'number'
+      ? { crest: size, icon: Math.max(9, Math.round(size * 0.66)) }
+      : SIZES[size]
 
   if (fixture === undefined) {
     // No fixture this matchday — a bye, or the club is out of the competition.

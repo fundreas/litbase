@@ -41,6 +41,78 @@ const BENCH_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 const SAVE_DEBOUNCE_MS = 600
 
 /**
+ * Bounds for the on-pitch avatar, which scales with the pitch itself.
+ *
+ * A fixed 44px looked right on a phone and lost on a 1280px screen, where the
+ * pitch is ~480px tall and the players were islands in it. The size is derived
+ * from the space each band actually has, so it tracks the window continuously
+ * rather than stepping at breakpoints.
+ */
+const AVATAR_MIN = 40
+const AVATAR_MAX = 96
+/** How much wider than its avatar a player button is (its own padding). */
+const PLAYER_PADDING = 12
+/** The `gap-1` between two players in the same band. */
+const PLAYER_GAP = 4
+/** Button `p-1`, top and bottom. */
+const PLAYER_CHROME_HEIGHT = 8
+/** The plate's own `py-0.5` and the `gap-0.5` between its two lines. */
+const PLATE_CHROME_HEIGHT = 6
+/** How far the name plate rides up over the portrait, as a share of it. */
+const PLATE_OVERLAP_RATIO = 0.15
+
+/** Everything in a player card is derived from one number. */
+function playerMetrics(avatar: number) {
+  return {
+    avatar,
+    width: avatar + PLAYER_PADDING,
+    /** The plate spans the portrait exactly, so the card reads as one object. */
+    plateWidth: avatar,
+    plateOverlap: Math.round(avatar * PLATE_OVERLAP_RATIO),
+    nameFontSize: Math.min(16, Math.max(10, Math.round(avatar * 0.2))),
+    badgeCrest: Math.min(26, Math.max(14, Math.round(avatar * 0.3))),
+    removeIcon: Math.round(avatar * 0.36),
+  }
+}
+
+export type PlayerMetrics = ReturnType<typeof playerMetrics>
+
+/**
+ * Total height a card occupies.
+ *
+ * The plate overlaps the portrait's lower edge, so it costs the card less than
+ * its own height — that overlap has to come out of the budget or the sizing
+ * search would leave a gap under every player.
+ */
+function playerHeight(metrics: PlayerMetrics): number {
+  const nameLine = Math.round(metrics.nameFontSize * 1.25)
+  const plate = nameLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
+  return PLAYER_CHROME_HEIGHT + metrics.avatar - metrics.plateOverlap + plate
+}
+
+/**
+ * The largest avatar that fits both the band's height and its width.
+ *
+ * Searched rather than solved because the plate does not scale linearly with
+ * the portrait — the font size and crest are both clamped, so the height is
+ * piecewise. Stepping down from the width limit until the card fits the band
+ * is exact and costs at most a few dozen iterations.
+ *
+ * Fitting *exactly* matters more than it looks. An earlier version took a
+ * fixed 54% of the band, which overshot by ~2px; the card then pushed the
+ * pitch taller, the page gained a scrollbar, the scrollbar narrowed the row,
+ * and the size oscillated between two values on every render.
+ */
+function fitAvatar(bandHeight: number, maxWidth: number): PlayerMetrics {
+  const ceiling = Math.min(AVATAR_MAX, Math.floor(maxWidth))
+  for (let avatar = ceiling; avatar > AVATAR_MIN; avatar -= 1) {
+    const metrics = playerMetrics(avatar)
+    if (playerHeight(metrics) <= bandHeight) return metrics
+  }
+  return playerMetrics(AVATAR_MIN)
+}
+
+/**
  * Interactive lineup, persisted to Kickbase.
  *
  * Every change is saved via `POST /v4/leagues/{id}/lineup`, which replaces the
@@ -104,6 +176,35 @@ export function LineupTab({
   const matchday = useCurrentMatchday(competitionId)
   const fixtureByTeamId = matchday.data?.fixtureByTeamId
 
+  // The pitch is measured rather than guessed at, so the avatars scale with
+  // whatever height the flex chain actually hands it.
+  const pitchRef = useRef<HTMLDivElement>(null)
+  const [pitchBox, setPitchBox] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const element = pitchRef.current
+    if (element === null) return
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect
+      if (!rect) return
+      const next = {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      }
+      // Rounded, and only when it actually moved: a resize observer that
+      // re-renders on sub-pixel noise is one step from an infinite loop.
+      setPitchBox((current) =>
+        current.width === next.width && current.height === next.height
+          ? current
+          : next,
+      )
+    })
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
   /**
    * An incomplete lineup is legal and it saves — but every empty slot costs
    * 100 points, so the warning quotes the actual figure rather than the count.
@@ -125,6 +226,37 @@ export function LineupTab({
   const incompleteMessage = isSquadTooSmall
     ? `Unvollständige Aufstellung: dein Kader hat nur ${String(squad.length)} von ${String(LINEUP_SIZE)} nötigen Spielern. ${cost} Kaufe Spieler auf dem Transfermarkt.`
     : `Unvollständige Aufstellung: ${cost}`
+
+  /**
+   * How large an avatar can be without crowding its band.
+   *
+   * Two limits, whichever bites first: the height a band has left after the
+   * name plate, and the width the *busiest* band can give each player. A row
+   * of five defenders is what constrains a narrow screen; the band height is
+   * what constrains a wide one.
+   */
+  const metrics = useMemo(() => {
+    if (pitchBox.height === 0) return playerMetrics(AVATAR_MIN)
+
+    const busiestBand = Math.max(
+      1,
+      ...ROW_ORDER.map(
+        (position) =>
+          lineup.filter((player) => player.position === position).length +
+          missingAtPosition(counts, position),
+      ),
+    )
+
+    // Solve for the avatar that makes the busiest band exactly fit:
+    //   n * (size + PLAYER_PADDING) + (n - 1) * PLAYER_GAP <= width
+    // Dividing the width by the count alone overshoots, because each button is
+    // wider than its avatar and the gaps still have to go somewhere — which
+    // is what made a row of five defenders wrap on a phone.
+    const usable = pitchBox.width - (busiestBand - 1) * PLAYER_GAP
+    const byWidth = usable / busiestBand - PLAYER_PADDING
+
+    return fitAvatar(pitchBox.height / ROW_ORDER.length, byWidth)
+  }, [pitchBox, lineup, counts])
 
   /* ---------------------------------------------------------------------- */
   /* Persistence                                                             */
@@ -320,7 +452,10 @@ export function LineupTab({
             at its natural 394px inside a 479px pitch and left a band of empty
             grass under the keeper. Growing into the space is the reliable
             way to fill it. */}
-        <div className="grid min-h-0 flex-1 grid-rows-4 px-2 py-3">
+        <div
+          ref={pitchRef}
+          className="grid min-h-0 flex-1 grid-rows-4 px-2 py-3"
+        >
           {ROW_ORDER.map((position) => (
             <PitchRow
               key={position}
@@ -328,6 +463,7 @@ export function LineupTab({
               players={lineup.filter((player) => player.position === position)}
               placeholders={missingAtPosition(counts, position)}
               fixtureByTeamId={fixtureByTeamId}
+              metrics={metrics}
               onRemove={remove}
             />
           ))}
@@ -363,6 +499,7 @@ function PitchRow({
   players,
   placeholders,
   fixtureByTeamId,
+  metrics,
   onRemove,
 }: {
   position: PositionKey
@@ -370,25 +507,36 @@ function PitchRow({
   /** Mandatory places of this position still to fill. */
   placeholders: number
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  metrics: PlayerMetrics
   onRemove: (playerId: string) => void
 }) {
   return (
-    // `min-h-0` lets a crowded band (five defenders on a narrow phone) wrap
-    // and scroll inside itself rather than pushing the other bands out of
-    // their share of the pitch.
-    <div className="no-scrollbar flex min-h-0 flex-wrap items-center justify-center gap-1 overflow-y-auto">
+    /* Deliberately `flex-nowrap` + `overflow-hidden`.
+     *
+     * Wrapping turned a width overflow into extra height, which fed straight
+     * back into the avatar sizing: wider avatars → the band wraps → the band
+     * is taller → `byHeight` allows a wider avatar → it wraps harder. That
+     * loop settled with a 854px pitch on an 844px screen. With nowrap, width
+     * pressure can never become height, so the pitch height stays purely
+     * flex-driven and the calculation has a fixed point.
+     *
+     * The size calculation already guarantees the busiest band fits, so the
+     * clipping here is a backstop, not a normal state.
+     */
+    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
       {players.map((player) => (
         <PitchPlayer
           key={player.id}
           player={player}
           fixture={fixtureByTeamId?.get(player.teamId)}
+          metrics={metrics}
           onClick={() => {
             onRemove(player.id)
           }}
         />
       ))}
       {Array.from({ length: placeholders }, (_, index) => (
-        <EmptySlot key={index} position={position} />
+        <EmptySlot key={index} position={position} metrics={metrics} />
       ))}
     </div>
   )
@@ -398,19 +546,42 @@ function PitchRow({
  * A place the lineup still has to fill. Not interactive: tapping it could not
  * do anything unambiguous, and the bench below is where players are picked.
  */
-function EmptySlot({ position }: { position: PositionKey }) {
+function EmptySlot({
+  position,
+  metrics,
+}: {
+  position: PositionKey
+  metrics: PlayerMetrics
+}) {
   const label = `Noch kein ${POSITION_NAME[position]} aufgestellt`
   return (
     <span
       role="img"
       aria-label={label}
       title={label}
-      className="flex w-16 shrink-0 flex-col items-center gap-1 p-1"
+      // Matches PitchPlayer exactly, so an open place holds the same ground a
+      // filled one would.
+      style={{ width: metrics.width }}
+      className="flex shrink-0 flex-col items-center p-1"
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-dashed border-white/45 text-[0.625rem] font-semibold text-white/70">
+      <span
+        style={{
+          width: metrics.avatar,
+          height: metrics.avatar,
+          fontSize: metrics.nameFontSize,
+        }}
+        className="flex items-center justify-center rounded-full border-2 border-dashed border-white/45 font-semibold text-white/70"
+      >
         {POSITION_LABEL[position]}
       </span>
-      <span className="rounded bg-black/35 px-1 py-0.5 text-[0.625rem] font-medium text-white/70">
+      <span
+        style={{
+          width: metrics.plateWidth,
+          marginTop: -metrics.plateOverlap,
+          fontSize: metrics.nameFontSize,
+        }}
+        className="relative truncate rounded bg-black/50 px-1 py-0.5 text-center font-medium text-white/70"
+      >
         offen
       </span>
     </span>
@@ -420,10 +591,12 @@ function EmptySlot({ position }: { position: PositionKey }) {
 function PitchPlayer({
   player,
   fixture,
+  metrics,
   onClick,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
+  metrics: PlayerMetrics
   onClick: () => void
 }) {
   return (
@@ -432,13 +605,17 @@ function PitchPlayer({
       onClick={onClick}
       title={`${player.lastName} – aus der Aufstellung nehmen`}
       aria-label={`${player.lastName} aus der Aufstellung nehmen`}
-      className="group flex w-16 shrink-0 flex-col items-center gap-1 rounded-lg p-1 transition-colors active:bg-black/20"
+      // Width follows the avatar exactly. A minimum floor here would fight
+      // the size calculation, which already solves for the busiest band —
+      // a 64px floor is what made five defenders wrap on a phone.
+      style={{ width: metrics.width }}
+      className="group flex shrink-0 flex-col items-center rounded-lg p-1 transition-colors active:bg-black/20"
     >
       <span className="relative">
         <Avatar
           src={player.image}
           name={player.lastName}
-          size={44}
+          size={metrics.avatar}
           className="ring-2 ring-white/70"
         />
         {player.status !== 0 && (
@@ -449,17 +626,34 @@ function PitchPlayer({
         )}
         {/* Only shows on hover/focus — on touch the label already explains it. */}
         <span className="absolute inset-0 hidden items-center justify-center rounded-full bg-black/55 group-hover:flex">
-          <UserMinus size={16} className="text-white" />
+          <UserMinus size={metrics.removeIcon} className="text-white" />
         </span>
       </span>
 
       {/* One plate, two lines: name over fixture. Two separate chips read as
           unrelated badges floating over the grass. */}
-      <span className="flex max-w-full flex-col items-center gap-0.5 rounded bg-black/55 px-1 py-0.5 leading-tight">
-        <span className="max-w-full truncate text-[0.625rem] font-semibold text-white">
+      {/* The plate scales with the portrait, spans its full width, and rides
+          up over its lower edge so the two read as one object rather than a
+          caption floating beneath a circle. `relative` puts it above the
+          portrait in paint order. */}
+      <span
+        style={{
+          width: metrics.plateWidth,
+          marginTop: -metrics.plateOverlap,
+        }}
+        className="relative flex flex-col items-center gap-0.5 rounded bg-black/70 px-1 py-0.5 leading-tight"
+      >
+        <span
+          style={{ fontSize: metrics.nameFontSize }}
+          className="max-w-full truncate font-semibold text-white"
+        >
           {player.lastName}
         </span>
-        <FixtureBadge fixture={fixture} tone="onPitch" size="sm" />
+        <FixtureBadge
+          fixture={fixture}
+          tone="onPitch"
+          size={metrics.badgeCrest}
+        />
       </span>
     </button>
   )

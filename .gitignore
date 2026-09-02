@@ -36,3 +36,5 @@ kickbase-api.md
 
 # Browser automation artifacts
 .playwright-mcp/
+# Screenshots dropped in the repo root by the Playwright MCP server
+/*.png

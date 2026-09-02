@@ -532,6 +532,42 @@ at least one avatar or placeholder in each. A crowded band — five defenders on
 a narrow phone — wraps and scrolls inside its own band rather than pushing the
 others out of their share.
 
+#### Players scale with the pitch
+
+A fixed 44px portrait looked right on a phone and lost on a 1280px screen. The
+whole card now scales — portrait, name, fixture badge and the remove overlay
+are all derived from one number by `playerMetrics()`, so nothing is left
+half-sized. Measured: 54px avatars with 10px names at 390px wide, 71px with
+14px names at 1280px.
+
+The name plate spans the portrait exactly and rides up over its lower edge by
+15%, so the two read as one object rather than a caption floating under a
+circle.
+
+The size comes from a `ResizeObserver` on the grid, then `fitAvatar()` takes
+the largest size that satisfies **both** limits: the width the busiest band can
+give each player, and the height a band has after the plate. It searches
+downward rather than solving, because the font size and crest are clamped and
+the height is therefore piecewise.
+
+**Fitting exactly is what makes it stable**, and getting there took three
+attempts worth recording:
+
+1. Dividing the row width by the player count overshot — each button is wider
+   than its avatar and the gaps need room too — so five defenders **wrapped**
+   on a phone.
+2. Wrapping turned width pressure into height, which fed back into the height
+   limit: wider avatars → wrap → taller band → the formula allowed a wider
+   avatar. That loop settled with an 854px pitch on an 844px screen. Rows are
+   now `flex-nowrap` with `overflow-hidden`, so width can never become height.
+3. Taking a flat 54% of the band overshot by ~2px. The card pushed the pitch
+   taller, the page gained a scrollbar, the scrollbar narrowed the row, and the
+   size oscillated between two values forever. Hence solving for a card that
+   provably fits.
+
+All three were caught by measuring in a real browser at 390×844 and 1280×900,
+including re-measuring after a delay to prove the layout settles.
+
 #### Placeholders stand for mandatory places only
 
 A position short of the minimum every formation requires shows a dashed slot
