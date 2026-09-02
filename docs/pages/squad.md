@@ -1,4 +1,4 @@
-# Squad — "Mein Team"
+# Squad — "Mannschaft"
 
 [← Back to index](../README.md) · Routes `/leagues/:leagueId/squad` and
 `/leagues/:leagueId/lineup` ·
@@ -22,10 +22,19 @@ list lives in [`PlayerListTab`](../../src/components/squad/PlayerListTab.tsx)
 and the lineup in [`LineupTab`](../../src/components/squad/LineupTab.tsx); the
 page itself only owns loading, error and empty states plus the tab shell.
 
+**Both tabs edit the same lineup.** The state and every mutation live in
+[`useLineupEditor`](../../src/components/squad/useLineupEditor.ts), held by an
+inner `SquadTabs` component and passed to both — a hook cannot sit behind the
+page's loading and error returns, and the squad it seeds from only exists after
+them. The swap dialog is rendered once at that level too, since either tab can
+open it. Two copies of this state would let the tabs disagree; the list
+previously dodged that by reading the server's `lo` instead, which lagged by a
+save round trip.
+
 ## Kader tab — layout
 
 ```
-  Mein Team
+  Mannschaft
   20 Spieler · 194,4 Mio. € Gesamtwert
 
   TW · 2
@@ -60,7 +69,7 @@ duplicated here.
 
 | Element | Source | Notes |
 | ------- | ------ | ----- |
-| Lineup rail | `player.lineupOrder` | Full-height rail, accent-tinted with a shirt icon when fielded |
+| Lineup rail | `editor.isFielded()` | Full-height **button**, accent-tinted with a solid shirt when fielded, faint outline when not |
 | Image | `player.image` (`pim`) | Rounded square via `Avatar square`, falls back to initials |
 | Name | `player.lastName` | Last name only — first names rarely fit |
 | Status dot | `player.status !== 0` | Red `●` with `title="Nicht einsatzbereit"` |
@@ -70,15 +79,26 @@ duplicated here.
 | Fixture panel | `useCurrentMatchday` | Full-height panel on the right, house/aeroplane + opponent crest |
 
 The lineup rail is **always rendered** and only tinted when the player is
-fielded, so rows stay aligned either way. Membership comes from the server's
-`lo` slot index — presence, not truthiness, since slot 0 is the keeper.
+fielded, so rows stay aligned either way. It is also the row's lineup control:
 
-Reading it from the server rather than from `LineupTab`'s state is correct
-here: Radix unmounts the inactive tab, so the lineup tab's local state is
-already discarded on every tab switch and re-seeded from `lo`. `lo` is
-effectively the store. The one visible consequence is that switching tabs
-during the save debounce can show the previous membership for about a second,
-until the refetch lands.
+| Rail tapped on | What happens |
+| -------------- | ------------ |
+| A benched player, position has room | Fielded immediately, saved |
+| A benched player, position full | The **swap dialog** opens — same one the pitch uses |
+| A fielded player | A **confirmation** first: *"Spieler aus der Aufstellung nehmen?"* |
+
+**Adding is immediate; removing asks first.** The asymmetry is deliberate. The
+rail is small, sits at the very edge of the row, and the rows scroll under a
+thumb — a mis-tap on a fielded player would quietly bench him and cost 100
+points, with nothing on this screen showing what had happened. A mis-tap that
+*adds* someone is visible and free to undo, so it needs no dialog. On the pitch
+a portrait is a large, deliberate target and the removal shows itself, so that
+path stays immediate.
+
+Membership comes from the shared editor, not from the server's `lo`, so an edit
+made here is on the pitch the moment you switch across. An earlier version read
+`lo` directly and showed stale rows for about a second after every edit, until
+the save round trip and refetch landed.
 
 The bottom-right figure is **`profitLoss` alone** — how much has been gained or
 lost *against the purchase price*, signed and coloured.

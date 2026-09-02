@@ -1,12 +1,4 @@
-import {
-  LayoutDashboard,
-  ListOrdered,
-  Store,
-  Table2,
-  Trophy,
-  Users,
-  type LucideIcon,
-} from 'lucide-react'
+import { LayoutDashboard, Trophy, Users, type LucideIcon } from 'lucide-react'
 
 export interface NavItem {
   /** Path segment appended to `/leagues/:leagueId`. */
@@ -16,7 +8,7 @@ export interface NavItem {
   /**
    * Sibling segments that are part of the same page.
    *
-   * "Mein Team" points at `/squad` but the team page also lives at `/lineup`,
+   * "Mannschaft" points at `/squad` but the team page also lives at `/lineup`,
    * reached by its tabs. Without this the drawer would highlight nothing while
    * the lineup tab is open.
    */
@@ -38,7 +30,7 @@ export function isNavItemActive(
  * The app's navigation. Add a page here and it appears in the drawer —
  * nothing else to wire up.
  *
- * "Mein Team" is the only entry for the team page even though `/lineup` is its
+ * "Mannschaft" is the only entry for the team page even though `/lineup` is its
  * own route: the tabs on that page are the natural way between the two views,
  * and a second drawer entry for a sibling tab is noise.
  *
@@ -46,12 +38,15 @@ export function isNavItemActive(
  * height on exactly the small screens where the pitch needs it, and forced a
  * second, coarser notion of "which entry is active". The drawer is the single
  * navigation surface.
+ *
+ * **Only built pages are listed.** `market` (Transfermarkt), `table`
+ * (Bundesliga-Tabelle) and `players` (Alle Spieler) are still
+ * `PagePlaceholder` stubs, and offering them in the drawer promises a screen
+ * that is not there. Their routes are untouched, so a direct URL still opens
+ * the stub — add the entry back here when the page exists and it reappears.
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
-  { to: 'squad', label: 'Mein Team', icon: Users, alsoMatches: ['lineup'] },
-  { to: 'market', label: 'Transfermarkt', icon: Store },
+  { to: 'squad', label: 'Mannschaft', icon: Users, alsoMatches: ['lineup'] },
   { to: 'ranking', label: 'Rangliste', icon: Trophy },
-  { to: 'table', label: 'Bundesliga-Tabelle', icon: Table2 },
-  { to: 'players', label: 'Alle Spieler', icon: ListOrdered },
 ]

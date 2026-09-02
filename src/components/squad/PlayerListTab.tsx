@@ -1,6 +1,6 @@
 import { Shirt } from 'lucide-react'
+import { useState } from 'react'
 
-import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import {
   POSITION_LABEL,
   type PositionKey,
@@ -8,35 +8,52 @@ import {
   type TeamFixture,
 } from '@/api/models'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
+import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cn } from '@/lib/cn'
 import { money, moneyDelta, points } from '@/lib/format'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 
 /**
- * The full squad as a grouped list.
+ * The full squad as a grouped list, and a second place to edit the lineup.
  *
- * Lineup membership is read from the server's `lo` slot index rather than from
- * `LineupTab`'s local state. That is the right source here: the tabs never
- * mount together (Radix unmounts the inactive one), so the lineup tab's state
- * is already discarded on every tab switch and re-seeded from `lo`. `lo` is
- * effectively the store, and every edit is persisted and then invalidates this
- * query.
+ * The shirt rail on each row is a control: tap it to field a benched player or
+ * to take a fielded one off. Membership comes from the shared editor rather
+ * than from the server's `lo`, so a change made here is on the pitch the moment
+ * you switch tabs — `lo` lags by a save round trip and used to show stale rows
+ * for about a second after every edit.
  *
- * The one visible consequence: switching tabs during the save debounce can
- * show the previous membership for about a second, until the refetch lands.
+ * **Adding is immediate; removing asks first.** The asymmetry is deliberate.
+ * The rail is small, sits at the very edge of the row, and the rows scroll
+ * under a thumb — a mis-tap on a fielded player would quietly drop him and cost
+ * 100 points, and nothing on this screen would show what had happened. A
+ * mis-tap that *adds* someone is visible and free to undo, so it needs no
+ * dialog. On the pitch a player's portrait is a large, deliberate target and
+ * the removal shows itself, so that path stays immediate.
  */
 export function PlayerListTab({
   squad,
-  competitionId,
+  editor,
+  fixtureByTeamId,
 }: {
   squad: SquadMember[]
-  competitionId: string
+  editor: LineupEditor
+  fixtureByTeamId: Map<string, TeamFixture> | undefined
 }) {
-  // Shares the cache with the lineup tab, so this costs no extra request.
-  const matchday = useCurrentMatchday(competitionId)
-  const fixtureByTeamId = matchday.data?.fixtureByTeamId
+  // The player awaiting a removal confirmation, if any.
+  const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
+
+  const handleToggle = (player: SquadMember) => {
+    if (editor.isFielded(player.id)) {
+      setPendingRemoval(player)
+      return
+    }
+    // Adding, or opening the swap dialog when the position is full — both are
+    // the editor's job.
+    editor.toggle(player)
+  }
 
   const byPosition = POSITION_ORDER.map((position) => ({
     position,
@@ -57,43 +74,89 @@ export function PlayerListTab({
               <PlayerRow
                 key={player.id}
                 player={player}
+                isFielded={editor.isFielded(player.id)}
                 fixture={fixtureByTeamId?.get(player.teamId)}
+                onToggle={handleToggle}
               />
             ))}
           </ul>
         </section>
       ))}
+
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemoval(null)
+        }}
+        title="Spieler aus der Aufstellung nehmen?"
+        description={
+          pendingRemoval === null ? undefined : (
+            <>
+              <strong className="font-semibold text-ink">
+                {/* `firstName` is optional in the API — filtered rather than
+                    interpolated, so a missing one leaves no stray space. */}
+                {[pendingRemoval.firstName, pendingRemoval.lastName]
+                  .filter(Boolean)
+                  .join(' ')}
+              </strong>{' '}
+              wird auf die Bank gesetzt. Bleibt der Platz leer, kostet dich das
+              100 Punkte.
+            </>
+          )
+        }
+        confirmLabel="Auf die Bank"
+        onConfirm={() => {
+          if (pendingRemoval !== null) editor.remove(pendingRemoval.id)
+          setPendingRemoval(null)
+        }}
+      />
     </div>
   )
 }
 
 function PlayerRow({
   player,
+  isFielded,
   fixture,
+  onToggle,
 }: {
   player: SquadMember
+  isFielded: boolean
   fixture: TeamFixture | undefined
+  onToggle: (player: SquadMember) => void
 }) {
-  // `lo` is a 0-based slot, so presence — not truthiness — is the test.
-  const isFielded = player.lineupOrder !== undefined
-
   return (
     <li className="flex items-stretch overflow-hidden rounded-card border border-line bg-surface">
-      {/* Full-height rail. Always rendered, tinted only when fielded, so rows
-          stay aligned whether or not the player is in the lineup. */}
-      <span
-        aria-hidden={!isFielded}
-        title={isFielded ? 'Aufgestellt' : undefined}
+      {/* Full-height rail, and the row's lineup control. Always rendered,
+          tinted only when fielded, so rows stay aligned either way. The
+          outline shirt reads as an empty slot inviting a tap, rather than as
+          a disabled version of the filled one. */}
+      <button
+        type="button"
+        onClick={() => {
+          onToggle(player)
+        }}
+        aria-pressed={isFielded}
+        title={
+          isFielded ? 'Aus der Aufstellung nehmen' : 'In die Aufstellung setzen'
+        }
         className={cn(
-          'flex w-7 shrink-0 items-center justify-center self-stretch border-r',
+          'flex w-7 shrink-0 items-center justify-center self-stretch border-r transition-colors',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
           isFielded
-            ? 'border-accent/30 bg-accent/15 text-accent'
-            : 'border-line bg-surface-2/40',
+            ? 'border-accent/30 bg-accent/15 text-accent hover:bg-accent/25'
+            : 'border-line bg-surface-2/40 text-faint hover:bg-surface-2',
         )}
       >
-        {isFielded && <Shirt size={15} />}
-      </span>
-      {isFielded && <span className="sr-only">Aufgestellt</span>}
+        <span className="sr-only">
+          {isFielded ? 'Aufgestellt' : 'Nicht aufgestellt'}
+        </span>
+        <Shirt
+          size={15}
+          strokeWidth={isFielded ? 2 : 1.5}
+          className={cn(!isFielded && 'opacity-40')}
+        />
+      </button>
 
       <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
         <Avatar

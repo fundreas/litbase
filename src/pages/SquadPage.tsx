@@ -1,9 +1,13 @@
 import { useLocation, useNavigate } from 'react-router'
 
+import { useCurrentMatchday } from '@/api/hooks/useMatchday'
+import type { SquadMember } from '@/api/models'
 import { useSquad } from '@/api/hooks/useSquad'
 import { PageHeading } from '@/components/PageHeading'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
+import { SwapDialog } from '@/components/squad/SwapDialog'
+import { useLineupEditor } from '@/components/squad/useLineupEditor'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
@@ -45,7 +49,7 @@ export function SquadPage() {
   if (isPending) {
     return (
       <div className="flex flex-col gap-4">
-        <PageHeading title="Mein Team" />
+        <PageHeading title="Mannschaft" />
         <SkeletonList rows={8} />
       </div>
     )
@@ -79,7 +83,7 @@ export function SquadPage() {
        `min-height: auto` and would refuse to shrink below its content. */
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeading
-        title="Mein Team"
+        title="Mannschaft"
         subtitle={`${String(data.length)} Spieler · ${money(totalValue)} Gesamtwert`}
       />
 
@@ -93,20 +97,67 @@ export function SquadPage() {
           <TabsTrigger value={TABS.lineup}>Aufstellung</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={TABS.squad}>
-          <PlayerListTab squad={data} competitionId={competitionId} />
-        </TabsContent>
-        <TabsContent
-          value={TABS.lineup}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <LineupTab
-            squad={data}
-            leagueId={leagueId}
-            competitionId={competitionId}
-          />
-        </TabsContent>
+        <SquadTabs
+          squad={data}
+          leagueId={leagueId}
+          competitionId={competitionId}
+        />
       </Tabs>
     </div>
+  )
+}
+
+/**
+ * Both tabs, sharing one lineup editor.
+ *
+ * Split from `SquadPage` because the editor is seeded from the squad, and the
+ * squad only exists after the loading and error branches above have returned —
+ * a hook cannot live behind those. Holding the editor here rather than inside
+ * each tab is what lets the list and the pitch edit the *same* lineup: pick a
+ * player from his row and he is on the pitch when you switch across, with no
+ * round trip in between.
+ *
+ * The swap dialog is rendered once, here, for the same reason. Either tab can
+ * open it — the tab that is not visible keeps its trigger, and the dialog is
+ * the editor's, not the tab's.
+ */
+function SquadTabs({
+  squad,
+  leagueId,
+  competitionId,
+}: {
+  squad: SquadMember[]
+  leagueId: string
+  competitionId: string
+}) {
+  const editor = useLineupEditor({ squad, leagueId })
+  const matchday = useCurrentMatchday(competitionId)
+  const fixtureByTeamId = matchday.data?.fixtureByTeamId
+
+  return (
+    <>
+      <TabsContent value={TABS.squad}>
+        <PlayerListTab
+          squad={squad}
+          editor={editor}
+          fixtureByTeamId={fixtureByTeamId}
+        />
+      </TabsContent>
+      <TabsContent value={TABS.lineup} className="flex min-h-0 flex-1 flex-col">
+        <LineupTab
+          squad={squad}
+          editor={editor}
+          fixtureByTeamId={fixtureByTeamId}
+        />
+      </TabsContent>
+
+      <SwapDialog
+        incoming={editor.incoming}
+        lineup={editor.lineup}
+        fixtureByTeamId={fixtureByTeamId}
+        onCancel={editor.cancelSwap}
+        onConfirm={editor.confirmSwap}
+      />
+    </>
   )
 }

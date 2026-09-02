@@ -158,20 +158,23 @@ back.
 
 ## Navigation drawer
 
-Both read from one config, [`navigation.ts`](../src/components/layout/navigation.ts):
+The drawer reads one config,
+[`navigation.ts`](../src/components/layout/navigation.ts):
 
 ```ts
-{ to: 'dashboard', label: 'Übersicht',          icon: …, primary: true  }
-{ to: 'squad',     label: 'Mein Team',          icon: …, primary: true,
-                   alsoMatchesInBar: ['lineup'] }
-{ to: 'lineup',    label: 'Aufstellung',        icon: … }
-{ to: 'market',    label: 'Transfermarkt',      icon: …, primary: true  }
-{ to: 'ranking',   label: 'Rangliste',          icon: …, primary: true  }
-{ to: 'table',     label: 'Bundesliga-Tabelle', icon: … }
-{ to: 'players',   label: 'Alle Spieler',       icon: … }
+{ to: 'dashboard', label: 'Übersicht', icon: … }
+{ to: 'squad',     label: 'Mannschaft', icon: …, alsoMatches: ['lineup'] }
+{ to: 'ranking',   label: 'Rangliste', icon: … }
 ```
 
-**Mein Team** is the only entry for the team page, even though it has two
+**Only built pages are listed.** `market` (*Transfermarkt*), `table`
+(*Bundesliga-Tabelle*) and `players` (*Alle Spieler*) are still
+[`PagePlaceholder`](../src/components/PagePlaceholder.tsx) stubs, and offering
+them in the drawer promises a screen that is not there. Their **routes are
+untouched** — a direct URL still opens the stub — so each one comes back by
+adding its entry here once the page exists.
+
+**Mannschaft** is the only entry for the team page, even though it has two
 routes: the tabs on that page are the natural way between the squad list and
 the lineup, and a second drawer entry for a sibling tab is noise. It therefore
 declares `alsoMatches: ['lineup']`, and `NavDrawer` resolves the active item
@@ -181,7 +184,7 @@ drawer would highlight nothing while the lineup tab is open.
 The drawer is the **only** navigation surface. There is no bottom tab bar: it
 duplicated the drawer, ate a row of screen height on exactly the small screens
 where the pitch needs it, and forced a second, coarser notion of which entry
-was active (`/lineup` had no bar entry of its own, so **Mein Team** had to
+was active (`/lineup` had no bar entry of its own, so **Mannschaft** had to
 stand in for it).
 
 Pages can claim the leftover viewport height: `main` is a flex column, so a
