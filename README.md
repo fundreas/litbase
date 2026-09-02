@@ -28,11 +28,36 @@ npm run dev:host # same, reachable from your phone on the same Wi-Fi
 Configuration is optional — see [.env.example](.env.example). The defaults point
 at the live API and CDN.
 
+## Building and running the image
+
+```bash
+npm run build                                 # → dist/, typechecked first
+
+docker build -t litbase:latest .              # multi-stage: node build → nginx
+docker run --rm -p 8080:8080 litbase:latest   # http://localhost:8080
+```
+
+The image is `dist/` behind nginx and nothing else — no Node at runtime, no
+source, ~63 MB. It runs as the unprivileged `nginx` user on port 8080, serves
+hashed assets pre-compressed and cached forever, never caches `index.html`,
+falls back to it for client-side routes, and answers `/healthz`.
+
+Vite inlines `import.meta.env` at build time, so pointing the app at another
+API is a build argument rather than a runtime variable — one image, one target:
+
+```bash
+docker build --build-arg VITE_API_BASE_URL=https://api.example.com -t litbase:staging .
+```
+
+[docs/deployment.md](docs/deployment.md) has the rest: the nginx config, the
+allowlist [.dockerignore](.dockerignore) that keeps `.env` and
+`kickbase-api.md` out of image layers, and what to expect when hosting it.
+
 ## Documentation
 
 **[docs/](docs/README.md)** is the index: infrastructure, the API layer,
-routing and layout, authentication, and a dedicated page per screen. The
-sections below are a summary of it.
+routing and layout, authentication, deployment, and a dedicated page per
+screen. The sections below are a summary of it.
 
 ## Architecture
 

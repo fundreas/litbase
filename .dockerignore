@@ -1,0 +1,19 @@
+# Allowlist, not a denylist. The repo holds files that must never enter a
+# build context — .env files, apf.env, kickbase-api.md with its live bearer
+# tokens — and those are only gitignored, so they do sit on disk. Ignoring
+# everything and naming what the build needs means a new secret file cannot
+# leak into an image layer by being forgotten here.
+*
+
+!package.json
+!package-lock.json
+!index.html
+!vite.config.ts
+!tsconfig.json
+!tsconfig.app.json
+!tsconfig.node.json
+!src
+!public
+
+# Copied into the runtime stage.
+!nginx.conf

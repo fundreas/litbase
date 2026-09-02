@@ -135,6 +135,9 @@ Each page is a separate lazy chunk (1–3 kB), loaded on first navigation. The
 React Query devtools are dev-only and lazy; in a production build the package
 resolves to a no-op shim.
 
+Packaging `dist/` into an nginx image, and the cache headers that make the
+chunk split pay off, are in [Building and deploying](deployment.md).
+
 ## Tooling and scripts
 
 | Script | Does |

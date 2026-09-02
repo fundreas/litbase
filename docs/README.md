@@ -14,6 +14,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | [API layer](api-layer.md) | The axios instance, endpoint registry, wire DTOs → domain models, query keys and caching policy |
 | [Routing and layout](routing-and-layout.md) | Route table, auth and league guards, the app shell, header, drawer and bottom bar |
 | [Authentication](authentication.md) | Login, token persistence, silent renewal, and why there is no refresh token |
+| [Building and deploying](deployment.md) | `npm run build`, the Docker image, and how nginx serves the SPA |
 
 ## Pages
 
@@ -56,6 +57,10 @@ npm install
 npm run dev      # http://localhost:5173
 npm run dev:host # reachable from a phone on the same Wi-Fi
 npm run check    # typecheck + lint + format check
+npm run build    # production build to dist/
+
+docker build -t litbase:latest .              # image: nginx + the bundle
+docker run --rm -p 8080:8080 litbase:latest   # http://localhost:8080
 ```
 
 Adding a page or an endpoint is a short checklist — see
