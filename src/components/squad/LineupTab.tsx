@@ -1,5 +1,6 @@
 import { AlertTriangle, UserMinus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import {
   POSITION_LABEL,
@@ -10,6 +11,11 @@ import {
 } from '@/api/models'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { Pitch } from '@/components/squad/Pitch'
+import {
+  useLineupDrag,
+  type DragHandleProps,
+  type LineupDrag,
+} from '@/components/squad/useLineupDrag'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
@@ -132,6 +138,17 @@ export function LineupTab({
   fixtureByTeamId: Map<string, TeamFixture> | undefined
 }) {
   const { lineup, counts, formation } = editor
+
+  /**
+   * Dragging reorders a player *within his row*.
+   *
+   * Rows are positions, and the slot a player occupies inside his row is what
+   * the API stores — so this is the one lineup edit that changes nothing about
+   * who plays, only about where. Cross-row drops are refused by the hook
+   * rather than corrected here: a midfielder posted into a defender slot is
+   * silently discarded by Kickbase.
+   */
+  const drag = useLineupDrag({ items: lineup, onReorder: editor.reorder })
 
   // The pitch is measured rather than guessed at, so the avatars scale with
   // whatever height the flex chain actually hands it.
@@ -295,15 +312,30 @@ export function LineupTab({
             <PitchRow
               key={position}
               position={position}
-              players={lineup.filter((player) => player.position === position)}
+              // `drag.order`, not `lineup`: while a drag is in flight this is
+              // the preview, so the row reflows under the finger and the drop
+              // holds no surprise.
+              players={drag.order.filter(
+                (player) => player.position === position,
+              )}
               placeholders={missingAtPosition(counts, position)}
               fixtureByTeamId={fixtureByTeamId}
               metrics={metrics}
+              drag={drag}
               onRemove={editor.remove}
             />
           ))}
         </div>
       </Pitch>
+
+      {drag.dragging !== null && (
+        <DragGhost
+          player={drag.dragging}
+          fixture={fixtureByTeamId?.get(drag.dragging.teamId)}
+          metrics={metrics}
+          ghostRef={drag.ghostRef}
+        />
+      )}
 
       <Bench
         squad={squad}
@@ -325,6 +357,7 @@ function PitchRow({
   placeholders,
   fixtureByTeamId,
   metrics,
+  drag,
   onRemove,
 }: {
   position: PositionKey
@@ -333,6 +366,7 @@ function PitchRow({
   placeholders: number
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   metrics: PlayerMetrics
+  drag: LineupDrag<SquadMember>
   onRemove: (playerId: string) => void
 }) {
   return (
@@ -355,7 +389,12 @@ function PitchRow({
           player={player}
           fixture={fixtureByTeamId?.get(player.teamId)}
           metrics={metrics}
+          isDragging={drag.dragging?.id === player.id}
+          dragProps={drag.dragProps(player)}
           onClick={() => {
+            // The click that ends a drag is not a tap, and taking the player
+            // off the pitch is the last thing the manager meant by it.
+            if (!drag.isTap()) return
             onRemove(player.id)
           }}
         />
@@ -417,25 +456,62 @@ function PitchPlayer({
   player,
   fixture,
   metrics,
+  isDragging,
+  dragProps,
   onClick,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
   metrics: PlayerMetrics
+  /** This portrait is the one being carried; the ghost shows it instead. */
+  isDragging: boolean
+  dragProps: DragHandleProps
   onClick: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={`${player.lastName} – aus der Aufstellung nehmen`}
-      aria-label={`${player.lastName} aus der Aufstellung nehmen`}
+      {...dragProps}
+      title={`${player.lastName} – ziehen zum Verschieben, tippen zum Herausnehmen`}
+      aria-label={`${player.lastName} aus der Aufstellung nehmen. Mit den Pfeiltasten nach links oder rechts verschieben.`}
       // Width follows the avatar exactly. A minimum floor here would fight
       // the size calculation, which already solves for the busiest band —
       // a 64px floor is what made five defenders wrap on a phone.
       style={{ width: metrics.width }}
-      className="group flex shrink-0 flex-col items-center rounded-lg p-1 transition-colors active:bg-black/20"
+      className={cn(
+        'group flex shrink-0 flex-col items-center rounded-lg p-1',
+        'cursor-grab transition-[opacity,background-color] active:cursor-grabbing active:bg-black/20',
+        // `touch-none`, or the first millimetre of a drag is swallowed by the
+        // browser as a scroll and the gesture never reaches us. Safe here
+        // because the pitch is sized to fit rather than to scroll.
+        'touch-none',
+        // Kept in place rather than hidden: the row is mid-reflow around it,
+        // and removing the slot would make everything else jump.
+        isDragging && 'opacity-25',
+      )}
     >
+      <PlayerFace player={player} fixture={fixture} metrics={metrics} />
+    </button>
+  )
+}
+
+/**
+ * The portrait and its name plate — everything inside a pitch player except
+ * the button. Shared with the drag ghost so the thing under the finger is
+ * literally the thing that was picked up.
+ */
+function PlayerFace({
+  player,
+  fixture,
+  metrics,
+}: {
+  player: SquadMember
+  fixture: TeamFixture | undefined
+  metrics: PlayerMetrics
+}) {
+  return (
+    <>
       <span className="relative">
         <Avatar
           src={player.image}
@@ -449,7 +525,8 @@ function PitchPlayer({
             title="Nicht einsatzbereit"
           />
         )}
-        {/* Only shows on hover/focus — on touch the label already explains it. */}
+        {/* Only shows on hover/focus — on touch the label already explains it.
+            The ghost is outside any `group`, so it never appears there. */}
         <span className="absolute inset-0 hidden items-center justify-center rounded-full bg-black/55 group-hover:flex">
           <UserMinus size={metrics.removeIcon} className="text-white" />
         </span>
@@ -480,7 +557,41 @@ function PitchPlayer({
           size={metrics.badgeCrest}
         />
       </span>
-    </button>
+    </>
+  )
+}
+
+/**
+ * The portrait that follows the pointer.
+ *
+ * In a portal on `document.body` because both the pitch and each row clip
+ * their overflow — inside them the ghost would be cut off the moment it left
+ * its own row, which is the entire journey. `pointer-events-none` keeps it out
+ * of the hit test that finds what it is being dropped on.
+ */
+function DragGhost({
+  player,
+  fixture,
+  metrics,
+  ghostRef,
+}: {
+  player: SquadMember
+  fixture: TeamFixture | undefined
+  metrics: PlayerMetrics
+  ghostRef: (node: HTMLElement | null) => void
+}) {
+  return createPortal(
+    <div
+      ref={ghostRef}
+      aria-hidden="true"
+      style={{ width: metrics.width }}
+      className="pointer-events-none fixed top-0 left-0 z-50 flex flex-col items-center p-1"
+    >
+      <span className="flex scale-110 flex-col items-center drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]">
+        <PlayerFace player={player} fixture={fixture} metrics={metrics} />
+      </span>
+    </div>,
+    document.body,
   )
 }
 

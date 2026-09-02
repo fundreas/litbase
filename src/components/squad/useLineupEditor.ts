@@ -30,6 +30,11 @@ export interface LineupEditor {
   /** Field him, bench him, or open the swap dialog — whichever applies. */
   toggle: (player: SquadMember) => void
   remove: (playerId: string) => void
+  /**
+   * Rearrange the fielded players. Takes the complete new id order and
+   * ignores anything that is not a permutation of the current lineup.
+   */
+  reorder: (orderedIds: string[]) => void
   /** Set while the swap dialog is deciding who makes way. */
   incoming: SquadMember | null
   cancelSwap: () => void
@@ -198,6 +203,32 @@ export function useLineupEditor({
     setLineupIds((current) => current.filter((id) => id !== playerId))
   }, [])
 
+  /**
+   * Reorder the eleven without changing who is in it.
+   *
+   * Order is not cosmetic: `players` is posted positionally, so a player's
+   * index within his position group *is* the slot Kickbase gives him and comes
+   * back as `lo`. Moving the third midfielder to the front is therefore a real
+   * edit that has to be saved — see {@link buildSlots}.
+   *
+   * Guarded rather than trusted, because the caller composes this order from a
+   * drag preview that a squad refetch could have outrun: anything that is not
+   * a permutation of the current lineup is dropped, so a stale drag can never
+   * bench a player or resurrect one.
+   */
+  const reorder = useCallback(
+    (orderedIds: string[]) => {
+      const unique = new Set(orderedIds)
+      if (unique.size !== lineupIds.length) return
+      if (!lineupIds.every((id) => unique.has(id))) return
+      if (orderedIds.every((id, index) => id === lineupIds[index])) return
+
+      setIsDirty(true)
+      setLineupIds(orderedIds)
+    },
+    [lineupIds],
+  )
+
   const toggle = useCallback(
     (player: SquadMember) => {
       if (fieldedIds.has(player.id)) {
@@ -240,6 +271,7 @@ export function useLineupEditor({
     hasRoomFor: (player) => canAddPosition(counts, player.position),
     toggle,
     remove,
+    reorder,
     incoming,
     cancelSwap,
     confirmSwap,
