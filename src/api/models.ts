@@ -86,6 +86,56 @@ export interface TeamFixture {
   opponentImage?: string
 }
 
+/**
+ * One matchday of the season, reduced to what a picker needs: when it runs and
+ * whether it is done.
+ *
+ * `isFinished` comes from the fixtures (`st === 2` on every one of them) and so
+ * refreshes with the query. Whether it has *started* deliberately does not live
+ * here — it is a comparison against the clock, and the matchday list is cached
+ * for an hour, so a stored flag would go stale mid-cache. Use
+ * {@link matchdayState} instead.
+ */
+export interface SeasonMatchday {
+  day: number
+  /** Earliest kick-off of the matchday, ISO 8601. */
+  start: string
+  /** Latest kick-off of the matchday, ISO 8601. */
+  end: string
+  /** Every fixture reports finished. */
+  isFinished: boolean
+}
+
+/** The season's matchdays plus the one the competition considers current. */
+export interface SeasonSchedule {
+  /**
+   * The competition's current matchday — the upcoming one once the previous
+   * has been played, which is what a matchday picker should default to.
+   */
+  currentDay: number
+  /** Every matchday, ascending. */
+  matchdays: SeasonMatchday[]
+}
+
+export type MatchdayState = 'upcoming' | 'live' | 'finished'
+
+/**
+ * Where a matchday stands right now.
+ *
+ * "Started" is the first kick-off having passed, not a flag from the API:
+ * fixtures carry `st` but only `0` (upcoming) and `2` (finished) have been
+ * observed, so a matchday in progress is not distinguishable from `st` alone.
+ */
+export function matchdayState(
+  matchday: SeasonMatchday,
+  now: number = Date.now(),
+): MatchdayState {
+  if (matchday.isFinished) return 'finished'
+  const start = Date.parse(matchday.start)
+  if (!Number.isNaN(start) && now >= start) return 'live'
+  return 'upcoming'
+}
+
 /** A competition the app can filter leagues by. */
 export interface Competition {
   id: string
@@ -204,6 +254,68 @@ export interface LeagueRanking {
   isDuelMode: boolean
   /** Managers, **sorted by the placement that applies to this mode**. */
   managers: RankedManager[]
+}
+
+/* -------------------------------------------------------------------------- */
+/* Duels                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** One manager as they appear in a duel. */
+export interface DuelSide {
+  id: string
+  name: string
+  image?: string
+  /**
+   * Points scored on the duel's matchday — live while it is being played, `0`
+   * before it kicks off.
+   */
+  matchdayPoints: number
+  /** Position in the league's duel table (`hhpl`). */
+  duelPlacement?: number
+  /** Running duel-point total (`hhsp`). */
+  duelPoints?: number
+  /** Position in the Kickbase points table (`spl`). */
+  seasonPlacement: number
+  /** Duel points from this matchday — 3 for a win, 0 for a loss. */
+  duelMatchdayPoints?: number
+}
+
+/** Two managers drawn against each other on one matchday. */
+export interface Duel {
+  /** Both manager ids, sorted and joined — stable across re-fetches. */
+  id: string
+  sides: [DuelSide, DuelSide]
+}
+
+/** Every duel of one matchday. */
+export interface MatchdayDuels {
+  /** The matchday the pairings belong to. */
+  day: number
+  /** False when the league does not play duels at all. */
+  isDuelMode: boolean
+  /** Sorted by the better-placed of the two managers. */
+  duels: Duel[]
+  /**
+   * Managers left without an opponent — an odd league, or an opponent the
+   * response does not contain. Normally empty.
+   */
+  byes: DuelSide[]
+}
+
+/**
+ * Which side is ahead, or `undefined` for level.
+ *
+ * Decided on the matchday points both managers actually scored, the same way
+ * {@link duelResultOf} does it, rather than on `hhmp` — see
+ * [Ranking](../../docs/pages/ranking.md#duel-outcome). Before kick-off both
+ * are `0` and this returns `undefined`, so callers must gate on the matchday
+ * having started before reading "level" as a draw.
+ */
+export function duelLeader(duel: Duel): DuelSide | undefined {
+  const [a, b] = duel.sides
+  if (a.matchdayPoints > b.matchdayPoints) return a
+  if (b.matchdayPoints > a.matchdayPoints) return b
+  return undefined
 }
 
 export interface SquadMember {

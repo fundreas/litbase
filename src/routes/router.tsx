@@ -9,6 +9,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { HomeRedirect } from '@/routes/HomeRedirect'
 import {
   DashboardPage,
+  DuelsPage,
   JoinLeaguePage,
   LeagueGate,
   MarketPage,
@@ -76,6 +77,12 @@ export const router = createBrowserRouter([
               { path: 'lineup', element: <SquadPage /> },
               { path: 'market', element: <MarketPage /> },
               { path: 'ranking', element: <RankingPage /> },
+              // Duel leagues only. The route is registered unconditionally —
+              // the table is built once, before any league is known — and the
+              // page itself redirects to the dashboard when the league does
+              // not play duels, so the URL is a dead end exactly where the
+              // drawer entry is missing.
+              { path: 'duels', element: <DuelsPage /> },
               { path: 'table', element: <TablePage /> },
               { path: 'players', element: <PlayersPage /> },
             ],

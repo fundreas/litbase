@@ -28,6 +28,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |
 | `/leagues/:leagueId/lineup` | [Squad — lineup tab](pages/squad.md#lineup-tab) | Implemented |
 | `/leagues/:leagueId/ranking` | [Ranking](pages/ranking.md) | Implemented |
+| `/leagues/:leagueId/duels` | [Duels](pages/duels.md) | Implemented — duel leagues only |
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Stub |
 | `/leagues/:leagueId/table` | [Bundesliga table](pages/table.md) | Stub |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |

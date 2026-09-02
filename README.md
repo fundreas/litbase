@@ -96,6 +96,7 @@ src/
 /leagues/:leagueId/lineup
 /leagues/:leagueId/market
 /leagues/:leagueId/ranking
+/leagues/:leagueId/duels        ?day=N — duel leagues only
 /leagues/:leagueId/table
 /leagues/:leagueId/players
 ```
@@ -152,6 +153,11 @@ export function MyPage() {
   return <PageHeading title="…" />
 }
 ```
+
+A page can also be **conditional on the league**: `duels` only exists in
+leagues played head-to-head, so its nav entry declares `requiresDuelMode` and
+the page redirects to the dashboard elsewhere — the route table itself is built
+before any league is known. See [docs/pages/duels.md](docs/pages/duels.md).
 
 [DashboardPage](src/pages/DashboardPage.tsx),
 [RankingPage](src/pages/RankingPage.tsx) and

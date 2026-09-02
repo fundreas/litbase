@@ -23,6 +23,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          ├─ lineup    ┘
          ├─ market
          ├─ ranking
+         ├─ duels      ?day=N — duel leagues only, else → dashboard
          ├─ table
          └─ players
 /*                                  404
@@ -215,7 +216,23 @@ Both surfaces read one config,
 { to: 'dashboard', label: 'Übersicht', icon: … }
 { to: 'squad',     label: 'Mannschaft', icon: …, alsoMatches: ['lineup'] }
 { to: 'ranking',   label: 'Rangliste', icon: … }
+{ to: 'duels',     label: 'Duelle',    icon: …, requiresDuelMode: true }
 ```
+
+**Duelle is conditional.** Only leagues played as duels have that page, and
+nothing in the URL says whether this is one — it is read off the standings
+(`hhpl`, see [Ranking](pages/ranking.md#duel-mode)). So `NavContent` calls
+`useRanking` and filters entries carrying `requiresDuelMode`. That makes the
+navigation a consumer of a query, which it otherwise would not be; the cost is
+one small request, already shared with the dashboard and the ranking page. The
+entry is **hidden until the query resolves** rather than shown and withdrawn,
+which would flash an entry a normal league never has.
+
+Its **route is registered unconditionally** — the route table is built once, at
+module load, long before any league is known. [Duels](pages/duels.md) instead
+redirects to the dashboard when the league does not play duels, so a typed or
+bookmarked URL is a dead end exactly where the drawer entry is missing. This is
+the pattern to copy for any future league-dependent page.
 
 **Only built pages are listed.** `market` (*Transfermarkt*), `table`
 (*Bundesliga-Tabelle*) and `players` (*Alle Spieler*) are still

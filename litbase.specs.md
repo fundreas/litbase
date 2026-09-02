@@ -19,4 +19,27 @@ For the base-layout: Use a header-bar:
   i think on the LHS a three-line-menu icon that opens a side-bar menu would be the best approach for showing then the navigation to different pages.
 
 
-# Competition Live
+# Duell Page
+
+Here we show for some matchday X of the league-competition all duells of the managers in the league.
+First on page we see the selected matchday. clicking it opens a drawer to select another matchday. Default is the current one from the competition!
+then we show each duell:
+  - if the matchday already started: we show the live points as sub-title for each manager
+  - otherwise we just show the current ranking of the manager as sub-title
+
+## Duell Details
+  - different views/tabs: lineup, ranking
+  - lineup: show both players lineup:
+     - status: open/bench/playing/ausgewechselt/finished
+     - points
+  - show players from both managers mixed ranked by their points
+  - also show the totals of the managers + active matches of players + open matches of players
+
+
+
+# Lineup Predictions
+  - find out by comparing with app, what field defines the lineup-propability
+
+# Live Match Points
+  - show the match details (goals, minute, events)
+  - show the lineup with live points and the manager owning a player

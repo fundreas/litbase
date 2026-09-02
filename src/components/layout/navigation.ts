@@ -1,4 +1,10 @@
-import { LayoutDashboard, Trophy, Users, type LucideIcon } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Swords,
+  Trophy,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 
 export interface NavItem {
   /** Path segment appended to `/leagues/:leagueId`. */
@@ -13,6 +19,15 @@ export interface NavItem {
    * the lineup tab is open.
    */
   alsoMatches?: string[]
+  /**
+   * Show only in leagues played as duels.
+   *
+   * Whether a league is one is not knowable from the URL — it is read off the
+   * standings (`hhpl`), so the entry appears once that query resolves. It is
+   * hidden until then rather than shown and withdrawn, which would flash an
+   * entry that a normal league never has.
+   */
+  requiresDuelMode?: boolean
 }
 
 /** Is this entry the active one for the current path? */
@@ -49,4 +64,5 @@ export const NAV_ITEMS: NavItem[] = [
   { to: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
   { to: 'squad', label: 'Mannschaft', icon: Users, alsoMatches: ['lineup'] },
   { to: 'ranking', label: 'Rangliste', icon: Trophy },
+  { to: 'duels', label: 'Duelle', icon: Swords, requiresDuelMode: true },
 ]

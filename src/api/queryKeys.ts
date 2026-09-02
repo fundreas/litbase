@@ -48,6 +48,12 @@ export const qk = {
   leagueOverview: (leagueId: string) =>
     [...qk.league(leagueId), 'overview'] as const,
   ranking: (leagueId: string) => [...qk.league(leagueId), 'ranking'] as const,
+  /**
+   * The same endpoint scoped to one matchday (`?dayNumber=`). Kept as a child
+   * of `ranking` so invalidating the standings drops every matchday with it.
+   */
+  rankingDay: (leagueId: string, day: number) =>
+    [...qk.ranking(leagueId), 'day', day] as const,
   squad: (leagueId: string) => [...qk.league(leagueId), 'squad'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
 

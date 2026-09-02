@@ -1,6 +1,8 @@
 import { LogOut, Plus } from 'lucide-react'
+import { useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router'
 
+import { useRanking } from '@/api/hooks/useRanking'
 import { useAuth } from '@/auth/useAuth'
 import { isNavItemActive, NAV_ITEMS } from '@/components/layout/navigation'
 import { Avatar } from '@/components/ui/Avatar'
@@ -34,6 +36,20 @@ export function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const { league, leagueId } = useActiveLeague()
   const { pathname } = useLocation()
 
+  // Duel leagues get an extra page, and nothing in the URL says whether this
+  // is one — it is read off the standings. That makes the navigation a
+  // consumer of a query, which it otherwise would not be; the cost is one
+  // small request already shared with the dashboard and the ranking page.
+  const { data: ranking } = useRanking(leagueId)
+  const items = useMemo(
+    () =>
+      NAV_ITEMS.filter(
+        (item) =>
+          item.requiresDuelMode !== true || ranking?.isDuelMode === true,
+      ),
+    [ranking],
+  )
+
   return (
     <>
       <div className="mb-3 flex items-center gap-3 rounded-card border border-line bg-surface px-3 py-3">
@@ -49,7 +65,7 @@ export function NavContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex flex-col gap-1">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const { to, label, icon: Icon } = item
           // Not NavLink's own `isActive`: one entry can cover several routes
           // of the same page, so the match comes from the item's own rules.

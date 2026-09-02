@@ -21,7 +21,19 @@ export const endpoints = {
     me: (leagueId: string) => `/v4/leagues/${leagueId}/me`,
     /** League metadata and member list. */
     overview: (leagueId: string) => `/v4/leagues/${leagueId}/overview`,
-    /** Standings of all managers in the league. */
+    /**
+     * Standings of all managers in the league.
+     *
+     * Takes an optional **`?dayNumber=`** query parameter (camelCase, like the
+     * `/leagues/list` filters) that scopes the response to one matchday. That
+     * is the only known source of duel pairings for a matchday other than the
+     * current one: `hhoui` names a *different* opponent for each `dayNumber`,
+     * verified across days 1 and 2 of a live league.
+     *
+     * Out-of-range values do **not** error — `dayNumber=0`, `35` and `99` all
+     * answer 200 with the managers stripped of their per-matchday fields, so
+     * the caller has to clamp to `1…nd` itself.
+     */
     ranking: (leagueId: string) => `/v4/leagues/${leagueId}/ranking`,
     /** The signed-in manager's players. */
     squad: (leagueId: string) => `/v4/leagues/${leagueId}/squad`,

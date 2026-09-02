@@ -239,3 +239,23 @@ Components should never see `mvt` or `spl`.
   (`chttkn`, ~1 h). Nothing needs chat yet.
 - `/v4/user/refresh`, `/v4/user/refreshtoken`, `/v4/user/token` — all **404**.
   This is why [Authentication](authentication.md) works the way it does.
+- `/v4/leagues/{id}/duels`, `/duels/{day}`, `/ranking/{day}`,
+  `/matchdays/{day}`, `/battles`, `/h2h`, `/ranking/duels` — all **404**.
+  There is no duel endpoint; `?dayNumber=` on the standings is the only source
+  of per-matchday pairings. See [Duels](pages/duels.md#data).
+- `/v4/leagues/{id}/live`, `/livepitch`, `/ranking/live`, `/v4/live/leagues/{id}`
+  — all **404**. Live matchday points come from `mdp` on the standings, which
+  updates during a matchday; nothing richer is exposed.
+
+## Query parameters that answer 200 for nonsense
+
+Two endpoints take filters that fail **silently** rather than erroring, which
+is easy to mistake for a working filter:
+
+- `/v4/leagues/list` ignores wire-style spellings (`cpi`, `gpm`, `gameMode`)
+  and returns the unfiltered list. The working names are `query`,
+  `competitionId`, `gamePlayMode`.
+- `/v4/leagues/{id}/ranking?dayNumber=` accepts `0`, `35` and `99` with a 200,
+  echoing the value back as `day` and stripping every per-matchday field from
+  the managers. Callers must validate the day against the real schedule — see
+  [Duels](pages/duels.md#the-matchday-lives-in-the-url).

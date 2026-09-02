@@ -51,8 +51,12 @@ was pre-sorted. It is not.
 
 ## Duel mode
 
-Leagues can be played as duels ("Duell"), where the table is head-to-head
-rather than raw points:
+Leagues can be played as duels ("Duell"). This page shows the resulting
+*table*; the pairings themselves, for any matchday of the season, are the
+[Duels](duels.md) page — which reuses `isDuelMode` from this very hook to
+decide whether it exists at all.
+
+Here the table is head-to-head rather than raw points:
 
 | | Normal | Duel |
 | --- | --- | --- |
@@ -103,12 +107,16 @@ redundant.
 
 **The result is computed, not read off a scoring scale.** `hhoui` names the
 opponent and every manager is in the same payload, so
-`duelResultOf()` compares the two matchday totals directly. Reading `hhmp` as
-3/1/0 would instead be an inference about how Kickbase awards duel points, and
-a league scoring them differently would mislabel every row silently. Checked
-that both sides of a duel always agree (one `won` ↔ one `lost`, or both
-`drawn`), and that a missing or out-of-league opponent yields no icon rather
-than a wrong one.
+`duelResultOf()` compares the two matchday totals directly. Checked that both
+sides of a duel always agree (one `won` ↔ one `lost`, or both `drawn`), and
+that a missing or out-of-league opponent yields no icon rather than a wrong
+one.
+
+`hhmp` has since been confirmed to award **3 for a win and 0 for a loss** —
+across all five duels of a played matchday the manager with the higher `mdp`
+carried `3`. The comparison is kept anyway: it needs no assumption about a
+league's scoring at all, and a draw's value (presumably `1`) still has not been
+observed.
 
 **Detection is from the data, not a flag.** `hhpl` is present only in duel
 leagues; a normal league carries no `hhpl` at all. The response's top-level
@@ -189,9 +197,9 @@ page shows:
 - **`lp`** — points per matchday, oldest first, `null` for matchdays not
   played. Already mapped as `pointsPerMatchday`. This is the richest unused
   data in the app.
-- `hhmp` — the duel points awarded this matchday. Mapped, but unused now that
-  the result is derived from the matchday comparison; the scale (3/1/0?) is
-  still unconfirmed.
+- `hhmp` — the duel points awarded this matchday (3 for a win, 0 for a loss).
+  Mapped, but unused now that the result is derived from the matchday
+  comparison.
 - `mdpl` — matchday placement, mapped as `matchdayPlacement`, displayed only
   as points today.
 - `adm` — league admin flag, mapped as `isAdmin`, not rendered.

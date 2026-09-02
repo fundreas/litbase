@@ -82,6 +82,34 @@ export function date(iso: string | null | undefined): string {
   return Number.isNaN(parsed) ? '–' : dateFormatter.format(parsed)
 }
 
+const weekdayDateFormatter = new Intl.DateTimeFormat(LOCALE, {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+})
+
+/** `Sa, 29. Aug.` — no year, for dates inside the running season. */
+export function weekdayDate(iso: string | null | undefined): string {
+  if (!iso) return '–'
+  const parsed = Date.parse(iso)
+  return Number.isNaN(parsed) ? '–' : weekdayDateFormatter.format(parsed)
+}
+
+/**
+ * `Fr, 4. Sep. – So, 6. Sep.` — a matchday's span.
+ *
+ * Collapses to a single date when both ends fall on the same day, which is
+ * what an English week or a rescheduled matchday looks like.
+ */
+export function dateRange(
+  fromIso: string | null | undefined,
+  toIso: string | null | undefined,
+): string {
+  const from = weekdayDate(fromIso)
+  const to = weekdayDate(toIso)
+  return from === to ? from : `${from} – ${to}`
+}
+
 /** Up to two letters for avatar fallbacks. */
 export function initials(name: string | null | undefined): string {
   if (!name) return '?'

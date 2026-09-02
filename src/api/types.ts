@@ -296,12 +296,23 @@ export interface RankingResponse {
   us: RankingUser[]
   /** Game play mode, see GAME_PLAY_MODE. */
   gpm?: number
-  /** Current matchday. */
+  /**
+   * The matchday this response describes — it echoes back `?dayNumber=` when
+   * one was passed, including nonsense values.
+   *
+   * Without the parameter it is the **last scored** matchday, which is *not*
+   * the competition's current one: with matchday 1 played and matchday 2 not
+   * yet kicked off, this reads `1` while `/competitions/{id}/matchdays`
+   * reports `2`. Anything that means "the matchday being played now" has to
+   * come from the competition, not from here.
+   */
   day?: number
   /** Season label, e.g. "26/27". */
   sn?: string
   /** Number of matchdays in the season. */
   nd?: number
+  /** Last finished matchday. */
+  lfmd?: number
   ish?: boolean
 }
 
@@ -316,9 +327,12 @@ export interface RankingUser {
   sp: number
   /** Season placement. */
   spl: number
-  /** Current matchday points. */
+  /**
+   * Points for the matchday this response describes — live while it is being
+   * played. `0` for a matchday that has not kicked off yet.
+   */
   mdp: number
-  /** Current matchday placement. */
+  /** Placement on that matchday. `0` before it has been played. */
   mdpl: number
   /** Team value, in €. */
   tv: number
@@ -338,7 +352,15 @@ export interface RankingUser {
    * `mp` matchday. Present as `0` in leagues without duels.
    */
   hhsp?: number
-  /** Head-to-head **matchday** points — this matchday's duel result. */
+  /**
+   * Head-to-head **matchday** points — the duel result for this matchday.
+   *
+   * The scale is **confirmed against live data**: across all five duels of a
+   * played matchday the manager with the higher `mdp` carried `3` and the
+   * other `0`. A draw is presumably `1`; no drawn duel has been observed.
+   *
+   * Absent entirely for a matchday that has not been played yet.
+   */
   hhmp?: number
   /**
    * Head-to-head placement — the duel table position.
@@ -347,7 +369,14 @@ export interface RankingUser {
    * mode: a normal league carries no `hhpl` at all.
    */
   hhpl?: number
-  /** Opponent user id for the current duel. */
+  /**
+   * Opponent user id for the duel on **this response's matchday**.
+   *
+   * The pairing is per matchday and changes with `?dayNumber=`, which is what
+   * makes the [Duels](../../docs/pages/duels.md) page possible. Verified
+   * mutual: every `hhoui` points back at the manager naming it, and ten
+   * managers resolve to exactly five duels with none left over.
+   */
   hhoui?: string
   hll?: boolean
 }
