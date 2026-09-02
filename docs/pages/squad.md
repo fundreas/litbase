@@ -144,30 +144,45 @@ A save failure surfaces as a red banner above the pitch and leaves the local
 lineup untouched, so the user can retry by making another change rather than
 losing their work.
 
-#### Only a complete eleven can be sent
+#### The `players` array is positional
 
-`POST /lineup` rejects a partial lineup, and there is no formation string that
-describes one anyway — every one of the ten formations totals eleven. So there
-are exactly three states:
+None of this is documented — the published spec shows only
+`{ "type": "4-4-2", "players": ["1235"] }`. It was established by experiment
+against a real account:
 
-| Lineup | Action |
-| ------ | ------ |
-| Eleven players | `POST /lineup` with `{ type, players }` |
-| Nobody | `POST /lineup/clear` (no body — the plain endpoint wants a formation) |
-| One to ten | **Held.** Nothing is sent; the header shows *nicht gespeichert* |
+| Sent | Result |
+| ---- | ------ |
+| Fewer than 11 entries | `LineupNotEnoughPlayers` (err 4020, HTTP **500**) |
+| `type` not a real formation (`5-3-1`, `2-1-0`, `""`) | Same error — rejected |
+| `""` at index *n* | **Slot *n* left empty.** Saves fine |
+| `null`, `"NULL"`, `"null"` at index *n* | Also read as empty |
+| `"0"` or `"-1"` at index *n* | `LineupInvalid` (err 4030) — parsed as a player id |
+| A player in a slot of the wrong position | **HTTP 200, and he is silently dropped** |
+| All 11 entries empty | HTTP 200, but a **no-op** — the old lineup survives |
 
-Holding is deliberate rather than a silent failure. The alternative is firing a
-request on every tap that is known to come back an error. The consequence — the
-server keeps the last complete eleven while a partial lineup is being
-assembled — is stated in the UI rather than hidden.
+So the rules are:
 
-**This is the remaining open question.** The Kickbase app clearly *can* store an
-incomplete lineup: a real `lineup/overview` response shows slots `0,1,2,4,…,9`
-with slot 3 empty. How it writes that is not documented — neither the OpenAPI
-spec nor the Postman collection shows a padding convention for empty slots, and
-the documented example bodies are placeholders (`players: ["1235"]`). Resolving
-it needs either the exact error the API returns for a short `players` array, or
-a capture of what the real app sends.
+1. `players` always has **exactly 11 entries**; the index *is* the slot that
+   comes back as `lo`.
+2. `type` must be one of the **ten real formations**, and it defines the slot
+   layout — slot 0 keeper, then `def` defender slots, then `mid`, then `fwd`.
+3. Empty slots are `""`.
+4. Players must be grouped to match that layout, or they vanish without an
+   error.
+
+**A partial lineup is therefore perfectly saveable** — it just has to be posted
+inside a legal formation big enough to hold it, with the unused slots empty.
+That is the difference between
+[`containerFormation()`](../../src/lib/lineup.ts) (what gets *declared*) and
+`effectiveFormation()` (what the user is *shown*). Saving four players might
+send `type: "4-3-3"` with eight empty slots while the header reads `2-1-0`.
+
+Emptying the lineup still goes through `/lineup/clear`, because an all-empty
+array does nothing.
+
+Verified end-to-end: payloads built by the app's own `containerFormation()` +
+`buildSlots()` were posted for 1, 4, 7, 10 and 11 players; every one returned
+200 and persisted exactly the intended players in the intended slots.
 
 #### Coalescing and ordering
 
@@ -276,14 +291,19 @@ honest.
 | Tap a bench player with no room | Swap dialog opens |
 | Tap a player on the pitch | Removed |
 | Any change | Saved after 600 ms; a spinner shows while in flight |
-| Bench player with no room | Dimmed, but still tappable — it opens the dialog |
+| Bench player with no room | Same appearance as any other — the tap opens the dialog |
 
 #### The bench ("Bank")
 
 The bench holds **only players who are not fielded** — a player moves between
-the pitch and the bench rather than appearing in both, so there is no disabled
-state to reason about. It groups by position (keeper, defence, midfield,
-attack) and sorts by market value within each group, scrolling sideways.
+the pitch and the bench rather than appearing in both. It groups by position
+(keeper, defence, midfield, attack) and sorts by market value within each
+group, scrolling sideways.
+
+**No bench card is ever dimmed or disabled.** Every one is tappable: if that
+position is already full, the tap opens the swap dialog instead of adding
+directly. Fading those cards would signal "unavailable" for something that
+always does something.
 
 When every player is fielded it says so instead of rendering an empty strip.
 
@@ -305,11 +325,16 @@ all.
 from its own perspective, so `isHome` and the opponent are already resolved
 before rendering.
 
-[`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx) shows a house for
-home and a plane for away, plus the opponent's crest and short symbol
-(`FCB`, `VFB`) — a full club name never fits a bench card. Home/away is carried
-by the icon *and* the `title`, never by colour alone. A team with no fixture
-that matchday renders `–` rather than breaking.
+[`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx) shows a **house**
+for home and an **aeroplane** for away, plus the opponent's crest and short
+symbol (`FCB`, `VFB`) — a full club name never fits a bench card. Home/away is
+carried by the icon *and* the `title`, never by colour alone. A team with no
+fixture that matchday renders `–` rather than breaking.
+
+On the pitch the badge takes a light `onPitch` tone so it stays legible over
+grass, and it sits **inside the player's name plate** rather than beside it:
+name on the first line, fixture on the second. Two separate chips read as
+unrelated badges floating over the pitch.
 
 Cached for an hour: one payload for the season, and it only shifts weekly.
 
@@ -378,8 +403,6 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 - A lineup/formation view using `lo` instead of the flat grouped list.
 - Sort control (points, average, value, trend) — the grouping is currently
   fixed.
-- **Save partial lineups**, once the padding convention for empty slots is
-  known. See above.
 - **Read from `GET /v4/leagues/{id}/lineup/overview`** rather than deriving the
   lineup from the squad's `lo`. That endpoint returns `lp[]` with `lo` *and*
   `lst` (a per-slot validity flag — `0` for players who cannot play, e.g.

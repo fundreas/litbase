@@ -343,12 +343,24 @@ export interface SquadResponse {
 /**
  * `POST /v4/leagues/{leagueId}/lineup` — replaces the lineup wholesale.
  *
- * The documented example is `{ "type": "4-4-2", "players": ["1235"] }`.
+ * The published docs show only `{ "type": "4-4-2", "players": ["1235"] }` and
+ * say nothing about the rules. These were established against the live API:
  *
- * What the docs do **not** say is whether `players` is positional. Nothing
- * indicates a slot encoding, so the app sends the ids grouped by position in
- * the order the formation reads — keeper, defenders, midfielders, forwards —
- * which is the only ordering the `type` string makes sense alongside.
+ *  - **`players` must have exactly 11 entries.** Fewer →
+ *    `LineupNotEnoughPlayers` (err 4020, served as HTTP 500).
+ *  - **It is positional.** The array index *is* the slot that comes back as
+ *    `lo`. `type` defines the layout: slot 0 keeper, then `def` defender
+ *    slots, then `mid`, then `fwd`.
+ *  - **`type` must be one of the ten real formations.** `"5-3-1"`, `"2-1-0"`
+ *    and `""` are all rejected, so even a partial lineup has to be declared
+ *    inside a legal formation that can hold it.
+ *  - **`""` marks an empty slot** — a gap at index *n* leaves slot *n* empty.
+ *    `null` and `"NULL"` also work; `"0"` and `"-1"` are rejected as invalid
+ *    player ids.
+ *  - **A player in a slot of the wrong position is silently dropped** — HTTP
+ *    200, but he is not in the lineup afterwards. Grouping by position is
+ *    therefore mandatory, not stylistic.
+ *  - **An all-empty array is a no-op**, not a clear; use `/lineup/clear`.
  */
 export interface SaveLineupRequest {
   /** Formation label, e.g. `"4-4-2"`. */

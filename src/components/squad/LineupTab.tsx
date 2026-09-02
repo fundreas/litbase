@@ -18,7 +18,9 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
 import {
+  buildSlots,
   canAddPosition,
+  containerFormation,
   countPositions,
   effectiveFormation,
   formationLabel,
@@ -35,9 +37,6 @@ const BENCH_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 /** Rapid taps collapse into one request instead of eleven. */
 const SAVE_DEBOUNCE_MS = 600
 
-/** Write key for a lineup the API will not accept (one to ten players). */
-const HELD_KEY = 'held'
-
 /**
  * Interactive lineup, persisted to Kickbase.
  *
@@ -51,7 +50,9 @@ const HELD_KEY = 'held'
  *    A save waits for the in-flight one and then sends whatever the *current*
  *    state is, so the last write always matches the last edit.
  *
- * Only a complete eleven can be sent — see the note on `write` below.
+ * Partial lineups save too: `players` is always eleven positional slots with
+ * `""` for the empty ones, declared inside a legal container formation. See
+ * the note on `write` below and `lib/lineup.ts`.
  *
  * The initial lineup is seeded from the squad's `lo` slot index, where slot 0
  * is the goalkeeper and benched players have no `lo` at all. See
@@ -105,33 +106,25 @@ export function LineupTab({
   /* ---------------------------------------------------------------------- */
 
   /**
-   * What the server can actually be told.
+   * What to send.
    *
-   * `POST /lineup` requires a complete eleven — a partial lineup is rejected,
-   * and there is in any case no formation string that describes one. Emptying
-   * the lineup has its own endpoint. So there are exactly three states:
+   * A partial lineup *is* saveable, but not by sending a short list: `players`
+   * must always be eleven positional slots, `type` must be a real formation,
+   * and empty slots are `""`. So the write declares a legal *container*
+   * formation big enough to hold what is selected — which is a different thing
+   * from the effective shape shown to the user.
    *
-   *  - **eleven players** → `POST /lineup`
-   *  - **nobody** → `POST /lineup/clear`
-   *  - **one to ten** → nothing to send; held locally and labelled as unsaved
-   *
-   * Holding is deliberate rather than a silent failure: the alternative is
-   * firing a request on every tap that is known to come back an error. It does
-   * mean the server keeps the last complete eleven while a partial lineup is
-   * being assembled, which is why the UI says so plainly.
+   * An all-empty array is a no-op on the server rather than a clear, so an
+   * empty lineup goes to `/lineup/clear` instead.
    */
-  const write: LineupWrite | null =
-    lineup.length === LINEUP_SIZE
-      ? {
+  const write: LineupWrite =
+    lineup.length === 0
+      ? { kind: 'clear' }
+      : {
           kind: 'save',
-          formation: formationLabel(formation),
-          playerIds: orderPlayerIds(lineup),
+          formation: formationLabel(containerFormation(counts)),
+          playerIds: buildSlots(lineup, containerFormation(counts)),
         }
-      : lineup.length === 0
-        ? { kind: 'clear' }
-        : null
-
-  const isHeld = write === null
 
   /**
    * The write is identified by its *content*, not by the identity of the
@@ -146,11 +139,9 @@ export function LineupTab({
    * while keeping the effect's dependencies honest.
    */
   const writeKey =
-    write === null
-      ? HELD_KEY
-      : write.kind === 'clear'
-        ? 'clear'
-        : `${write.formation}|${write.playerIds.join(',')}`
+    write.kind === 'clear'
+      ? 'clear'
+      : `${write.formation}|${write.playerIds.join(',')}`
 
   // The freshest write, parked in a ref *after* render so the timer callback
   // can read it without the effect having to depend on its identity.
@@ -166,13 +157,10 @@ export function LineupTab({
   useEffect(() => {
     // The seeded lineup came from the server; only user edits are worth saving.
     if (!isDirty) return
-    // Nothing the API accepts for a partial lineup — see the note on `write`.
-    if (writeKey === HELD_KEY) return
 
     const timer = window.setTimeout(() => {
       const run = async () => {
         const pending = writeRef.current
-        if (pending === null) return
 
         // Serialise: never overlap two writes to the same resource, so the
         // last request to reach the server is the last edit the user made.
@@ -245,21 +233,11 @@ export function LineupTab({
             </span>{' '}
             aufgestellt
           </span>
-          {save.isPending ? (
+          {save.isPending && (
             <span className="flex items-center gap-1 text-xs text-faint">
               <Spinner size={12} />
               Speichern …
             </span>
-          ) : (
-            isHeld &&
-            isDirty && (
-              <span
-                className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[0.6875rem] font-medium text-warning"
-                title="Kickbase speichert nur eine vollständige Elf. Ergänze die fehlenden Spieler."
-              >
-                nicht gespeichert
-              </span>
-            )
           )}
         </p>
         <p className="nums rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-semibold text-accent">
@@ -306,7 +284,6 @@ export function LineupTab({
       <Bench
         squad={squad}
         lineupIds={lineupIds}
-        counts={counts}
         fixtureByTeamId={fixtureByTeamId}
         onAdd={add}
       />
@@ -321,21 +298,6 @@ export function LineupTab({
         onConfirm={swap}
       />
     </div>
-  )
-}
-
-/**
- * Player ids in formation reading order — keeper, defence, midfield, attack.
- *
- * The API docs do not say whether `players` is positional. Nothing suggests a
- * slot encoding, and this is the only ordering that reads consistently
- * alongside the `type` string, so it is what gets sent.
- */
-function orderPlayerIds(lineup: SquadMember[]): string[] {
-  return BENCH_ORDER.flatMap((position) =>
-    lineup
-      .filter((player) => player.position === position)
-      .map((player) => player.id),
   )
 }
 
@@ -404,10 +366,14 @@ function PitchPlayer({
         </span>
       </span>
 
-      <span className="max-w-full truncate rounded bg-black/55 px-1 py-0.5 text-[0.625rem] font-semibold text-white">
-        {player.lastName}
+      {/* One plate, two lines: name over fixture. Two separate chips read as
+          unrelated badges floating over the grass. */}
+      <span className="flex max-w-full flex-col items-center rounded bg-black/55 px-1 py-0.5 leading-tight">
+        <span className="max-w-full truncate text-[0.625rem] font-semibold text-white">
+          {player.lastName}
+        </span>
+        <FixtureBadge fixture={fixture} tone="onPitch" />
       </span>
-      <FixtureBadge fixture={fixture} className="rounded bg-black/45 px-1" />
     </button>
   )
 }
@@ -419,13 +385,11 @@ function PitchPlayer({
 function Bench({
   squad,
   lineupIds,
-  counts,
   fixtureByTeamId,
   onAdd,
 }: {
   squad: SquadMember[]
   lineupIds: string[]
-  counts: ReturnType<typeof countPositions>
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   onAdd: (player: SquadMember) => void
 }) {
@@ -467,7 +431,6 @@ function Bench({
                 <BenchPlayer
                   key={player.id}
                   player={player}
-                  isBlocked={!canAddPosition(counts, player.position)}
                   fixture={fixtureByTeamId?.get(player.teamId)}
                   onClick={() => {
                     onAdd(player)
@@ -484,13 +447,10 @@ function Bench({
 
 function BenchPlayer({
   player,
-  isBlocked,
   fixture,
   onClick,
 }: {
   player: SquadMember
-  /** No room for this position right now — tapping opens the swap dialog. */
-  isBlocked: boolean
   fixture: TeamFixture | undefined
   onClick: () => void
 }) {
@@ -505,14 +465,10 @@ function BenchPlayer({
         'hover:border-accent/40 hover:bg-surface-2 active:bg-line',
       )}
     >
-      <Avatar
-        src={player.image}
-        name={player.lastName}
-        size={36}
-        // Dimmed, not disabled: the tap still does something useful, it just
-        // has to go through the swap dialog.
-        className={cn(isBlocked && 'opacity-60')}
-      />
+      {/* No dimmed or disabled state: every bench player is tappable, and one
+          whose position is full simply routes through the swap dialog. Fading
+          them would signal "unavailable" for something that always works. */}
+      <Avatar src={player.image} name={player.lastName} size={36} />
       <span className="max-w-full truncate text-[0.6875rem] font-medium text-ink">
         {player.lastName}
       </span>

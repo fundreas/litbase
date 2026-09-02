@@ -87,16 +87,101 @@ export function isFeasible(counts: PositionCounts): boolean {
  * Once eleven players are fielded this is guaranteed to be one of
  * {@link FORMATIONS}: the rules only admit counts that fit *some* formation,
  * and since every formation fields ten outfield players, a selection of ten
- * that fits one must equal it exactly. So the label sent to the API on save
- * is the effective shape, not a best guess at one.
+ * that fits one must equal it exactly.
  *
- * (An earlier version picked a "display formation" — the nearest legal
- * formation to a partial selection — and drew empty slots for the difference.
- * Showing the effective shape instead means the pitch never implies a
- * formation the user has not actually built.)
+ * This is what the **user** sees. It is deliberately not what gets sent — the
+ * API only accepts a real formation, so saving uses
+ * {@link containerFormation}. Showing the effective shape means the pitch
+ * never implies a formation the user has not actually built.
  */
 export function effectiveFormation(counts: PositionCounts): Formation {
   return { def: counts.def, mid: counts.mid, fwd: counts.fwd }
+}
+
+/** What a slot with nobody in it is sent as. See {@link buildSlots}. */
+export const EMPTY_SLOT = ''
+
+/**
+ * The formation to *declare* when saving.
+ *
+ * `POST /lineup` requires `type` to be one of the ten real formations — an
+ * illegal string such as `5-3-1`, `2-1-0` or `""` is rejected — and `type`
+ * decides which slot index means which position. So a partial lineup still has
+ * to be posted inside a legal formation that can hold it, which is what
+ * {@link feasibleFormations} computes.
+ *
+ * Of those, the one whose shape sits closest to the current selection is
+ * chosen, by squared distance per position. Total slack is useless as a metric:
+ * every formation fields ten outfield players, so `(def+mid+fwd) − selected` is
+ * identical for all of them and would collapse to "first in list order".
+ *
+ * This is distinct from {@link effectiveFormation}, which is what the *user*
+ * is shown.
+ */
+export function containerFormation(counts: PositionCounts): Formation {
+  const candidates = feasibleFormations(counts)
+  let best = candidates[0] ?? { def: 4, mid: 4, fwd: 2 }
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (const formation of candidates) {
+    const distance =
+      (formation.def - counts.def) ** 2 +
+      (formation.mid - counts.mid) ** 2 +
+      (formation.fwd - counts.fwd) ** 2
+    if (distance < bestDistance) {
+      best = formation
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+/**
+ * The eleven `players` entries to post, indexed by slot.
+ *
+ * `players` is **positional**: index *is* the slot number that comes back as
+ * `lo`, and `type` defines the layout — slot 0 is the keeper, then `def`
+ * defender slots, then `mid`, then `fwd`. All of this was established against
+ * the live API:
+ *
+ *  - Fewer than eleven entries → `LineupNotEnoughPlayers`.
+ *  - A gap at index *n* leaves slot *n* empty, wherever *n* is.
+ *  - A player whose position does not match his slot is **silently dropped** —
+ *    HTTP 200, but he simply is not in the lineup afterwards. This is why
+ *    grouping by position is mandatory rather than conventional.
+ *  - `""` reads as an empty slot (so do `null` and `"NULL"`); `"0"` and `"-1"`
+ *    are rejected as invalid player ids.
+ *
+ * `formation` must be able to hold `lineup` — pass {@link containerFormation},
+ * which guarantees it, so no player is ever silently truncated here.
+ */
+export function buildSlots<T extends { id: string; position: PositionKey }>(
+  lineup: readonly T[],
+  formation: Formation,
+): string[] {
+  const slots = new Array<string>(LINEUP_SIZE).fill(EMPTY_SLOT)
+
+  const layout: Array<{ position: PositionKey; start: number; size: number }> =
+    [
+      { position: 'gk', start: 0, size: GOALKEEPER_COUNT },
+      { position: 'def', start: 1, size: formation.def },
+      { position: 'mid', start: 1 + formation.def, size: formation.mid },
+      {
+        position: 'fwd',
+        start: 1 + formation.def + formation.mid,
+        size: formation.fwd,
+      },
+    ]
+
+  for (const { position, start, size } of layout) {
+    const players = lineup
+      .filter((player) => player.position === position)
+      .slice(0, size)
+    players.forEach((player, index) => {
+      slots[start + index] = player.id
+    })
+  }
+
+  return slots
 }
 
 /** Can one more player of this position join a lineup with these counts? */
