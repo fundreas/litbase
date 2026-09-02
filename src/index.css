@@ -87,6 +87,9 @@
 /* Header height, kept in one place so sticky offsets stay in sync. */
 :root {
   --header-h: 3.5rem;
+  /* The bar plus the notch padding above it — i.e. how far down the page
+     actually starts. What anything sticking *below* the header needs. */
+  --header-total: calc(var(--header-h) + env(safe-area-inset-top, 0px));
   color-scheme: dark;
 }
 

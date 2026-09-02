@@ -76,7 +76,7 @@ src/
 ├── auth/                session, persistence, silent renewal, route guard
 ├── league/              the active league (from the URL) on context
 ├── components/
-│   ├── layout/          AppShell, Header, NavDrawer, LeagueSwitcher, …
+│   ├── layout/          AppShell, Header, NavDrawer, NavSidebar, …
 │   └── ui/              Button, Input, Avatar, Drawer, DropdownMenu, …
 ├── pages/               one file per screen
 ├── routes/              route table + lazy page imports
@@ -176,8 +176,11 @@ Components should never see abbreviated keys like `mvt` or `spl`.
 
 ## Mobile notes
 
-- Hamburger drawer as the single navigation surface — no bottom tab bar, so
-  full-height pages like the lineup get that row back.
+- Hamburger drawer as the single navigation surface on a phone — no bottom tab
+  bar, so full-height pages like the lineup get that row back. From `lg`
+  (64rem) up the same nav is a permanent sidebar and the hamburger disappears;
+  the header spans the full width above both. The switch is CSS, so there is no
+  flash and no resize handler in the layout path.
 - All controls are at least 44px tall; inputs are 16px so iOS Safari does not
   zoom on focus.
 - `viewport-fit=cover` plus `pt-safe` / `pb-safe` utilities handle notches.

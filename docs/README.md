@@ -37,7 +37,7 @@ A **stub** page already calls its real query hook and reports how many rows
 came back — the API binding is proven, only the UI is missing. Stubs are
 **not listed in the nav drawer**; their routes work, so they are reachable by
 URL until the screen exists. See
-[Navigation drawer](routing-and-layout.md#navigation-drawer).
+[Navigation](routing-and-layout.md#navigation).
 
 ## Conventions used throughout
 
