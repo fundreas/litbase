@@ -19,7 +19,7 @@ import { SkeletonList } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
-import { money, placement, points } from '@/lib/format'
+import { placement, points } from '@/lib/format'
 
 /** Which of the two tables the list is showing. */
 type SortKey = 'duel' | 'total'
@@ -185,38 +185,36 @@ function ManagerRow({
         isMe ? 'border-accent/50' : 'border-line',
       )}
     >
-      {/* Placement, with its movement beneath only when it actually moved —
-          a lone dash for "unchanged" was a whole line saying nothing. */}
-      <span className="w-8 shrink-0 text-center">
-        <span className="nums block text-base font-bold text-faint">
-          {placement(
-            isDuelView ? manager.duelPlacement : manager.seasonPlacement,
-          )}
+      {/* Placement and avatar are one group with a tight gap of their own, so
+          the row's `gap-3` separates them from the text rather than pushing
+          the number away from the face it belongs to. */}
+      <span className="flex shrink-0 items-center gap-1.5">
+        <span className="w-6 text-center">
+          <span className="nums block text-base font-bold text-faint">
+            {placement(
+              isDuelView ? manager.duelPlacement : manager.seasonPlacement,
+            )}
+          </span>
+          {/* Only when it actually moved — a lone dash was a line saying
+              nothing. */}
+          <PlacementChange value={manager.placementChange} />
         </span>
-        <PlacementChange value={manager.placementChange} />
+        <Avatar src={manager.image} name={manager.name} size={48} />
       </span>
 
-      <Avatar src={manager.image} name={manager.name} size={48} />
-
-      {/* Name, then two subtitles: team value, then the matchday result. */}
+      {/* Name, then two subtitles: what was scored this matchday, then how
+          the duel it fed into went. */}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-ink">
           {manager.name}
           {isMe && <span className="ml-1.5 text-xs text-accent">du</span>}
         </p>
+        {/* The manager's real Kickbase points for the matchday — not their
+            duel points, which are the headline figure on the right. */}
         <p className="nums truncate text-xs text-muted">
-          {money(manager.teamValue)} Teamwert
+          {points(manager.matchdayPoints)} Pkt am Spieltag
         </p>
-        {/* The figure is the manager's real Kickbase points for the matchday,
-            not their duel points — those are what the duel was decided on,
-            and the icon plus opponent say how it went. */}
-        <p className="nums flex items-center gap-1 text-xs text-muted">
-          <span className="shrink-0">{points(manager.matchdayPoints)} Pkt</span>
-          <DuelResultIcon result={duelResult} />
-          {duelOpponentName !== undefined && (
-            <span className="truncate text-faint">vs. {duelOpponentName}</span>
-          )}
-        </p>
+        <DuelLine result={duelResult} opponentName={duelOpponentName} />
       </div>
 
       {/* Two figures stacked, so the ordering is self-explaining: the bold one
@@ -243,25 +241,47 @@ function ManagerRow({
 }
 
 const DUEL_RESULT = {
-  won: {
-    Icon: CircleCheck,
-    className: 'text-positive',
-    label: 'Duell gewonnen',
-  },
-  drawn: { Icon: CircleMinus, className: 'text-muted', label: 'Duell remis' },
-  lost: { Icon: CircleX, className: 'text-negative', label: 'Duell verloren' },
+  won: { Icon: CircleCheck, className: 'text-positive', text: 'Gewonnen' },
+  drawn: { Icon: CircleMinus, className: 'text-muted', text: 'Remis' },
+  lost: { Icon: CircleX, className: 'text-negative', text: 'Verloren' },
 } as const
 
-function DuelResultIcon({ result }: { result: DuelResult | undefined }) {
-  if (result === undefined) return null
-  const { Icon, className, label } = DUEL_RESULT[result]
+/**
+ * How the current duel went, and against whom.
+ *
+ * The outcome is spelled out rather than left to the icon's colour, which
+ * would be the only cue otherwise — and colour alone is not a cue everyone
+ * gets. Renders nothing at all outside duel leagues, where there is no duel
+ * and no opponent to name.
+ */
+function DuelLine({
+  result,
+  opponentName,
+}: {
+  result: DuelResult | undefined
+  opponentName: string | undefined
+}) {
+  if (result === undefined && opponentName === undefined) return null
+  const outcome = result === undefined ? undefined : DUEL_RESULT[result]
+
   return (
-    <Icon
-      size={13}
-      role="img"
-      aria-label={label}
-      className={cn('shrink-0', className)}
-    />
+    <p className="flex items-center gap-1 text-xs">
+      {outcome !== undefined && (
+        <>
+          <outcome.Icon
+            size={13}
+            aria-hidden="true"
+            className={cn('shrink-0', outcome.className)}
+          />
+          <span className={cn('shrink-0 font-medium', outcome.className)}>
+            {outcome.text}
+          </span>
+        </>
+      )}
+      {opponentName !== undefined && (
+        <span className="truncate text-faint">vs. {opponentName}</span>
+      )}
+    </p>
   )
 }
 

@@ -12,21 +12,29 @@ Full standings for every manager in the league.
   4 Manager · Duell-Modus            │ ⚔ │ Σ │   ← sort toggle
                                      └───┴───┘
   ┌────────────────────────────────────────────┐
-  │  1.  (A)  robidfl                       9  │
-  │           194,4 Mio. € Teamwert    612 Pkt │
-  │           410 Pkt ✓ vs. Danger             │
+  │ 1. (A)  robidfl                         9  │
+  │         410 Pkt am Spieltag        612 Pkt │
+  │         ✓ Gewonnen vs. Danger              │
   ├────────────────────────────────────────────┤
-  │  2.  (A)  Danger  du                    6  │  ← accent border
-  │  ↗2       103,1 Mio. € Teamwert    588 Pkt │
-  │           120 Pkt ✗ vs. robidfl            │
+  │ 2. (A)  Danger  du                      6  │  ← accent border
+  │ ↗2      120 Pkt am Spieltag        588 Pkt │
+  │         ✗ Verloren vs. robidfl             │
   └────────────────────────────────────────────┘
 ```
 
-The row is a name over **two subtitles** — team value, then the matchday
-result — because three separate facts were previously crammed onto one line
-and truncated on a phone. The placement's movement sits under the placement
-number and appears **only when it changed**; a lone dash for "unchanged" was a
-whole line saying nothing.
+The row is a name over **two subtitles**: what the manager actually scored this
+matchday, then how the duel that fed into went. Team value used to sit here but
+was displaced — it is a standing figure that says nothing about the current
+round, and it is still on the [dashboard](dashboard.md).
+
+The placement number and the avatar form their own tight group, so the row's
+gap separates them from the text rather than pushing the number away from the
+face it belongs to. The placement's movement sits beneath the number and
+appears **only when it changed**; a lone dash for "unchanged" was a whole line
+saying nothing.
+
+Outside a duel league the third line is absent entirely and the row is two
+lines tall.
 
 ## Ordering
 
@@ -80,12 +88,13 @@ would need truncating next to the heading on a phone, so the meaning rides on
 Only the non-default view re-sorts: the hook already returns the league's own
 table.
 
-### Duel result icon
+### Duel outcome
 
-The second subtitle reads *matchday Kickbase points · result icon · opponent* —
-a green check for a win, a grey dash for a draw, a red cross for a loss,
-followed by "vs. <name>". The opponent's name comes from the same `byId` map
-the result is computed with, so it costs nothing extra.
+The second subtitle reads *icon · outcome · opponent* — for example
+"✓ Gewonnen vs. Danger". The outcome is **spelled out** rather than left to the
+icon's colour, which would otherwise be the only cue, and colour alone is not a
+cue everyone gets. The opponent's name comes from the same `byId` map the
+result is computed with, so it costs nothing extra.
 
 Note the figure there is the manager's **real Kickbase points for the
 matchday** (`mdp`), not their duel points. Those are what the duel was decided
@@ -127,8 +136,8 @@ inverted reading would be visible immediately rather than silent.
 | Placement change | `placementChange` (`ppc`), under the placement — hidden when `0` |
 | Avatar | `image` (`uim`), initials fallback |
 | Name | `name`, with a `du` tag in accent colour when `id === user?.id` |
-| Subtitle 1 | Team value |
-| Subtitle 2 | Matchday Kickbase points (`mdp`), duel result icon, opponent name |
+| Subtitle 1 | Matchday Kickbase points (`mdp`) |
+| Subtitle 2 | Duel outcome + opponent name — omitted outside duel leagues |
 | Points | `seasonPoints`, bold, right-aligned |
 | Change | `placementChange` (`ppc`) |
 
