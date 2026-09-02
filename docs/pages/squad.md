@@ -120,21 +120,70 @@ model currently exposes:
 An interactive lineup: a pitch with the fielded players, a scrolling bench
 below, and formation rules enforced on every tap.
 
-### State is local
+### Persistence
 
-**Nothing here is sent to Kickbase.** `GET` and `POST /v4/leagues/{id}/lineup`
-both exist (probed: the route answers, and `PUT` returns 405), but neither
-contract has been inspected — doing so would require signing in as the real
-account. So the lineup is `useState` and a reload resets it.
+Every change is written to Kickbase with
+`POST /v4/leagues/{leagueId}/lineup`, via
+[`useSaveLineup`](../../src/api/hooks/useLineup.ts). The body is
 
-Swapping in the real thing replaces that `useState` with a query plus a
-mutation. The rules in [`lib/lineup.ts`](../../src/lib/lineup.ts) and the whole
-UI stay as they are.
+```json
+{ "type": "4-4-2", "players": ["1235", "…"] }
+```
 
-The initial lineup is seeded from the squad's `lo` field ("lineup order"),
-read as *non-zero means fielded* — an inference, not documented. The seed is
+— the formation label plus the starting eleven. The endpoint **replaces the
+lineup wholesale** rather than applying a delta, which is what makes the
+client's job tractable: every request is the complete intended state.
+
+The docs do not say whether `players` is positional. Nothing suggests a slot
+encoding, so the ids are sent grouped in formation reading order — keeper,
+defence, midfield, attack — which is the only ordering that reads consistently
+alongside `type`. Worth revisiting if the app ever shows the lineup in an
+unexpected order.
+
+A save failure surfaces as a red banner above the pitch and leaves the local
+lineup untouched, so the user can retry by making another change rather than
+losing their work.
+
+#### Coalescing and ordering
+
+Two problems come with "save on every change", and both are handled in
+[`LineupTab`](../../src/components/squad/LineupTab.tsx):
+
+- **Debounced (600 ms).** Building an eleven from scratch is eleven taps;
+  naively that is eleven requests, each immediately superseded.
+- **Serialised.** Since each payload is the whole lineup, an out-of-order
+  response would leave the server holding a stale eleven. A queued save awaits
+  the in-flight one before sending, so the last request to arrive is always
+  the last edit made.
+
+Verified by simulation: eleven rapid taps produce one request carrying the
+final payload; spaced edits produce one request each, in order; a slow save
+never overlaps the next and order still holds; a failed save does not block
+the following one; and mounting without editing sends nothing.
+
+#### The identity trap
+
+The save effect keys off a **string** built from the payload, not the payload
+object.
+
+This is not a micro-optimisation. A successful save invalidates the squad
+query, so `squad` refetches, `lineup` becomes a new array, and an effect
+depending on that object would fire again — save, invalidate, refetch, save,
+for ever. Refetch-on-window-focus would do the same. An intermediate version
+of this code had exactly that loop.
+
+Keying on content makes an unchanged lineup a no-op no matter how often its
+objects are rebuilt, and `payload` is memoised on the same key so the effect's
+dependency list stays honest instead of being suppressed.
+
+### Seeding
+
+The initial lineup comes from the squad's `lo` field ("lineup order"), read as
+*non-zero means fielded* — an inference, not documented. The seed is
 re-validated against the formation rules one player at a time, so a wrong
-guess degrades to an empty pitch rather than an illegal one.
+guess drops the players that do not fit rather than rendering an illegal
+lineup. Only user edits mark the state dirty, so seeding never triggers a
+write.
 
 ### The rules
 
@@ -175,11 +224,27 @@ order".
 | Tap a bench player with room | Added; the formation label updates |
 | Tap a bench player with no room | Swap dialog opens |
 | Tap a player on the pitch | Removed |
+| Any change | Saved after 600 ms; a spinner shows while in flight |
 | Bench player already fielded | `disabled`, dimmed, accent-tinted border |
 
-The swap dialog offers **only the players whose removal would actually make
-room** — `removalCandidates()` tests each one by simulating the removal. From a
-full 4-4-2, fitting a fifth defender offers all ten outfield players (drop a
+#### The swap dialog
+
+Selecting and confirming are **separate steps**: tapping a row only selects
+it, and the dialog's own *Tauschen* button performs the swap. A mis-tap in a
+scrolling list therefore costs nothing, and the button stays disabled until
+something is chosen. *Abbrechen* dismisses without changing anything.
+
+The rows are a `role="radiogroup"` of `role="radio"` buttons with
+`aria-checked`, so the single-choice nature is announced rather than only
+implied by the accent border and check mark.
+
+Selection resets per visit by comparing the incoming player during render
+rather than clearing it in an effect — so a freshly opened dialog never paints
+with the previous visit's choice highlighted.
+
+The dialog offers **only the players whose removal would actually make room** —
+`removalCandidates()` tests each one by simulating the removal. From a full
+4-4-2, fitting a fifth defender offers all ten outfield players (drop a
 defender → 4-4-2 again, a midfielder → 5-3-2, a forward → 5-4-1) but **never
 the keeper**, since 5-4-2 is not a formation. Fitting a second keeper offers
 only the keeper.
@@ -222,7 +287,8 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 - A lineup/formation view using `lo` instead of the flat grouped list.
 - Sort control (points, average, value, trend) — the grouping is currently
   fixed.
-- **Persist the lineup** via `POST /v4/leagues/{id}/lineup` once its contract
-  is known. That is the single biggest gap in this page.
+- **Read the lineup from `GET /v4/leagues/{id}/lineup`** instead of inferring
+  it from `lo`. The route exists but its response shape has not been
+  inspected; that would remove the last inference on this page.
 - Drag and drop between bench and pitch, in addition to tapping.
 - Use `startProbability` to flag risky picks while building the lineup.

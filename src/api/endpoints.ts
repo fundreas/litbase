@@ -27,6 +27,12 @@ export const endpoints = {
     squad: (leagueId: string) => `/v4/leagues/${leagueId}/squad`,
     /** Transfer market listings. */
     market: (leagueId: string) => `/v4/leagues/${leagueId}/market`,
+    /**
+     * The manager's lineup. `GET` reads it, `POST` replaces it wholesale
+     * (`PUT` answers 405). The POST body is `{ type, players }` — see
+     * `SaveLineupRequest`.
+     */
+    lineup: (leagueId: string) => `/v4/leagues/${leagueId}/lineup`,
 
     /* --- Joining ------------------------------------------------------- */
 

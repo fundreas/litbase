@@ -340,6 +340,23 @@ export interface SquadResponse {
   it: SquadPlayer[]
 }
 
+/**
+ * `POST /v4/leagues/{leagueId}/lineup` — replaces the lineup wholesale.
+ *
+ * The documented example is `{ "type": "4-4-2", "players": ["1235"] }`.
+ *
+ * What the docs do **not** say is whether `players` is positional. Nothing
+ * indicates a slot encoding, so the app sends the ids grouped by position in
+ * the order the formation reads — keeper, defenders, midfielders, forwards —
+ * which is the only ordering the `type` string makes sense alongside.
+ */
+export interface SaveLineupRequest {
+  /** Formation label, e.g. `"4-4-2"`. */
+  type: string
+  /** Player ids in the starting eleven. */
+  players: string[]
+}
+
 export interface SquadPlayer {
   /** Player id. */
   i: string

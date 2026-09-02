@@ -20,6 +20,7 @@ export function ConfirmDialog({
   cancelLabel = 'Abbrechen',
   onConfirm,
   isBusy = false,
+  isConfirmDisabled = false,
   error,
   children,
 }: {
@@ -31,6 +32,8 @@ export function ConfirmDialog({
   cancelLabel?: string
   onConfirm: () => void
   isBusy?: boolean
+  /** For dialogs whose confirm needs a selection first. */
+  isConfirmDisabled?: boolean
   error?: string | null
   /** Extra content between the description and the actions. */
   children?: ReactNode
@@ -88,7 +91,12 @@ export function ConfirmDialog({
                 {cancelLabel}
               </Button>
             </Dialog.Close>
-            <Button fullWidth onClick={onConfirm} isLoading={isBusy}>
+            <Button
+              fullWidth
+              onClick={onConfirm}
+              isLoading={isBusy}
+              disabled={isConfirmDisabled}
+            >
               {confirmLabel}
             </Button>
           </div>
