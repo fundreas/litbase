@@ -311,29 +311,38 @@ empty places", it is *minus 200*, which is a bigger swing than most transfer
 decisions. `emptySlotPenalty()` lives in
 [`lib/lineup.ts`](../../src/lib/lineup.ts) beside the rest of the rules.
 
-Whenever fewer than eleven players are fielded, a warning banner appears under
-the header.
+Whenever fewer than eleven players are fielded, the header itself carries the
+warning:
 
-The banner is the only indicator. An earlier version also put a warning
-triangle next to the `x/11 aufgestellt` label, which said the same thing twice
-in the same glance.
+```
+9/11 aufgestellt  ⚠ −200                        4-4-0
+└─ warning colour ┘└─ warning chip ┘
+```
 
-The two causes get different wording, because they need different actions:
+The `x/11 aufgestellt` label turns warning-coloured, and a warning-styled chip
+beside it shows the points at stake with a triangle icon. There is no banner:
+it occupied a full row above the pitch to say what two glyphs say, and the
+pitch is the thing that should have the height.
 
-| Situation | Message |
-| --------- | ------- |
+The visible glyphs are `aria-hidden` and the **full sentence rides along as
+`sr-only` text**, so assistive tech still gets everything the banner said —
+including the different wording for the two causes:
+
+| Situation | Screen-reader / tooltip text |
+| --------- | ---------------------------- |
 | Squad has ≥ 11, fewer fielded | *"2 leere Plätze kosten dich 200 Punkte."* |
 | Squad itself has < 11 | *"Dein Kader hat nur 9 von 11 nötigen Spielern. 2 leere Plätze kosten dich 200 Punkte. Kaufe Spieler auf dem Transfermarkt."* |
 
 Telling someone to pick more players when they only own nine is useless, so
-that case names the real cause — but still quotes the cost, because that is
-the part that matters. Singular reads naturally too (*"Ein leerer Platz kostet
-dich 100 Punkte."*), and figures are `de-DE` grouped, so an empty lineup reads
-*1.100*.
+that case names the real cause. Singular reads naturally (*"Ein leerer Platz
+kostet dich 100 Punkte."*), and figures are `de-DE` grouped, so an empty
+lineup reads *−1.100*.
 
-The banner is plain text with `role`-free markup and a decorative icon, so it
-reads once to assistive tech and needs no tooltip — which matters because a
-`title` shows nothing on touch.
+**Known trade-off:** the same text is on the chip's `title`, which shows
+nothing on touch. So on a phone the "buy players on the transfer market" hint
+for an undersized squad is no longer visible — only the figure is. The
+[placeholders](#placeholders-stand-for-mandatory-places-only) on the pitch
+carry some of that meaning, but not the market pointer.
 
 ### Interaction
 

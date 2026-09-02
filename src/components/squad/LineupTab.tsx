@@ -251,13 +251,38 @@ export function LineupTab({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center justify-between gap-3 px-0.5">
-        <p className="nums flex items-center gap-2 text-sm text-muted">
+        <p
+          className={cn(
+            'nums flex items-center gap-2 text-sm',
+            isIncomplete ? 'text-warning' : 'text-muted',
+          )}
+        >
           <span>
-            <span className="font-semibold text-ink">
+            <span
+              className={cn(
+                'font-semibold',
+                isIncomplete ? 'text-warning' : 'text-ink',
+              )}
+            >
               {lineup.length}/{LINEUP_SIZE}
             </span>{' '}
             aufgestellt
           </span>
+
+          {isIncomplete && (
+            /* The count and this chip are the whole warning — there is no
+               banner any more. The glyphs are `aria-hidden` and the full
+               sentence rides along as screen-reader text, so nothing is lost
+               to assistive tech by compressing it to "−200". */
+            <span
+              title={incompleteMessage}
+              className="flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning"
+            >
+              <AlertTriangle size={12} aria-hidden="true" />
+              <span aria-hidden="true">−{points(penalty)}</span>
+              <span className="sr-only">{incompleteMessage}</span>
+            </span>
+          )}
 
           {save.isPending && (
             <span className="flex items-center gap-1 text-xs text-faint">
@@ -270,13 +295,6 @@ export function LineupTab({
           {formationLabel(formation)}
         </p>
       </div>
-
-      {isIncomplete && (
-        <p className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs leading-snug text-warning">
-          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-          {incompleteMessage}
-        </p>
-      )}
 
       {saveError !== null && (
         <p
