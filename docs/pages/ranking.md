@@ -14,11 +14,11 @@ Full standings for every manager in the league.
   ┌────────────────────────────────────────────┐
   │  1.  (A)  robidfl                       9  │
   │           194,4 Mio. € Teamwert    612 Pkt │
-  │           410 Pkt ✓ gegen Danger           │
+  │           410 Pkt ✓ vs. Danger             │
   ├────────────────────────────────────────────┤
   │  2.  (A)  Danger  du                    6  │  ← accent border
   │  ↗2       103,1 Mio. € Teamwert    588 Pkt │
-  │           120 Pkt ✗ gegen robidfl          │
+  │           120 Pkt ✗ vs. robidfl            │
   └────────────────────────────────────────────┘
 ```
 
@@ -84,7 +84,7 @@ table.
 
 The second subtitle reads *matchday Kickbase points · result icon · opponent* —
 a green check for a win, a grey dash for a draw, a red cross for a loss,
-followed by "gegen <name>". The opponent's name comes from the same `byId` map
+followed by "vs. <name>". The opponent's name comes from the same `byId` map
 the result is computed with, so it costs nothing extra.
 
 Note the figure there is the manager's **real Kickbase points for the

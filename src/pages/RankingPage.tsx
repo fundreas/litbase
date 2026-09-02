@@ -196,7 +196,7 @@ function ManagerRow({
         <PlacementChange value={manager.placementChange} />
       </span>
 
-      <Avatar src={manager.image} name={manager.name} size={40} />
+      <Avatar src={manager.image} name={manager.name} size={48} />
 
       {/* Name, then two subtitles: team value, then the matchday result. */}
       <div className="min-w-0 flex-1">
@@ -214,9 +214,7 @@ function ManagerRow({
           <span className="shrink-0">{points(manager.matchdayPoints)} Pkt</span>
           <DuelResultIcon result={duelResult} />
           {duelOpponentName !== undefined && (
-            <span className="truncate text-faint">
-              gegen {duelOpponentName}
-            </span>
+            <span className="truncate text-faint">vs. {duelOpponentName}</span>
           )}
         </p>
       </div>
