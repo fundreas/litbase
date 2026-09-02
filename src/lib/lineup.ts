@@ -44,6 +44,8 @@ export function emptySlotPenalty(fielded: number): number {
   return Math.max(LINEUP_SIZE - fielded, 0) * PENALTY_PER_EMPTY_SLOT
 }
 
+export type PositionCounts = Record<PositionKey, number>
+
 /** The ten allowed formations, ordered by defensive line then midfield. */
 export const FORMATIONS: readonly Formation[] = [
   { def: 3, mid: 4, fwd: 3 },
@@ -58,11 +60,36 @@ export const FORMATIONS: readonly Formation[] = [
   { def: 5, mid: 4, fwd: 1 },
 ]
 
+/**
+ * The fewest players every legal formation needs per position.
+ *
+ * Derived from {@link FORMATIONS} rather than written down, so it cannot drift
+ * from the formation list: it is the per-position minimum across all ten, and
+ * comes out as 1 keeper, 3 defenders, 2 midfielders, 1 forward — exactly what
+ * Kickbase's own help states.
+ *
+ * These are formation-*independent* facts, which is what makes them safe to
+ * draw as placeholders on the pitch. An assumed formation's remaining slots
+ * are not: those would imply a shape the user has not chosen.
+ */
+export const POSITION_MINIMUMS: PositionCounts = {
+  gk: GOALKEEPER_COUNT,
+  def: Math.min(...FORMATIONS.map((f) => f.def)),
+  mid: Math.min(...FORMATIONS.map((f) => f.mid)),
+  fwd: Math.min(...FORMATIONS.map((f) => f.fwd)),
+}
+
+/** How many mandatory places of this position are still unfilled. */
+export function missingAtPosition(
+  counts: PositionCounts,
+  position: PositionKey,
+): number {
+  return Math.max(POSITION_MINIMUMS[position] - counts[position], 0)
+}
+
 export function formationLabel(formation: Formation): string {
   return `${String(formation.def)}-${String(formation.mid)}-${String(formation.fwd)}`
 }
-
-export type PositionCounts = Record<PositionKey, number>
 
 export function countPositions(
   positions: readonly PositionKey[],

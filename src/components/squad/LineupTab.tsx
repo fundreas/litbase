@@ -6,6 +6,7 @@ import { useSaveLineup, type LineupWrite } from '@/api/hooks/useLineup'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import {
   POSITION_LABEL,
+  POSITION_NAME,
   type PositionKey,
   type SquadMember,
   type TeamFixture,
@@ -26,6 +27,7 @@ import {
   emptySlotPenalty,
   formationLabel,
   LINEUP_SIZE,
+  missingAtPosition,
   removalCandidates,
 } from '@/lib/lineup'
 
@@ -291,22 +293,22 @@ export function LineupTab({
             so the pitch reads as a pitch at any size instead of a cluster of
             players at the top. */}
         <div className="flex h-full flex-col justify-around gap-1 px-2 py-4">
-          {lineup.length === 0 && (
-            <p className="py-10 text-center text-sm text-white/80">
-              Noch niemand aufgestellt. Tippe unten auf einen Spieler.
-            </p>
-          )}
           {ROW_ORDER.map((position) => {
             const players = lineup.filter(
               (player) => player.position === position,
             )
-            // Only what is actually fielded gets drawn — an unfilled row is
-            // simply absent rather than a set of dashed placeholders.
-            if (players.length === 0) return null
+            // Placeholders stand for *mandatory* places only — every legal
+            // formation needs at least one keeper, three defenders, two
+            // midfielders and one forward. Filling out an assumed formation's
+            // remaining slots would instead imply a shape nobody chose.
+            const placeholders = missingAtPosition(counts, position)
+            if (players.length === 0 && placeholders === 0) return null
             return (
               <PitchRow
                 key={position}
+                position={position}
                 players={players}
+                placeholders={placeholders}
                 fixtureByTeamId={fixtureByTeamId}
                 onRemove={remove}
               />
@@ -340,11 +342,16 @@ export function LineupTab({
 /* -------------------------------------------------------------------------- */
 
 function PitchRow({
+  position,
   players,
+  placeholders,
   fixtureByTeamId,
   onRemove,
 }: {
+  position: PositionKey
   players: SquadMember[]
+  /** Mandatory places of this position still to fill. */
+  placeholders: number
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   onRemove: (playerId: string) => void
 }) {
@@ -360,7 +367,33 @@ function PitchRow({
           }}
         />
       ))}
+      {Array.from({ length: placeholders }, (_, index) => (
+        <EmptySlot key={index} position={position} />
+      ))}
     </div>
+  )
+}
+
+/**
+ * A place the lineup still has to fill. Not interactive: tapping it could not
+ * do anything unambiguous, and the bench below is where players are picked.
+ */
+function EmptySlot({ position }: { position: PositionKey }) {
+  const label = `Noch kein ${POSITION_NAME[position]} aufgestellt`
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="flex w-16 shrink-0 flex-col items-center gap-1 p-1"
+    >
+      <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-dashed border-white/45 text-[0.625rem] font-semibold text-white/70">
+        {POSITION_LABEL[position]}
+      </span>
+      <span className="rounded bg-black/35 px-1 py-0.5 text-[0.625rem] font-medium text-white/70">
+        offen
+      </span>
+    </span>
   )
 }
 

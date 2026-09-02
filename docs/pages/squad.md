@@ -446,9 +446,30 @@ collapsing.
 
 Rows run attack-first down the page: FWD, MID, DEF, GK, spread with
 `justify-around` so the pitch reads as a pitch at any height rather than a
-cluster of players at the top. **Only fielded players are drawn.** A position
-with nobody in it is simply absent — no dashed placeholder slots — and an empty
-pitch shows a single prompt instead.
+cluster of players at the top.
+
+#### Placeholders stand for mandatory places only
+
+A position short of the minimum every formation requires shows a dashed slot
+labelled with the position and *offen*. With no striker fielded, one striker
+placeholder appears; an empty pitch shows seven (1 keeper, 3 defenders, 2
+midfielders, 1 forward).
+
+The distinction matters. `POSITION_MINIMUMS` is **derived from `FORMATIONS`**
+— the per-position minimum across all ten — so it cannot drift from the
+formation list, and it comes out as exactly the 1/3/2/1 Kickbase documents.
+Those are formation-*independent* facts, which is what makes them safe to
+draw.
+
+An earlier version filled out the remaining slots of an *assumed* formation
+instead. That was removed because it implied a shape the user had not chosen —
+a lineup of four defenders would sprout two more dashed defender slots purely
+because 4-4-2 happened to be the closest match. Minimums have no such problem:
+a complete eleven shows no placeholders in any of the ten formations, and
+nothing is ever suggested that every legal formation does not require.
+
+Placeholders are not interactive. A tap could not do anything unambiguous, and
+the bench below is where players are picked.
 
 That follows from showing the *effective* formation rather than a nearest legal
 one: placeholders would have to be drawn against some assumed formation, which

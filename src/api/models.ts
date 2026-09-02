@@ -41,6 +41,14 @@ export const POSITION_LABEL: Record<PositionKey, string> = {
   fwd: 'ANG',
 }
 
+/** Spelled-out position names, for tooltips and screen readers. */
+export const POSITION_NAME: Record<PositionKey, string> = {
+  gk: 'Torwart',
+  def: 'Verteidiger',
+  mid: 'Mittelfeldspieler',
+  fwd: 'Stürmer',
+}
+
 export function toPosition(code: number): PositionKey {
   return POSITION_BY_CODE[code] ?? 'mid'
 }
