@@ -93,6 +93,7 @@ src/
 /join                        browse and join leagues
 /leagues/:leagueId/dashboard
 /leagues/:leagueId/squad
+/leagues/:leagueId/lineup
 /leagues/:leagueId/market
 /leagues/:leagueId/ranking
 /leagues/:leagueId/table

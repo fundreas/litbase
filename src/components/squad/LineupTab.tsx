@@ -23,6 +23,7 @@ import {
   containerFormation,
   countPositions,
   effectiveFormation,
+  emptySlotPenalty,
   formationLabel,
   LINEUP_SIZE,
   removalCandidates,
@@ -102,9 +103,10 @@ export function LineupTab({
   const fixtureByTeamId = matchday.data?.fixtureByTeamId
 
   /**
-   * An incomplete lineup is legal and it saves, but it forfeits points for
-   * every empty slot — so it is worth flagging rather than leaving the user to
-   * notice the count.
+   * An incomplete lineup is legal and it saves — but every empty slot costs
+   * 100 points, so the warning quotes the actual figure rather than the count.
+   * "2 Plätze sind leer" is easy to shrug at; "das kostet dich 200 Punkte" is
+   * not, and 200 points is a bigger swing than most transfer decisions.
    *
    * The two causes need different wording. Usually the squad is big enough and
    * players simply have not been picked. But a squad of fewer than eleven
@@ -114,10 +116,13 @@ export function LineupTab({
   const missing = LINEUP_SIZE - lineup.length
   const isIncomplete = missing > 0
   const isSquadTooSmall = squad.length < LINEUP_SIZE
+  const penalty = emptySlotPenalty(lineup.length)
+
+  const cost = `${missing === 1 ? 'Ein leerer Platz kostet' : `${String(missing)} leere Plätze kosten`} dich ${points(penalty)} Punkte.`
 
   const incompleteMessage = isSquadTooSmall
-    ? `Unvollständige Aufstellung: dein Kader hat nur ${String(squad.length)} von ${String(LINEUP_SIZE)} nötigen Spielern. Kaufe Spieler auf dem Transfermarkt.`
-    : `Unvollständige Aufstellung: ${String(missing)} ${missing === 1 ? 'Platz ist' : 'Plätze sind'} leer. Leere Plätze bringen keine Punkte.`
+    ? `Unvollständige Aufstellung: dein Kader hat nur ${String(squad.length)} von ${String(LINEUP_SIZE)} nötigen Spielern. ${cost} Kaufe Spieler auf dem Transfermarkt.`
+    : `Unvollständige Aufstellung: ${cost}`
 
   /* ---------------------------------------------------------------------- */
   /* Persistence                                                             */
@@ -242,8 +247,8 @@ export function LineupTab({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3 px-0.5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 px-0.5">
         <p className="nums flex items-center gap-2 text-sm text-muted">
           <span>
             <span className="font-semibold text-ink">
@@ -281,8 +286,11 @@ export function LineupTab({
         </p>
       )}
 
-      <Pitch>
-        <div className="flex flex-col gap-1 px-2 py-4">
+      <Pitch className="flex-1">
+        {/* `justify-around` spreads whatever rows exist over the full height,
+            so the pitch reads as a pitch at any size instead of a cluster of
+            players at the top. */}
+        <div className="flex h-full flex-col justify-around gap-1 px-2 py-4">
           {lineup.length === 0 && (
             <p className="py-10 text-center text-sm text-white/80">
               Noch niemand aufgestellt. Tippe unten auf einen Spieler.
@@ -433,7 +441,9 @@ function Bench({
   })).filter((group) => group.players.length > 0)
 
   return (
-    <section className="flex flex-col gap-2">
+    /* `shrink-0`: the bench keeps its natural height and the pitch above it
+       absorbs whatever is left, rather than the two competing for space. */
+    <section className="flex shrink-0 flex-col gap-2">
       <h2 className="px-0.5 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
         Bank · tippen zum Aufstellen
       </h2>

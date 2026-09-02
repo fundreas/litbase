@@ -19,7 +19,8 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
       └─                            <AppShell>
          ├─ (index)                 → dashboard
          ├─ dashboard
-         ├─ squad
+         ├─ squad     ┐ same component, tab from the segment
+         ├─ lineup    ┘
          ├─ market
          ├─ ranking
          ├─ table
@@ -163,7 +164,9 @@ Both read from one config, [`navigation.ts`](../src/components/layout/navigation
 
 ```ts
 { to: 'dashboard', label: 'Übersicht',          icon: …, primary: true  }
-{ to: 'squad',     label: 'Mein Team',          icon: …, primary: true  }
+{ to: 'squad',     label: 'Mein Team',          icon: …, primary: true,
+                   alsoMatchesInBar: ['lineup'] }
+{ to: 'lineup',    label: 'Aufstellung',        icon: … }
 { to: 'market',    label: 'Transfermarkt',      icon: …, primary: true  }
 { to: 'ranking',   label: 'Rangliste',          icon: …, primary: true  }
 { to: 'table',     label: 'Bundesliga-Tabelle', icon: … }
@@ -172,6 +175,17 @@ Both read from one config, [`navigation.ts`](../src/components/layout/navigation
 
 The drawer shows all entries; the bottom bar shows only `primary` ones, and is
 hidden from `md` up where the drawer suffices.
+
+`alsoMatchesInBar` exists because the bar carries a *coarser* set of
+destinations than the drawer. `/lineup` has its own drawer entry, but no bar
+entry — so in the bar, **Mein Team** stands for the whole team page and stays
+highlighted on both routes. `BottomNav` therefore computes the active item with
+`isBarItemActive()` instead of relying on `NavLink`'s own matching, while the
+drawer lets each entry match only itself.
+
+Pages can claim the leftover viewport height: `main` is a flex column, so a
+page root with `flex-1` fills it. The [lineup](pages/squad.md#lineup-tab) uses
+this.
 
 [`NavDrawer`](../src/components/layout/NavDrawer.tsx) is built on
 [`Drawer`](../src/components/ui/Drawer.tsx), which wraps Radix Dialog — so

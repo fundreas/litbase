@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { cn } from '@/lib/cn'
+
 /**
  * Football pitch background, drawn as inline SVG.
  *
@@ -11,9 +13,20 @@ import type { ReactNode } from 'react'
  * attacking upward), which is how a lineup reads on a phone. Proportions are
  * loosely real: an 68×105 m pitch scaled into a 100×150 viewBox.
  */
-export function Pitch({ children }: { children: ReactNode }) {
+export function Pitch({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <div className="relative overflow-hidden rounded-card border border-line">
+    <div
+      className={cn(
+        'relative flex min-h-72 flex-col overflow-hidden rounded-card border border-line',
+        className,
+      )}
+    >
       <svg
         viewBox="0 0 100 150"
         preserveAspectRatio="none"
@@ -64,7 +77,7 @@ export function Pitch({ children }: { children: ReactNode }) {
         </g>
       </svg>
 
-      <div className="relative">{children}</div>
+      <div className="relative flex min-h-0 flex-1 flex-col">{children}</div>
     </div>
   )
 }

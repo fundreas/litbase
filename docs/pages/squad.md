@@ -1,14 +1,21 @@
 # Squad — "Mein Team"
 
-[← Back to index](../README.md) · Route `/leagues/:leagueId/squad` ·
+[← Back to index](../README.md) · Routes `/leagues/:leagueId/squad` and
+`/leagues/:leagueId/lineup` ·
 [`src/pages/SquadPage.tsx`](../../src/pages/SquadPage.tsx)
 
-The signed-in manager's own players, in two tabs:
+The signed-in manager's own players, in two tabs that are **separate routes**:
 
-| Tab | Content |
-| --- | ------- |
-| **Kader** | The full squad as a grouped list (below) |
-| **Aufstellung** | The interactive lineup on a pitch ([see below](#lineup-tab)) |
+| Route | Tab | Content |
+| ----- | --- | ------- |
+| `/squad` | **Kader** | The full squad as a grouped list (below) |
+| `/lineup` | **Aufstellung** | The interactive lineup on a pitch ([see below](#lineup-tab)) |
+
+Both routes render the same component; the active tab is derived from the last
+path segment rather than held in local state, so each view is linkable,
+survives a refresh, and can be opened straight from the nav drawer. Switching
+tabs navigates with `replace`, so flicking between them does not fill the
+history stack — back leaves the page instead of walking through every visit.
 
 Both read the same `useSquad` query, so switching tabs costs no request. The
 list lives in [`PlayerListTab`](../../src/components/squad/PlayerListTab.tsx)
@@ -298,10 +305,14 @@ honest.
 
 ### The incomplete warning
 
-An incomplete lineup is legal and it saves — but every empty slot scores
-nothing, so it is flagged rather than left for the user to infer from the
-count. Whenever fewer than eleven players are fielded, a warning banner
-appears under the header stating the reason.
+An incomplete lineup is legal and it saves — but **every empty slot costs 100
+points**, so the banner quotes the actual figure. Nine players is not "two
+empty places", it is *minus 200*, which is a bigger swing than most transfer
+decisions. `emptySlotPenalty()` lives in
+[`lib/lineup.ts`](../../src/lib/lineup.ts) beside the rest of the rules.
+
+Whenever fewer than eleven players are fielded, a warning banner appears under
+the header.
 
 The banner is the only indicator. An earlier version also put a warning
 triangle next to the `x/11 aufgestellt` label, which said the same thing twice
@@ -311,12 +322,14 @@ The two causes get different wording, because they need different actions:
 
 | Situation | Message |
 | --------- | ------- |
-| Squad has ≥ 11, fewer fielded | *"N Plätze sind leer. Leere Plätze bringen keine Punkte."* |
-| Squad itself has < 11 | *"Dein Kader hat nur N von 11 nötigen Spielern. Kaufe Spieler auf dem Transfermarkt."* |
+| Squad has ≥ 11, fewer fielded | *"2 leere Plätze kosten dich 200 Punkte."* |
+| Squad itself has < 11 | *"Dein Kader hat nur 9 von 11 nötigen Spielern. 2 leere Plätze kosten dich 200 Punkte. Kaufe Spieler auf dem Transfermarkt."* |
 
 Telling someone to pick more players when they only own nine is useless, so
-that case names the real problem instead. The count is singular/plural correct
-(`1 Platz ist` / `2 Plätze sind`).
+that case names the real cause — but still quotes the cost, because that is
+the part that matters. Singular reads naturally too (*"Ein leerer Platz kostet
+dich 100 Punkte."*), and figures are `de-DE` grouped, so an empty lineup reads
+*1.100*.
 
 The banner is plain text with `role`-free markup and a decorative icon, so it
 reads once to assistive tech and needs no tooltip — which matters because a
@@ -422,9 +435,20 @@ is drawn **vertically** (own goal at the bottom, attacking upward), which is
 how a lineup reads on a phone, with a turf gradient, mown bands, centre circle
 and both penalty areas.
 
-Rows run attack-first down the page: FWD, MID, DEF, GK. **Only fielded players
-are drawn.** A position with nobody in it is simply absent — no dashed
-placeholder slots — and an empty pitch shows a single prompt instead.
+**The pitch fills the available height.** `AppShell`'s `main` is a flex column,
+and a `flex-1` + `min-h-0` chain runs from the page through the tabs into
+`LineupTab` and `Pitch`. The `min-h-0` at each level is the load-bearing part:
+a flex child defaults to `min-height: auto` and would refuse to shrink below
+its content, so the pitch would overflow rather than fit. The bench below is
+`shrink-0`, keeping its natural height, and the pitch absorbs whatever is
+left — with a `min-h-72` floor so a short viewport scrolls instead of
+collapsing.
+
+Rows run attack-first down the page: FWD, MID, DEF, GK, spread with
+`justify-around` so the pitch reads as a pitch at any height rather than a
+cluster of players at the top. **Only fielded players are drawn.** A position
+with nobody in it is simply absent — no dashed placeholder slots — and an empty
+pitch shows a single prompt instead.
 
 That follows from showing the *effective* formation rather than a nearest legal
 one: placeholders would have to be drawn against some assumed formation, which

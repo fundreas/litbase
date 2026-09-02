@@ -30,6 +30,20 @@ export const GOALKEEPER_COUNT = 1
 
 export const LINEUP_SIZE = 11
 
+/**
+ * Points forfeited for every slot left empty at kick-off.
+ *
+ * Kickbase deducts 100 per unfilled place, so nine players costs 200 — a
+ * bigger swing than most single-player decisions, which is why the lineup
+ * warning quotes the figure rather than just the count.
+ */
+export const PENALTY_PER_EMPTY_SLOT = 100
+
+/** Points lost with this many players fielded. */
+export function emptySlotPenalty(fielded: number): number {
+  return Math.max(LINEUP_SIZE - fielded, 0) * PENALTY_PER_EMPTY_SLOT
+}
+
 /** The ten allowed formations, ordered by defensive line then midfield. */
 export const FORMATIONS: readonly Formation[] = [
   { def: 3, mid: 4, fwd: 3 },

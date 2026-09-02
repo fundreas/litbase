@@ -42,7 +42,10 @@ export function AppShell() {
       />
       <NavDrawer open={nav.isOpen} onOpenChange={setIsNavOpen} />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-3 pt-4 pb-24 md:pb-8">
+      {/* `flex flex-col` so a page can claim the leftover height with
+          `flex-1` (the lineup does). Pages that don't simply stack as before,
+          since flex children default to not growing. */}
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-3 pt-4 pb-24 md:pb-8">
         <RouteErrorBoundary>
           <Suspense fallback={<LoadingState />}>
             <Outlet />

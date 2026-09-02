@@ -70,7 +70,10 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },
               { path: 'dashboard', element: <DashboardPage /> },
+              // Two routes, one component: the active tab is derived from
+              // the segment, so each view is linkable and refresh-safe.
               { path: 'squad', element: <SquadPage /> },
+              { path: 'lineup', element: <SquadPage /> },
               { path: 'market', element: <MarketPage /> },
               { path: 'ranking', element: <RankingPage /> },
               { path: 'table', element: <TablePage /> },
