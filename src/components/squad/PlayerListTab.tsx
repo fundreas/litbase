@@ -1,9 +1,8 @@
-import { Minus, Shirt, TrendingDown, TrendingUp } from 'lucide-react'
+import { Shirt } from 'lucide-react'
 
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import {
   POSITION_LABEL,
-  type MarketValueTrend,
   type PositionKey,
   type SquadMember,
   type TeamFixture,
@@ -126,15 +125,18 @@ function PlayerRow({
           <span className="nums block text-sm font-semibold text-ink">
             {money(player.marketValue)}
           </span>
+          {/* Profit/loss only. The `mvt` trend arrow used to sit in front of
+              it and read as if it belonged to this figure, when the two are
+              different signals — a player can be up overall while trending
+              down. The signed, coloured amount carries this one on its own. */}
           <span
             className={cn(
-              'nums flex items-center justify-end gap-1 text-xs',
+              'nums block text-xs',
               player.profitLoss > 0 && 'text-positive',
               player.profitLoss < 0 && 'text-negative',
               player.profitLoss === 0 && 'text-faint',
             )}
           >
-            <TrendIcon trend={player.marketValueTrend} />
             {moneyDelta(player.profitLoss)}
           </span>
         </span>
@@ -146,11 +148,4 @@ function PlayerRow({
       </span>
     </li>
   )
-}
-
-function TrendIcon({ trend }: { trend: MarketValueTrend }) {
-  if (trend === 'up') return <TrendingUp size={12} className="text-positive" />
-  if (trend === 'down')
-    return <TrendingDown size={12} className="text-negative" />
-  return <Minus size={12} className="text-faint" />
 }

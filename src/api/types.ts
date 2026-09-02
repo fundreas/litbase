@@ -434,6 +434,16 @@ export interface SquadPlayer {
   pim?: string
   /** Start probability, 1..5 (5 = very likely). */
   prob?: number
+  /**
+   * Lineup-probability icon, CDN-relative (`content/file/<hash>.png`).
+   *
+   * **Not documented on this endpoint** and probably absent: the community
+   * docs list `plpim` only on player detail and on the market, and `lo` here
+   * is the lineup slot, not a probability. Declared so a consumer can prefer
+   * it when it *is* present and skip the per-player detail request. See
+   * {@link PlayerDetailResponse}.
+   */
+  plpim?: string
   /** Offer count. */
   ofc?: number
   /** Is player of the match. */
@@ -469,6 +479,65 @@ export interface MarketPlayer {
   u?: { i: string; n: string; uim?: string }
   pim?: string
   prob?: number
+  /** Lineup-probability icon, CDN-relative. See {@link PlayerDetailResponse}. */
+  plpim?: string
+  /** Last update of the lineup-probability assessment, ISO 8601. */
+  ts?: string
+}
+
+/**
+ * `GET /v4/leagues/{leagueId}/players/{playerId}`. **Nothing fetches this
+ * yet** — it is declared for the availability fields below, which no other
+ * endpoint exposes.
+ *
+ * Only those fields are declared; the real response is much larger
+ * (market-value history, per-matchday performance, the next fixture).
+ *
+ * This is where the **Startelf-Wahrscheinlichkeit** lives, and two things
+ * about it shape whatever ends up consuming it:
+ *
+ *  - **There is no numeric probability.** The assessment arrives as one of
+ *    exactly five static icons and `plpim` points at whichever one applies, so
+ *    naming a tier means recognising *which* icon it is — see
+ *    [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-plpim).
+ *  - **It is a Membership feature**, supplied by Ligainsider (`plpt`) rather
+ *    than by Kickbase. An account without Membership, the off-season, or a
+ *    player nobody has assessed yet all produce no `plpim` at all, so every
+ *    consumer has to treat it as optional.
+ */
+export interface PlayerDetailResponse {
+  /** Player id. */
+  i: string
+  /** Last name. */
+  n: string
+  /** First name. */
+  fn?: string
+  /** Team id. */
+  tid?: string
+  /** Position, see PLAYER_POSITION. */
+  pos?: number
+  /**
+   * Lineup-probability icon, CDN-relative (`content/file/<hash>.png`).
+   *
+   * One of five static images; the same URL repeats across every player
+   * sharing a tier, which is what makes a hash → tier lookup possible.
+   */
+  plpim?: string
+  /** Who assessed it — `"Ligainsider"` in practice. */
+  plpt?: string
+  /** The provider's logo, CDN-relative. */
+  plpurl?: string
+  /** Status: 0 = fit, others = injured / suspended / away. */
+  st?: number
+  /** Additional status list. */
+  stl?: number[]
+  /** Status text, e.g. `"Wadenprobleme – verpasst BMG (H)"`. */
+  stxt?: string
+  /**
+   * Last update of the assessment, ISO 8601. Ligainsider revises it several
+   * times before kick-off, so anything caching a tier should keep it briefly.
+   */
+  ts?: string
 }
 
 export interface CompetitionPlayersResponse {

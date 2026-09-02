@@ -231,6 +231,10 @@ Components should never see `mvt` or `spl`.
 
 - `/v4/user/settings` and `/v4/user/me` — both 200, redundant with the login
   response for now.
+- `/v4/leagues/{id}/players/{pid}` — player detail. Typed as
+  `PlayerDetailResponse` but not fetched: it is the only source of the lineup
+  probability (`plpim`, `plpt`, `stxt`), which no page renders. See
+  [Squad](pages/squad.md#lineup-probability-plpim).
 - `/v4/chat/refreshtoken` — 200. Refreshes the Firebase chat token
   (`chttkn`, ~1 h). Nothing needs chat yet.
 - `/v4/user/refresh`, `/v4/user/refreshtoken`, `/v4/user/token` — all **404**.

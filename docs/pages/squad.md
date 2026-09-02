@@ -31,13 +31,13 @@ page itself only owns loading, error and empty states plus the tab shell.
   TW · 2
   ┌────────────────────────────────────┐
   │ [img] Nübel            10,5 Mio. € │
-  │       412 Pkt · ⌀ 39   ↗ +2,2 Mio. │
+  │       412 Pkt · ⌀ 39     +2,2 Mio. │
   └────────────────────────────────────┘
 
   ABW · 6
   ┌────────────────────────────────────┐
   │ [img] Fernández ●       6,8 Mio. € │
-  │       39 Pkt · ⌀ 39    ↘ −1,1 Mio. │
+  │       39 Pkt · ⌀ 39      −1,1 Mio. │
   └────────────────────────────────────┘
   …
 ```
@@ -67,7 +67,6 @@ duplicated here.
 | Points | `totalPoints`, `averagePoints` | `412 Pkt · ⌀ 39` |
 | Market value | `marketValue` | Compact euros, tabular figures |
 | Profit / loss | `profitLoss` (`mvgl`) | Signed, coloured green/red, `–` when flat |
-| Trend arrow | `marketValueTrend` (`mvt`) | ↗ up, ↘ down, — flat |
 | Fixture panel | `useCurrentMatchday` | Full-height panel on the right, house/aeroplane + opponent crest |
 
 The lineup rail is **always rendered** and only tinted when the player is
@@ -81,15 +80,14 @@ effectively the store. The one visible consequence is that switching tabs
 during the save debounce can show the previous membership for about a second,
 until the refetch lands.
 
-Two distinct signals sit side by side on the bottom-right and are easy to
-confuse when reading the code:
+The bottom-right figure is **`profitLoss` alone** — how much has been gained or
+lost *against the purchase price*, signed and coloured.
 
-- **`profitLoss`** — how much has been gained or lost *against the purchase
-  price*. Drives the colour.
-- **`marketValueTrend`** — which way the value moved *recently*. Drives the
-  arrow icon.
-
-A player can be up overall (green) while trending down (↘).
+`marketValueTrend` (`mvt`, which way the value moved *recently*) used to sit in
+front of it as a ↗/↘/— arrow and is **no longer rendered**. The two are
+different signals, and a player can be up overall while trending down, so an
+arrow directly in front of the profit figure read as if it qualified that
+figure. The model still carries the field for anywhere it can stand on its own.
 
 `moneyDelta()` formats the signed value and uses a real minus sign (U+2212)
 rather than a hyphen, so negative figures align with positive ones in tabular
@@ -134,6 +132,68 @@ model currently exposes:
 - `lo` — lineup slot order, now mapped as `lineupOrder` and used to seed the
   [lineup tab](#lineup-tab).
 - `iotm` — player of the match.
+
+## Lineup probability (`plpim`)
+
+Kickbase's **Startelf-Wahrscheinlichkeit** is available to the app but is
+**deliberately not rendered here.** It was tried as a small icon badge in the
+corner of the player avatars on both tabs and taken back out again: at avatar
+scale the five icons are not distinguishable enough to be worth the noise they
+add to a row. Written up so the next page that wants it does not have to
+rediscover the API.
+
+Whoever picks it up should give it more room than a badge — a column in a
+sortable table, or a line in a player detail sheet.
+
+### Where it comes from
+
+`GET /v4/leagues/{leagueId}/players/{playerId}` —
+[`endpoints.leagues.player`](../../src/api/endpoints.ts), typed as
+`PlayerDetailResponse` in [`types.ts`](../../src/api/types.ts). Nothing fetches
+it yet; there is no hook.
+
+| Field | Meaning |
+| ----- | ------- |
+| `plpim` | The probability icon, CDN-relative (`content/file/<hash>.png`) |
+| `plpt` | Who assessed it — `"Ligainsider"` |
+| `plpurl` | The provider's logo, CDN-relative |
+| `stxt` | Status text, e.g. *"Wadenprobleme – verpasst BMG (H)"* |
+| `ts` | When the assessment last changed, ISO 8601 |
+
+`GET /v4/leagues/{leagueId}/market` carries `plpim` and `ts` on its player
+objects too. The **squad** payload does not, per the community docs — `lo`
+there is the lineup slot, not a probability — so annotating a whole squad means
+one detail request per player. `SquadPlayer.plpim` is declared anyway, so a
+consumer can prefer it and skip the request if Kickbase ever adds it. Worth
+re-checking against a live response first; the community docs lag behind.
+
+### The API sends a picture, not a number
+
+There is **no numeric probability field**. The assessment is a Membership
+feature supplied by Ligainsider, and it arrives as an *image*: `plpim` points
+at one of exactly **five static icons**, one per tier — *sehr wahrscheinlich ·
+wahrscheinlich · 50-50 · eher nicht · sicher nicht*. Paths resolve through the
+same [`cdnUrl()`](../../src/api/cdn.ts) as player images, and the CDN serves
+them with a 30-day `max-age`, so the browser fetches each icon once.
+
+Rendering the icon itself therefore needs no mapping table and cannot disagree
+with the official app. **Naming** the tier does: because only five images
+exist, the same URL repeats across every player sharing a tier, so the tier can
+be recovered from *which* icon it is — collect the distinct `plpim` values
+across a squad, then settle which hash is which tier by comparing a couple of
+players against the official app. Hashes are CDN asset names and may rotate per
+season, so an unrecognised one should degrade to "no label", never to an error.
+
+### Fallbacks
+
+`plpim` is absent for an account without Membership, in the off-season, and for
+a player nobody has assessed yet — indistinguishable from each other on the
+wire. Absence is the normal case, not an error.
+
+Once `GET /v4/matches/{matchId}/details` reports `il: true` the lineup is
+official and `t1lp`/`t2lp` (the XI) plus `t1nlp`/`t2nlp` supersede the estimate
+with a hard in/out. `GET /v4/base/predictions/teams/{competitionId}` has a
+whole-team probable-lineup image per team, which this feature does not need.
 
 ## Lineup tab
 
@@ -510,8 +570,9 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 
 ## Possible extensions
 
-- Show `startProbability` as a pip row or coloured dot; it is the single most
-  useful pre-matchday signal.
+- Show the [lineup probability](#lineup-probability-plpim) somewhere it has
+  room — a sortable column, or a player detail sheet. **Not** as a badge on the
+  avatars; that was tried and removed.
 - Surface `offerCount` so pending offers are visible without opening the
   market.
 - A lineup/formation view using `lo` instead of the flat grouped list.
@@ -524,4 +585,6 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 - **`POST /lineup/fill`** auto-fills a lineup. Note its body uses different
   field names to `POST /lineup`: `{ lud, pls }` rather than `{ type, players }`.
 - Drag and drop between bench and pitch, in addition to tapping.
-- Use `startProbability` to flag risky picks while building the lineup.
+- Flag risky picks while building the lineup, from `stxt` or the
+  [lineup probability](#lineup-probability-plpim) — in the bench card's text
+  rather than on its avatar.

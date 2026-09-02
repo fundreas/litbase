@@ -28,6 +28,15 @@ export const endpoints = {
     /** Transfer market listings. */
     market: (leagueId: string) => `/v4/leagues/${leagueId}/market`,
     /**
+     * One player, in the context of a league. **Unused so far** — kept because
+     * it is the only endpoint known to carry the lineup probability (`plpim`,
+     * the Ligainsider icon) plus its attribution and the status text. See
+     * {@link PlayerDetailResponse} and
+     * [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-plpim).
+     */
+    player: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/players/${playerId}`,
+    /**
      * The manager's lineup. `GET` reads it, `POST` replaces it wholesale
      * (`PUT` answers 405). The POST body is `{ type, players }` — see
      * `SaveLineupRequest`.
