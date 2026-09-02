@@ -37,14 +37,37 @@ export const endpoints = {
     ranking: (leagueId: string) => `/v4/leagues/${leagueId}/ranking`,
     /** The signed-in manager's players. */
     squad: (leagueId: string) => `/v4/leagues/${leagueId}/squad`,
+    /**
+     * **Another** manager's players, including which of them are fielded
+     * (`lo`). This is the only way to see an opponent's lineup: there is no
+     * opponent equivalent of `teamcenter/myeleven`, which serves the signed-in
+     * user's eleven and nothing else — `userId`, `uid`, `u` and `dayNumber`
+     * are all silently ignored, and 18 other path spellings answer 404.
+     *
+     * It has no matchday parameter either (`?dayNumber=` is ignored), so it is
+     * always the lineup **as it stands now**. For a past matchday that is the
+     * current lineup, not the one that was fielded then — see
+     * [docs/pages/duel-detail.md](../../docs/pages/duel-detail.md#what-a-past-matchday-shows).
+     */
+    managerSquad: (leagueId: string, userId: string) =>
+      `/v4/leagues/${leagueId}/managers/${userId}/squad`,
     /** Transfer market listings. */
     market: (leagueId: string) => `/v4/leagues/${leagueId}/market`,
     /**
-     * One player, in the context of a league. **Unused so far** — kept because
-     * it is the only endpoint known to carry the lineup probability (`plpim`,
-     * the Ligainsider icon) plus its attribution and the status text. See
-     * {@link PlayerDetailResponse} and
-     * [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-plpim).
+     * One player, in the context of a league.
+     *
+     * Carries two things nothing else does:
+     *
+     *  - **`ph`, points per matchday.** Dense — one entry per matchday played
+     *    so far, `{ hp: false }` with no `p` for a matchday the player missed
+     *    — so `ph[day - 1]` is a safe index. This is the *only* source of a
+     *    per-player, per-matchday score; there is no bulk equivalent
+     *    (`/leagues/{id}/players`, `?ids=` → 404), which is why
+     *    [Duel detail](../../docs/pages/duel-detail.md#points-cost-one-request-per-player)
+     *    fans out one request per player.
+     *  - The lineup probability (`plpim`, the Ligainsider icon) plus its
+     *    attribution and status text — still unrendered. See
+     *    [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-plpim).
      */
     player: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/players/${playerId}`,

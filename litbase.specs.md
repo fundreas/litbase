@@ -19,6 +19,8 @@ For the base-layout: Use a header-bar:
   i think on the LHS a three-line-menu icon that opens a side-bar menu would be the best approach for showing then the navigation to different pages.
 
 
+# In Progress
+
 # Duell Page
 
 Here we show for some matchday X of the league-competition all duells of the managers in the league.
@@ -28,6 +30,7 @@ then we show each duell:
   - otherwise we just show the current ranking of the manager as sub-title
 
 ## Duell Details
+now when clicking on some duell item in the duells-page -> the user gets navigated to the duel-details page:
   - different views/tabs: lineup, ranking
   - lineup: show both players lineup:
      - status: open/bench/playing/ausgewechselt/finished
@@ -36,6 +39,12 @@ then we show each duell:
   - also show the totals of the managers + active matches of players + open matches of players
 
 
+
+# TODO
+
+# Find out how match-updates work and how to fetch live-points/events for a player/team/manager
+
+# Show available linup formations when clicking the current lineup.
 
 # Lineup Predictions
   - find out by comparing with app, what field defines the lineup-propability

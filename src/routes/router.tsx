@@ -9,6 +9,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { HomeRedirect } from '@/routes/HomeRedirect'
 import {
   DashboardPage,
+  DuelDetailPage,
   DuelsPage,
   JoinLeaguePage,
   LeagueGate,
@@ -83,6 +84,11 @@ export const router = createBrowserRouter([
               // not play duels, so the URL is a dead end exactly where the
               // drawer entry is missing.
               { path: 'duels', element: <DuelsPage /> },
+              // `:duelId` is both manager ids joined with `-`. Two routes, one
+              // component — the tab comes from the segment, so each view is
+              // linkable and survives a refresh, as on the squad page.
+              { path: 'duels/:duelId', element: <DuelDetailPage /> },
+              { path: 'duels/:duelId/ranking', element: <DuelDetailPage /> },
               { path: 'table', element: <TablePage /> },
               { path: 'players', element: <PlayersPage /> },
             ],

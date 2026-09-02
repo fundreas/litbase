@@ -55,6 +55,15 @@ export const qk = {
   rankingDay: (leagueId: string, day: number) =>
     [...qk.ranking(leagueId), 'day', day] as const,
   squad: (leagueId: string) => [...qk.league(leagueId), 'squad'] as const,
+  /** Another manager's squad, including which players they have fielded. */
+  managerSquad: (leagueId: string, userId: string) =>
+    [...qk.league(leagueId), 'manager', userId, 'squad'] as const,
+  /**
+   * One player's detail. **Not scoped to a matchday** — the response carries
+   * every matchday's points in `ph`, so one cache entry serves them all.
+   */
+  playerDetail: (leagueId: string, playerId: string) =>
+    [...qk.league(leagueId), 'player', playerId] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
 
   competition: (competitionId: string) =>

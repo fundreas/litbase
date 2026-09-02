@@ -136,6 +136,38 @@ export function matchdayState(
   return 'upcoming'
 }
 
+/**
+ * A team's fixture on a specific matchday, with enough state to say whether it
+ * is over. {@link TeamFixture} plus the result, for views that care about a
+ * past or running matchday rather than the next one.
+ */
+export interface MatchdayFixture extends TeamFixture {
+  /** The API reports the match played to the end. */
+  isFinished: boolean
+  /** Goals, once they exist. */
+  goalsFor?: number
+  goalsAgainst?: number
+}
+
+export type FixtureState = 'upcoming' | 'running' | 'finished'
+
+/**
+ * Where a single match stands.
+ *
+ * `isFinished` is the API's own word (`st === 2`); "running" is inferred from
+ * the clock, because no observed status code distinguishes a match in progress
+ * from one that has not kicked off — only `0` and `2` have ever been seen.
+ */
+export function fixtureState(
+  fixture: MatchdayFixture,
+  now: number = Date.now(),
+): FixtureState {
+  if (fixture.isFinished) return 'finished'
+  const kickoff = Date.parse(fixture.kickoff)
+  if (!Number.isNaN(kickoff) && now >= kickoff) return 'running'
+  return 'upcoming'
+}
+
 /** A competition the app can filter leagues by. */
 export interface Competition {
   id: string
@@ -282,7 +314,10 @@ export interface DuelSide {
 
 /** Two managers drawn against each other on one matchday. */
 export interface Duel {
-  /** Both manager ids, sorted and joined — stable across re-fetches. */
+  /**
+   * Both manager ids, sorted and joined with `-` — stable across re-fetches,
+   * and used verbatim as the detail route's path segment.
+   */
   id: string
   sides: [DuelSide, DuelSide]
 }
@@ -316,6 +351,102 @@ export function duelLeader(duel: Duel): DuelSide | undefined {
   if (a.matchdayPoints > b.matchdayPoints) return a
   if (b.matchdayPoints > a.matchdayPoints) return b
   return undefined
+}
+
+/* -------------------------------------------------------------------------- */
+/* Duel detail                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What a player is doing on the duel's matchday.
+ *
+ * `bench` is about the *manager's* choice; the other four are about the
+ * player's real-world match. Kept as one union because that is how the row
+ * reads to a user — one word saying whether this player can still score.
+ */
+export type DuelPlayerStatus =
+  'bench' | 'open' | 'playing' | 'substituted' | 'finished'
+
+export const DUEL_PLAYER_STATUS_LABEL: Record<DuelPlayerStatus, string> = {
+  bench: 'Bank',
+  open: 'Offen',
+  playing: 'Läuft',
+  substituted: 'Ausgewechselt',
+  finished: 'Beendet',
+}
+
+export interface DuelPlayer {
+  id: string
+  name: string
+  teamId: string
+  position: PositionKey
+  /** Lineup slot (0-based), or `undefined` when benched. */
+  lineupOrder?: number
+  status: DuelPlayerStatus
+  /**
+   * Points for the duel's matchday.
+   *
+   * `undefined` means *not known* — the request is still in flight, or the
+   * matchday has not been played. It is deliberately not `0`, which would
+   * claim the player featured and scored nothing.
+   */
+  points?: number
+  /** 0 = fit; anything else is injured / suspended / away. */
+  availability: number
+  image?: string
+  /** The player's club fixture that matchday. */
+  fixture?: MatchdayFixture
+  /** Which side of the duel they belong to. */
+  managerId: string
+}
+
+/** One manager's team as it stands in a duel. */
+export interface DuelRoster {
+  manager: DuelSide
+  /** Fielded players, in lineup-slot order. */
+  lineup: DuelPlayer[]
+  /** Everyone else. */
+  bench: DuelPlayer[]
+  /**
+   * Kickbase's own total for the matchday — **not** the sum of the rows.
+   *
+   * The two can differ: the totals come straight from the standings, while the
+   * rows are assembled from separate requests that may still be loading. The
+   * authoritative figure is the one shown.
+   */
+  totalPoints: number
+  /** Fielded players whose match is under way. */
+  activeMatches: number
+  /** Fielded players whose match has not kicked off. */
+  openMatches: number
+}
+
+/**
+ * What a fielded player's row should say.
+ *
+ * **`substituted` is never returned yet.** Nothing in any observed payload
+ * distinguishes a player taken off from one still on the pitch: the manager
+ * squad carries only availability (`st`: 0 fit, 2 out), and the live per-player
+ * fields are absent outside a running matchday. It is in the union, labelled
+ * and styled, so that wiring it up when the field is identified during a live
+ * matchday is a change to this one function — see
+ * [docs/pages/duel-detail.md](../../docs/pages/duel-detail.md#unverified-substituted).
+ */
+export function duelPlayerStatus(
+  player: { lineupOrder?: number; fixture?: MatchdayFixture },
+  now: number = Date.now(),
+): DuelPlayerStatus {
+  if (player.lineupOrder === undefined) return 'bench'
+  if (player.fixture === undefined) return 'open'
+
+  switch (fixtureState(player.fixture, now)) {
+    case 'finished':
+      return 'finished'
+    case 'running':
+      return 'playing'
+    default:
+      return 'open'
+  }
 }
 
 export interface SquadMember {

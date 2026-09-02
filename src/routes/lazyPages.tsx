@@ -32,6 +32,10 @@ export const DuelsPage = lazy(async () => ({
   default: (await import('@/pages/DuelsPage')).DuelsPage,
 }))
 
+export const DuelDetailPage = lazy(async () => ({
+  default: (await import('@/pages/DuelDetailPage')).DuelDetailPage,
+}))
+
 export const RankingPage = lazy(async () => ({
   default: (await import('@/pages/RankingPage')).RankingPage,
 }))

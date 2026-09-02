@@ -31,6 +31,10 @@ turned to face the middle. That is what makes it read as a duel rather than as
 two list rows that happen to share a border. Both names truncate: a phone at
 360px leaves roughly 110px per side, and manager names are not short.
 
+**The whole card is a link** to [Duel detail](duel-detail.md), carrying the
+selected matchday with it — not a chevron in the corner, because a duel row on
+a phone is a big target and every part of it means "this duel".
+
 **Your own duel is pulled to the front** and outlined in `border-accent/50`.
 It is the one the page was opened for; making it findable by scanning rather
 than reading is the whole point on a phone. The rest keep the hook's order,
@@ -207,9 +211,6 @@ first.
 
 ## Possible extensions
 
-- Tap a duel to compare the two lineups player by player. Needs another
-  manager's squad, an endpoint not yet in
-  [`endpoints.ts`](../../src/api/endpoints.ts).
 - Show the running duel-point total (`hhsp`) per side — already mapped as
   `duelPoints` and currently unrendered.
 - Previous/next matchday arrows flanking the picker, for stepping through a

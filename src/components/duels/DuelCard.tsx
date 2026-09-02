@@ -1,4 +1,5 @@
-import { CircleCheck, Swords } from 'lucide-react'
+import { ChevronRight, CircleCheck, Swords } from 'lucide-react'
+import { Link } from 'react-router'
 
 import { duelLeader, type Duel, type DuelSide } from '@/api/models'
 import { Avatar } from '@/components/ui/Avatar'
@@ -20,11 +21,14 @@ import { placement, points } from '@/lib/format'
  */
 export function DuelCard({
   duel,
+  to,
   hasStarted,
   isFinished,
   viewerId,
 }: {
   duel: Duel
+  /** Detail route for this duel, matchday included. */
+  to: string
   hasStarted: boolean
   isFinished: boolean
   viewerId?: string
@@ -35,13 +39,18 @@ export function DuelCard({
   const isMine = duel.sides.some((side) => side.id === viewerId)
 
   return (
-    <li
-      className={cn(
-        'rounded-card border bg-surface px-3 py-3',
-        isMine ? 'border-accent/50' : 'border-line',
-      )}
-    >
-      <div className="flex items-center gap-2">
+    <li>
+      {/* The whole card is the link, not a chevron in the corner: a duel row
+          on a phone is a big target and every part of it means "this duel". */}
+      <Link
+        to={to}
+        aria-label={`Duell ${duel.sides[0].name} gegen ${duel.sides[1].name}`}
+        className={cn(
+          'flex items-center gap-2 rounded-card border bg-surface px-3 py-3',
+          'transition-colors hover:bg-surface-2',
+          isMine ? 'border-accent/50' : 'border-line',
+        )}
+      >
         <Side
           side={duel.sides[0]}
           align="left"
@@ -68,7 +77,9 @@ export function DuelCard({
           isLeader={leader?.id === duel.sides[1].id}
           isViewer={duel.sides[1].id === viewerId}
         />
-      </div>
+
+        <ChevronRight size={16} className="-mr-1 shrink-0 text-faint" />
+      </Link>
     </li>
   )
 }

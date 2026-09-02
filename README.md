@@ -97,6 +97,8 @@ src/
 /leagues/:leagueId/market
 /leagues/:leagueId/ranking
 /leagues/:leagueId/duels        ?day=N — duel leagues only
+/leagues/:leagueId/duels/:duelId         both elevens + combined ranking
+/leagues/:leagueId/duels/:duelId/ranking
 /leagues/:leagueId/table
 /leagues/:leagueId/players
 ```
@@ -199,6 +201,17 @@ Components should never see abbreviated keys like `mvt` or `spl`.
 
 - The API's abbreviated fields are documented from live responses; a few
   (`mppu`, `pes`, `vr`) are still guesses, marked as such in `types.ts`.
+- **Squads are only ever served as they stand now.** Duel detail on a past
+  matchday therefore shows today's lineup with that matchday's points, and says
+  so in the UI. See
+  [docs/pages/duel-detail.md](docs/pages/duel-detail.md#what-a-past-matchday-shows).
+- **`Ausgewechselt` is never reported.** No observed field distinguishes a
+  substituted player, because every probe ran between matchdays. One function
+  to change once a live matchday settles it.
+- **`/v4/competitions/{id}/players` returns 25 rows, not every player** — the
+  matchday's top performers, where `p` is *matchday* points. `useCompetition.ts`
+  still describes and maps it as the full season list; the players page is a
+  stub, so nothing renders the mistake yet.
 - `chttkn` (the Firebase chat token, ~1h lifetime, refreshable via
   `/v4/chat/refreshtoken`) is parsed but unused — nothing needs chat yet.
 - No tests yet. `npm run check` is the current safety net.

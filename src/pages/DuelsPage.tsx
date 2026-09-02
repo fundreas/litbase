@@ -137,6 +137,7 @@ export function DuelsPage() {
             <DuelCard
               key={duel.id}
               duel={duel}
+              to={`/leagues/${leagueId}/duels/${duel.id}?day=${String(selectedDay)}`}
               hasStarted={hasStarted}
               isFinished={state === 'finished'}
               viewerId={user?.id}

@@ -246,6 +246,23 @@ Components should never see `mvt` or `spl`.
 - `/v4/leagues/{id}/live`, `/livepitch`, `/ranking/live`, `/v4/live/leagues/{id}`
   — all **404**. Live matchday points come from `mdp` on the standings, which
   updates during a matchday; nothing richer is exposed.
+- **No opponent eleven.** `/v4/leagues/{id}/teamcenter/myeleven` is 200 and
+  carries per-player match state plus a `mu` block naming both duel managers,
+  but only ever for the signed-in user — `userId`, `uid`, `u` and `dayNumber`
+  are ignored, and `opponenteleven`, `theireleven`, `oppeleven`,
+  `teamcenter/{uid}`, `managers/{uid}/eleven` and a dozen more answer 404.
+  Another manager's lineup comes from `/managers/{uid}/squad` instead.
+- **No bulk player detail.** `/v4/leagues/{id}/players`,
+  `/leagues/{id}/players?ids=` and `/competitions/{id}/players?ids=` are 404 or
+  ignore the filter, so per-player matchday points are one request each. See
+  [Duel detail](pages/duel-detail.md#points-cost-one-request-per-player).
+- `/v4/matches/{matchId}` — 200, and the only source of goal-by-goal highlights
+  (`hl`) and the match clock (`mt`, `mph`). Nothing uses it yet.
+- `/v4/leagues/{id}/managers/{uid}/dashboard` and `/performance` — both 200.
+  `performance` carries a manager's points for every matchday of every season
+  they have played; `dashboard` has duel counts (`hhw`, `hhl`) and a points
+  history. Neither is fetched — the standings already answer what the duel
+  pages ask.
 
 ## Query parameters that answer 200 for nonsense
 

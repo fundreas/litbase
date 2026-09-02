@@ -24,6 +24,8 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          ├─ market
          ├─ ranking
          ├─ duels      ?day=N — duel leagues only, else → dashboard
+         │  └─ :duelId          both manager ids joined with "-"
+         │     └─ ranking       second tab of the same component
          ├─ table
          └─ players
 /*                                  404
@@ -240,6 +242,12 @@ the pattern to copy for any future league-dependent page.
 them in the drawer promises a screen that is not there. Their **routes are
 untouched** — a direct URL still opens the stub — so each one comes back by
 adding its entry here once the page exists.
+
+**Detail routes keep their page lit.** `isNavItemActive()` matches a nav item's
+segment exactly *or* as a path prefix, so `/duels/3212306-2857817` and its
+`/ranking` tab all keep **Duelle** highlighted. A drawer that goes blank as
+soon as you tap into a row reads as having left the app. The rule is general,
+so any future detail route inherits it without a per-item flag.
 
 **Mannschaft** is the only entry for the team page, even though it has two
 routes: the tabs on that page are the natural way between the squad list and

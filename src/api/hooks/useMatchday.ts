@@ -1,8 +1,14 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import type { SeasonMatchday, SeasonSchedule, TeamFixture } from '@/api/models'
+import type {
+  MatchdayFixture,
+  SeasonMatchday,
+  SeasonSchedule,
+  TeamFixture,
+} from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { MatchdaysResponse } from '@/api/types'
 
@@ -134,4 +140,61 @@ export function useSeasonSchedule(
   competitionId: string | undefined,
 ): UseQueryResult<SeasonSchedule> {
   return useMatchdaysQuery(competitionId, selectSeasonSchedule)
+}
+
+/**
+ * One specific matchday's fixtures, indexed by team.
+ *
+ * Like {@link useCurrentMatchday} but for any matchday, and carrying the
+ * result and finished flag as well — which is what lets a player's row say
+ * whether their match is open, running or over.
+ *
+ * The selector cannot be a module constant here because it closes over `day`,
+ * so it is memoised on `day` instead. That keeps React Query's `select` memo
+ * intact: it re-maps when the matchday changes and not on every render.
+ *
+ * Reads the same cache entry as the other two hooks — one request serves the
+ * squad page, the duel picker and this.
+ */
+export function useMatchdayFixtures(
+  competitionId: string | undefined,
+  day: number | undefined,
+): UseQueryResult<Map<string, MatchdayFixture>> {
+  const select = useCallback(
+    (data: MatchdaysResponse) => {
+      const matchday = (data.it ?? []).find((entry) => entry.day === day)
+      const byTeamId = new Map<string, MatchdayFixture>()
+
+      for (const fixture of matchday?.it ?? []) {
+        const isFinished = fixture.st === FIXTURE_FINISHED
+        byTeamId.set(fixture.t1, {
+          matchId: fixture.mi,
+          kickoff: fixture.dt,
+          isHome: true,
+          opponentId: fixture.t2,
+          opponentSymbol: fixture.t2sy ?? fixture.t2,
+          opponentImage: fixture.t2im,
+          isFinished,
+          goalsFor: fixture.t1g,
+          goalsAgainst: fixture.t2g,
+        })
+        byTeamId.set(fixture.t2, {
+          matchId: fixture.mi,
+          kickoff: fixture.dt,
+          isHome: false,
+          opponentId: fixture.t1,
+          opponentSymbol: fixture.t1sy ?? fixture.t1,
+          opponentImage: fixture.t1im,
+          isFinished,
+          goalsFor: fixture.t2g,
+          goalsAgainst: fixture.t1g,
+        })
+      }
+
+      return byTeamId
+    },
+    [day],
+  )
+
+  return useMatchdaysQuery(competitionId, select)
 }

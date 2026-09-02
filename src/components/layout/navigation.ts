@@ -30,15 +30,24 @@ export interface NavItem {
   requiresDuelMode?: boolean
 }
 
-/** Is this entry the active one for the current path? */
+/**
+ * Is this entry the active one for the current path?
+ *
+ * A page's **detail routes count as the page**: `/duels/3212306-2857817` and
+ * its `/ranking` tab all keep *Duelle* lit, because a drawer that highlights
+ * nothing once you tap into a row reads as "you have navigated away from the
+ * app". Hence the prefix test alongside the exact one — it is general, so any
+ * future detail route inherits it without a per-item flag.
+ */
 export function isNavItemActive(
   item: NavItem,
   pathname: string,
   leagueId: string,
 ): boolean {
-  return [item.to, ...(item.alsoMatches ?? [])].some(
-    (segment) => pathname === `/leagues/${leagueId}/${segment}`,
-  )
+  return [item.to, ...(item.alsoMatches ?? [])].some((segment) => {
+    const base = `/leagues/${leagueId}/${segment}`
+    return pathname === base || pathname.startsWith(`${base}/`)
+  })
 }
 
 /**

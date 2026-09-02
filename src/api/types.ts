@@ -537,12 +537,33 @@ export interface MarketPlayer {
 export interface PlayerDetailResponse {
   /** Player id. */
   i: string
-  /** Last name. */
-  n: string
+  /**
+   * Last name.
+   *
+   * Note this endpoint spells it **`ln`**, not `n` as everywhere else. It was
+   * declared as `n` while nothing fetched it, which no compiler could catch;
+   * a real response has `fn`/`ln` and no `n` at all.
+   */
+  ln: string
   /** First name. */
   fn?: string
   /** Team id. */
   tid?: string
+  /** Team name, spelled out. */
+  tn?: string
+  /** Owning manager's user id — absent when nobody owns the player. */
+  oui?: string
+  /** The matchday this response is "current" for. */
+  day?: number
+  /**
+   * Points per matchday, oldest first.
+   *
+   * **Dense**: there is an entry for every matchday played so far, and a
+   * player who missed one gets `{ hp: false }` with no `p` rather than being
+   * skipped. That is what makes `ph[day - 1]` a valid lookup. Entries stop at
+   * the current matchday, so a future one reads `undefined`.
+   */
+  ph?: PlayerMatchdayPoints[]
   /** Position, see PLAYER_POSITION. */
   pos?: number
   /**
@@ -567,6 +588,67 @@ export interface PlayerDetailResponse {
    * times before kick-off, so anything caching a tier should keep it briefly.
    */
   ts?: string
+}
+
+/** One matchday's entry in {@link PlayerDetailResponse.ph}. */
+export interface PlayerMatchdayPoints {
+  /** Whether the player featured. `false` means `p` is absent, not zero. */
+  hp: boolean
+  /** Points scored — only present when `hp` is true. */
+  p?: number
+}
+
+/**
+ * `GET /v4/leagues/{leagueId}/managers/{userId}/squad` — another manager's
+ * players. Same rows as the signed-in user's own squad, minus the fields that
+ * only make sense for your own team (offers).
+ */
+export interface ManagerSquadResponse {
+  /** Manager's user id. */
+  u: string
+  /** Manager's display name. */
+  unm: string
+  /** Manager's avatar, CDN-relative. */
+  uim?: string
+  /** Manager status. */
+  st?: number
+  /** Number of players in the squad. */
+  nps?: number
+  it: ManagerSquadPlayer[]
+}
+
+export interface ManagerSquadPlayer {
+  /** Player id. */
+  pi: string
+  /** Last name. */
+  pn: string
+  /** Team id. */
+  tid: string
+  /**
+   * Lineup slot, **0-based**, or absent when the player is benched.
+   *
+   * Confirmed on a real opponent: 11 of 15 players carried `lo` `0…10` and the
+   * remaining 4 carried none. Because `0` is a valid slot, membership must be
+   * tested with `lo !== undefined` — the same trap as `SquadMember`.
+   */
+  lo?: number
+  /** Observed as `0` on every player so far; meaning unknown. */
+  lst?: number
+  /** Position, see PLAYER_POSITION. */
+  pos: number
+  /** Status: 0 = fit, others = injured / suspended / away. */
+  st: number
+  /** Additional status codes. */
+  stl?: number[]
+  /** **Season** total points — not this matchday's. */
+  p?: number
+  /** Average points per matchday. */
+  ap?: number
+  /** Market value, in €. */
+  mv: number
+  mvt?: number
+  pim?: string
+  iotm?: boolean
 }
 
 export interface CompetitionPlayersResponse {

@@ -64,12 +64,13 @@ function mapDuels(data: RankingResponse, day: number): MatchdayDuels {
 
     // Sides are ordered by the table, so the better-placed manager is always
     // on the left. The id is built from the sorted pair so it is the same
-    // string no matter which of the two the loop reached first.
+    // string no matter which of the two the loop reached first — and joined
+    // with `-`, because it is also a URL path segment on the detail route.
     const sides: [DuelSide, DuelSide] = [toSide(user), toSide(opponent)]
     sides.sort((a, b) => tablePosition(a) - tablePosition(b))
 
     duels.push({
-      id: [user.i, opponent.i].sort((a, b) => a.localeCompare(b)).join(':'),
+      id: [user.i, opponent.i].sort((a, b) => a.localeCompare(b)).join('-'),
       sides,
     })
   }
