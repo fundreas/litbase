@@ -1,4 +1,4 @@
-import { AlertTriangle, UserMinus } from 'lucide-react'
+import { AlertTriangle, Info, UserMinus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -10,6 +10,7 @@ import {
   type TeamFixture,
 } from '@/api/models'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
+import { FormationsDialog } from '@/components/squad/FormationsDialog'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   useLineupDrag,
@@ -150,6 +151,8 @@ export function LineupTab({
    */
   const drag = useLineupDrag({ items: lineup, onReorder: editor.reorder })
 
+  const [isFormationsOpen, setIsFormationsOpen] = useState(false)
+
   // The pitch is measured rather than guessed at, so the avatars scale with
   // whatever height the flex chain actually hands it.
   const pitchRef = useRef<HTMLDivElement>(null)
@@ -275,10 +278,32 @@ export function LineupTab({
             </span>
           )}
         </p>
-        <p className="nums rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-semibold text-accent">
+        {/* The chip was already the one place the formation is named, so it
+            is also where "which formations exist?" gets answered. The icon is
+            what tells it apart from the read-only counters beside it. */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsFormationsOpen(true)
+          }}
+          title="Alle Formationen anzeigen"
+          aria-label={`Formation ${formationLabel(formation)} – alle Formationen anzeigen`}
+          className={cn(
+            'nums flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1',
+            'border-line bg-surface text-xs font-semibold text-accent transition-colors',
+            'hover:border-accent/40 hover:bg-surface-2 active:bg-line',
+          )}
+        >
           {formationLabel(formation)}
-        </p>
+          <Info size={12} aria-hidden="true" className="text-muted" />
+        </button>
       </div>
+
+      <FormationsDialog
+        open={isFormationsOpen}
+        onOpenChange={setIsFormationsOpen}
+        current={formation}
+      />
 
       {editor.saveError !== null && (
         <p
