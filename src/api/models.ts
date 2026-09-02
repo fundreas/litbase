@@ -174,8 +174,22 @@ export interface SquadMember {
   image?: string
   offerCount: number
   /**
-   * Lineup slot order (`lo` on the wire). Appears to be non-zero for fielded
-   * players — inferred, not documented. Used only to seed the lineup view.
+   * Lineup slot (`lo` on the wire), **0-based**, or `undefined` when the
+   * player is not fielded.
+   *
+   * Confirmed against real squad payloads: a fielded eleven carries `lo`
+   * `0…10` and benched players carry no `lo` at all. Slot `0` is the
+   * goalkeeper, then defenders, midfielders and forwards in order — so the
+   * slot index alone encodes the formation:
+   *
+   * ```
+   * lo:  0   1  2  3  4   5  6  7  8   9 10
+   *     GK  DEF DEF DEF DEF MID MID MID MID FWD FWD   → 4-4-2
+   * ```
+   *
+   * Because `0` is a *valid* slot, membership must be tested with
+   * `lineupOrder !== undefined`. Testing `lineupOrder > 0` silently drops the
+   * goalkeeper — see `LineupTab`'s seeding.
    */
   lineupOrder?: number
 }

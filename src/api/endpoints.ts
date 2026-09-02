@@ -33,6 +33,16 @@ export const endpoints = {
      * `SaveLineupRequest`.
      */
     lineup: (leagueId: string) => `/v4/leagues/${leagueId}/lineup`,
+    /** Empties the lineup. No request body. */
+    lineupClear: (leagueId: string) => `/v4/leagues/${leagueId}/lineup/clear`,
+    /**
+     * Auto-fills the lineup. Body is `{ lud, pls }` — note the *different*
+     * field names to `POST /lineup`'s `{ type, players }`. Unused so far.
+     */
+    lineupFill: (leagueId: string) => `/v4/leagues/${leagueId}/lineup/fill`,
+    /** The lineup with slot assignments (`lp[]` with `lo`, `lst`). Unused. */
+    lineupOverview: (leagueId: string) =>
+      `/v4/leagues/${leagueId}/lineup/overview`,
 
     /* --- Joining ------------------------------------------------------- */
 

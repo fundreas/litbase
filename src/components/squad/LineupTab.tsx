@@ -2,7 +2,7 @@ import { AlertTriangle, Check, UserMinus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ApiError } from '@/api/errors'
-import { useSaveLineup } from '@/api/hooks/useLineup'
+import { useSaveLineup, type LineupWrite } from '@/api/hooks/useLineup'
 import {
   POSITION_LABEL,
   type PositionKey,
@@ -32,6 +32,9 @@ const BENCH_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 /** Rapid taps collapse into one request instead of eleven. */
 const SAVE_DEBOUNCE_MS = 600
 
+/** Write key for a lineup the API will not accept (one to ten players). */
+const HELD_KEY = 'held'
+
 /**
  * Interactive lineup, persisted to Kickbase.
  *
@@ -45,10 +48,12 @@ const SAVE_DEBOUNCE_MS = 600
  *    A save waits for the in-flight one and then sends whatever the *current*
  *    state is, so the last write always matches the last edit.
  *
- * The initial lineup is seeded from the squad's `lo` field, read as "non-zero
- * means fielded" — inferred, not documented — and re-validated against the
- * formation rules, so a wrong guess yields an empty pitch rather than an
- * illegal one.
+ * Only a complete eleven can be sent — see the note on `write` below.
+ *
+ * The initial lineup is seeded from the squad's `lo` slot index, where slot 0
+ * is the goalkeeper and benched players have no `lo` at all. See
+ * {@link seedLineup}, whose earlier `lo > 0` test is exactly why the keeper
+ * used to disappear on reload.
  */
 export function LineupTab({
   squad,
@@ -60,6 +65,9 @@ export function LineupTab({
   const [lineupIds, setLineupIds] = useState<string[]>(() => seedLineup(squad))
   const [incoming, setIncoming] = useState<SquadMember | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // State, not a ref: the "nicht gespeichert" chip depends on it, so a change
+  // has to trigger a render.
+  const [isDirty, setIsDirty] = useState(false)
 
   const save = useSaveLineup(leagueId)
 
@@ -87,42 +95,75 @@ export function LineupTab({
   /* ---------------------------------------------------------------------- */
 
   /**
-   * The save payload is identified by its *content*, not by the identity of
-   * the objects it was derived from.
+   * What the server can actually be told.
+   *
+   * `POST /lineup` requires a complete eleven — a partial lineup is rejected,
+   * and there is in any case no formation string that describes one. Emptying
+   * the lineup has its own endpoint. So there are exactly three states:
+   *
+   *  - **eleven players** → `POST /lineup`
+   *  - **nobody** → `POST /lineup/clear`
+   *  - **one to ten** → nothing to send; held locally and labelled as unsaved
+   *
+   * Holding is deliberate rather than a silent failure: the alternative is
+   * firing a request on every tap that is known to come back an error. It does
+   * mean the server keeps the last complete eleven while a partial lineup is
+   * being assembled, which is why the UI says so plainly.
+   */
+  const write: LineupWrite | null =
+    lineup.length === LINEUP_SIZE
+      ? {
+          kind: 'save',
+          formation: formationLabel(formation),
+          playerIds: orderPlayerIds(lineup),
+        }
+      : lineup.length === 0
+        ? { kind: 'clear' }
+        : null
+
+  const isHeld = write === null
+
+  /**
+   * The write is identified by its *content*, not by the identity of the
+   * objects it came from.
    *
    * That distinction is load-bearing. A successful save invalidates the squad
-   * query, so `squad` refetches, `lineup` becomes a new array, and a `payload`
-   * rebuilt from it would be a new object — firing the save effect again, which
+   * query, so `squad` refetches, `lineup` becomes a new array, and a `write`
+   * rebuilt from it would be a new object — firing the effect again, which
    * saves, invalidates, refetches, for ever. Refetch-on-window-focus would do
    * the same. Deriving a string key and memoising the object *on that key*
    * makes an unchanged lineup a no-op however often its objects are rebuilt,
    * while keeping the effect's dependencies honest.
    */
-  const formationName = formationLabel(formation)
-  const orderedIds = orderPlayerIds(lineup)
-  const payloadKey = `${formationName}|${orderedIds.join(',')}`
+  const writeKey =
+    write === null
+      ? HELD_KEY
+      : write.kind === 'clear'
+        ? 'clear'
+        : `${write.formation}|${write.playerIds.join(',')}`
 
-  const payload = useMemo(
-    () => ({ formation: formationName, playerIds: orderedIds }),
-    // Deliberately keyed on the content string alone: `formationName` and
-    // `orderedIds` are read fresh whenever it changes, and listing them here
-    // would defeat the whole point by reacting to identity again.
-    [payloadKey],
-  )
+  // The freshest write, parked in a ref *after* render so the timer callback
+  // can read it without the effect having to depend on its identity.
+  const writeRef = useRef(write)
+  useEffect(() => {
+    writeRef.current = write
+  })
 
   const inFlightRef = useRef<Promise<unknown> | null>(null)
-  // The seeded lineup came from the server; only user edits are worth saving.
-  const isDirtyRef = useRef(false)
-
-  // `mutateAsync` is a stable reference in React Query v5, and `payload` is
-  // recomputed whenever `payloadKey` changes, so both are safe to close over.
+  // `mutateAsync` is a stable reference in React Query v5.
   const { mutateAsync } = save
 
   useEffect(() => {
-    if (!isDirtyRef.current) return
+    // The seeded lineup came from the server; only user edits are worth saving.
+    if (!isDirty) return
+    // Nothing the API accepts for a partial lineup — see the note on `write`.
+    if (writeKey === HELD_KEY) return
 
     const timer = window.setTimeout(() => {
       const run = async () => {
+        const pending = writeRef.current
+        if (pending === null) return
+
         // Serialise: never overlap two writes to the same resource, so the
         // last request to reach the server is the last edit the user made.
         try {
@@ -131,7 +172,7 @@ export function LineupTab({
           /* the previous save's failure is already reported */
         }
 
-        const attempt = mutateAsync(payload)
+        const attempt = mutateAsync(pending)
           .then(() => {
             setSaveError(null)
           })
@@ -152,20 +193,20 @@ export function LineupTab({
     return () => {
       window.clearTimeout(timer)
     }
-  }, [payloadKey, mutateAsync, payload])
+  }, [writeKey, isDirty, mutateAsync])
 
   /* ---------------------------------------------------------------------- */
   /* Editing                                                                 */
   /* ---------------------------------------------------------------------- */
 
   const remove = (playerId: string) => {
-    isDirtyRef.current = true
+    setIsDirty(true)
     setLineupIds((current) => current.filter((id) => id !== playerId))
   }
 
   const add = (player: SquadMember) => {
     if (canAddPosition(counts, player.position)) {
-      isDirtyRef.current = true
+      setIsDirty(true)
       setLineupIds((current) => [...current, player.id])
       return
     }
@@ -176,7 +217,7 @@ export function LineupTab({
 
   const swap = (outgoing: SquadMember) => {
     if (!incoming) return
-    isDirtyRef.current = true
+    setIsDirty(true)
     setLineupIds((current) => [
       ...current.filter((id) => id !== outgoing.id),
       incoming.id,
@@ -194,11 +235,21 @@ export function LineupTab({
             </span>{' '}
             aufgestellt
           </span>
-          {save.isPending && (
+          {save.isPending ? (
             <span className="flex items-center gap-1 text-xs text-faint">
               <Spinner size={12} />
               Speichern …
             </span>
+          ) : (
+            isHeld &&
+            isDirty && (
+              <span
+                className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[0.6875rem] font-medium text-warning"
+                title="Kickbase speichert nur eine vollständige Elf. Ergänze die fehlenden Spieler."
+              >
+                nicht gespeichert
+              </span>
+            )
           )}
         </p>
         <p className="nums rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-semibold text-accent">
@@ -590,16 +641,21 @@ function SwapDialog({
 /* -------------------------------------------------------------------------- */
 
 /**
- * Best-effort initial lineup from the squad's `lo` field.
+ * Initial lineup from the squad's `lo` slot index.
  *
- * `lo` is documented as "lineup order" and appears to be non-zero for fielded
- * players, but that reading is not confirmed. The result is validated against
- * the formation rules and anyone who does not fit is dropped, so a wrong guess
- * degrades to a partial pitch rather than an illegal one.
+ * **Membership is `lo !== undefined`, not `lo > 0`.** Slot `0` is the
+ * goalkeeper, and an earlier version of this function used `(lo ?? 0) > 0`,
+ * which conflates "benched" (no `lo`) with "keeper" (`lo === 0`) — so the
+ * keeper was silently dropped on every reload and a saved eleven came back as
+ * ten. Confirmed against real payloads: a fielded eleven carries `lo` `0…10`
+ * and benched players carry no `lo` at all.
+ *
+ * Players are still re-validated against the formation rules, so unexpected
+ * server data degrades to a partial pitch rather than an illegal one.
  */
 function seedLineup(squad: SquadMember[]): string[] {
   const fielded = squad
-    .filter((player) => (player.lineupOrder ?? 0) > 0)
+    .filter((player) => player.lineupOrder !== undefined)
     .sort((a, b) => (a.lineupOrder ?? 0) - (b.lineupOrder ?? 0))
     .slice(0, LINEUP_SIZE)
 

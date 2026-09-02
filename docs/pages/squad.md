@@ -144,6 +144,31 @@ A save failure surfaces as a red banner above the pitch and leaves the local
 lineup untouched, so the user can retry by making another change rather than
 losing their work.
 
+#### Only a complete eleven can be sent
+
+`POST /lineup` rejects a partial lineup, and there is no formation string that
+describes one anyway — every one of the ten formations totals eleven. So there
+are exactly three states:
+
+| Lineup | Action |
+| ------ | ------ |
+| Eleven players | `POST /lineup` with `{ type, players }` |
+| Nobody | `POST /lineup/clear` (no body — the plain endpoint wants a formation) |
+| One to ten | **Held.** Nothing is sent; the header shows *nicht gespeichert* |
+
+Holding is deliberate rather than a silent failure. The alternative is firing a
+request on every tap that is known to come back an error. The consequence — the
+server keeps the last complete eleven while a partial lineup is being
+assembled — is stated in the UI rather than hidden.
+
+**This is the remaining open question.** The Kickbase app clearly *can* store an
+incomplete lineup: a real `lineup/overview` response shows slots `0,1,2,4,…,9`
+with slot 3 empty. How it writes that is not documented — neither the OpenAPI
+spec nor the Postman collection shows a padding convention for empty slots, and
+the documented example bodies are placeholders (`players: ["1235"]`). Resolving
+it needs either the exact error the API returns for a short `players` array, or
+a capture of what the real app sends.
+
 #### Coalescing and ordering
 
 Two problems come with "save on every change", and both are handled in
@@ -176,14 +201,34 @@ Keying on content makes an unchanged lineup a no-op no matter how often its
 objects are rebuilt, and `payload` is memoised on the same key so the effect's
 dependency list stays honest instead of being suppressed.
 
-### Seeding
+### Seeding, and the goalkeeper bug
 
-The initial lineup comes from the squad's `lo` field ("lineup order"), read as
-*non-zero means fielded* — an inference, not documented. The seed is
-re-validated against the formation rules one player at a time, so a wrong
-guess drops the players that do not fit rather than rendering an illegal
-lineup. Only user edits mark the state dirty, so seeding never triggers a
-write.
+`lo` is a **0-based slot index, present only for fielded players.** Confirmed
+against real squad payloads: a fielded eleven carries `lo` `0…10` and benched
+players carry no `lo` at all. Slot 0 is the goalkeeper, so the index alone
+encodes the formation:
+
+```
+lo:  0    1   2   3   4    5   6   7   8    9  10   │  (none) (none)
+    GK  DEF DEF DEF DEF  MID MID MID MID  FWD FWD   │   GK     DEF
+    └────────────── a 4-4-2 ────────────────────┘   └── bench ──┘
+```
+
+**Membership must therefore be `lo !== undefined`, never `lo > 0`.** The first
+version of this used `(lo ?? 0) > 0`, which collapses "benched" (no `lo` →
+`0`) and "goalkeeper" (`lo === 0`) into the same case — so the keeper was
+dropped on every reload and a saved eleven came back as ten. That is exactly
+the reported symptom, and it reproduces on the real payload shape: the old
+filter yields 10 players with no keeper, the fix yields 11.
+
+Seeded players are still re-validated against the formation rules one at a
+time, so unexpected server data drops the players that do not fit rather than
+rendering an illegal lineup. Seeding does not mark the state dirty, so it never
+triggers a write.
+
+The same slot layout confirms the send order: `orderPlayerIds()` groups keeper,
+defence, midfield, attack, which reproduces `lo` `0…10` exactly. That ordering
+was a guess when the POST was first wired; it is now verified.
 
 ### The rules
 
@@ -287,8 +332,13 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 - A lineup/formation view using `lo` instead of the flat grouped list.
 - Sort control (points, average, value, trend) — the grouping is currently
   fixed.
-- **Read the lineup from `GET /v4/leagues/{id}/lineup`** instead of inferring
-  it from `lo`. The route exists but its response shape has not been
-  inspected; that would remove the last inference on this page.
+- **Save partial lineups**, once the padding convention for empty slots is
+  known. See above.
+- **Read from `GET /v4/leagues/{id}/lineup/overview`** rather than deriving the
+  lineup from the squad's `lo`. That endpoint returns `lp[]` with `lo` *and*
+  `lst` (a per-slot validity flag — `0` for players who cannot play, e.g.
+  `st: 128`), which the squad payload does not expose.
+- **`POST /lineup/fill`** auto-fills a lineup. Note its body uses different
+  field names to `POST /lineup`: `{ lud, pls }` rather than `{ type, players }`.
 - Drag and drop between bench and pitch, in addition to tapping.
 - Use `startProbability` to flag risky picks while building the lineup.

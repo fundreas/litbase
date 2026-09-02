@@ -9,37 +9,56 @@ import { endpoints } from '@/api/endpoints'
 import { qk } from '@/api/queryKeys'
 import type { SaveLineupRequest } from '@/api/types'
 
-export interface SaveLineupInput {
-  /** Formation label, e.g. `"4-4-2"`. */
-  formation: string
-  /** Player ids, keeper first then defence, midfield, attack. */
-  playerIds: string[]
-}
+/**
+ * What to write. `POST /lineup` and `POST /lineup/clear` are two different
+ * endpoints, and which one applies depends on the lineup, so the decision is
+ * modelled here rather than at the call site.
+ */
+export type LineupWrite =
+  | {
+      kind: 'save'
+      /** Formation label, e.g. `"4-4-2"`. */
+      formation: string
+      /** Exactly eleven player ids, in slot order 0…10. */
+      playerIds: string[]
+    }
+  | { kind: 'clear' }
 
 /**
  * Persist the lineup.
  *
- * The endpoint replaces the lineup wholesale rather than applying a delta,
- * which is what makes the caller's job easy: every save is the complete
- * intended state, so a save that lands late is not corrupting a partial
- * update — it is simply stale. The caller
- * ([`LineupTab`](../../components/squad/LineupTab.tsx)) coalesces rapid edits
- * and serialises the requests so the last write always reflects the last edit.
+ * `POST /v4/leagues/{id}/lineup` replaces the lineup wholesale rather than
+ * applying a delta, which is what makes the caller's job tractable: every
+ * write is the complete intended state, so a write that lands late is merely
+ * stale, never corrupting.
  *
- * On success the squad query is invalidated, since the server's `lo` values
- * are what the lineup is re-seeded from on a later visit.
+ * Emptying the lineup goes through `POST /lineup/clear`, which takes no body —
+ * the plain endpoint expects a formation, and there is no formation that
+ * describes "nobody".
+ *
+ * On success the squad query is invalidated, since its `lo` values are what
+ * the lineup is re-seeded from on the next visit.
  */
 export function useSaveLineup(
   leagueId: string | undefined,
-): UseMutationResult<void, Error, SaveLineupInput> {
+): UseMutationResult<void, Error, LineupWrite> {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ formation, playerIds }: SaveLineupInput) => {
+    mutationFn: async (write: LineupWrite) => {
       if (leagueId === undefined) {
         throw new Error('Cannot save a lineup without a league.')
       }
-      const body: SaveLineupRequest = { type: formation, players: playerIds }
+
+      if (write.kind === 'clear') {
+        await post<unknown>(endpoints.leagues.lineupClear(leagueId))
+        return
+      }
+
+      const body: SaveLineupRequest = {
+        type: write.formation,
+        players: write.playerIds,
+      }
       await post<unknown>(endpoints.leagues.lineup(leagueId), body)
     },
     onSuccess: async () => {

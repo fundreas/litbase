@@ -132,7 +132,7 @@ Mutations:
 | Hook | Endpoint | Invalidates |
 | ---- | -------- | ----------- |
 | `useJoinLeague()` | `POST /leagues/{id}/join` | `qk.leagues.all`, `qk.joinable.all` |
-| `useSaveLineup(id)` | `POST /leagues/{id}/lineup` | `qk.squad(id)` |
+| `useSaveLineup(id)` | `POST /leagues/{id}/lineup` or `…/lineup/clear` | `qk.squad(id)` |
 
 See [Join a league](pages/join-league.md) and
 [Squad](pages/squad.md#persistence).
