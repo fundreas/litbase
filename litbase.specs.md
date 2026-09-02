@@ -18,3 +18,5 @@ For the base-layout: Use a header-bar:
   - then we always should be in the context of one specific League. So think of a way how to select the league for some player (league-id should also be in the URL persisted for refreshing).
   i think on the LHS a three-line-menu icon that opens a side-bar menu would be the best approach for showing then the navigation to different pages.
 
+
+# Competition Live
