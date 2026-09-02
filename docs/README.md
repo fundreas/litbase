@@ -20,6 +20,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | Route | Page | Status |
 | ----- | ---- | ------ |
 | `/login` | [Login](pages/login.md) | Implemented |
+| `/register` | [Register](pages/register.md) | Implemented |
 | `/leagues` | [League gate](pages/league-gate.md) | Implemented |
 | `/leagues/:leagueId/dashboard` | [Dashboard](pages/dashboard.md) | Implemented |
 | `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |

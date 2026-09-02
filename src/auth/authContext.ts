@@ -17,6 +17,16 @@ export interface AuthContextValue {
     password: string
     remember: boolean
   }) => Promise<void>
+  /**
+   * Create an account and sign straight into it. Kickbase has no email
+   * confirmation step, so this resolves to an authenticated session.
+   */
+  signUp: (input: {
+    email: string
+    username: string
+    password: string
+    remember: boolean
+  }) => Promise<void>
   signOut: () => void
 }
 

@@ -9,6 +9,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
 
 ```
 /login                              public, redirects away if signed in
+/register                           public, redirects away if signed in
 │
 └─ <RequireAuth>                    everything below needs a session
    ├─ /                             → last used league, else /leagues
@@ -71,8 +72,12 @@ the session hydrates from `localStorage` synchronously during the first render,
 there is **no "checking…" state** — a returning user goes straight to the page
 they asked for.
 
-**`RedirectIfAuthenticated`** is the inverse, wrapping `/login` so a
-signed-in user cannot sit on the login screen.
+**`RedirectIfAuthenticated`** is the inverse, wrapping both `/login` and
+`/register` so a signed-in user cannot sit on either.
+
+Both public routes are eagerly imported rather than lazy — they are the app's
+entry point, and a spinner before the login form would be worse than the few
+kilobytes saved.
 
 ## League context
 

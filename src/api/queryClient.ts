@@ -17,11 +17,13 @@ export function createQueryClient(): QueryClient {
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
         retry: (failureCount, error) => {
-          // A 401 is handled by the auth layer's re-auth + single retry; a 4xx
-          // will not fix itself. Only transient failures are worth repeating.
+          // Auth failures are handled by the interceptor's renew-and-retry, and
+          // anything Kickbase named in `errMsg` will not fix itself — including
+          // the validation errors it serves as 500. Only genuinely transient
+          // failures are worth repeating.
           if (error instanceof ApiError) {
-            if (error.isUnauthorized) return false
-            if (error.status !== undefined && error.status < 500) return false
+            if (error.isUnauthenticated) return false
+            if (error.isPermanent) return false
           }
           return failureCount < 2
         },

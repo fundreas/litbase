@@ -1,3 +1,6 @@
 dist
 node_modules
 *.md
+
+# Tooling-owned config — written by Claude Code, not ours to format.
+.claude

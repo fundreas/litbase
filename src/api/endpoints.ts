@@ -7,6 +7,8 @@
 export const endpoints = {
   auth: {
     login: '/v4/user/login',
+    /** Creates the account outright — no email confirmation step. */
+    register: '/v4/user/register',
   },
   user: {
     settings: '/v4/user/settings',

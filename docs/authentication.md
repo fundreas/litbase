@@ -72,6 +72,21 @@ The response is flattened to a `StoredSession`:
 The `NaN` fallback matters: an unparseable expiry would otherwise be treated
 as `0` and lock the user out immediately.
 
+## Sign-up
+
+`POST /v4/user/register` **creates the account outright — there is no
+confirmation email to click.** This was established by probing, not assumed;
+the published documentation is silent on it. See
+[Register](pages/register.md#what-the-api-actually-does) for the evidence.
+
+Because the account is immediately usable, `signUp` resolves to a live session
+exactly like `signIn`, and the user lands in the app rather than on a
+"check your inbox" screen.
+
+`register()` uses the token from the register response when one is present and
+otherwise signs in with the credentials just submitted — the account exists
+either way, so both paths end in a session.
+
 ## How the token reaches requests
 
 [`AuthProvider`](../src/auth/AuthProvider.tsx) pushes two functions into the
@@ -115,15 +130,26 @@ nothing to renew with.
 
 ### Reactive
 
-Any 401 hits the response interceptor:
+**Kickbase answers `403` — not `401` — for a missing, invalid or expired
+token.** `401` is used only for rejected login credentials. This was verified
+directly: no header, a malformed token, an empty bearer and an expired-shaped
+JWT all return `403`, while a valid token returns `200`.
+
+That distinction matters, because a renewal path listening for `401` would
+never fire.
 
 ```
-401 ─┬─ already retried?        → throw ApiError
-     ├─ was a skipAuth request? → throw ApiError
-     └─ reauthHandler()
-          ├─ fresh token → stamp retriedAfterReauth, retry the same request
-          └─ null        → throw ApiError
+403 (or 401) ─┬─ already retried?          → throw ApiError
+              ├─ request carried no token? → throw ApiError
+              └─ reauthHandler()
+                   ├─ fresh token → stamp retriedAfterReauth, retry request
+                   └─ null        → throw ApiError
 ```
+
+A genuine permission `403` — a resource the account may not see — costs one
+wasted renewal. That is an accepted trade-off: the retry is capped at one and
+concurrent renewals are de-duplicated, so the worst case is a single extra
+login call.
 
 Two guards:
 
@@ -139,7 +165,7 @@ early rather than racing the server clock.
 
 | Situation | Result |
 | --------- | ------ |
-| 401, no stored credentials | Immediate `signOut()` |
+| 403 on an authenticated request, no stored credentials | Immediate `signOut()` |
 | Renewal rejected 4xx (password changed, account disabled) | `signOut()` — it will never start working |
 | Renewal fails on network or 5xx | Session **kept**; a Kickbase outage should not cost the session |
 | Tab refocused with a dead token and no credentials | `signOut()` |
@@ -158,11 +184,16 @@ throw on plain access, which would otherwise kill the app at startup. Every
 read returns `null` on failure; a `storageAvailable` flag lets the login form
 warn about it.
 
-| Key | Contents | Written |
-| --- | -------- | ------- |
-| `litbase.session.v1` | token, `expiresAt`, user | Always |
-| `litbase.credentials.v1` | email + obfuscated password | Only when opted in |
-| `litbase.lastLeagueId.v1` | Active league, for `/` | On every league mount |
+| Key | Contents | Written | Cleared on sign-out |
+| --- | -------- | ------- | ------------------- |
+| `litbase.session.v1` | token, `expiresAt`, user | Always | Yes |
+| `litbase.credentials.v1` | email + obfuscated password | Only when opted in | Yes |
+| `litbase.lastLeagueId.v1` | Active league, for `/` | On every league mount | Yes |
+| `litbase.lastEmail.v1` | Email only, no password | On sign-in and sign-up | **No** |
+
+`lastEmail` deliberately survives sign-out — its whole purpose is to pre-fill
+the login form on the *next* sign-in, so clearing it would defeat the point. It
+holds no secret.
 
 Session shape is validated on read; anything malformed is discarded rather
 than trusted.
@@ -177,6 +208,7 @@ const {
   expiresAt,        // epoch ms, or null
   isRemembered,     // credentials are stored
   signIn,           // ({ email, password, remember }) => Promise<void>
+  signUp,           // ({ email, username, password, remember }) => Promise<void>
   signOut,
 } = useAuth()
 ```
@@ -194,7 +226,7 @@ out clears the cache.
 while online, the timer effect's dependencies have not changed, so no new timer
 is armed. Recovery happens on the next focus or `online` event — fine in
 practice on mobile, but a continuously-open desktop tab could sit unrenewed
-until a request 401s and the reactive path takes over.
+until a request 403s and the reactive path takes over.
 
 **Without "remember me", expiry is discovered lazily.** The proactive timer
 does not arm, so a token expiring while the tab stays visible surfaces as a

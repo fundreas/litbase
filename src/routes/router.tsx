@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { LeagueProvider } from '@/league/LeagueProvider'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { RegisterPage } from '@/pages/RegisterPage'
 import { HomeRedirect } from '@/routes/HomeRedirect'
 import {
   DashboardPage,
@@ -20,6 +21,7 @@ import {
  * Route table.
  *
  *   /login                       public
+ *   /register                    public
  *   /                            redirect to the last used league
  *   /leagues                     resolves to the first league; renders only
  *                                when the account has none
@@ -38,6 +40,14 @@ export const router = createBrowserRouter([
     element: (
       <RedirectIfAuthenticated>
         <LoginPage />
+      </RedirectIfAuthenticated>
+    ),
+  },
+  {
+    path: '/register',
+    element: (
+      <RedirectIfAuthenticated>
+        <RegisterPage />
       </RedirectIfAuthenticated>
     ),
   },

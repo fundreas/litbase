@@ -29,6 +29,7 @@ import { readJson, remove, writeJson } from '@/lib/storage'
 const SESSION_KEY = 'litbase.session.v1'
 const CREDENTIALS_KEY = 'litbase.credentials.v1'
 const LAST_LEAGUE_KEY = 'litbase.lastLeagueId.v1'
+const LAST_EMAIL_KEY = 'litbase.lastEmail.v1'
 
 export interface StoredUser {
   id: string
@@ -137,6 +138,28 @@ export function clearCredentials(): void {
 
 export function hasStoredCredentials(): boolean {
   return loadCredentials() !== null
+}
+
+/* -------------------------------------------------------------------------- */
+/* Last used email                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The address the user last registered or signed in with, so the login form
+ * can pre-fill it. Just an email — no password — which is why it survives
+ * sign-out: the point is to save typing on the *next* sign-in.
+ */
+export function loadLastEmail(): string | null {
+  return readJson<string>(LAST_EMAIL_KEY)
+}
+
+export function saveLastEmail(email: string): void {
+  const trimmed = email.trim()
+  if (trimmed !== '') writeJson(LAST_EMAIL_KEY, trimmed)
+}
+
+export function clearLastEmail(): void {
+  remove(LAST_EMAIL_KEY)
 }
 
 /* -------------------------------------------------------------------------- */

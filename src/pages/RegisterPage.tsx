@@ -1,26 +1,27 @@
 import { Eye, EyeOff } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 import { ApiError } from '@/api/errors'
-import { loadLastEmail } from '@/auth/authStorage'
 import { useAuth } from '@/auth/useAuth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { storageAvailable } from '@/lib/storage'
 
-interface LocationState {
-  from?: string
-}
-
-export function LoginPage() {
-  const { signIn, isBusy } = useAuth()
+/**
+ * Account creation against `/v4/user/register`.
+ *
+ * Kickbase creates the account outright — there is **no confirmation email to
+ * click** — and the new account can authenticate immediately. So a successful
+ * submit lands the user straight in the app rather than on a "check your
+ * inbox" screen. See `docs/pages/register.md`.
+ */
+export function RegisterPage() {
+  const { signUp, isBusy } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
 
-  // Pre-filled with the address last registered or signed in with, so a
-  // returning user only types a password. Read once, in the initializer.
-  const [email, setEmail] = useState(() => loadLastEmail() ?? '')
+  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -29,17 +30,23 @@ export function LoginPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setError(null)
+
+    // Cheap client-side gate so the obvious cases do not cost a round trip.
+    // The server is still the authority — it rejects weak passwords with
+    // `PasswordTooWeak`, whose exact policy is not documented.
+    if (password.length < 8) {
+      setError('Das Passwort muss mindestens 8 Zeichen haben.')
+      return
+    }
+
     try {
-      await signIn({ email, password, remember })
-      const from = (location.state as LocationState | null)?.from
-      await navigate(from ?? '/', { replace: true })
+      await signUp({ email, username, password, remember })
+      await navigate('/', { replace: true })
     } catch (caught) {
       setError(
-        caught instanceof ApiError && caught.status === 401
-          ? 'E-Mail oder Passwort ist falsch.'
-          : caught instanceof Error
-            ? caught.message
-            : 'Anmeldung fehlgeschlagen.',
+        caught instanceof ApiError
+          ? caught.message
+          : 'Registrierung fehlgeschlagen.',
       )
     }
   }
@@ -52,7 +59,7 @@ export function LoginPage() {
             lit<span className="text-accent">base</span>
           </h1>
           <p className="mt-1.5 text-sm text-muted">
-            Mit deinem Kickbase-Konto anmelden
+            Neues Kickbase-Konto anlegen
           </p>
         </div>
 
@@ -80,6 +87,21 @@ export function LoginPage() {
           />
 
           <Input
+            label="Benutzername"
+            type="text"
+            name="username"
+            value={username}
+            onChange={(event) => {
+              setUsername(event.target.value)
+            }}
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            placeholder="Optional"
+            hint="Leer lassen, und Kickbase vergibt einen Namen."
+          />
+
+          <Input
             label="Passwort"
             type={showPassword ? 'text' : 'password'}
             name="password"
@@ -87,9 +109,10 @@ export function LoginPage() {
             onChange={(event) => {
               setPassword(event.target.value)
             }}
-            autoComplete="current-password"
+            autoComplete="new-password"
             required
-            placeholder="••••••••"
+            placeholder="Mindestens 8 Zeichen"
+            hint="Zahlen und Groß-/Kleinschreibung mischen."
             trailing={
               <button
                 type="button"
@@ -118,10 +141,8 @@ export function LoginPage() {
             <span className="text-sm">
               <span className="font-medium text-ink">Angemeldet bleiben</span>
               <span className="mt-0.5 block text-xs leading-snug text-faint">
-                Kickbase gibt kein Refresh-Token aus. Ohne diese Option endet
-                die Sitzung, wenn das Token abläuft (ca. 7 Tage) — mit ihr
-                werden deine Zugangsdaten im Browser gespeichert, damit die
-                Anmeldung im Hintergrund erneuert werden kann.
+                Speichert deine Zugangsdaten im Browser, damit die Sitzung im
+                Hintergrund erneuert werden kann.
               </span>
             </span>
           </label>
@@ -137,29 +158,30 @@ export function LoginPage() {
 
           {!storageAvailable && (
             <p className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs text-warning">
-              Dein Browser blockiert die lokale Speicherung. Die Anmeldung
-              funktioniert, gilt aber nur für diesen Tab.
+              Dein Browser blockiert die lokale Speicherung. Die Registrierung
+              funktioniert, die Anmeldung gilt aber nur für diesen Tab.
             </p>
           )}
 
           <Button type="submit" size="lg" fullWidth isLoading={isBusy}>
-            Anmelden
+            Konto erstellen
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted">
-          Noch kein Konto?{' '}
+          Schon ein Konto?{' '}
           <Link
-            to="/register"
+            to="/login"
             className="font-semibold text-accent underline-offset-4 hover:underline"
           >
-            Registrieren
+            Anmelden
           </Link>
         </p>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-faint">
-          Deine Zugangsdaten gehen direkt an api.kickbase.com. litbase hat
-          keinen eigenen Server.
+          Mit dem Erstellen des Kontos akzeptierst du die Nutzungsbedingungen
+          von Kickbase. Deine Daten gehen direkt an api.kickbase.com — litbase
+          hat keinen eigenen Server.
         </p>
       </div>
     </div>

@@ -14,7 +14,7 @@ component
         └─ get<SquadResponse>(...)       api/client.ts
              └─ request interceptor      attaches Bearer token
              └─ axios
-             └─ response interceptor     401 → renew + retry once
+             └─ response interceptor     403 → renew + retry once
                                          any error → ApiError
         └─ mapSquad(response)            SquadResponse → SquadMember[]
 ```
@@ -29,7 +29,7 @@ The auth layer injects two functions at startup:
 
 ```ts
 setTokenProvider(() => tokenRef.current)  // where to read the current token
-setReauthHandler(renewSession)            // what to do about a 401
+setReauthHandler(renewSession)            // what to do about a dead token
 ```
 
 Requests can opt out of the `Authorization` header by passing the exported
@@ -49,7 +49,7 @@ interface RequestMeta {
 `get<T>()` and `post<T>()` helpers unwrap `response.data`, so hooks never
 touch the axios response envelope.
 
-The 401 recovery path is documented in full in
+The recovery path is documented in full in
 [Authentication](authentication.md#renewal-two-paths).
 
 ## Endpoint registry
@@ -156,7 +156,7 @@ So a stale squad can never flash under a different league's name.
 - `refetchOnWindowFocus` and `refetchOnReconnect` both **on** — on a phone the
   app is backgrounded constantly, and refetching on return is what makes it
   feel live.
-- Retries are selective: a **401 never retries** (the auth layer owns that
+- Retries are selective: an **auth failure never retries** (the auth layer owns that
   recovery), and neither does any other 4xx, since it will not fix itself.
   Transient failures retry twice with exponential backoff capped at 8 s.
 - Mutations do not retry.
@@ -168,11 +168,29 @@ tree.
 ## Error normalisation
 
 [`errors.ts`](../src/api/errors.ts) converts anything thrown into an
-`ApiError` carrying `status`, `code`, `isNetwork` and `isUnauthorized`, plus a
-message that is safe to render. Server-supplied messages (`err`, `message`,
-`msg`) are preferred; otherwise a German fallback is chosen by status code.
+`ApiError` carrying `status`, `code`, `apiCode`, `apiError`, `isNetwork`,
+`isUnauthenticated` and `isPermanent`, plus a message that is safe to render.
 
-This is why [`ErrorState`](../src/components/ui/States.tsx) can show a
+**Kickbase's HTTP status is not a reliable signal**, which is why this layer
+exists in the shape it does. Observed behaviour:
+
+| Status | Means |
+| ------ | ----- |
+| `403` | Missing, malformed or expired token — **the "re-authenticate" status** |
+| `401` | Wrong email or password, on `/v4/user/login` only |
+| `500` | Includes *validation* errors such as `PasswordTooWeak` and `InvalidEMailAddress` |
+| `400` | Other semantic errors, e.g. `EMailAddressAlreadyTaken` |
+
+The body is `{ err: <number>, errMsg: <string>, svcs: [] }`. Note `err` is a
+**number** (`2020`), not a message — rendering it directly would put "2020" in
+front of the user. `errMsg` is the trustworthy field, and known names are
+mapped to German copy in `MESSAGE_BY_API_ERROR`.
+
+`isPermanent` therefore checks `apiError` *before* falling back to
+`status < 500`, so a validation error served as 500 is correctly treated as
+final and not retried.
+
+This is also why [`ErrorState`](../src/components/ui/States.tsx) can show a
 wifi-off icon for a network failure and a warning triangle otherwise, without
 any component importing axios.
 

@@ -40,6 +40,45 @@ export interface LoginResponse {
   srvl: LoginLeague[]
 }
 
+export interface RegisterRequest {
+  /** Email address. Must be unique and well-formed. */
+  em: string
+  /** Desired username. Optional in practice — the server generates one
+   *  (`KickbaseUser####`) when this is empty. */
+  unm: string
+  /** Password. Rejected as `PasswordTooWeak` if it does not meet the policy. */
+  pass: string
+  /** Invite/registration token. Empty for open registration. */
+  tkn: string
+  /** Terms and privacy accepted. */
+  rek: boolean
+  /** Opt-in to marketing/push notifications. */
+  rept: boolean
+  /** Device reporting payload. An empty object is accepted. */
+  rep: Record<string, never>
+}
+
+/**
+ * Registration response.
+ *
+ * Shaped like {@link LoginResponse} but every session field is optional: the
+ * account is definitely created, and the observed response leads with `u`, but
+ * whether a token accompanies it is unconfirmed. `register()` therefore signs
+ * in explicitly when no token comes back — see `authApi.ts`.
+ */
+export interface RegisterResponse {
+  u: LoginUser
+  tkn?: string
+  tknex?: string
+  srvl?: LoginLeague[]
+  /** Email verified. `false` on a fresh account — it does not gate access. */
+  emv?: boolean
+  /** Email verification pending. */
+  emvr?: boolean
+  /** Is a new user — set on the first login after registering. */
+  isnu?: boolean
+}
+
 export interface LoginUser {
   id: string
   name: string

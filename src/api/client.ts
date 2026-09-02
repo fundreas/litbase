@@ -72,11 +72,21 @@ api.interceptors.response.use(
     if (!axios.isAxiosError(error)) throw toApiError(error)
 
     const config = error.config
-    const isUnauthorized = error.response?.status === 401
+    const status = error.response?.status
+
+    // Kickbase answers **403** for a missing, invalid or expired token; 401 is
+    // reserved for rejected login credentials. Both are treated as "the token
+    // is no good" here. A genuine permission 403 (a resource the account may
+    // not see) would cost one wasted renewal — acceptable, because the retry
+    // is capped at one and concurrent renewals are de-duplicated.
+    const isAuthFailure = status === 403 || status === 401
+    const carriedToken =
+      config?.meta?.skipAuth !== true && tokenProvider() !== null
+
     const canRetry =
-      isUnauthorized &&
+      isAuthFailure &&
+      carriedToken &&
       config !== undefined &&
-      config.meta?.skipAuth !== true &&
       config.meta?.retriedAfterReauth !== true &&
       reauthHandler !== null
 

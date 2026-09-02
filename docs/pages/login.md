@@ -18,6 +18,11 @@ The only public route. Everything else sits behind `RequireAuth`.
 The route is wrapped in `RedirectIfAuthenticated`, so a signed-in user
 visiting `/login` is sent to `/` instead of seeing the form.
 
+The email field is **pre-filled** from `litbase.lastEmail.v1`, written on the
+last successful sign-in or [registration](register.md), so a returning user
+only types a password. A *Registrieren* link at the bottom leads to
+[Register](register.md).
+
 ## Layout
 
 Centred single column, `max-w-sm`, no app chrome — no header, drawer or
@@ -69,7 +74,7 @@ behind a tooltip.
 | State | Rendering |
 | ----- | --------- |
 | Submitting | `Button` shows a spinner and goes `aria-busy`, driven by `isBusy` from `useAuth()` |
-| 401 | `role="alert"` panel: *E-Mail oder Passwort ist falsch.* |
+| Wrong credentials (401) | `role="alert"` panel: *E-Mail oder Passwort ist falsch.* |
 | Other failure | Same panel with the `ApiError` message — e.g. the network-failure copy |
 | Storage blocked | Amber warning: login works but only for this tab |
 

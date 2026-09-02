@@ -39,7 +39,7 @@ sections below are a summary of it.
 ```
 src/
 ├── api/                 everything that talks to Kickbase
-│   ├── client.ts        the one axios instance + auth/401 interceptors
+│   ├── client.ts        the one axios instance + auth/403 interceptors
 │   ├── endpoints.ts     every API path, in one place
 │   ├── types.ts         raw wire DTOs (the abbreviated keys, documented)
 │   ├── models.ts        readable domain models the UI actually uses
@@ -62,6 +62,7 @@ src/
 
 ```
 /login                       public
+/register                    public
 /                            → redirects to the last used league
 /leagues                     → first league, else "no leagues"
 /leagues/:leagueId/dashboard
@@ -93,8 +94,9 @@ So persistence comes in two tiers:
    `localStorage`, so it is off by default and spelled out on the login form.
 
 Renewal fires from four places: a timer 12h before expiry, on tab focus, on
-reconnect, and reactively from any request that comes back 401 (one renewal,
-one retry, concurrent 401s de-duplicated). Without stored credentials a 401
+reconnect, and reactively from any authenticated request that comes back 403
+— the status Kickbase uses for a dead token, not 401 (one renewal, one retry,
+concurrent failures de-duplicated). Without stored credentials such a failure
 simply signs the user out. See the long comment in
 [src/auth/authStorage.ts](src/auth/authStorage.ts).
 

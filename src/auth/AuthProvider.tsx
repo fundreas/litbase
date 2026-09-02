@@ -10,7 +10,7 @@ import {
 
 import { setReauthHandler, setTokenProvider } from '@/api/client'
 import { ApiError } from '@/api/errors'
-import { login } from '@/auth/authApi'
+import { login, register } from '@/auth/authApi'
 import { AuthContext, type AuthContextValue } from '@/auth/authContext'
 import {
   clearCredentials,
@@ -22,6 +22,7 @@ import {
   loadSession,
   REFRESH_LEAD_MS,
   saveCredentials,
+  saveLastEmail,
   saveSession,
   shouldRefreshNow,
   type StoredSession,
@@ -39,7 +40,9 @@ import {
  *  3. **Renewal** — because Kickbase has no refresh endpoint (see
  *     `authStorage.ts`), renewal is a silent re-login using opt-in stored
  *     credentials. It is triggered by a timer 12h before expiry, on tab focus,
- *     on reconnect, and reactively by any request that comes back 401.
+ *     on reconnect, and reactively by any authenticated request that comes
+ *     back **403** — the status Kickbase uses for a dead token (401 is only
+ *     for rejected login credentials). See `api/errors.ts`.
  *
  * Must be rendered inside a `QueryClientProvider`: signing out clears the cache
  * so one user's data can never be shown to the next.
@@ -90,30 +93,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear()
   }, [queryClient])
 
+  /** Shared tail of sign-in and sign-up: remember what was asked, apply it. */
+  const adoptSession = useCallback(
+    (
+      next: StoredSession,
+      email: string,
+      password: string,
+      remember: boolean,
+    ) => {
+      if (remember) {
+        saveCredentials(email, password)
+      } else {
+        clearCredentials()
+      }
+      // Kept regardless of `remember`, and deliberately not cleared on sign-out
+      // — it only saves typing on the next sign-in.
+      saveLastEmail(email)
+      setIsRemembered(remember)
+      applySession(next)
+    },
+    [applySession],
+  )
+
   const signIn = useCallback<AuthContextValue['signIn']>(
     async ({ email, password, remember }) => {
       setIsBusy(true)
       try {
-        const next = await login(email, password)
-        if (remember) {
-          saveCredentials(email, password)
-        } else {
-          clearCredentials()
-        }
-        setIsRemembered(remember)
-        applySession(next)
+        adoptSession(await login(email, password), email, password, remember)
       } finally {
         setIsBusy(false)
       }
     },
-    [applySession],
+    [adoptSession],
+  )
+
+  const signUp = useCallback<AuthContextValue['signUp']>(
+    async ({ email, username, password, remember }) => {
+      setIsBusy(true)
+      try {
+        const next = await register({ email, username, password })
+        adoptSession(next, email, password, remember)
+      } finally {
+        setIsBusy(false)
+      }
+    },
+    [adoptSession],
   )
 
   /* ---------------------------------------------------------------------- */
   /* Silent renewal                                                          */
   /* ---------------------------------------------------------------------- */
 
-  // Concurrent 401s must produce one login call, not one per request.
+  // Concurrent auth failures must produce one login call, not one per request.
   const renewalInFlight = useRef<Promise<string | null> | null>(null)
 
   const renewSession = useCallback(async (): Promise<string | null> => {
@@ -136,12 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Credentials that the server rejects will never start working, so stop
         // retrying and send the user to the login screen. A network blip or a
         // Kickbase outage, on the other hand, keeps the session intact.
-        const isPermanent =
-          error instanceof ApiError &&
-          !error.isNetwork &&
-          error.status !== undefined &&
-          error.status < 500
-        if (isPermanent) signOut()
+        if (error instanceof ApiError && error.isPermanent) signOut()
         return null
       } finally {
         setIsBusy(false)
@@ -153,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return attempt
   }, [applySession, signOut])
 
-  // Reactive path: any 401 gets one renewal + one retry.
+  // Reactive path: an authenticated 403 (or 401) gets one renewal + one retry.
   useEffect(() => {
     setReauthHandler(renewSession)
     return () => {
@@ -212,9 +238,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       expiresAt: session?.expiresAt ?? null,
       isRemembered,
       signIn,
+      signUp,
       signOut,
     }),
-    [session, isBusy, isRemembered, signIn, signOut],
+    [session, isBusy, isRemembered, signIn, signUp, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
