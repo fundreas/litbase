@@ -57,12 +57,17 @@ export function RankingPage() {
                 isMe ? 'border-accent/50' : 'border-line',
               )}
             >
-              <span className="nums w-7 shrink-0 text-center text-sm font-bold text-faint">
-                {placement(
-                  data.isDuelMode
-                    ? manager.duelPlacement
-                    : manager.seasonPlacement,
-                )}
+              {/* Placement and its movement belong together; the right-hand
+                  column is now two point figures. */}
+              <span className="w-8 shrink-0 text-center">
+                <span className="nums block text-sm font-bold text-faint">
+                  {placement(
+                    data.isDuelMode
+                      ? manager.duelPlacement
+                      : manager.seasonPlacement,
+                  )}
+                </span>
+                <PlacementChange value={manager.placementChange} />
               </span>
 
               <Avatar src={manager.image} name={manager.name} size={36} />
@@ -75,30 +80,41 @@ export function RankingPage() {
                   )}
                 </p>
                 <p className="nums truncate text-xs text-muted">
-                  {data.isDuelMode ? (
-                    <>
-                      {points(manager.seasonPoints)} Punkte ·{' '}
-                      {points(manager.duelMatchdayPoints)} am Spieltag
-                    </>
-                  ) : (
-                    <>
-                      {money(manager.teamValue)} Teamwert ·{' '}
-                      {points(manager.matchdayPoints)} am Spieltag
-                    </>
-                  )}
+                  {money(manager.teamValue)} Teamwert ·{' '}
+                  {points(
+                    data.isDuelMode
+                      ? manager.duelMatchdayPoints
+                      : manager.matchdayPoints,
+                  )}{' '}
+                  am Spieltag
                 </p>
               </div>
 
+              {/* Two figures stacked, so the ordering is self-explaining: the
+                  bold one is what the table is sorted by, the muted one is the
+                  Kickbase total that does *not* decide it. In a normal league
+                  those are the same number, so only the total is shown. */}
               <div className="shrink-0 text-right">
-                {/* In a duel league the table is decided by duel points, so
-                    that is the headline; the raw season total moves to the
-                    secondary line rather than disappearing. */}
-                <p className="nums text-sm font-semibold text-ink">
+                <p
+                  className="nums text-sm font-semibold text-ink"
+                  title={
+                    data.isDuelMode
+                      ? 'Duellpunkte — entscheiden die Platzierung'
+                      : 'Punkte'
+                  }
+                >
                   {points(
                     data.isDuelMode ? manager.duelPoints : manager.seasonPoints,
                   )}
                 </p>
-                <PlacementChange value={manager.placementChange} />
+                {data.isDuelMode && (
+                  <p
+                    className="nums text-xs text-muted"
+                    title="Kickbase-Punkte insgesamt"
+                  >
+                    {points(manager.seasonPoints)} Pkt
+                  </p>
+                )}
               </div>
             </li>
           )

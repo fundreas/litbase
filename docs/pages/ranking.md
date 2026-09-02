@@ -43,8 +43,17 @@ rather than raw points:
 | | Normal | Duel |
 | --- | --- | --- |
 | Sorted and numbered by | `spl` | `hhpl` |
-| Headline points | `sp` | `hhsp` |
-| Secondary line | Team value · matchday points (`mdp`) | Season points (`sp`) · matchday duel points (`hhmp`) |
+| Headline figure (bold) | `sp` | `hhsp` |
+| Figure beneath it | — | `sp`, the Kickbase total |
+| Under the name | Team value · `mdp` | Team value · `hhmp` |
+
+Stacking two figures on the right is what makes the ordering
+self-explaining: the bold one is what the table is sorted by, the muted one is
+the Kickbase total that does **not** decide it. Without that, a duel table
+looks wrong — a manager on 755 raw points sitting below one on 612 has no
+visible reason to be there.
+
+In a normal league those would be the same number, so only the total is shown.
 
 **Detection is from the data, not a flag.** `hhpl` is present only in duel
 leagues; a normal league carries no `hhpl` at all. The response's top-level
@@ -68,7 +77,8 @@ inverted reading would be visible immediately rather than silent.
 
 | Element | Source |
 | ------- | ------ |
-| Placement | `seasonPlacement`, formatted `3.` by `placement()` |
+| Placement | `seasonPlacement` or `duelPlacement`, formatted `3.` by `placement()` |
+| Placement change | `placementChange` (`ppc`), directly under the placement |
 | Avatar | `image` (`uim`), initials fallback |
 | Name | `name`, with a `du` tag in accent colour when `id === user?.id` |
 | Secondary line | Team value and matchday points |

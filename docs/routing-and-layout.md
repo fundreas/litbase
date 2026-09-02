@@ -171,6 +171,13 @@ Both read from one config, [`navigation.ts`](../src/components/layout/navigation
 { to: 'players',   label: 'Alle Spieler',       icon: … }
 ```
 
+**Mein Team** is the only entry for the team page, even though it has two
+routes: the tabs on that page are the natural way between the squad list and
+the lineup, and a second drawer entry for a sibling tab is noise. It therefore
+declares `alsoMatches: ['lineup']`, and `NavDrawer` resolves the active item
+with `isNavItemActive()` rather than `NavLink`'s own matching — otherwise the
+drawer would highlight nothing while the lineup tab is open.
+
 The drawer is the **only** navigation surface. There is no bottom tab bar: it
 duplicated the drawer, ate a row of screen height on exactly the small screens
 where the pitch needs it, and forced a second, coarser notion of which entry
