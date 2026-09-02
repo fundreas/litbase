@@ -283,6 +283,29 @@ An earlier version instead picked the nearest legal formation and drew empty
 slots for the difference. Showing the effective shape is both simpler and more
 honest.
 
+### The incomplete warning
+
+An incomplete lineup is legal and it saves — but every empty slot scores
+nothing, so it is flagged rather than left for the user to infer from the
+count. A warning triangle sits next to the `x/11 aufgestellt` label whenever
+fewer than eleven players are fielded, with the reason spelled out on a line
+beneath it.
+
+The two causes get different wording, because they need different actions:
+
+| Situation | Message |
+| --------- | ------- |
+| Squad has ≥ 11, fewer fielded | *"N Plätze sind leer. Leere Plätze bringen keine Punkte."* |
+| Squad itself has < 11 | *"Dein Kader hat nur N von 11 nötigen Spielern. Kaufe Spieler auf dem Transfermarkt."* |
+
+Telling someone to pick more players when they only own nine is useless, so
+that case names the real problem instead. The count is singular/plural correct
+(`1 Platz ist` / `2 Plätze sind`).
+
+The icon itself is `aria-hidden` and carries only a `title` — the visible text
+line is the accessible copy, so announcing it twice would be noise. That text
+line also exists because `title` shows nothing on touch.
+
 ### Interaction
 
 | Action | Result |

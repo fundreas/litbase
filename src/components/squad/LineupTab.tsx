@@ -101,6 +101,24 @@ export function LineupTab({
   const matchday = useCurrentMatchday(competitionId)
   const fixtureByTeamId = matchday.data?.fixtureByTeamId
 
+  /**
+   * An incomplete lineup is legal and it saves, but it forfeits points for
+   * every empty slot — so it is worth flagging rather than leaving the user to
+   * notice the count.
+   *
+   * The two causes need different wording. Usually the squad is big enough and
+   * players simply have not been picked. But a squad of fewer than eleven
+   * cannot be completed at all, and telling someone to "pick more players"
+   * when they own nine is useless — that case names the real problem instead.
+   */
+  const missing = LINEUP_SIZE - lineup.length
+  const isIncomplete = missing > 0
+  const isSquadTooSmall = squad.length < LINEUP_SIZE
+
+  const incompleteMessage = isSquadTooSmall
+    ? `Unvollständige Aufstellung: dein Kader hat nur ${String(squad.length)} von ${String(LINEUP_SIZE)} nötigen Spielern. Kaufe Spieler auf dem Transfermarkt.`
+    : `Unvollständige Aufstellung: ${String(missing)} ${missing === 1 ? 'Platz ist' : 'Plätze sind'} leer. Leere Plätze bringen keine Punkte.`
+
   /* ---------------------------------------------------------------------- */
   /* Persistence                                                             */
   /* ---------------------------------------------------------------------- */
@@ -233,6 +251,21 @@ export function LineupTab({
             </span>{' '}
             aufgestellt
           </span>
+
+          {isIncomplete && (
+            /* Decorative on purpose: the same message is spelled out in the
+               line below, so announcing it here too would repeat it. The
+               `title` is just a hover affordance on pointer devices — it is
+               invisible on touch, which is why the text line exists. */
+            <span title={incompleteMessage} className="flex shrink-0">
+              <AlertTriangle
+                size={14}
+                aria-hidden="true"
+                className="text-warning"
+              />
+            </span>
+          )}
+
           {save.isPending && (
             <span className="flex items-center gap-1 text-xs text-faint">
               <Spinner size={12} />
@@ -244,6 +277,13 @@ export function LineupTab({
           {formationLabel(formation)}
         </p>
       </div>
+
+      {isIncomplete && (
+        <p className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs leading-snug text-warning">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          {incompleteMessage}
+        </p>
+      )}
 
       {saveError !== null && (
         <p
