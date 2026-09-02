@@ -252,20 +252,6 @@ export function LineupTab({
             aufgestellt
           </span>
 
-          {isIncomplete && (
-            /* Decorative on purpose: the same message is spelled out in the
-               line below, so announcing it here too would repeat it. The
-               `title` is just a hover affordance on pointer devices — it is
-               invisible on touch, which is why the text line exists. */
-            <span title={incompleteMessage} className="flex shrink-0">
-              <AlertTriangle
-                size={14}
-                aria-hidden="true"
-                className="text-warning"
-              />
-            </span>
-          )}
-
           {save.isPending && (
             <span className="flex items-center gap-1 text-xs text-faint">
               <Spinner size={12} />

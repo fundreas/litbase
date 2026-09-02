@@ -300,9 +300,12 @@ honest.
 
 An incomplete lineup is legal and it saves — but every empty slot scores
 nothing, so it is flagged rather than left for the user to infer from the
-count. A warning triangle sits next to the `x/11 aufgestellt` label whenever
-fewer than eleven players are fielded, with the reason spelled out on a line
-beneath it.
+count. Whenever fewer than eleven players are fielded, a warning banner
+appears under the header stating the reason.
+
+The banner is the only indicator. An earlier version also put a warning
+triangle next to the `x/11 aufgestellt` label, which said the same thing twice
+in the same glance.
 
 The two causes get different wording, because they need different actions:
 
@@ -315,9 +318,9 @@ Telling someone to pick more players when they only own nine is useless, so
 that case names the real problem instead. The count is singular/plural correct
 (`1 Platz ist` / `2 Plätze sind`).
 
-The icon itself is `aria-hidden` and carries only a `title` — the visible text
-line is the accessible copy, so announcing it twice would be noise. That text
-line also exists because `title` shows nothing on touch.
+The banner is plain text with `role`-free markup and a decorative icon, so it
+reads once to assistive tech and needs no tooltip — which matters because a
+`title` shows nothing on touch.
 
 ### Interaction
 
