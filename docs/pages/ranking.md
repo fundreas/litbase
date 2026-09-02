@@ -8,19 +8,25 @@ Full standings for every manager in the league.
 ## Layout
 
 ```
-  Rangliste
-  4 Manager
-
-  ┌──────────────────────────────────────┐
-  │ 1.  (A) elias                  755   │
-  │         103,1 Mio. € Teamwert     —  │
-  │         · 88 am Spieltag             │
-  ├──────────────────────────────────────┤
-  │ 3.  (A) Danger  du             588   │  ← accent border
-  │         194,4 Mio. € Teamwert   ↗ 2  │
-  │         · 71 am Spieltag             │
-  └──────────────────────────────────────┘
+  Rangliste                          ┌───┬───┐
+  4 Manager · Duell-Modus            │ ⚔ │ Σ │   ← sort toggle
+                                     └───┴───┘
+  ┌────────────────────────────────────────────┐
+  │  1.  (A)  robidfl                       9  │
+  │           194,4 Mio. € Teamwert    612 Pkt │
+  │           410 Pkt ✓ gegen Danger           │
+  ├────────────────────────────────────────────┤
+  │  2.  (A)  Danger  du                    6  │  ← accent border
+  │  ↗2       103,1 Mio. € Teamwert    588 Pkt │
+  │           120 Pkt ✗ gegen robidfl          │
+  └────────────────────────────────────────────┘
 ```
+
+The row is a name over **two subtitles** — team value, then the matchday
+result — because three separate facts were previously crammed onto one line
+and truncated on a phone. The placement's movement sits under the placement
+number and appears **only when it changed**; a lone dash for "unchanged" was a
+whole line saying nothing.
 
 ## Ordering
 
@@ -61,19 +67,25 @@ A duel league has **two legitimate tables**, so the heading carries a toggle on
 the right: **Duell** (the default) or **Punkte**.
 
 It switches the whole view at once — order, placement number *and* headline
-figure. Listing duel placements in points order would look broken, so
-`Punkte` renumbers the rows by `spl` and promotes `sp` to the bold figure, with
-the duel total moving to the muted line. The toggle is not rendered outside
-duel mode, where both options would mean the same thing.
+figure. Listing duel placements in points order would look broken, so the
+points view renumbers the rows by `spl` and promotes `sp` to the bold figure,
+with the duel total moving to the muted line. The toggle is not rendered
+outside duel mode, where both options would mean the same thing.
+
+The two buttons are **icon-only**: crossed swords (`Swords`) for the
+head-to-head table, a summation sign (`Sigma`) for the points total. Labels
+would need truncating next to the heading on a phone, so the meaning rides on
+`title` plus `sr-only` text instead.
 
 Only the non-default view re-sorts: the hook already returns the league's own
 table.
 
 ### Duel result icon
 
-The secondary line under each name reads *team value · matchday Kickbase points
-· result icon* — a green check for a win, a grey dash for a draw, a red cross
-for a loss.
+The second subtitle reads *matchday Kickbase points · result icon · opponent* —
+a green check for a win, a grey dash for a draw, a red cross for a loss,
+followed by "gegen <name>". The opponent's name comes from the same `byId` map
+the result is computed with, so it costs nothing extra.
 
 Note the figure there is the manager's **real Kickbase points for the
 matchday** (`mdp`), not their duel points. Those are what the duel was decided
@@ -112,10 +124,11 @@ inverted reading would be visible immediately rather than silent.
 | Element | Source |
 | ------- | ------ |
 | Placement | `seasonPlacement` or `duelPlacement`, formatted `3.` by `placement()` |
-| Placement change | `placementChange` (`ppc`), directly under the placement |
+| Placement change | `placementChange` (`ppc`), under the placement — hidden when `0` |
 | Avatar | `image` (`uim`), initials fallback |
 | Name | `name`, with a `du` tag in accent colour when `id === user?.id` |
-| Secondary line | Team value, matchday Kickbase points (`mdp`), duel result icon |
+| Subtitle 1 | Team value |
+| Subtitle 2 | Matchday Kickbase points (`mdp`), duel result icon, opponent name |
 | Points | `seasonPoints`, bold, right-aligned |
 | Change | `placementChange` (`ppc`) |
 

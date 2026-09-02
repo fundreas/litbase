@@ -2,9 +2,11 @@ import {
   CircleCheck,
   CircleMinus,
   CircleX,
-  Minus,
+  Sigma,
+  Swords,
   TrendingDown,
   TrendingUp,
+  type LucideIcon,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -99,6 +101,11 @@ export function RankingPage() {
             duelResult={
               data.isDuelMode ? duelResultOf(manager, byId) : undefined
             }
+            duelOpponentName={
+              manager.duelOpponentId === undefined
+                ? undefined
+                : byId.get(manager.duelOpponentId)?.name
+            }
           />
         ))}
       </ul>
@@ -116,9 +123,13 @@ function SortToggle({
   value: SortKey
   onChange: (next: SortKey) => void
 }) {
-  const options: Array<{ key: SortKey; label: string; title: string }> = [
-    { key: 'duel', label: 'Duell', title: 'Nach Duellpunkten sortieren' },
-    { key: 'total', label: 'Punkte', title: 'Nach Kickbase-Punkten sortieren' },
+  // Crossed swords for the head-to-head table, a summation sign for the
+  // points total. Icon-only keeps the control out of the heading's way; the
+  // meaning rides on `title` plus screen-reader text rather than a label that
+  // would need truncating on a phone.
+  const options: Array<{ key: SortKey; Icon: LucideIcon; label: string }> = [
+    { key: 'duel', Icon: Swords, label: 'Nach Duellpunkten sortieren' },
+    { key: 'total', Icon: Sigma, label: 'Nach Kickbase-Punkten sortieren' },
   ]
 
   return (
@@ -127,25 +138,26 @@ function SortToggle({
       aria-label="Sortierung"
       className="flex shrink-0 gap-0.5 rounded-full border border-line bg-surface p-0.5"
     >
-      {options.map((option) => {
-        const isActive = option.key === value
+      {options.map(({ key, Icon, label }) => {
+        const isActive = key === value
         return (
           <button
-            key={option.key}
+            key={key}
             type="button"
             aria-pressed={isActive}
-            title={option.title}
+            title={label}
             onClick={() => {
-              onChange(option.key)
+              onChange(key)
             }}
             className={cn(
-              'rounded-full px-2.5 py-1 text-xs font-semibold transition-colors',
+              'flex h-8 w-9 items-center justify-center rounded-full transition-colors',
               isActive
                 ? 'bg-accent text-accent-ink'
                 : 'text-muted hover:text-ink',
             )}
           >
-            {option.label}
+            <Icon size={15} aria-hidden="true" />
+            <span className="sr-only">{label}</span>
           </button>
         )
       })}
@@ -158,23 +170,25 @@ function ManagerRow({
   isMe,
   isDuelView,
   duelResult,
+  duelOpponentName,
 }: {
   manager: RankedManager
   isMe: boolean
   isDuelView: boolean
   duelResult: DuelResult | undefined
+  duelOpponentName: string | undefined
 }) {
   return (
     <li
       className={cn(
-        'flex items-center gap-3 rounded-card border bg-surface px-3 py-3',
+        'flex items-center gap-3 rounded-card border bg-surface px-3 py-2.5',
         isMe ? 'border-accent/50' : 'border-line',
       )}
     >
-      {/* Placement and its movement belong together; the right-hand column is
-          two point figures. */}
+      {/* Placement, with its movement beneath only when it actually moved —
+          a lone dash for "unchanged" was a whole line saying nothing. */}
       <span className="w-8 shrink-0 text-center">
-        <span className="nums block text-sm font-bold text-faint">
+        <span className="nums block text-base font-bold text-faint">
           {placement(
             isDuelView ? manager.duelPlacement : manager.seasonPlacement,
           )}
@@ -182,21 +196,28 @@ function ManagerRow({
         <PlacementChange value={manager.placementChange} />
       </span>
 
-      <Avatar src={manager.image} name={manager.name} size={36} />
+      <Avatar src={manager.image} name={manager.name} size={40} />
 
+      {/* Name, then two subtitles: team value, then the matchday result. */}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-ink">
           {manager.name}
           {isMe && <span className="ml-1.5 text-xs text-accent">du</span>}
         </p>
-        <p className="nums flex items-center gap-1.5 text-xs text-muted">
-          <span className="truncate">{money(manager.teamValue)} Teamwert</span>
-          <span aria-hidden="true">·</span>
-          {/* The matchday figure is the manager's real Kickbase points, not
-              the duel points — those are what the duel was decided on, and the
-              icon says how it went. */}
-          <span className="shrink-0">{points(manager.matchdayPoints)}</span>
+        <p className="nums truncate text-xs text-muted">
+          {money(manager.teamValue)} Teamwert
+        </p>
+        {/* The figure is the manager's real Kickbase points for the matchday,
+            not their duel points — those are what the duel was decided on,
+            and the icon plus opponent say how it went. */}
+        <p className="nums flex items-center gap-1 text-xs text-muted">
+          <span className="shrink-0">{points(manager.matchdayPoints)} Pkt</span>
           <DuelResultIcon result={duelResult} />
+          {duelOpponentName !== undefined && (
+            <span className="truncate text-faint">
+              gegen {duelOpponentName}
+            </span>
+          )}
         </p>
       </div>
 
@@ -247,13 +268,10 @@ function DuelResultIcon({ result }: { result: DuelResult | undefined }) {
 }
 
 function PlacementChange({ value }: { value: number }) {
-  if (value === 0) {
-    return (
-      <span className="flex items-center justify-center gap-0.5 text-xs text-faint">
-        <Minus size={12} />
-      </span>
-    )
-  }
+  // Nothing at all when the placement held: a dash on its own line was a
+  // second subtitle that carried no information.
+  if (value === 0) return null
+
   const isUp = value > 0
   return (
     <span
