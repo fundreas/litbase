@@ -315,7 +315,12 @@ export function LineupTab({
             says they belong. Each band always has content: the mandatory
             minimums guarantee at least one avatar or placeholder in all
             four. */}
-        <div className="grid h-full grid-rows-4 px-2 py-3">
+        {/* `flex-1`, not `h-full`. As a flex item this grid's `height: 100%`
+            resolved against its own content rather than the parent, so it sat
+            at its natural 394px inside a 479px pitch and left a band of empty
+            grass under the keeper. Growing into the space is the reliable
+            way to fill it. */}
+        <div className="grid min-h-0 flex-1 grid-rows-4 px-2 py-3">
           {ROW_ORDER.map((position) => (
             <PitchRow
               key={position}

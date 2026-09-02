@@ -517,6 +517,12 @@ The pitch is a **`grid-rows-4`: four equal bands, one per position**, running
 attack-first down the page — FWD, MID, DEF, GK — and all four are always
 rendered.
 
+The grid claims its height with **`flex-1`, not `h-full`**. That distinction
+was a real bug: as a flex item, `height: 100%` resolved against the grid's own
+content rather than its parent, so it sat at its natural 394px inside a 479px
+pitch and left a band of empty grass under the keeper — measured in the
+browser, not guessed. Growing into the space fills it reliably.
+
 Distributing however many rows happened to exist (`justify-around`) made the
 geometry depend on the lineup: a team with no striker sat its midfield at a
 different height from one that had a striker, which was obvious on a wide
