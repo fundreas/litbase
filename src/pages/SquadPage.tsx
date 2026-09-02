@@ -65,7 +65,7 @@ export function SquadPage() {
         </TabsList>
 
         <TabsContent value="squad">
-          <PlayerListTab squad={data} />
+          <PlayerListTab squad={data} competitionId={competitionId} />
         </TabsContent>
         <TabsContent value="lineup">
           <LineupTab

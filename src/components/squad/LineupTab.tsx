@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, UserMinus } from 'lucide-react'
+import { AlertTriangle, UserMinus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ApiError } from '@/api/errors'
@@ -71,8 +71,8 @@ export function LineupTab({
   const [lineupIds, setLineupIds] = useState<string[]>(() => seedLineup(squad))
   const [incoming, setIncoming] = useState<SquadMember | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  // State, not a ref: the "nicht gespeichert" chip depends on it, so a change
-  // has to trigger a render.
+  // Gates the save effect so the server-seeded lineup is never written back
+  // unchanged. State rather than a ref so flipping it re-runs that effect.
   const [isDirty, setIsDirty] = useState(false)
 
   const save = useSaveLineup(leagueId)
@@ -408,11 +408,11 @@ function PitchPlayer({
 
       {/* One plate, two lines: name over fixture. Two separate chips read as
           unrelated badges floating over the grass. */}
-      <span className="flex max-w-full flex-col items-center rounded bg-black/55 px-1 py-0.5 leading-tight">
+      <span className="flex max-w-full flex-col items-center gap-0.5 rounded bg-black/55 px-1 py-0.5 leading-tight">
         <span className="max-w-full truncate text-[0.625rem] font-semibold text-white">
           {player.lastName}
         </span>
-        <FixtureBadge fixture={fixture} tone="onPitch" />
+        <FixtureBadge fixture={fixture} tone="onPitch" size="sm" />
       </span>
     </button>
   )
@@ -512,10 +512,10 @@ function BenchPlayer({
       <span className="max-w-full truncate text-[0.6875rem] font-medium text-ink">
         {player.lastName}
       </span>
-      <span className="nums text-[0.625rem] text-faint">
-        {points(player.averagePoints)} ⌀
-      </span>
-      <FixtureBadge fixture={fixture} />
+      {/* The next fixture replaces the average-points line: on a card this
+          size only one secondary fact fits, and which club a player faces is
+          the one that decides whether to field him this week. */}
+      <FixtureBadge fixture={fixture} size="md" />
     </button>
   )
 }
@@ -610,35 +610,49 @@ function SwapDialog({
                     })
                   }}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
+                    'flex w-full items-stretch gap-3 overflow-hidden rounded-xl text-left',
+                    // Border width is always 2 so selecting cannot nudge the
+                    // row's height; the extra weight comes from a ring, which
+                    // is drawn outside the box and costs no layout.
+                    'border-2 transition-colors',
                     isSelected
-                      ? 'border-accent bg-accent/10'
+                      ? 'border-accent bg-accent/10 ring-2 ring-accent/40'
                       : 'border-line bg-canvas hover:border-accent/40 hover:bg-surface-2',
                   )}
                 >
-                  <Avatar src={player.image} name={player.lastName} size={32} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">
-                      {player.lastName}
-                    </span>
-                    <span className="nums flex items-center gap-1.5 truncate text-xs text-muted">
-                      {POSITION_LABEL[player.position]} ·{' '}
-                      {points(player.averagePoints)} ⌀
-                      <FixtureBadge
-                        fixture={fixtureByTeamId?.get(player.teamId)}
-                      />
+                  <span className="flex min-w-0 flex-1 items-center gap-3 py-2 pl-3">
+                    <Avatar
+                      src={player.image}
+                      name={player.lastName}
+                      size={32}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-ink">
+                        {player.lastName}
+                      </span>
+                      <span className="nums block truncate text-xs text-muted">
+                        {POSITION_LABEL[player.position]} ·{' '}
+                        {points(player.averagePoints)} ⌀
+                      </span>
                     </span>
                   </span>
+
+                  {/* Full-height panel on the right. No check mark: the whole
+                      row carries the selected state, so a second indicator
+                      would be redundant — and this is the space it frees. */}
                   <span
-                    aria-hidden="true"
                     className={cn(
-                      'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                      'flex shrink-0 items-center self-stretch border-l px-3',
                       isSelected
-                        ? 'border-accent bg-accent text-accent-ink'
-                        : 'border-line',
+                        ? 'border-accent/40 bg-accent/10'
+                        : 'border-line bg-surface/60',
                     )}
                   >
-                    {isSelected && <Check size={13} />}
+                    <FixtureBadge
+                      fixture={fixtureByTeamId?.get(player.teamId)}
+                      size="lg"
+                      layout="stacked"
+                    />
                   </span>
                 </button>
               </li>

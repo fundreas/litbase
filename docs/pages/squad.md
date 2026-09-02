@@ -53,6 +53,7 @@ duplicated here.
 
 | Element | Source | Notes |
 | ------- | ------ | ----- |
+| Lineup rail | `player.lineupOrder` | Full-height rail, accent-tinted with a shirt icon when fielded |
 | Image | `player.image` (`pim`) | Rounded square via `Avatar square`, falls back to initials |
 | Name | `player.lastName` | Last name only — first names rarely fit |
 | Status dot | `player.status !== 0` | Red `●` with `title="Nicht einsatzbereit"` |
@@ -60,6 +61,18 @@ duplicated here.
 | Market value | `marketValue` | Compact euros, tabular figures |
 | Profit / loss | `profitLoss` (`mvgl`) | Signed, coloured green/red, `–` when flat |
 | Trend arrow | `marketValueTrend` (`mvt`) | ↗ up, ↘ down, — flat |
+| Fixture panel | `useCurrentMatchday` | Full-height panel on the right, house/aeroplane + opponent crest |
+
+The lineup rail is **always rendered** and only tinted when the player is
+fielded, so rows stay aligned either way. Membership comes from the server's
+`lo` slot index — presence, not truthiness, since slot 0 is the keeper.
+
+Reading it from the server rather than from `LineupTab`'s state is correct
+here: Radix unmounts the inactive tab, so the lineup tab's local state is
+already discarded on every tab switch and re-seeded from `lo`. `lo` is
+effectively the store. The one visible consequence is that switching tabs
+during the save debounce can show the previous membership for about a second,
+until the refetch lands.
 
 Two distinct signals sit side by side on the bottom-right and are easy to
 confuse when reading the code:
@@ -348,16 +361,22 @@ all.
 from its own perspective, so `isHome` and the opponent are already resolved
 before rendering.
 
-[`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx) shows a **house**
-for home and an **aeroplane** for away, plus the opponent's crest and short
-symbol (`FCB`, `VFB`) — a full club name never fits a bench card. Home/away is
-carried by the icon *and* the `title`, never by colour alone. A team with no
-fixture that matchday renders `–` rather than breaking.
+[`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx) is
+**wordless** — a **house** for home or an **aeroplane** for away, plus the
+opponent's crest. It used to print the short symbol (`FCB`) too, but that ate
+the width that makes the crest legible, and a crest is recognised faster than
+three letters. Because nothing is spelled out visually, the whole badge is a
+labelled `role="img"`, so assistive tech still gets "Heimspiel gegen FCB".
 
-On the pitch the badge takes a light `onPitch` tone so it stays legible over
-grass, and it sits **inside the player's name plate** rather than beside it:
-name on the first line, fixture on the second. Two separate chips read as
-unrelated badges floating over the pitch.
+Three variants, by `size` and `layout`:
+
+| Where | Variant | Notes |
+| ----- | ------- | ----- |
+| Pitch plate | `sm`, inline, `onPitch` tone | Second line under the name, light colours for legibility over grass |
+| Bench card | `md`, inline | **Replaces** the average-points line — only one secondary fact fits, and the opponent is the one that decides whether to field a player |
+| Squad list, swap dialog | `lg`, stacked | Full-height panel on the right, icon above crest |
+
+A team with no fixture that matchday renders `–` rather than breaking.
 
 Cached for an hour: one payload for the season, and it only shifts weekly.
 
@@ -370,7 +389,13 @@ something is chosen. *Abbrechen* dismisses without changing anything.
 
 The rows are a `role="radiogroup"` of `role="radio"` buttons with
 `aria-checked`, so the single-choice nature is announced rather than only
-implied by the accent border and check mark.
+implied visually.
+
+There is **no check mark**: the whole row carries the selected state via an
+accent border plus a ring, which frees the right-hand side for a full-height
+fixture panel. The border is always 2px so selecting cannot nudge the row's
+height — the extra visual weight comes from a `ring`, which is drawn outside
+the box and costs no layout.
 
 Selection resets per visit by comparing the incoming player during render
 rather than clearing it in an effect — so a freshly opened dialog never paints
