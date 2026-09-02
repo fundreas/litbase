@@ -65,6 +65,7 @@ src/
 /register                    public
 /                            → redirects to the last used league
 /leagues                     → first league, else "no leagues"
+/join                        browse and join leagues
 /leagues/:leagueId/dashboard
 /leagues/:leagueId/squad
 /leagues/:leagueId/market

@@ -12,6 +12,10 @@ export const LeagueGate = lazy(async () => ({
   default: (await import('@/pages/LeagueGate')).LeagueGate,
 }))
 
+export const JoinLeaguePage = lazy(async () => ({
+  default: (await import('@/pages/JoinLeaguePage')).JoinLeaguePage,
+}))
+
 export const DashboardPage = lazy(async () => ({
   default: (await import('@/pages/DashboardPage')).DashboardPage,
 }))

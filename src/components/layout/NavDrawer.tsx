@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react'
+import { LogOut, Plus } from 'lucide-react'
 import { NavLink } from 'react-router'
 
 import { useAuth } from '@/auth/useAuth'
@@ -77,6 +77,35 @@ export function NavDrawer({
           </NavLink>
         ))}
       </nav>
+
+      {/* Separate from NAV_ITEMS: /join is not league-scoped, so it cannot be
+          built from the `/leagues/:leagueId/...` pattern the others use. It
+          also needs to be reachable by users who already have a league and
+          therefore never see the /leagues gate. */}
+      <div className="mt-3 border-t border-line pt-3">
+        <NavLink
+          to="/join"
+          onClick={() => {
+            onOpenChange(false)
+          }}
+          className={({ isActive }) =>
+            cn(
+              'flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium',
+              'transition-colors duration-150',
+              isActive
+                ? 'bg-accent/15 text-accent'
+                : 'text-muted hover:bg-surface-2 hover:text-ink',
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <Plus size={20} className={isActive ? '' : 'text-faint'} />
+              Liga beitreten
+            </>
+          )}
+        </NavLink>
+      </div>
     </Drawer>
   )
 }

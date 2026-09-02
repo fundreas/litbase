@@ -22,6 +22,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/login` | [Login](pages/login.md) | Implemented |
 | `/register` | [Register](pages/register.md) | Implemented |
 | `/leagues` | [League gate](pages/league-gate.md) | Implemented |
+| `/join` | [Join a league](pages/join-league.md) | Implemented |
 | `/leagues/:leagueId/dashboard` | [Dashboard](pages/dashboard.md) | Implemented |
 | `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |
 | `/leagues/:leagueId/ranking` | [Ranking](pages/ranking.md) | Implemented |

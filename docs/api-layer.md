@@ -123,6 +123,13 @@ is what makes them safe to call before context has resolved.
 | `useMarket(id)` | `/leagues/{id}/market` | 30 s |
 | `useCompetitionTable(cid)` | `/competitions/{cid}/table` | 10 min |
 | `useCompetitionPlayers(cid)` | `/competitions/{cid}/players` | 1 hour |
+| `useRecommendedLeagues()` | `/leagues/recommended` | 5 min |
+| `useJoinableLeagues(f)` | `/leagues/list` | 2 min |
+| `useCompetitions()` | `/competitions` | 1 hour |
+
+`useJoinLeague()` is the app's only mutation: `POST /leagues/{id}/join`, which
+invalidates `qk.leagues.all` and `qk.joinable.all` on success. See
+[Join a league](pages/join-league.md).
 
 The market is the shortest because prices and expiry countdowns are the most
 time-sensitive data in the app. The competition player list is the longest

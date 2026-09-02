@@ -82,6 +82,8 @@ const MESSAGE_BY_API_ERROR: Record<string, string> = {
   EMailAddressAlreadyTaken:
     'Für diese E-Mail-Adresse gibt es bereits ein Konto.',
   UserNameAlreadyTaken: 'Dieser Benutzername ist schon vergeben.',
+  // Returned as HTTP 500 when joining a league that does not exist.
+  NotFound: 'Diese Liga gibt es nicht mehr.',
 }
 
 /** Turn anything thrown by axios into an {@link ApiError}. */

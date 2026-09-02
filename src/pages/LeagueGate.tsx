@@ -1,5 +1,5 @@
-import { LogOut, Trophy } from 'lucide-react'
-import { Navigate } from 'react-router'
+import { LogOut, Plus, Trophy } from 'lucide-react'
+import { Link, Navigate } from 'react-router'
 
 import { useLeagues } from '@/api/hooks/useLeagues'
 import { useAuth } from '@/auth/useAuth'
@@ -52,18 +52,26 @@ export function LeagueGate() {
       <EmptyState
         icon={<Trophy size={22} />}
         title="Keine Liga gefunden"
-        description="Dein Kickbase-Konto ist in keiner Liga. Tritt in der Kickbase-App einer Liga bei und lade diese Seite neu."
+        description="Dein Kickbase-Konto ist in keiner Liga. Tritt einer bei, um loszulegen."
         action={
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-2"
-            onClick={() => {
-              void refetch()
-            }}
-          >
-            Erneut prüfen
-          </Button>
+          <div className="mt-3 flex flex-col items-center gap-2">
+            <Link
+              to="/join"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-accent-ink shadow-raise transition-[filter] hover:brightness-110"
+            >
+              <Plus size={18} />
+              Liga beitreten
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void refetch()
+              }}
+            >
+              Erneut prüfen
+            </Button>
+          </div>
         }
       />
     </Shell>

@@ -56,20 +56,23 @@ redirect.
       Keine Liga gefunden
 
   Dein Kickbase-Konto ist in keiner Liga.
-  Tritt in der Kickbase-App einer Liga bei
-  und lade diese Seite neu.
+  Tritt einer bei, um loszulegen.
 
-      [ Erneut prüfen ]
+      [ + Liga beitreten ]
+        Erneut prüfen
 ```
 
-Two deliberate details:
+Three deliberate details:
 
 - **Signed-in chrome is kept** — avatar, greeting and a logout button. The
   user is authenticated but has nowhere to go, so without a logout affordance
   this screen would be a dead end.
-- **"Erneut prüfen" refetches** rather than reloading the document, since the
-  likely fix (joining a league in the Kickbase app) happens on another device
-  and only needs a fresh request.
+- **"Liga beitreten" is the primary action**, leading to
+  [`/join`](join-league.md). This is the normal first experience after
+  [registering](register.md), so the screen offers a way forward rather than
+  only an explanation.
+- **"Erneut prüfen" refetches** rather than reloading the document, for when
+  the league was joined on another device.
 
 The error state reuses the same chrome, swapping the empty state for
 `ErrorState` with its retry button.

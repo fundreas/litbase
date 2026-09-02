@@ -27,8 +27,27 @@ export const endpoints = {
     squad: (leagueId: string) => `/v4/leagues/${leagueId}/squad`,
     /** Transfer market listings. */
     market: (leagueId: string) => `/v4/leagues/${leagueId}/market`,
+
+    /* --- Joining ------------------------------------------------------- */
+
+    /** Leagues Kickbase suggests. Different item shape to `list` — see types. */
+    recommended: '/v4/leagues/recommended',
+    /**
+     * Browsable/searchable joinable leagues.
+     *
+     * Query parameters are **camelCase** and were confirmed by probing:
+     * `query`, `competitionId`, `gamePlayMode`. The wire-style spellings
+     * (`cpi`, `gpm`, `gameMode`) are silently ignored — they return the
+     * unfiltered list rather than an error, which is easy to mistake for a
+     * working filter.
+     */
+    list: '/v4/leagues/list',
+    /** Join a league. No request body required. */
+    join: (leagueId: string) => `/v4/leagues/${leagueId}/join`,
   },
   competitions: {
+    /** All competitions (Bundesliga, La Liga, MLS, …). */
+    all: '/v4/competitions',
     /** All players in a competition ("1" = Bundesliga). */
     players: (competitionId: string) =>
       `/v4/competitions/${competitionId}/players`,

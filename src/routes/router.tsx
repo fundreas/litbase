@@ -9,6 +9,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { HomeRedirect } from '@/routes/HomeRedirect'
 import {
   DashboardPage,
+  JoinLeaguePage,
   LeagueGate,
   MarketPage,
   PlayersPage,
@@ -25,6 +26,7 @@ import {
  *   /                            redirect to the last used league
  *   /leagues                     resolves to the first league; renders only
  *                                when the account has none
+ *   /join                        browse and join leagues
  *   /leagues/:leagueId/<page>    every league-scoped page
  *
  * The league id lives in the path, not in context alone, so a refresh, a
@@ -56,6 +58,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomeRedirect /> },
       { path: 'leagues', element: <LeagueGate /> },
+      // Top level, not under /leagues/:leagueId: joining is not scoped to a
+      // league, and a user with none has to be able to reach it.
+      { path: 'join', element: <JoinLeaguePage /> },
       {
         path: 'leagues/:leagueId',
         element: <LeagueProvider />,

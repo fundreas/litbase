@@ -141,6 +141,111 @@ export interface LeagueSelectionItem {
   adm?: boolean
 }
 
+/* --- Joining a league ----------------------------------------------------- */
+
+/**
+ * `GET /v4/leagues/recommended`.
+ *
+ * Note the item shape differs from {@link LeagueListItem}: the id is `i` (not
+ * `li`), the competition arrives as a **name** (`cpn`) rather than an id, and
+ * there is no game mode or member cap. Both are mapped into the same
+ * `JoinableLeague` model.
+ */
+export interface RecommendedLeaguesResponse {
+  it: RecommendedLeagueItem[]
+}
+
+export interface RecommendedLeagueItem {
+  /** League id. */
+  i: string
+  /** League name. */
+  lnm: string
+  /** Competition name, already resolved, e.g. "Bundesliga". */
+  cpn?: string
+  /** Manager count. */
+  mgc?: number
+  /** League image path, relative to the CDN root. */
+  lim?: string
+  /** Member ids. */
+  mid?: string[]
+  /** Members (thin — id plus avatar path). */
+  m?: Array<{ ui: string; uim?: string }>
+  /** Is verified / featured. */
+  isvf?: boolean
+  /** Verification tier. */
+  vft?: number
+}
+
+/** `GET /v4/leagues/list`, optionally filtered. */
+export interface LeagueListResponse {
+  /** The result list. */
+  it: LeagueListItem[]
+  /** Recommended leagues, returned alongside every query. */
+  rml?: LeagueListItem[]
+}
+
+export interface LeagueListItem {
+  /** League id. */
+  li: string
+  /** League name. */
+  lnm: string
+  /** Competition id. */
+  cpi?: string
+  /** Competition image path, relative to the CDN root. */
+  cpim?: string
+  /** League image path, relative to the CDN root. */
+  lim?: string
+  /** Manager count. */
+  mgc?: number
+  /** Maximum managers. */
+  mgm?: number
+  /** Meaning unconfirmed — `true` on arena-mode leagues. */
+  hum?: boolean
+  /** Is verified / featured. */
+  isvf?: boolean
+  /** Verification tier. */
+  vft?: number
+  /** Game mode, see GAME_PLAY_MODE. */
+  gpm?: number
+}
+
+/**
+ * Game modes, from the values `gamePlayMode` actually filters on.
+ *
+ * `3` returns nothing and `5` is ignored (it yields the unfiltered list), so
+ * only these four are real. The labels are **inferred from the league names
+ * each filter returns**, not supplied by the API — nothing in `/v4/config`
+ * names them.
+ */
+export const GAME_PLAY_MODE = {
+  /** Beginner — "liga Anfänger". */
+  BEGINNER: 0,
+  /** Classic — the default Kickbase mode. */
+  CLASSIC: 1,
+  /** High management — "High-Management". */
+  HIGH_MANAGEMENT: 2,
+  /** Arena — large open leagues. */
+  ARENA: 4,
+} as const
+
+/** `GET /v4/competitions`. */
+export interface CompetitionsResponse {
+  it: CompetitionItem[]
+}
+
+export interface CompetitionItem {
+  /** Competition id. `"1"` is Bundesliga. */
+  i: string
+  /** Display name. */
+  n: string
+  /** Competition icon path, relative to the CDN root. */
+  cpim?: string
+  /** Full-bleed background image path. */
+  fb?: string
+  /** Available feature ids. */
+  fts?: number[]
+}
+
 export interface LeagueMeResponse {
   /** Budget, in €. */
   b: number

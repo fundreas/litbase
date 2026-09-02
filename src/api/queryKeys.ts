@@ -19,6 +19,30 @@ export const qk = {
     selection: () => [...qk.leagues.all, 'selection'] as const,
   },
 
+  /** Joinable-league browsing. Separate from `leagues`, which is membership. */
+  joinable: {
+    all: ['joinable'] as const,
+    recommended: () => [...qk.joinable.all, 'recommended'] as const,
+    /** Filters are part of the key, so each combination caches separately. */
+    list: (filters: {
+      query?: string
+      competitionId?: string
+      gameMode?: number
+    }) =>
+      [
+        ...qk.joinable.all,
+        'list',
+        filters.query ?? '',
+        filters.competitionId ?? '',
+        filters.gameMode ?? '',
+      ] as const,
+  },
+
+  competitions: {
+    all: ['competitions'] as const,
+    list: () => [...qk.competitions.all, 'list'] as const,
+  },
+
   league: (leagueId: string) => ['league', leagueId] as const,
   leagueMe: (leagueId: string) => [...qk.league(leagueId), 'me'] as const,
   leagueOverview: (leagueId: string) =>

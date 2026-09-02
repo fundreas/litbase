@@ -14,6 +14,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
 └─ <RequireAuth>                    everything below needs a session
    ├─ /                             → last used league, else /leagues
    ├─ /leagues                      → first league, else "no leagues"
+   ├─ /join                         browse and join leagues
    └─ /leagues/:leagueId            <LeagueProvider>
       └─                            <AppShell>
          ├─ (index)                 → dashboard
@@ -178,6 +179,11 @@ focus trapping, scroll locking, `Escape` and `aria-modal` all come for free.
 It shows the league name and budget at the top and a logout action pinned to
 the bottom.
 
+Below a separator it also carries **Liga beitreten** → [`/join`](pages/join-league.md).
+That one is declared inline rather than in `navigation.ts`, because every entry
+there is built from the `/leagues/:leagueId/...` pattern and `/join` is
+deliberately not league-scoped.
+
 ## Code splitting
 
 Pages are lazy, declared in
@@ -230,6 +236,9 @@ based.
 | `Avatar` | Radix Avatar; resolves CDN paths, falls back to initials |
 | `Drawer` | Radix Dialog as an off-canvas panel, left or right |
 | `DropdownMenu` | Styled Radix dropdown, 44px rows |
+| `ConfirmDialog` | Radix Dialog — bottom sheet on phones, centred from `sm` |
+| `Tabs` | Styled Radix Tabs with equal-width segments |
+| `FilterChip`, `FilterChipRow` | Toggleable filters in a sideways-scrolling row |
 | `Card`, `CardHeader`, `StatTile` | Panels and the label-over-value tile |
 | `Skeleton`, `SkeletonList` | Loading placeholders |
 | `Spinner` | Inline SVG spinner |

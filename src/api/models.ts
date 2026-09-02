@@ -6,7 +6,11 @@
  * model here and map it in the hook — don't leak raw keys into the UI.
  */
 
-import { MARKET_VALUE_TREND, PLAYER_POSITION } from '@/api/types'
+import {
+  GAME_PLAY_MODE,
+  MARKET_VALUE_TREND,
+  PLAYER_POSITION,
+} from '@/api/types'
 
 export type MarketValueTrend = 'up' | 'down' | 'flat'
 
@@ -55,6 +59,66 @@ export interface League {
   placement?: number
   unreadCount: number
 }
+
+/** A competition the app can filter leagues by. */
+export interface Competition {
+  id: string
+  name: string
+  /** CDN-relative icon path. */
+  image?: string
+}
+
+/**
+ * A league the user could join, normalised from either
+ * `/v4/leagues/recommended` or `/v4/leagues/list` — the two endpoints return
+ * different shapes, and this is where that difference stops.
+ *
+ * `competitionName` arrives directly from `recommended`; for `list` results
+ * only `competitionId` is present and the name has to be resolved against
+ * {@link Competition} data.
+ */
+export interface JoinableLeague {
+  id: string
+  name: string
+  /** CDN-relative league image. */
+  image?: string
+  competitionId?: string
+  competitionName?: string
+  /** CDN-relative competition icon — `list` results only. */
+  competitionImage?: string
+  /** Current manager count. */
+  managerCount?: number
+  /** Manager cap — `list` results only. */
+  managerLimit?: number
+  /** Verified/featured league. */
+  isFeatured: boolean
+  /** Game mode — `list` results only. */
+  gameMode?: number
+  /** Member avatars — `recommended` results only. */
+  memberImages: string[]
+}
+
+/** Filters accepted by `/v4/leagues/list`. All optional, all combinable. */
+export interface JoinableLeagueFilters {
+  query?: string
+  competitionId?: string
+  gameMode?: number
+}
+
+export const GAME_MODE_LABEL: Record<number, string> = {
+  [GAME_PLAY_MODE.CLASSIC]: 'Klassisch',
+  [GAME_PLAY_MODE.BEGINNER]: 'Anfänger',
+  [GAME_PLAY_MODE.HIGH_MANAGEMENT]: 'High-Management',
+  [GAME_PLAY_MODE.ARENA]: 'Arena',
+}
+
+/** Filter chips, in the order they are offered. */
+export const GAME_MODE_OPTIONS = [
+  GAME_PLAY_MODE.CLASSIC,
+  GAME_PLAY_MODE.ARENA,
+  GAME_PLAY_MODE.HIGH_MANAGEMENT,
+  GAME_PLAY_MODE.BEGINNER,
+] as const
 
 /** The signed-in manager's standing inside one league. */
 export interface LeagueManager {
