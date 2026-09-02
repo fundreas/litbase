@@ -111,19 +111,20 @@ Kickbase v4 has **no refresh token and no refresh endpoint** —
 returns one bearer token (`tkn`) plus an expiry (`tknex`, about 7 days out). The
 only way to get a new token is to post the credentials again.
 
-So persistence comes in two tiers:
+So persistence has two parts, both always on:
 
-1. **Always on** — token + expiry go to `localStorage`. Close and reopen the
-   page and the session is still there, for up to ~7 days.
-2. **Opt-in ("Angemeldet bleiben")** — credentials are stored too, which lets
-   the app silently re-login before the token expires. That means a password in
-   `localStorage`, so it is off by default and spelled out on the login form.
+1. **Token + expiry** in `localStorage`. Close and reopen the page and the
+   session is still there, for up to ~7 days.
+2. **Credentials**, which let the app silently re-login before the token
+   expires. That means a password in `localStorage` — a real trade-off, taken
+   because the alternative is a session that stops working after a week with no
+   way to renew it. Both forms state what is stored rather than offering a
+   toggle, and signing out deletes it.
 
 Renewal fires from four places: a timer 12h before expiry, on tab focus, on
 reconnect, and reactively from any authenticated request that comes back 403
 — the status Kickbase uses for a dead token, not 401 (one renewal, one retry,
-concurrent failures de-duplicated). Without stored credentials such a failure
-simply signs the user out. See the long comment in
+concurrent failures de-duplicated). See the long comment in
 [src/auth/authStorage.ts](src/auth/authStorage.ts).
 
 Signing out clears the token, credentials, remembered league **and** the whole

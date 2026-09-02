@@ -38,8 +38,8 @@ bottom bar, because there is no league context yet.
   PASSWORT
   [ ••••••••                 👁 ]
 
-  ☐ Angemeldet bleiben
-    Kickbase gibt kein Refresh-Token aus …
+  Du bleibst angemeldet
+  Kickbase gibt kein Refresh-Token aus …
 
   [        Anmelden           ]
 
@@ -62,12 +62,16 @@ toggle is a real `<button>` with an `aria-label` that flips between
 Both use [`Input`](../../src/components/ui/Input.tsx), whose 16px font size is
 what stops iOS Safari zooming the viewport on focus.
 
-**"Angemeldet bleiben"** — the tier-2 opt-in. Its helper text states plainly
-that Kickbase issues no refresh token, that without the option the session
-ends when the token expires (~7 days), and that with it the credentials are
-stored in the browser. This is the one place in the app where a security
-trade-off is exposed to the user, so it is spelled out rather than hidden
-behind a tooltip.
+**"Du bleibst angemeldet"** — an information panel, not a control. Credentials
+are always stored, so there is nothing to toggle; the text states that Kickbase
+issues no refresh token, that the session would otherwise die at the ~7-day
+expiry, that litbase therefore keeps the credentials in this browser, and that
+*Abmelden* deletes them.
+
+This is the one place in the app where a security trade-off is disclosed, so it
+is spelled out rather than hidden behind a tooltip. It replaced a checkbox: the
+honest default is the one almost everyone wants, and offering a choice implied
+the app works acceptably without it.
 
 ## States
 
@@ -99,8 +103,6 @@ probe against `localStorage` succeeded at module load.
 
 ## Possible extensions
 
-- Surface the *"keep me signed in"* state after login (currently only visible
-  as a footnote in the avatar menu).
 - Handle Kickbase's MFA fields (`mfacp` appears in the login response but is
   empty for accounts without it — untested).
 - Rate-limit feedback: a 429 currently shows the generic

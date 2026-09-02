@@ -38,7 +38,7 @@ import {
  *  2. **Token plumbing** — the axios instance is handed a getter for the
  *     current token, via a ref so it is always the live value.
  *  3. **Renewal** — because Kickbase has no refresh endpoint (see
- *     `authStorage.ts`), renewal is a silent re-login using opt-in stored
+ *     `authStorage.ts`), renewal is a silent re-login using the stored
  *     credentials. It is triggered by a timer 12h before expiry, on tab focus,
  *     on reconnect, and reactively by any authenticated request that comes
  *     back **403** — the status Kickbase uses for a dead token (401 is only
@@ -93,39 +93,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear()
   }, [queryClient])
 
-  /** Shared tail of sign-in and sign-up: remember what was asked, apply it. */
+  /**
+   * Shared tail of sign-in and sign-up.
+   *
+   * Credentials are **always** persisted. Kickbase has no refresh endpoint, so
+   * without them a session dies at the token's ~7-day expiry with no way to
+   * renew it — which is a poor default for an app people check weekly. Both
+   * forms state this in plain text rather than offering a toggle.
+   */
   const adoptSession = useCallback(
-    (
-      next: StoredSession,
-      email: string,
-      password: string,
-      remember: boolean,
-    ) => {
+    (next: StoredSession, email: string, password: string) => {
       // A different account must not inherit the previous one's league, which
       // `/` would otherwise try to restore.
       if (session !== null && session.user.id !== next.user.id) {
         clearLastLeagueId()
       }
 
-      if (remember) {
-        saveCredentials(email, password)
-      } else {
-        clearCredentials()
-      }
-      // Kept regardless of `remember`, and deliberately not cleared on sign-out
-      // — it only saves typing on the next sign-in.
+      saveCredentials(email, password)
+      // Deliberately not cleared on sign-out — it only saves typing on the
+      // next sign-in and holds no secret.
       saveLastEmail(email)
-      setIsRemembered(remember)
+      setIsRemembered(true)
       applySession(next)
     },
     [applySession, session],
   )
 
   const signIn = useCallback<AuthContextValue['signIn']>(
-    async ({ email, password, remember }) => {
+    async ({ email, password }) => {
       setIsBusy(true)
       try {
-        adoptSession(await login(email, password), email, password, remember)
+        adoptSession(await login(email, password), email, password)
       } finally {
         setIsBusy(false)
       }
@@ -138,10 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsBusy(true)
       try {
         const next = await register({ email, username, password })
-        // Always remembered: the register response hands back a token, and
-        // storing the credentials alongside it is what lets a brand-new
-        // account renew itself instead of dying at the 7-day expiry.
-        adoptSession(next, email, password, true)
+        adoptSession(next, email, password)
         // A fresh account has no leagues, so there is nothing to remember yet.
         clearLastLeagueId()
       } finally {

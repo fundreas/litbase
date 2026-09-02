@@ -161,11 +161,9 @@ On success, three things are written:
 | `litbase.credentials.v1` | Email and obfuscated password |
 | `litbase.lastEmail.v1` | Email only |
 
-**Registration always stores the credentials** — there is no "stay signed in"
-choice on this form, unlike [Login](login.md). The reasoning: a brand-new
-account that could not renew itself would simply stop working after seven days,
-which is a poor first experience. The form says so plainly rather than offering
-a toggle, and *Abmelden* clears them.
+**Credentials are always stored**, exactly as on [Login](login.md) — neither
+form offers a toggle. The reasoning is in
+[Authentication](../authentication.md#two-tiers-of-persistence).
 
 The trade-off is the one described in
 [Authentication](../authentication.md#two-tiers-of-persistence): a password in

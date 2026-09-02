@@ -22,7 +22,6 @@ export function LoginPage() {
   // returning user only types a password. Read once, in the initializer.
   const [email, setEmail] = useState(() => loadLastEmail() ?? '')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,7 +29,7 @@ export function LoginPage() {
     event.preventDefault()
     setError(null)
     try {
-      await signIn({ email, password, remember })
+      await signIn({ email, password })
       const from = (location.state as LocationState | null)?.from
       await navigate(from ?? '/', { replace: true })
     } catch (caught) {
@@ -106,25 +105,20 @@ export function LoginPage() {
             }
           />
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-surface px-3 py-3">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(event) => {
-                setRemember(event.target.checked)
-              }}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-accent)]"
-            />
-            <span className="text-sm">
-              <span className="font-medium text-ink">Angemeldet bleiben</span>
-              <span className="mt-0.5 block text-xs leading-snug text-faint">
-                Kickbase gibt kein Refresh-Token aus. Ohne diese Option endet
-                die Sitzung, wenn das Token abläuft (ca. 7 Tage) — mit ihr
-                werden deine Zugangsdaten im Browser gespeichert, damit die
-                Anmeldung im Hintergrund erneuert werden kann.
-              </span>
+          {/* Staying signed in is no longer a choice, so this states what
+              happens instead of offering a toggle. The information itself is
+              kept: it is the one place a real trade-off is disclosed. */}
+          <p className="rounded-xl border border-line bg-surface px-3 py-3 text-sm">
+            <span className="font-medium text-ink">Du bleibst angemeldet</span>
+            <span className="mt-0.5 block text-xs leading-snug text-faint">
+              Kickbase gibt kein Refresh-Token aus — ohne gespeicherte
+              Zugangsdaten endet die Sitzung, sobald das Token abläuft (ca. 7
+              Tage). litbase speichert sie deshalb in diesem Browser, damit die
+              Anmeldung im Hintergrund erneuert werden kann. Über{' '}
+              <span className="text-muted">Abmelden</span> werden sie wieder
+              gelöscht.
             </span>
-          </label>
+          </p>
 
           {error !== null && (
             <p

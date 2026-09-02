@@ -12,18 +12,18 @@ export interface AuthContextValue {
   expiresAt: number | null
   /** True when credentials are persisted for silent re-login. */
   isRemembered: boolean
-  signIn: (input: {
-    email: string
-    password: string
-    remember: boolean
-  }) => Promise<void>
+  /**
+   * Sign in and stay signed in.
+   *
+   * There is no `remember` flag: credentials are always persisted, because
+   * without them a session simply dies at the token's ~7-day expiry and
+   * Kickbase offers no refresh endpoint. Both forms say so in plain text
+   * instead of offering a toggle. See `authStorage.ts`.
+   */
+  signIn: (input: { email: string; password: string }) => Promise<void>
   /**
    * Create an account and sign straight into it — the register response
    * carries a usable token, and Kickbase has no email confirmation step.
-   *
-   * Unlike {@link signIn} there is no `remember` flag: a fresh registration
-   * always persists the credentials, so the session renews itself from the
-   * start rather than expiring on a brand-new account.
    */
   signUp: (input: {
     email: string

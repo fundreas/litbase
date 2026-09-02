@@ -131,9 +131,12 @@ query     ~33 kB   @tanstack/*
 index     ~31 kB   application code
 ```
 
-Each page is a separate lazy chunk (1–3 kB), loaded on first navigation. The
-React Query devtools are dev-only and lazy; in a production build the package
-resolves to a no-op shim.
+Each page is a separate lazy chunk (1–3 kB), loaded on first navigation.
+
+The React Query devtools badge is **not mounted** — it floats over the UI on
+every screen. `@tanstack/react-query-devtools` is still a devDependency, so
+restoring it is a lazy import plus one dev-only element in
+[`App.tsx`](../src/App.tsx).
 
 Packaging `dist/` into an nginx image, and the cache headers that make the
 chunk split pay off, are in [Building and deploying](deployment.md).

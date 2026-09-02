@@ -1,17 +1,15 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { lazy, Suspense, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { RouterProvider } from 'react-router'
 
 import { createQueryClient } from '@/api/queryClient'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { LoadingState } from '@/components/ui/States'
-import { env } from '@/lib/env'
 import { router } from '@/routes/router'
 
-// Devtools are dev-only and lazy, so they never reach the production bundle.
-const ReactQueryDevtools = lazy(async () => ({
-  default: (await import('@tanstack/react-query-devtools')).ReactQueryDevtools,
-}))
+// The React Query devtools badge is deliberately not mounted — it floats over
+// the UI on every screen. `@tanstack/react-query-devtools` is still installed,
+// so bringing it back is a lazy import plus one dev-only element.
 
 /**
  * Provider stack, outermost first:
@@ -33,11 +31,6 @@ export default function App() {
           <RouterProvider router={router} />
         </Suspense>
       </AuthProvider>
-      {env.isDev && (
-        <Suspense fallback={null}>
-          <ReactQueryDevtools initialIsOpen={false} />
-        </Suspense>
-      )}
     </QueryClientProvider>
   )
 }

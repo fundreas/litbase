@@ -33,19 +33,20 @@ So "refreshing" can only mean **re-posting the credentials to
 
 ## Two tiers of persistence
 
-| Tier | Stored | Enabled | Covers |
-| ---- | ------ | ------- | ------ |
-| 1 | Token + expiry | Always | Closing and reopening the page, for ~7 days |
-| 2 | Credentials | Opt-in on login, **always on register** | Silent renewal past the 7-day expiry |
+| Tier | Stored | Covers |
+| ---- | ------ | ------ |
+| 1 | Token + expiry | Closing and reopening the page, for ~7 days |
+| 2 | Credentials | Silent renewal past the 7-day expiry |
 
-Tier 1 is the safe default and handles the common case entirely. Tier 2 means
-**a password sits in `localStorage`**, so on the login form it is a choice —
-the "Angemeldet bleiben" checkbox, off by default, with the trade-off spelled
-out in the form itself rather than buried.
+**Both tiers are always on.** Tier 2 means a password sits in `localStorage`,
+which is a real trade-off — but the alternative is a session that simply stops
+working after a week with no way to renew it, in an app people open weekly. So
+neither form offers a toggle; both state plainly what is stored and that
+*Abmelden* clears it.
 
-Registration is the exception: it always enables tier 2, because an account
-created today that could not renew itself would simply stop working in a week.
-See [Sign-up](#sign-up).
+Earlier versions made tier 2 an opt-in checkbox ("Angemeldet bleiben"). It was
+removed because the honest default is the one almost everyone wants, and a
+checkbox implies the app works acceptably without it.
 
 The obfuscation applied to the stored password (a byte-wise XOR, then base64,
 in [`authStorage.ts`](../src/auth/authStorage.ts)) is deliberately **not**
@@ -88,12 +89,9 @@ the published documentation is silent on it. See
 that token directly, no follow-up login, and the user goes straight to
 `/leagues` without the login form ever appearing.
 
-`signUp` differs from `signIn` in one way: it has **no `remember` flag and
-always stores the credentials**. A brand-new account that could not renew
-itself would just stop working after seven days, which is a poor first
-experience, so the register form states what happens instead of offering a
-toggle. The trade-off is the same one described above — a password in
-`localStorage`, obfuscated but not encrypted — and *Abmelden* clears it.
+`signUp` and `signIn` behave identically here: neither takes a `remember`
+flag, and both always store the credentials. See
+[Two tiers of persistence](#two-tiers-of-persistence).
 
 `register()` keeps a fallback to `login()` for an empty `tkn`. It does not run
 today; it exists so a future API change degrades into an extra round trip
@@ -208,8 +206,7 @@ warn about it.
 | `litbase.lastLeagueId.v1` | Active league, for `/` | On every league mount | Yes |
 | `litbase.lastEmail.v1` | Email only, no password | On sign-in and sign-up | **No** |
 
-Sign-up always writes `credentials` (no opt-in); sign-in writes it only when
-"Angemeldet bleiben" is ticked.
+Both sign-in and sign-up always write `credentials`.
 
 `lastEmail` deliberately survives sign-out — its whole purpose is to pre-fill
 the login form on the *next* sign-in, so clearing it would defeat the point. It
@@ -227,7 +224,7 @@ const {
   isBusy,           // a sign-in or renewal is in flight
   expiresAt,        // epoch ms, or null
   isRemembered,     // credentials are stored
-  signIn,           // ({ email, password, remember }) => Promise<void>
+  signIn,           // ({ email, password }) => Promise<void>
   signUp,           // ({ email, username, password }) => Promise<void>
   signOut,
 } = useAuth()
@@ -253,9 +250,10 @@ does not arm, so a token expiring while the tab stays visible surfaces as a
 failed request rather than a clean redirect. Refocusing the tab does catch it
 and signs the user out properly.
 
-**The password is recoverable from `localStorage`** whenever tier 2 is
-enabled. See the note on obfuscation above. If this is unacceptable for a
-deployment, the fix is to drop tier 2 and accept a login prompt every 7 days.
+**The password is recoverable from `localStorage`.** See the note on
+obfuscation above. Since tier 2 is no longer optional, the only way to avoid
+this is to drop credential storage entirely and accept a login prompt every
+~7 days.
 
 **`isBusy` is shared** between interactive sign-in and background renewal. It
 currently only drives the login button's spinner, where no background renewal
