@@ -3,9 +3,19 @@
 [← Back to index](../README.md) · Route `/leagues/:leagueId/squad` ·
 [`src/pages/SquadPage.tsx`](../../src/pages/SquadPage.tsx)
 
-The signed-in manager's own players.
+The signed-in manager's own players, in two tabs:
 
-## Layout
+| Tab | Content |
+| --- | ------- |
+| **Kader** | The full squad as a grouped list (below) |
+| **Aufstellung** | The interactive lineup on a pitch ([see below](#lineup-tab)) |
+
+Both read the same `useSquad` query, so switching tabs costs no request. The
+list lives in [`PlayerListTab`](../../src/components/squad/PlayerListTab.tsx)
+and the lineup in [`LineupTab`](../../src/components/squad/LineupTab.tsx); the
+page itself only owns loading, error and empty states plus the tab shell.
+
+## Kader tab — layout
 
 ```
   Mein Team
@@ -100,8 +110,108 @@ model currently exposes:
   rendered.
 - `ofc` — offer count, mapped as `offerCount`, not rendered. Useful for
   showing "3 Angebote" on a listed player.
-- `lo` — lineup slot order, and `stl` — an additional status list.
+- `stl` — an additional status list beyond `st`.
+- `lo` — lineup slot order, now mapped as `lineupOrder` and used to seed the
+  [lineup tab](#lineup-tab).
 - `iotm` — player of the match.
+
+## Lineup tab
+
+An interactive lineup: a pitch with the fielded players, a scrolling bench
+below, and formation rules enforced on every tap.
+
+### State is local
+
+**Nothing here is sent to Kickbase.** `GET` and `POST /v4/leagues/{id}/lineup`
+both exist (probed: the route answers, and `PUT` returns 405), but neither
+contract has been inspected — doing so would require signing in as the real
+account. So the lineup is `useState` and a reload resets it.
+
+Swapping in the real thing replaces that `useState` with a query plus a
+mutation. The rules in [`lib/lineup.ts`](../../src/lib/lineup.ts) and the whole
+UI stay as they are.
+
+The initial lineup is seeded from the squad's `lo` field ("lineup order"),
+read as *non-zero means fielded* — an inference, not documented. The seed is
+re-validated against the formation rules one player at a time, so a wrong
+guess degrades to an empty pitch rather than an illegal one.
+
+### The rules
+
+From Kickbase's help pages: a lineup is **11 players**, every formation needs
+**at least 1 goalkeeper, 3 defenders, 2 midfielders and 1 forward**, and there
+are **ten** formations. Those constraints plus a five-defender maximum leave
+exactly ten combinations, which match the known list:
+
+```
+3-4-3   3-5-2   3-6-1
+4-2-4   4-3-3   4-4-2   4-5-1
+5-2-3   5-3-2   5-4-1
+```
+
+The list is therefore *derived* rather than transcribed — worth spot-checking
+in the app if a formation ever looks wrong.
+
+### No formation picker
+
+The formation is **inferred from the players on the pitch** instead of chosen.
+A partial lineup is legal whenever *some* formation could still absorb it:
+four defenders are fine (4-4-2 and others), five are fine (5-3-2), six are not
+because no formation plays six.
+
+That is what makes "clicking a player automatically adds them" work — the
+lineup reshapes itself, and a picker would only get in the way.
+
+The displayed formation is the feasible one whose **shape** is closest to the
+selection, by squared distance per position. Total slack cannot be used: every
+formation fields ten outfield players, so `(def+mid+fwd) − selected` is
+identical for all of them and would silently collapse to "first in list
+order".
+
+### Interaction
+
+| Action | Result |
+| ------ | ------ |
+| Tap a bench player with room | Added; the formation label updates |
+| Tap a bench player with no room | Swap dialog opens |
+| Tap a player on the pitch | Removed |
+| Bench player already fielded | `disabled`, dimmed, accent-tinted border |
+
+The swap dialog offers **only the players whose removal would actually make
+room** — `removalCandidates()` tests each one by simulating the removal. From a
+full 4-4-2, fitting a fifth defender offers all ten outfield players (drop a
+defender → 4-4-2 again, a midfielder → 5-3-2, a forward → 5-4-1) but **never
+the keeper**, since 5-4-2 is not a formation. Fitting a second keeper offers
+only the keeper.
+
+Offering "everyone" would have been misleading, which is why the set is
+computed rather than assumed.
+
+### Pitch rendering
+
+[`Pitch`](../../src/components/squad/Pitch.tsx) is inline SVG — no image
+request, no scaling artefacts, and the line colours can use theme values. It
+is drawn **vertically** (own goal at the bottom, attacking upward), which is
+how a lineup reads on a phone, with a turf gradient, mown bands, centre circle
+and both penalty areas.
+
+Rows run attack-first down the page: FWD, MID, DEF, GK. Every slot the
+formation allows is rendered, so unfilled ones show as dashed circles labelled
+with the position rather than the row just being short.
+
+Each fielded player shows their image with a white ring, a name label on a
+dark plate beneath (legible over grass), and a red dot when not match-fit.
+
+### Verified
+
+The rule engine was checked against generated cases: all ten formations total
+11 and meet the documented minimums, none duplicated, every formation is
+reachable one player at a time and displays as itself, a second keeper /
+sixth defender / seventh midfielder / fifth forward are all rejected, a full
+lineup rejects everything, and the removal candidates are position-relevant.
+
+The logic is pure and takes no React dependency, so it is ready for real tests
+once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-done).
 
 ## Possible extensions
 
@@ -112,3 +222,7 @@ model currently exposes:
 - A lineup/formation view using `lo` instead of the flat grouped list.
 - Sort control (points, average, value, trend) — the grouping is currently
   fixed.
+- **Persist the lineup** via `POST /v4/leagues/{id}/lineup` once its contract
+  is known. That is the single biggest gap in this page.
+- Drag and drop between bench and pitch, in addition to tapping.
+- Use `startProbability` to flag risky picks while building the lineup.

@@ -173,6 +173,11 @@ export interface SquadMember {
   startProbability?: number
   image?: string
   offerCount: number
+  /**
+   * Lineup slot order (`lo` on the wire). Appears to be non-zero for fielded
+   * players — inferred, not documented. Used only to seed the lineup view.
+   */
+  lineupOrder?: number
 }
 
 export interface MarketListing {

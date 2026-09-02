@@ -22,6 +22,7 @@ function mapSquad(data: SquadResponse): SquadMember[] {
     startProbability: player.prob,
     image: player.pim,
     offerCount: player.ofc ?? 0,
+    lineupOrder: player.lo,
   }))
 }
 
