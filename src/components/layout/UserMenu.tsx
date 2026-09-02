@@ -1,5 +1,4 @@
-import { LogOut, RefreshCw, Repeat } from 'lucide-react'
-import { useNavigate } from 'react-router'
+import { LogOut, RefreshCw } from 'lucide-react'
 
 import { useAuth } from '@/auth/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
@@ -16,7 +15,6 @@ import { date } from '@/lib/format'
 /** Avatar on the right of the header; opens the account menu. */
 export function UserMenu() {
   const { user, signOut, expiresAt, isRemembered } = useAuth()
-  const navigate = useNavigate()
 
   return (
     <DropdownMenu>
@@ -36,15 +34,9 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem
-          onSelect={() => {
-            void navigate('/leagues')
-          }}
-        >
-          <Repeat size={18} className="text-faint" />
-          Liga wechseln
-        </DropdownMenuItem>
-
+        {/* Switching leagues lives in the header's LeagueSwitcher — /leagues
+            now forwards straight into a league, so a menu entry pointing there
+            would bounce right back. */}
         <DropdownMenuItem
           onSelect={() => {
             window.location.reload()

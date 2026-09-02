@@ -74,8 +74,8 @@ export function LeagueProvider() {
     )
   }
 
-  // Unknown or no-longer-joined league: back to the picker rather than a
-  // half-broken page full of 404s.
+  // Unknown or no-longer-joined league: hand off to /leagues, which forwards
+  // to a league that does exist, rather than render a page full of 404s.
   if (league === undefined) {
     return <Navigate to="/leagues" replace />
   }

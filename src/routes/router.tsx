@@ -8,7 +8,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { HomeRedirect } from '@/routes/HomeRedirect'
 import {
   DashboardPage,
-  LeaguePickerPage,
+  LeagueGate,
   MarketPage,
   PlayersPage,
   RankingPage,
@@ -21,7 +21,8 @@ import {
  *
  *   /login                       public
  *   /                            redirect to the last used league
- *   /leagues                     picker, when no league is chosen yet
+ *   /leagues                     resolves to the first league; renders only
+ *                                when the account has none
  *   /leagues/:leagueId/<page>    every league-scoped page
  *
  * The league id lives in the path, not in context alone, so a refresh, a
@@ -44,7 +45,7 @@ export const router = createBrowserRouter([
     element: <RequireAuth />,
     children: [
       { index: true, element: <HomeRedirect /> },
-      { path: 'leagues', element: <LeaguePickerPage /> },
+      { path: 'leagues', element: <LeagueGate /> },
       {
         path: 'leagues/:leagueId',
         element: <LeagueProvider />,

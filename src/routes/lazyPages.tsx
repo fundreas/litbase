@@ -8,8 +8,8 @@ import { lazy } from 'react'
  * Each page is a named export, hence the `default:` re-wrap.
  */
 
-export const LeaguePickerPage = lazy(async () => ({
-  default: (await import('@/pages/LeaguePickerPage')).LeaguePickerPage,
+export const LeagueGate = lazy(async () => ({
+  default: (await import('@/pages/LeagueGate')).LeagueGate,
 }))
 
 export const DashboardPage = lazy(async () => ({

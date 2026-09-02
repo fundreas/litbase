@@ -28,6 +28,12 @@ npm run dev:host # same, reachable from your phone on the same Wi-Fi
 Configuration is optional — see [.env.example](.env.example). The defaults point
 at the live API and CDN.
 
+## Documentation
+
+**[docs/](docs/README.md)** is the index: infrastructure, the API layer,
+routing and layout, authentication, and a dedicated page per screen. The
+sections below are a summary of it.
+
 ## Architecture
 
 ```
@@ -57,7 +63,7 @@ src/
 ```
 /login                       public
 /                            → redirects to the last used league
-/leagues                     league picker
+/leagues                     → first league, else "no leagues"
 /leagues/:leagueId/dashboard
 /leagues/:leagueId/squad
 /leagues/:leagueId/market

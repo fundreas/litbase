@@ -1,0 +1,61 @@
+# litbase documentation
+
+A mobile-first single-page app on top of the Kickbase v4 API. These pages
+explain how it is put together and what each screen does.
+
+Start with [Infrastructure](infrastructure.md) for the shape of the codebase,
+or jump straight to a screen in the [Pages](#pages) table.
+
+## Foundations
+
+| Page | What it covers |
+| ---- | -------------- |
+| [Infrastructure](infrastructure.md) | Stack, project layout, styling and design tokens, build output, tooling and scripts |
+| [API layer](api-layer.md) | The axios instance, endpoint registry, wire DTOs → domain models, query keys and caching policy |
+| [Routing and layout](routing-and-layout.md) | Route table, auth and league guards, the app shell, header, drawer and bottom bar |
+| [Authentication](authentication.md) | Login, token persistence, silent renewal, and why there is no refresh token |
+
+## Pages
+
+| Route | Page | Status |
+| ----- | ---- | ------ |
+| `/login` | [Login](pages/login.md) | Implemented |
+| `/leagues` | [League gate](pages/league-gate.md) | Implemented |
+| `/leagues/:leagueId/dashboard` | [Dashboard](pages/dashboard.md) | Implemented |
+| `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |
+| `/leagues/:leagueId/ranking` | [Ranking](pages/ranking.md) | Implemented |
+| `/leagues/:leagueId/market` | [Market](pages/market.md) | Stub |
+| `/leagues/:leagueId/table` | [Bundesliga table](pages/table.md) | Stub |
+| `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
+| `*` | [Not found](pages/not-found.md) | Implemented |
+
+A **stub** page already calls its real query hook and reports how many rows
+came back — the API binding is proven, only the UI is missing.
+
+## Conventions used throughout
+
+- **UI copy is German.** Kickbase is a German product and the API returns
+  German names, so the interface matches. Formatting helpers in
+  [`src/lib/format.ts`](../src/lib/format.ts) are all `de-DE`.
+- **Components never see wire keys.** The API sends abbreviated fields
+  (`mv`, `mvt`, `spl`, `mvgl`). Query hooks map these into spelled-out models
+  before anything renders. See [API layer](api-layer.md).
+- **The URL is the source of truth for the active league.** Context is derived
+  from it, never the other way round.
+- **No global state library.** Server state lives in TanStack Query; the two
+  pieces of client state that outlive a route (session, active league) are
+  plain React contexts.
+
+## Quick reference
+
+```bash
+nvm use          # Node 22, pinned in .nvmrc
+npm install
+npm run dev      # http://localhost:5173
+npm run dev:host # reachable from a phone on the same Wi-Fi
+npm run check    # typecheck + lint + format check
+```
+
+Adding a page or an endpoint is a short checklist — see
+[Routing and layout](routing-and-layout.md#adding-a-page) and
+[API layer](api-layer.md#adding-an-endpoint).
