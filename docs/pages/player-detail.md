@@ -78,6 +78,39 @@ semibold, with the position as a chip beside it. It used to ride at the end of
 a 12 px meta row in the same grey as everything else, which for a page whose
 whole subject is one footballer made his club the quietest thing on it.
 
+### The lineup poster
+
+The **probability chip opens Ligainsider's projected starting eleven** for the
+player's club, full screen.
+
+`plpim` is a 1280×1809 poster of the whole team, not a per-player icon: every
+player at a club carries the identical hash — verified live, Kimmich and
+Musiala return the same file and four other clubs return four different ones —
+and `GET /v4/base/predictions/teams/{cid}` serves the same hashes keyed by
+`tid`. An earlier attempt to use it as a corner badge on a portrait therefore
+put the same unreadable thumbnail on all 25 players at a club, and was
+rightly dropped. At full size it is a different proposition: the projected XI
+with a tier badge beside every name — including the `prob` this very chip
+displays, which is read off that poster. So the chip is the way in, and the
+poster gets the whole screen.
+
+**Fit, then zoom.** It opens fit to the screen so the shape of the formation
+reads first; tapping the image (or the button in the bar) switches to natural
+width inside a scroll container. That second step is what makes the names
+legible on a phone — 1280 px of poster in a 390 px viewport is a third of a
+pixel per pixel, and no amount of `object-contain` fixes it. Native pinch-zoom
+still works on top. The zoom resets on close, so reopening never drops you into
+the middle of a poster with no idea where you are.
+
+The dialog is `fixed inset-0` rather than the app's usual centred card: it is
+one large image and nothing else, and a padded panel would spend the width that
+is the entire point.
+
+**The chip is a button only when there is a poster.** `plpim` is absent for an
+account without Membership, in the off-season, and for a club nobody has
+assessed — all normal, none an error — so it degrades to the static label it
+was before.
+
 ### Current matchday strip
 
 Under the identity, and **only while the matchday is actually being played**.

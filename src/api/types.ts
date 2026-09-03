@@ -562,17 +562,18 @@ export const PLAYER_AVAILABILITY = {
  * `cs` at all, while one who has played carries all of them, `0` included.
  * Every counter below is therefore optional and every consumer defaults it.
  *
- * This is also where the **Startelf-Wahrscheinlichkeit** lives, and two things
- * about it shape whatever ends up consuming it:
+ * This is also where the **Startelf-Wahrscheinlichkeit** lives, as two separate
+ * fields that are easy to confuse:
  *
- *  - **There is no numeric probability.** The assessment arrives as one of
- *    exactly five static icons and `plpim` points at whichever one applies, so
- *    naming a tier means recognising *which* icon it is — see
- *    [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-plpim).
+ *  - **{@link prob} is the per-player tier**, an integer 1..5. This block used
+ *    to claim there was no numeric probability and that `plpim` pointed at one
+ *    of five static icons. Both halves were wrong — see the two fields below.
+ *  - **{@link plpim} is the whole team's projected XI as one poster**, the same
+ *    image for all 25 players at a club.
  *  - **It is a Membership feature**, supplied by Ligainsider (`plpt`) rather
  *    than by Kickbase. An account without Membership, the off-season, or a
- *    player nobody has assessed yet all produce no `plpim` at all, so every
- *    consumer has to treat it as optional.
+ *    player nobody has assessed yet all produce neither field, so every
+ *    consumer has to treat both as optional.
  */
 export interface PlayerDetailResponse {
   /** Player id. */

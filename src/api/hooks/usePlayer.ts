@@ -93,7 +93,9 @@ function mapPlayerDetail(data: PlayerDetailResponse): PlayerDetail {
     statusText: data.stxt?.trim() === '' ? undefined : data.stxt?.trim(),
     startProbability: toStartProbability(data.prob),
     probabilitySource: data.plpt,
+    probabilitySourceLogo: data.plpurl,
     probabilityUpdatedAt: data.ts,
+    lineupPoster: data.plpim,
     // `oui` is `"0"` rather than absent when nobody owns them.
     ownerId:
       data.oui === undefined || data.oui === NO_OWNER ? undefined : data.oui,

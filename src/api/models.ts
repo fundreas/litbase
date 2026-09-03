@@ -667,8 +667,21 @@ export interface PlayerDetail {
   startProbability?: StartProbability
   /** Who assessed {@link startProbability} — "Ligainsider" in practice. */
   probabilitySource?: string
+  /** That source's logo, CDN-relative. */
+  probabilitySourceLogo?: string
   /** When that assessment was last revised, ISO 8601. */
   probabilityUpdatedAt?: string
+  /**
+   * The **whole team's** projected starting eleven, as one poster image
+   * (CDN-relative, 1280×1809).
+   *
+   * Not a per-player graphic despite living on a player: every player at a
+   * club carries the identical hash, and `prob` above is the tier drawn on
+   * this poster next to *this* player. It is worth showing at full size and
+   * worthless shrunk — see
+   * [docs/pages/player-detail.md](../../docs/pages/player-detail.md#the-lineup-poster).
+   */
+  lineupPoster?: string
   /** Owning manager's user id, or `undefined` when nobody owns them. */
   ownerId?: string
 

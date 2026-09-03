@@ -1,4 +1,5 @@
-import { House, PlaneTakeoff, Timer } from 'lucide-react'
+import { ChevronRight, House, PlaneTakeoff, Timer } from 'lucide-react'
+import { useState } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import {
@@ -9,7 +10,9 @@ import {
   type PlayerDetail,
   type PlayerFixture,
   type PlayerMatch,
+  type StartProbability,
 } from '@/api/models'
+import { LineupPosterDialog } from '@/components/player/LineupPosterDialog'
 import { MatchEventBadge } from '@/components/player/MatchEventBadge'
 import { Scoreline } from '@/components/player/PlayerMatchRow'
 import { MatchRoleMark } from '@/components/player/statGlyphs'
@@ -124,19 +127,11 @@ export function PlayerHeader({
           )}
           {probability !== undefined &&
             player.startProbability !== undefined && (
-              <span
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full border border-line bg-surface',
-                  'px-2.5 py-1 text-xs font-medium text-muted',
-                )}
-              >
-                <StartProbabilityBadge
-                  tier={player.startProbability}
-                  size={13}
-                  decorative
-                />
-                {probability.label}
-              </span>
+              <ProbabilityChip
+                tier={player.startProbability}
+                label={probability.label}
+                player={player}
+              />
             )}
         </div>
       )}
@@ -149,6 +144,80 @@ export function PlayerHeader({
         />
       )}
     </div>
+  )
+}
+
+/**
+ * The lineup-probability tier, and the way into the poster it comes from.
+ *
+ * **A button only when there is a poster.** `plpim` is absent for an account
+ * without Membership, in the off-season, and for a club nobody has assessed —
+ * all of them normal, none of them an error — so the chip degrades to the
+ * static label it always was rather than opening an empty dialog.
+ *
+ * The tier badge is the affordance. It is drawn from the very same assessment
+ * as the badges inside the poster, so "tap the thing that tells you he is
+ * likely to start, see the eleven he is likely to start in" needs no
+ * explaining once someone has tried it — which is why the chip gains only a
+ * chevron and a hover state rather than a second label saying "Aufstellung
+ * ansehen".
+ */
+function ProbabilityChip({
+  tier,
+  label,
+  player,
+}: {
+  tier: StartProbability
+  label: string
+  player: PlayerDetail
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const poster = player.lineupPoster
+
+  const content = (
+    <>
+      <StartProbabilityBadge tier={tier} size={13} decorative />
+      {label}
+    </>
+  )
+
+  const shell =
+    'flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted'
+
+  if (poster === undefined) {
+    return <span className={shell}>{content}</span>
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(true)
+        }}
+        aria-haspopup="dialog"
+        title="Voraussichtliche Aufstellung ansehen"
+        className={cn(
+          shell,
+          'cursor-pointer transition-colors',
+          'hover:border-accent/40 hover:bg-surface-2 hover:text-ink',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+        )}
+      >
+        {content}
+        <ChevronRight size={13} aria-hidden="true" className="-mr-1 shrink-0" />
+      </button>
+
+      <LineupPosterDialog
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        poster={poster}
+        teamName={player.teamName}
+        source={player.probabilitySource}
+        sourceLogo={player.probabilitySourceLogo}
+        updatedAt={player.probabilityUpdatedAt}
+      />
+    </>
   )
 }
 
