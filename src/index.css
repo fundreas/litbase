@@ -121,6 +121,15 @@
     user-select: text;
   }
 
+  /* Images here are chrome — crests, portraits, avatars — never something to
+     save, copy or drag away. `-webkit-touch-callout` is inherited from `body`
+     and stops Safari's long-press sheet; this kills the desktop drag ghost.
+     The context menu itself is out of CSS' reach and is cancelled in
+     `main.tsx`. */
+  img {
+    -webkit-user-drag: none;
+  }
+
   /* Inputs at >=16px stop iOS Safari from zooming on focus. */
   input,
   select,

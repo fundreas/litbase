@@ -167,15 +167,26 @@ function PlayerRow({
       </button>
 
       {/* Flush portrait: no padding on any side, so it fills the row's height
-          and butts straight against the rail. The row is short enough that a
-          padded thumbnail read as a stray sticker; edge to edge it reads as
-          part of the row. `object-cover` on a taller-than-wide box crops the
-          portrait's empty margins rather than the face. */}
+          and butts straight against the rail.
+
+          The Kickbase player images are transparent PNG cutouts, so the opaque
+          tile the avatar used to sit on was the only thing drawing a rectangle
+          here — without it the figure simply stands in the row. What is left
+          is grounded by a wash that fades out before it reaches the top, and
+          the inner edge is masked so the wash and the clipped shoulder
+          dissolve into the row instead of ending on a line. The other three
+          edges are the card's own borders and stay crisp. The fade starts past
+          the head: the source has the figure centred, and cover-cropping a
+          landscape image into this box leaves the face clear of 65%. */}
       <Avatar
         src={player.image}
         name={player.lastName}
         fill
-        className="w-12 self-stretch bg-surface-2"
+        className={cn(
+          'w-14 self-stretch bg-transparent',
+          'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+          '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+        )}
       />
 
       <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">

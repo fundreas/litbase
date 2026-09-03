@@ -44,6 +44,8 @@ export function Avatar({
         <RadixAvatar.Image
           src={resolved}
           alt={name ?? ''}
+          // Firefox ignores `-webkit-user-drag`, so say it in markup too.
+          draggable={false}
           className="h-full w-full object-cover"
         />
       )}
