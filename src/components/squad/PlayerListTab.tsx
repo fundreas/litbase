@@ -3,11 +3,14 @@ import { useState } from 'react'
 
 import {
   POSITION_LABEL,
+  START_PROBABILITY,
   type PositionKey,
   type SquadMember,
+  type StartProbability,
   type TeamFixture,
 } from '@/api/models'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
+import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -37,10 +40,12 @@ export function PlayerListTab({
   squad,
   editor,
   fixtureByTeamId,
+  startProbabilities,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  startProbabilities: Map<string, StartProbability>
 }) {
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
@@ -76,6 +81,7 @@ export function PlayerListTab({
                 player={player}
                 isFielded={editor.isFielded(player.id)}
                 fixture={fixtureByTeamId?.get(player.teamId)}
+                startProbability={startProbabilities.get(player.id)}
                 onToggle={handleToggle}
               />
             ))}
@@ -118,11 +124,14 @@ function PlayerRow({
   player,
   isFielded,
   fixture,
+  startProbability,
   onToggle,
 }: {
   player: SquadMember
   isFielded: boolean
   fixture: TeamFixture | undefined
+  /** Absent until it loads, and absent for good without Membership. */
+  startProbability: StartProbability | undefined
   onToggle: (player: SquadMember) => void
 }) {
   return (
@@ -179,8 +188,28 @@ function PlayerRow({
               </span>
             )}
           </span>
-          <span className="nums block truncate text-xs text-muted">
-            {points(player.totalPoints)} Pkt · ⌀ {points(player.averagePoints)}
+          {/* The probability leads the stats line rather than sitting beside
+              the name. Next to the name it would collide with the availability
+              dot, and the two mean different things — "unfit" is a fact,
+              "unlikely to start" is someone's estimate. The label rides along
+              wherever the row is wide enough for it; on a phone the glyph and
+              its tooltip carry it alone. */}
+          <span className="flex items-center gap-1.5 text-xs text-muted">
+            {startProbability !== undefined && (
+              <>
+                <StartProbabilityBadge tier={startProbability} size={13} />
+                <span className="hidden truncate font-medium text-ink/75 sm:inline">
+                  {START_PROBABILITY[startProbability].label}
+                </span>
+                <span aria-hidden="true" className="text-line">
+                  ·
+                </span>
+              </>
+            )}
+            <span className="nums truncate">
+              {points(player.totalPoints)} Pkt · ⌀{' '}
+              {points(player.averagePoints)}
+            </span>
           </span>
         </span>
 

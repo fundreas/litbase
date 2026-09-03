@@ -461,16 +461,19 @@ export interface SquadPlayer {
   lo?: number
   /** Player image path, relative to the CDN root. */
   pim?: string
-  /** Start probability, 1..5 (5 = very likely). */
+  /**
+   * Lineup probability, **1..5, lower means more likely** — see
+   * {@link PlayerDetailResponse.prob} for the tier meanings.
+   *
+   * Not documented on this endpoint. Declared so a consumer can prefer it and
+   * skip the per-player detail request when it *is* present.
+   */
   prob?: number
   /**
-   * Lineup-probability icon, CDN-relative (`content/file/<hash>.png`).
+   * The player's team's probable-lineup poster, CDN-relative.
    *
-   * **Not documented on this endpoint** and probably absent: the community
-   * docs list `plpim` only on player detail and on the market, and `lo` here
-   * is the lineup slot, not a probability. Declared so a consumer can prefer
-   * it when it *is* present and skip the per-player detail request. See
-   * {@link PlayerDetailResponse}.
+   * **Not a per-player value** — see {@link PlayerDetailResponse.plpim}. Use
+   * {@link prob} for anything per-player.
    */
   plpim?: string
   /** Offer count. */
@@ -567,12 +570,36 @@ export interface PlayerDetailResponse {
   /** Position, see PLAYER_POSITION. */
   pos?: number
   /**
-   * Lineup-probability icon, CDN-relative (`content/file/<hash>.png`).
+   * **The player's team's probable-lineup poster**, CDN-relative
+   * (`content/file/<hash>.png`).
    *
-   * One of five static images; the same URL repeats across every player
-   * sharing a tier, which is what makes a hash → tier lookup possible.
+   * Not a per-player icon, despite the name and despite what the community
+   * docs suggest. Probed live 2026-09-03: it is a 1280×1809 Ligainsider
+   * graphic of the whole projected XI, **identical for every player on the
+   * same team** — `GET /v4/base/predictions/teams/{competitionId}` serves the
+   * very same hashes keyed by `tid`. Rendering it per player shows the same
+   * picture 25 times. Use {@link prob} instead.
    */
   plpim?: string
+  /**
+   * Lineup probability as a **per-player tier, 1..5. Lower is more likely.**
+   *
+   * Undocumented, and the one field that actually varies per player. Verified
+   * against the badges drawn inside the {@link plpim} poster:
+   *
+   * | `prob` | Poster badge | Meaning |
+   * | ------ | ------------ | ------- |
+   * | 1 | blue star | Sicher dabei |
+   * | 2 | green check | Wahrscheinlich |
+   * | 3 | orange ? | Fraglich |
+   * | 4 | red ! | Unrealistisch |
+   * | 5 | black ✕ | Ausgeschlossen |
+   *
+   * Absent for an account without Membership, in the off-season, and for a
+   * player nobody has assessed — all indistinguishable on the wire, and all
+   * the normal case rather than an error.
+   */
+  prob?: number
   /** Who assessed it — `"Ligainsider"` in practice. */
   plpt?: string
   /** The provider's logo, CDN-relative. */

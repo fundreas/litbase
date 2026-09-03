@@ -2,7 +2,12 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import { toPosition, toTrend, type SquadMember } from '@/api/models'
+import {
+  toPosition,
+  toStartProbability,
+  toTrend,
+  type SquadMember,
+} from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { SquadResponse } from '@/api/types'
 
@@ -19,7 +24,7 @@ function mapSquad(data: SquadResponse): SquadMember[] {
     totalPoints: player.p,
     averagePoints: player.ap,
     status: player.st,
-    startProbability: player.prob,
+    startProbability: toStartProbability(player.prob),
     image: player.pim,
     offerCount: player.ofc ?? 0,
     lineupOrder: player.lo,

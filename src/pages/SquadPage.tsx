@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import type { SquadMember } from '@/api/models'
 import { useSquad } from '@/api/hooks/useSquad'
+import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { PageHeading } from '@/components/PageHeading'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
@@ -133,6 +134,9 @@ function SquadTabs({
   const editor = useLineupEditor({ squad, leagueId })
   const matchday = useCurrentMatchday(competitionId)
   const fixtureByTeamId = matchday.data?.fixtureByTeamId
+  // Held here rather than in each tab so the two share one set of requests:
+  // switching to the pitch must not re-fetch what the list already knows.
+  const startProbabilities = useStartProbabilities(leagueId, squad)
 
   return (
     <>
@@ -141,6 +145,7 @@ function SquadTabs({
           squad={squad}
           editor={editor}
           fixtureByTeamId={fixtureByTeamId}
+          startProbabilities={startProbabilities}
         />
       </TabsContent>
       <TabsContent value={TABS.lineup} className="flex min-h-0 flex-1 flex-col">
@@ -148,6 +153,7 @@ function SquadTabs({
           squad={squad}
           editor={editor}
           fixtureByTeamId={fixtureByTeamId}
+          startProbabilities={startProbabilities}
         />
       </TabsContent>
 

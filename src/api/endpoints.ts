@@ -65,9 +65,11 @@ export const endpoints = {
      *    (`/leagues/{id}/players`, `?ids=` → 404), which is why
      *    [Duel detail](../../docs/pages/duel-detail.md#points-cost-one-request-per-player)
      *    fans out one request per player.
-     *  - The lineup probability (`plpim`, the Ligainsider icon) plus its
-     *    attribution and status text — still unrendered. See
-     *    [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-plpim).
+     *  - **`prob`, the lineup-probability tier** (1..5, lower is likelier),
+     *    plus `stxt` for the reason behind an injury. Rendered on both squad
+     *    tabs. Note `plpim` alongside it is the *team's* poster, not a
+     *    per-player icon — see
+     *    [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-prob).
      */
     player: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/players/${playerId}`,

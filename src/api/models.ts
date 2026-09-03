@@ -449,6 +449,71 @@ export function duelPlayerStatus(
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Lineup probability                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Ligainsider's Startelf-Wahrscheinlichkeit, as the wire's `prob` — **1..5,
+ * and lower is more likely.** The scale runs the intuitive way round only if
+ * you read it as a ranking rather than a score, which is why it is narrowed to
+ * a union here instead of being passed around as a bare number.
+ *
+ * The tiers were verified against the badges Ligainsider draws inside the
+ * team poster (`plpim`), not guessed from the ordering — see
+ * [docs/pages/squad.md](../../docs/pages/squad.md#lineup-probability-prob).
+ */
+export type StartProbability = 1 | 2 | 3 | 4 | 5
+
+/** Everything a tier needs to render, in one place. `tone` keys the palette. */
+export const START_PROBABILITY: Record<
+  StartProbability,
+  {
+    label: string
+    /** Long form, for tooltips and screen readers. */
+    description: string
+    tone: 'certain' | 'likely' | 'doubtful' | 'unlikely' | 'out'
+  }
+> = {
+  1: {
+    label: 'Sicher dabei',
+    description: 'Startelf sicher',
+    tone: 'certain',
+  },
+  2: {
+    label: 'Wahrscheinlich',
+    description: 'Startelf wahrscheinlich',
+    tone: 'likely',
+  },
+  3: { label: 'Fraglich', description: 'Startelf fraglich', tone: 'doubtful' },
+  4: {
+    label: 'Unrealistisch',
+    description: 'Startelf unrealistisch',
+    tone: 'unlikely',
+  },
+  5: {
+    label: 'Ausgeschlossen',
+    description: 'Startelf ausgeschlossen',
+    tone: 'out',
+  },
+}
+
+/**
+ * Narrow the wire's `prob` to a tier.
+ *
+ * An unknown value degrades to `undefined` — "no assessment" — rather than
+ * throwing or rendering a sixth, unstyled badge. Ligainsider could add a tier
+ * and a squad page is not the place to find out.
+ */
+export function toStartProbability(
+  prob: number | undefined,
+): StartProbability | undefined {
+  if (prob === undefined) return undefined
+  return prob >= 1 && prob <= 5 && Number.isInteger(prob)
+    ? (prob as StartProbability)
+    : undefined
+}
+
 export interface SquadMember {
   id: string
   firstName?: string
@@ -463,8 +528,8 @@ export interface SquadMember {
   averagePoints: number
   /** 0 means available; anything else is injured / suspended / away. */
   status: number
-  /** 1..5, higher means more likely to start. */
-  startProbability?: number
+  /** Lineup-probability tier, or `undefined` when unassessed. */
+  startProbability?: StartProbability
   image?: string
   offerCount: number
   /**

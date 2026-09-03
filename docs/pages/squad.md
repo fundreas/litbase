@@ -153,67 +153,86 @@ model currently exposes:
   [lineup tab](#lineup-tab).
 - `iotm` — player of the match.
 
-## Lineup probability (`plpim`)
+## Lineup probability (`prob`)
 
-Kickbase's **Startelf-Wahrscheinlichkeit** is available to the app but is
-**deliberately not rendered here.** It was tried as a small icon badge in the
-corner of the player avatars on both tabs and taken back out again: at avatar
-scale the five icons are not distinguishable enough to be worth the noise they
-add to a row. Written up so the next page that wants it does not have to
-rediscover the API.
+Ligainsider's **Startelf-Wahrscheinlichkeit** is rendered on both tabs: as a
+small circled glyph on the stats line of each squad row, and as a corner badge
+on the player portraits on the pitch, in the drag ghost and on the bench cards.
 
-Whoever picks it up should give it more room than a badge — a column in a
-sortable table, or a line in a player detail sheet.
+An earlier attempt at this was removed, and the reason it failed is worth
+keeping: it rendered **`plpim`**, which is not a per-player value at all.
 
-### Where it comes from
+### `plpim` is a team poster, not a player icon
 
-`GET /v4/leagues/{leagueId}/players/{playerId}` —
-[`endpoints.leagues.player`](../../src/api/endpoints.ts), typed as
-`PlayerDetailResponse` in [`types.ts`](../../src/api/types.ts). Nothing fetches
-it yet; there is no hook.
+Probed live on 2026-09-03 against
+`GET /v4/competitions/1/players/{playerId}`. `plpim` is a **1280×1809
+Ligainsider graphic of a club's whole projected XI** — a pitch diagram with
+portraits, kick-off time and a substitution list. Every player at the same club
+carries the **identical** hash: all five sampled Bayern players returned
+`0355b790…`, all five Augsburg players `ca9b9b4a…`. `GET
+/v4/base/predictions/teams/{competitionId}` serves the very same hashes keyed
+by `tid`, which settles it.
 
-| Field | Meaning |
-| ----- | ------- |
-| `plpim` | The probability icon, CDN-relative (`content/file/<hash>.png`) |
-| `plpt` | Who assessed it — `"Ligainsider"` |
-| `plpurl` | The provider's logo, CDN-relative |
-| `stxt` | Status text, e.g. *"Wadenprobleme – verpasst BMG (H)"* |
-| `ts` | When the assessment last changed, ISO 8601 |
+So the old badge was a team poster crushed into a 14px circle, twenty-five
+times over, showing at most one distinct image per club. The community docs
+describing it as one of five per-player tier icons are wrong, and so was the
+note that used to be in this file.
 
-`GET /v4/leagues/{leagueId}/market` carries `plpim` and `ts` on its player
-objects too. The **squad** payload does not, per the community docs — `lo`
-there is the lineup slot, not a probability — so annotating a whole squad means
-one detail request per player. `SquadPlayer.plpim` is declared anyway, so a
-consumer can prefer it and skip the request if Kickbase ever adds it. Worth
-re-checking against a live response first; the community docs lag behind.
+### `prob` is the per-player tier
 
-### The API sends a picture, not a number
+The same response carries an undocumented **`prob`**: an integer **1–5, where
+lower is more likely**. The tiers were confirmed by reading the badges
+Ligainsider draws inside the poster and matching them against the field for the
+whole Bayern roster — `prob: 1` is exactly the set with a blue star (Neuer,
+Kimmich, Kane, Olise, Díaz), `prob: 2` exactly the green checks (Upamecano,
+Pavlović), and so on.
 
-There is **no numeric probability field**. The assessment is a Membership
-feature supplied by Ligainsider, and it arrives as an *image*: `plpim` points
-at one of exactly **five static icons**, one per tier — *sehr wahrscheinlich ·
-wahrscheinlich · 50-50 · eher nicht · sicher nicht*. Paths resolve through the
-same [`cdnUrl()`](../../src/api/cdn.ts) as player images, and the CDN serves
-them with a 30-day `max-age`, so the browser fetches each icon once.
+| `prob` | Poster badge | App label | Rendered as |
+| ------ | ------------ | --------- | ----------- |
+| 1 | blue star | Sicher dabei | blue ★ |
+| 2 | green check | Wahrscheinlich | green ✓ |
+| 3 | orange ? | Fraglich | amber ? |
+| 4 | red ! | Unrealistisch | red ! |
+| 5 | black ✕ | Ausgeschlossen | near-black ✕ |
 
-Rendering the icon itself therefore needs no mapping table and cannot disagree
-with the official app. **Naming** the tier does: because only five images
-exist, the same URL repeats across every player sharing a tier, so the tier can
-be recovered from *which* icon it is — collect the distinct `plpim` values
-across a squad, then settle which hash is which tier by comparing a couple of
-players against the official app. Hashes are CDN asset names and may rotate per
-season, so an unrecognised one should degrade to "no label", never to an error.
+`toStartProbability()` in [`models.ts`](../../src/api/models.ts) narrows the
+wire value to a `StartProbability` union and **degrades an unrecognised value
+to `undefined`** rather than rendering an unstyled sixth badge — Ligainsider
+can add a tier, and a squad page is not where that should surface.
+
+The five tiers are told apart by **glyph as well as colour**. Five steps is more
+than hue alone can carry, and roughly one man in twelve cannot separate the red
+from the green.
+
+### Where it comes from, and what it costs
+
+`prob` is declared on `SquadPlayer` but **undocumented on the squad payload**,
+so whether it actually arrives there is a question about a live response rather
+than about the types.
+[`useStartProbabilities`](../../src/api/hooks/useStartProbabilities.ts) is
+written to survive either answer: players who already carry `prob` cost nothing
+and only the rest are fetched, one
+[`endpoints.leagues.player`](../../src/api/endpoints.ts) request each. If
+Kickbase serves it on the squad, the hook fires zero requests and becomes a
+no-op; if not, it is ~25 cached requests once every 30 minutes.
+
+Rows render before the answers land, and never show an error. Absence is the
+**normal** case and is indistinguishable on the wire from a failure — see
+below — so a missing badge is simply a missing badge.
 
 ### Fallbacks
 
-`plpim` is absent for an account without Membership, in the off-season, and for
-a player nobody has assessed yet — indistinguishable from each other on the
-wire. Absence is the normal case, not an error.
+`prob` is absent for an account without Membership, in the off-season, and for
+a player nobody has assessed yet. The three are identical on the wire.
+
+`stxt` carries the reason behind a non-zero `st` when there is one, e.g.
+*"Neurological dysfunction - individual training, misses DFB-Pokal match"*. It
+is not rendered yet and is the obvious next thing to put in a player detail
+sheet.
 
 Once `GET /v4/matches/{matchId}/details` reports `il: true` the lineup is
 official and `t1lp`/`t2lp` (the XI) plus `t1nlp`/`t2nlp` supersede the estimate
-with a hard in/out. `GET /v4/base/predictions/teams/{competitionId}` has a
-whole-team probable-lineup image per team, which this feature does not need.
+with a hard in/out.
 
 ## Lineup tab
 
@@ -632,9 +651,8 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 
 ## Possible extensions
 
-- Show the [lineup probability](#lineup-probability-plpim) somewhere it has
-  room — a sortable column, or a player detail sheet. **Not** as a badge on the
-  avatars; that was tried and removed.
+- Sort or filter by [lineup probability](#lineup-probability-prob) — the tier is
+  a number now, so "hide everyone who is `4` or worse" is a one-line filter.
 - Surface `offerCount` so pending offers are visible without opening the
   market.
 - A lineup/formation view using `lo` instead of the flat grouped list.
@@ -647,6 +665,8 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 - **`POST /lineup/fill`** auto-fills a lineup. Note its body uses different
   field names to `POST /lineup`: `{ lud, pls }` rather than `{ type, players }`.
 - Drag and drop between bench and pitch, in addition to tapping.
-- Flag risky picks while building the lineup, from `stxt` or the
-  [lineup probability](#lineup-probability-plpim) — in the bench card's text
-  rather than on its avatar.
+- Show `stxt` — the reason behind an injury or suspension — in the bench card's
+  text, alongside the [probability badge](#lineup-probability-prob) that is
+  already on its avatar.
+- Warn on save when the lineup contains players at tier `4` or `5`: the badge
+  is passive, and an eleven with three excluded players is worth interrupting.

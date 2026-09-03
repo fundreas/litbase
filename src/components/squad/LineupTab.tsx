@@ -7,11 +7,13 @@ import {
   POSITION_NAME,
   type PositionKey,
   type SquadMember,
+  type StartProbability,
   type TeamFixture,
 } from '@/api/models'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { FormationsDialog } from '@/components/squad/FormationsDialog'
 import { Pitch } from '@/components/squad/Pitch'
+import { StartProbabilityCorner } from '@/components/squad/StartProbabilityBadge'
 import {
   useLineupDrag,
   type DragHandleProps,
@@ -55,6 +57,17 @@ const PLAYER_CHROME_HEIGHT = 8
 const PLATE_CHROME_HEIGHT = 6
 /** How far the name plate rides up over the portrait, as a share of it. */
 const PLATE_OVERLAP_RATIO = 0.15
+
+/**
+ * How large the lineup-probability badge is on a portrait of `avatar` px.
+ *
+ * Clamped at both ends. Purely proportional gives an illegible dot on a 36px
+ * bench card and something the size of a dinner plate on a 96px pitch
+ * portrait, so it tracks the avatar only through the middle of the range.
+ */
+function cornerBadgeSize(avatar: number): number {
+  return Math.min(24, Math.max(13, Math.round(avatar * 0.32)))
+}
 
 /** Everything in a player card is derived from one number. */
 function playerMetrics(avatar: number) {
@@ -133,10 +146,12 @@ export function LineupTab({
   squad,
   editor,
   fixtureByTeamId,
+  startProbabilities,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  startProbabilities: Map<string, StartProbability>
 }) {
   const { lineup, counts, formation } = editor
 
@@ -345,6 +360,7 @@ export function LineupTab({
               )}
               placeholders={missingAtPosition(counts, position)}
               fixtureByTeamId={fixtureByTeamId}
+              startProbabilities={startProbabilities}
               metrics={metrics}
               drag={drag}
               onRemove={editor.remove}
@@ -357,6 +373,7 @@ export function LineupTab({
         <DragGhost
           player={drag.dragging}
           fixture={fixtureByTeamId?.get(drag.dragging.teamId)}
+          startProbability={startProbabilities.get(drag.dragging.id)}
           metrics={metrics}
           ghostRef={drag.ghostRef}
         />
@@ -366,6 +383,7 @@ export function LineupTab({
         squad={squad}
         isFielded={editor.isFielded}
         fixtureByTeamId={fixtureByTeamId}
+        startProbabilities={startProbabilities}
         onAdd={editor.toggle}
       />
     </div>
@@ -381,6 +399,7 @@ function PitchRow({
   players,
   placeholders,
   fixtureByTeamId,
+  startProbabilities,
   metrics,
   drag,
   onRemove,
@@ -390,6 +409,7 @@ function PitchRow({
   /** Mandatory places of this position still to fill. */
   placeholders: number
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  startProbabilities: Map<string, StartProbability>
   metrics: PlayerMetrics
   drag: LineupDrag<SquadMember>
   onRemove: (playerId: string) => void
@@ -413,6 +433,7 @@ function PitchRow({
           key={player.id}
           player={player}
           fixture={fixtureByTeamId?.get(player.teamId)}
+          startProbability={startProbabilities.get(player.id)}
           metrics={metrics}
           isDragging={drag.dragging?.id === player.id}
           dragProps={drag.dragProps(player)}
@@ -480,6 +501,7 @@ function EmptySlot({
 function PitchPlayer({
   player,
   fixture,
+  startProbability,
   metrics,
   isDragging,
   dragProps,
@@ -487,6 +509,7 @@ function PitchPlayer({
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
+  startProbability: StartProbability | undefined
   metrics: PlayerMetrics
   /** This portrait is the one being carried; the ghost shows it instead. */
   isDragging: boolean
@@ -516,7 +539,12 @@ function PitchPlayer({
         isDragging && 'opacity-25',
       )}
     >
-      <PlayerFace player={player} fixture={fixture} metrics={metrics} />
+      <PlayerFace
+        player={player}
+        fixture={fixture}
+        startProbability={startProbability}
+        metrics={metrics}
+      />
     </button>
   )
 }
@@ -529,10 +557,12 @@ function PitchPlayer({
 function PlayerFace({
   player,
   fixture,
+  startProbability,
   metrics,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
+  startProbability: StartProbability | undefined
   metrics: PlayerMetrics
 }) {
   return (
@@ -548,6 +578,15 @@ function PlayerFace({
           <span
             className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-negative"
             title="Nicht einsatzbereit"
+          />
+        )}
+        {/* Bottom-right, clear of the availability dot above it, and sized
+            from the portrait so it stays legible from a 40px phone avatar up
+            to a 96px one on a desktop pitch. */}
+        {startProbability !== undefined && (
+          <StartProbabilityCorner
+            tier={startProbability}
+            size={cornerBadgeSize(metrics.avatar)}
           />
         )}
         {/* Only shows on hover/focus — on touch the label already explains it.
@@ -597,11 +636,13 @@ function PlayerFace({
 function DragGhost({
   player,
   fixture,
+  startProbability,
   metrics,
   ghostRef,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
+  startProbability: StartProbability | undefined
   metrics: PlayerMetrics
   ghostRef: (node: HTMLElement | null) => void
 }) {
@@ -613,7 +654,12 @@ function DragGhost({
       className="pointer-events-none fixed top-0 left-0 z-50 flex flex-col items-center p-1"
     >
       <span className="flex scale-110 flex-col items-center drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]">
-        <PlayerFace player={player} fixture={fixture} metrics={metrics} />
+        <PlayerFace
+          player={player}
+          fixture={fixture}
+          startProbability={startProbability}
+          metrics={metrics}
+        />
       </span>
     </div>,
     document.body,
@@ -628,11 +674,13 @@ function Bench({
   squad,
   isFielded,
   fixtureByTeamId,
+  startProbabilities,
   onAdd,
 }: {
   squad: SquadMember[]
   isFielded: (playerId: string) => boolean
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  startProbabilities: Map<string, StartProbability>
   onAdd: (player: SquadMember) => void
 }) {
   // The bench is what is *not* fielded. Players move between the pitch and
@@ -672,6 +720,7 @@ function Bench({
                   key={player.id}
                   player={player}
                   fixture={fixtureByTeamId?.get(player.teamId)}
+                  startProbability={startProbabilities.get(player.id)}
                   onClick={() => {
                     onAdd(player)
                   }}
@@ -688,10 +737,12 @@ function Bench({
 function BenchPlayer({
   player,
   fixture,
+  startProbability,
   onClick,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
+  startProbability: StartProbability | undefined
   onClick: () => void
 }) {
   return (
@@ -708,7 +759,18 @@ function BenchPlayer({
       {/* No dimmed or disabled state: every bench player is tappable, and one
           whose position is full simply routes through the swap dialog. Fading
           them would signal "unavailable" for something that always works. */}
-      <Avatar src={player.image} name={player.lastName} size={36} />
+      {/* `relative` so the corner badge has something to anchor to — the
+          bench avatar has no availability dot of its own, so this wrapper
+          exists only for the badge. */}
+      <span className="relative">
+        <Avatar src={player.image} name={player.lastName} size={36} />
+        {startProbability !== undefined && (
+          <StartProbabilityCorner
+            tier={startProbability}
+            size={cornerBadgeSize(36)}
+          />
+        )}
+      </span>
       <span className="max-w-full truncate text-[0.6875rem] font-medium text-ink">
         {player.lastName}
       </span>
