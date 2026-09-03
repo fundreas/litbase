@@ -105,6 +105,20 @@
     font-family: var(--font-sans);
     /* Avoid rubber-band scroll revealing the page background on iOS. */
     overscroll-behavior-y: none;
+    /* This is a tap-driven app, not a document: a tap that lands slightly long
+       on a row should never leave a blue text selection behind, and a press on
+       a player portrait should not raise iOS' save-image callout. Selection is
+       handed back below wherever there is genuinely text to copy. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable='true'] {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   /* Inputs at >=16px stop iOS Safari from zooming on focus. */

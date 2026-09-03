@@ -166,15 +166,19 @@ function PlayerRow({
         />
       </button>
 
-      <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
-        <Avatar
-          src={player.image}
-          name={player.lastName}
-          size={40}
-          square
-          className="bg-surface-2"
-        />
+      {/* Flush portrait: no padding on any side, so it fills the row's height
+          and butts straight against the rail. The row is short enough that a
+          padded thumbnail read as a stray sticker; edge to edge it reads as
+          part of the row. `object-cover` on a taller-than-wide box crops the
+          portrait's empty margins rather than the face. */}
+      <Avatar
+        src={player.image}
+        name={player.lastName}
+        fill
+        className="w-12 self-stretch bg-surface-2"
+      />
 
+      <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-ink">
             {player.lastName}

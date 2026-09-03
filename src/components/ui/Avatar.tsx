@@ -12,6 +12,12 @@ export interface AvatarProps {
   className?: string
   /** Render as a rounded square instead of a circle (used for club crests). */
   square?: boolean
+  /**
+   * Drop the fixed box and fill the parent instead, so the image can sit flush
+   * in a container that sizes itself (a list row's full height, say). `size`
+   * is ignored; the caller owns width, height and rounding via `className`.
+   */
+  fill?: boolean
 }
 
 export function Avatar({
@@ -20,6 +26,7 @@ export function Avatar({
   size = 36,
   className,
   square = false,
+  fill = false,
 }: AvatarProps) {
   const resolved = cdnUrl(src)
 
@@ -28,10 +35,10 @@ export function Avatar({
       className={cn(
         'inline-flex shrink-0 items-center justify-center overflow-hidden select-none',
         'bg-surface-2 align-middle',
-        square ? 'rounded-lg' : 'rounded-full',
+        !fill && (square ? 'rounded-lg' : 'rounded-full'),
         className,
       )}
-      style={{ width: size, height: size }}
+      style={fill ? undefined : { width: size, height: size }}
     >
       {resolved !== undefined && (
         <RadixAvatar.Image
