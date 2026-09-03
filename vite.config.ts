@@ -41,8 +41,13 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      // Reachable from a phone on the same network: `npm run dev -- --host`.
-      port: 5173,
+      // Reachable from a phone on the same network: `npm run dev:host`. Only
+      // the interface changes there — the port below applies to both scripts.
+      port: 3011,
+      // Fail rather than hunt for a free port. Vite's default is to step to
+      // 3012, 3013, … on a collision, which quietly hands out a URL nobody is
+      // expecting when an earlier `npm run dev` is still running.
+      strictPort: true,
       proxy: useDevProxy
         ? {
             '/kb-api': {

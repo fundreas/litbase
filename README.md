@@ -10,7 +10,7 @@ directly.
 ```bash
 nvm use          # Node 22, pinned in .nvmrc
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:3011
 npm run dev:host # same, reachable from your phone on the same Wi-Fi
 ```
 

@@ -60,7 +60,7 @@ URL until the screen exists. See
 ```bash
 nvm use          # Node 22, pinned in .nvmrc
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:3011
 npm run dev:host # reachable from a phone on the same Wi-Fi
 npm run check    # typecheck + lint + format check
 npm run build    # production build to dist/
