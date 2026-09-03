@@ -1,3 +1,5 @@
+import { Info } from 'lucide-react'
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
@@ -7,12 +9,14 @@ import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { PageHeading } from '@/components/PageHeading'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
+import { StartProbabilityDialog } from '@/components/squad/StartProbabilityDialog'
 import { SwapDialog } from '@/components/squad/SwapDialog'
 import { useLineupEditor } from '@/components/squad/useLineupEditor'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { useActiveLeague } from '@/league/useActiveLeague'
+import { cn } from '@/lib/cn'
 import { money } from '@/lib/format'
 
 /** Tab value ⇄ route segment. Deliberately identical strings. */
@@ -36,6 +40,8 @@ export function SquadPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { data, isPending, isError, error, refetch } = useSquad(leagueId)
+  // Above the early returns below, as every hook here has to be.
+  const [isLegendOpen, setIsLegendOpen] = useState(false)
 
   const tab: TabValue = location.pathname.endsWith(`/${TABS.lineup}`)
     ? TABS.lineup
@@ -86,6 +92,32 @@ export function SquadPage() {
       <PageHeading
         title="Mannschaft"
         subtitle={`${String(data.length)} Spieler · ${money(totalValue)} Gesamtwert`}
+        // In the page header rather than inside the squad tab, because the
+        // badges it explains appear on both tabs — the pitch portraits carry
+        // the same five icons as the list rows.
+        action={
+          <button
+            type="button"
+            onClick={() => {
+              setIsLegendOpen(true)
+            }}
+            title="Was bedeuten die Startelf-Symbole?"
+            aria-label="Legende der Startelf-Wahrscheinlichkeit anzeigen"
+            className={cn(
+              'flex shrink-0 cursor-pointer items-center justify-center rounded-full border p-1.5',
+              'border-line bg-surface text-muted transition-colors',
+              'hover:border-accent/40 hover:bg-surface-2 hover:text-accent active:bg-line',
+              'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+            )}
+          >
+            <Info size={16} aria-hidden="true" />
+          </button>
+        }
+      />
+
+      <StartProbabilityDialog
+        open={isLegendOpen}
+        onOpenChange={setIsLegendOpen}
       />
 
       <Tabs

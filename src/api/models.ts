@@ -465,38 +465,42 @@ export function duelPlayerStatus(
  */
 export type StartProbability = 1 | 2 | 3 | 4 | 5
 
-/** Everything a tier needs to render, in one place. `tone` keys the palette. */
+/**
+ * Everything a tier needs to render, in one place.
+ *
+ * `label` is the tooltip and the legend's heading; `description` is the line
+ * under it in the legend, and exists because the labels alone do not say where
+ * the boundaries sit — "fraglich" and "unrealistisch" are not self-evidently
+ * different until someone spells out that one might still start.
+ */
 export const START_PROBABILITY: Record<
   StartProbability,
-  {
-    label: string
-    /** Long form, for tooltips and screen readers. */
-    description: string
-    tone: 'certain' | 'likely' | 'doubtful' | 'unlikely' | 'out'
-  }
+  { label: string; description: string }
 > = {
   1: {
     label: 'Sicher dabei',
-    description: 'Startelf sicher',
-    tone: 'certain',
+    description: 'Steht so gut wie sicher in der Startelf.',
   },
   2: {
     label: 'Wahrscheinlich',
-    description: 'Startelf wahrscheinlich',
-    tone: 'likely',
+    description: 'Startet voraussichtlich, garantiert ist es nicht.',
   },
-  3: { label: 'Fraglich', description: 'Startelf fraglich', tone: 'doubtful' },
+  3: {
+    label: 'Fraglich',
+    description: 'Kann starten oder auf der Bank bleiben — offen.',
+  },
   4: {
     label: 'Unrealistisch',
-    description: 'Startelf unrealistisch',
-    tone: 'unlikely',
+    description: 'Ein Startelf-Einsatz wäre eine Überraschung.',
   },
   5: {
     label: 'Ausgeschlossen',
-    description: 'Startelf ausgeschlossen',
-    tone: 'out',
+    description: 'Fällt aus oder sitzt sicher auf der Bank.',
   },
 }
+
+/** The tiers in order, for anything that renders all five. */
+export const START_PROBABILITY_TIERS: StartProbability[] = [1, 2, 3, 4, 5]
 
 /**
  * Narrow the wire's `prob` to a tier.

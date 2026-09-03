@@ -48,21 +48,29 @@ export function StartProbabilityBadge({
   size = 14,
   /** Draws a contrasting ring, for sitting on a photo or the pitch. */
   onImage = false,
+  /** For the legend, where the badge sits next to the very words it means. */
+  decorative = false,
   className,
 }: {
   tier: StartProbability
   size?: number
   onImage?: boolean
+  decorative?: boolean
   className?: string
 }) {
-  const { label, description } = START_PROBABILITY[tier]
+  const { label } = START_PROBABILITY[tier]
   const { background, icon: Icon, glyph } = TIER_STYLE[tier]
+
+  // The tooltip is the whole explanation on the squad list, where the label no
+  // longer rides alongside — so it names the scale, not just the tier. "Sicher
+  // dabei" on its own does not say what it is a judgement about.
+  const spoken = `Startelf: ${label}`
 
   return (
     <span
-      role="img"
-      aria-label={description}
-      title={description}
+      {...(decorative
+        ? { 'aria-hidden': true }
+        : { role: 'img', 'aria-label': spoken, title: spoken })}
       style={{
         width: size,
         height: size,
@@ -87,7 +95,6 @@ export function StartProbabilityBadge({
           aria-hidden="true"
         />
       )}
-      <span className="sr-only">{label}</span>
     </span>
   )
 }
@@ -95,10 +102,10 @@ export function StartProbabilityBadge({
 /**
  * The badge parked in the corner of a player portrait.
  *
- * Bottom-right, not top-right: the top-right corner already belongs to the
- * availability dot on the pitch, and the two would overlap. The wrapper must
- * be `relative` — every caller here already is, because the availability dot
- * needs the same.
+ * **Top-right**, the most visible corner of a round portrait against a busy
+ * pitch — a badge at the bottom competes with the name plate riding up over
+ * the portrait's lower edge. The availability dot, which used to sit here, has
+ * moved to the top-left to make room. The wrapper must be `relative`.
  */
 export function StartProbabilityCorner({
   tier,
@@ -114,7 +121,7 @@ export function StartProbabilityCorner({
       onImage
       // Pulled slightly outside the circle so it clears the portrait's own
       // curve — at the tangent a corner badge looks half-swallowed.
-      className="absolute -right-0.5 -bottom-0.5"
+      className="absolute -top-0.5 -right-0.5"
     />
   )
 }

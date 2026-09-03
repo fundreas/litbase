@@ -574,15 +574,18 @@ function PlayerFace({
           size={metrics.avatar}
           className="ring-2 ring-white/70"
         />
+        {/* Top-*left*. This dot had the top-right corner first; the
+            probability badge is the busier of the two and wants the corner
+            that reads most easily against the pitch, so the dot moved rather
+            than the badge taking a weaker spot. */}
         {player.status !== 0 && (
           <span
-            className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-negative"
+            className="absolute -top-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-white bg-negative"
             title="Nicht einsatzbereit"
           />
         )}
-        {/* Bottom-right, clear of the availability dot above it, and sized
-            from the portrait so it stays legible from a 40px phone avatar up
-            to a 96px one on a desktop pitch. */}
+        {/* Sized from the portrait, so it stays legible from a 40px phone
+            avatar up to a 96px one on a desktop pitch. */}
         {startProbability !== undefined && (
           <StartProbabilityCorner
             tier={startProbability}

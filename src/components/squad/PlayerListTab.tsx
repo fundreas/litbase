@@ -3,7 +3,6 @@ import { useState } from 'react'
 
 import {
   POSITION_LABEL,
-  START_PROBABILITY,
   type PositionKey,
   type SquadMember,
   type StartProbability,
@@ -191,20 +190,16 @@ function PlayerRow({
           {/* The probability leads the stats line rather than sitting beside
               the name. Next to the name it would collide with the availability
               dot, and the two mean different things — "unfit" is a fact,
-              "unlikely to start" is someone's estimate. The label rides along
-              wherever the row is wide enough for it; on a phone the glyph and
-              its tooltip carry it alone. */}
+              "unlikely to start" is someone's estimate.
+
+              Glyph only, no label: the tier names are long enough to crowd the
+              points off a phone row, and five of them repeated down a list is
+              a lot of text for something the reader learns to recognise in
+              seconds. The legend in the page header explains the scale, and
+              each badge keeps its tooltip. */}
           <span className="flex items-center gap-1.5 text-xs text-muted">
             {startProbability !== undefined && (
-              <>
-                <StartProbabilityBadge tier={startProbability} size={13} />
-                <span className="hidden truncate font-medium text-ink/75 sm:inline">
-                  {START_PROBABILITY[startProbability].label}
-                </span>
-                <span aria-hidden="true" className="text-line">
-                  ·
-                </span>
-              </>
+              <StartProbabilityBadge tier={startProbability} size={13} />
             )}
             <span className="nums truncate">
               {points(player.totalPoints)} Pkt · ⌀{' '}
