@@ -9,6 +9,8 @@
 import {
   GAME_PLAY_MODE,
   MARKET_VALUE_TREND,
+  MATCH_EVENT,
+  PLAYER_AVAILABILITY,
   PLAYER_POSITION,
 } from '@/api/types'
 
@@ -598,4 +600,371 @@ export interface TableRow {
   matchesPlayed: number
   goalDifference: number
   kickbasePoints: number
+}
+
+/* -------------------------------------------------------------------------- */
+/* Player detail                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Availability, spelled out. Keyed by the wire's `st` — see
+ * {@link PLAYER_AVAILABILITY} for how each was established.
+ *
+ * `stxt` on the payload carries the *reason* in German and is always present
+ * for a player who is not fit, so these labels are the headline and the text
+ * is the detail beneath it. An unrecognised code falls back to a neutral
+ * "Nicht einsatzbereit" rather than inventing a category.
+ */
+export const AVAILABILITY_LABEL: Record<number, string> = {
+  [PLAYER_AVAILABILITY.FIT]: 'Fit',
+  [PLAYER_AVAILABILITY.INJURED]: 'Verletzt',
+  [PLAYER_AVAILABILITY.DOUBTFUL]: 'Angeschlagen',
+  [PLAYER_AVAILABILITY.BUILDING_UP]: 'Aufbautraining',
+  [PLAYER_AVAILABILITY.SUSPENDED]: 'Gesperrt',
+}
+
+export function availabilityLabel(status: number): string {
+  return AVAILABILITY_LABEL[status] ?? 'Nicht einsatzbereit'
+}
+
+/** One of the club's fixtures around the current matchday. */
+export interface PlayerFixture {
+  day: number
+  /** Kick-off, ISO 8601. */
+  kickoff: string
+  isHome: boolean
+  opponentId: string
+  opponentImage?: string
+  /** The API reports the match played to the end. */
+  isFinished: boolean
+  /** Only meaningful once `isFinished` — both read `0` beforehand. */
+  goalsFor: number
+  goalsAgainst: number
+  /** True on the competition's current matchday. */
+  isCurrent: boolean
+}
+
+/** A player's full profile. */
+export interface PlayerDetail {
+  id: string
+  firstName?: string
+  lastName: string
+  /** Both names, or just the last one when the API has no first name. */
+  fullName: string
+  shirtNumber?: number
+  teamId: string
+  teamName?: string
+  teamImage?: string
+  position: PositionKey
+  image?: string
+  /** 0 means available; see {@link availabilityLabel}. */
+  status: number
+  /** Why they are unavailable, in German. Absent for a fit player. */
+  statusText?: string
+  startProbability?: StartProbability
+  /** Who assessed {@link startProbability} — "Ligainsider" in practice. */
+  probabilitySource?: string
+  /** When that assessment was last revised, ISO 8601. */
+  probabilityUpdatedAt?: string
+  /** Owning manager's user id, or `undefined` when nobody owns them. */
+  ownerId?: string
+
+  marketValue: number
+  marketValueTrend: MarketValueTrend
+  /** Change over the last 24 hours, in €, signed. */
+  marketValueChangeDay: number
+
+  totalPoints: number
+  averagePoints: number
+  /** Minutes played this season, converted from the wire's seconds. */
+  minutesPlayed: number
+  goals: number
+  assists: number
+  yellowCards: number
+  redCards: number
+  cleanSheets: number
+
+  /** The club's fixtures around the current matchday, ascending. */
+  fixtures: PlayerFixture[]
+}
+
+/* --- Per-match performance ------------------------------------------------ */
+
+/**
+ * The events worth drawing a badge for.
+ *
+ * Substitutions are deliberately **not** in here: they say where a player was,
+ * not what they did, and they are already carried by {@link PlayerMatchRole}.
+ * Drawing them as badges too would put an arrow next to every second row.
+ */
+export type MatchEventKind =
+  | 'goal'
+  | 'ownGoal'
+  | 'assist'
+  | 'yellowCard'
+  | 'secondYellow'
+  | 'redCard'
+  | 'penaltySaved'
+  | 'cleanSheet'
+
+const EVENT_BY_CODE: Record<number, MatchEventKind> = {
+  [MATCH_EVENT.GOAL]: 'goal',
+  [MATCH_EVENT.OWN_GOAL]: 'ownGoal',
+  [MATCH_EVENT.ASSIST]: 'assist',
+  [MATCH_EVENT.YELLOW_CARD]: 'yellowCard',
+  [MATCH_EVENT.SECOND_YELLOW]: 'secondYellow',
+  [MATCH_EVENT.RED_CARD]: 'redCard',
+  [MATCH_EVENT.PENALTY_SAVED]: 'penaltySaved',
+  [MATCH_EVENT.CLEAN_SHEET]: 'cleanSheet',
+}
+
+export const MATCH_EVENT_LABEL: Record<MatchEventKind, string> = {
+  goal: 'Tor',
+  ownGoal: 'Eigentor',
+  assist: 'Vorlage',
+  yellowCard: 'Gelbe Karte',
+  secondYellow: 'Gelb-Rot',
+  redCard: 'Rote Karte',
+  penaltySaved: 'Elfmeter gehalten',
+  cleanSheet: 'Zu null',
+}
+
+/** One kind of event and how often it happened in a single match. */
+export interface MatchEventTally {
+  kind: MatchEventKind
+  count: number
+}
+
+/**
+ * The wire's repeated event codes, collapsed to one tally per kind.
+ *
+ * `[3, 3]` — a two-assist match — becomes a single "Vorlage ×2" rather than
+ * two identical badges. Order follows {@link MATCH_EVENT_ORDER} so a row of
+ * badges reads the same way every time; unknown codes are dropped, because a
+ * code Kickbase adds later should not surface as an unlabelled marker.
+ */
+export function toEventTallies(codes: number[] | undefined): MatchEventTally[] {
+  const counts = new Map<MatchEventKind, number>()
+
+  for (const code of codes ?? []) {
+    const kind = EVENT_BY_CODE[code]
+    if (kind !== undefined) counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  }
+
+  return MATCH_EVENT_ORDER.filter((kind) => counts.has(kind)).map((kind) => ({
+    kind,
+    count: counts.get(kind) ?? 0,
+  }))
+}
+
+/** Badge order: what a player did, then what was done to them. */
+const MATCH_EVENT_ORDER: MatchEventKind[] = [
+  'goal',
+  'assist',
+  'penaltySaved',
+  'cleanSheet',
+  'ownGoal',
+  'yellowCard',
+  'secondYellow',
+  'redCard',
+]
+
+/**
+ * Where a player was during one match.
+ *
+ * Richer than the wire's `st` by one state: a starter who was taken off is
+ * `substitutedOff`, which `st` does not distinguish — it stays `STARTED` and
+ * only the `SUBSTITUTED_OFF` event in `k` gives it away. That state is the
+ * point of the whole column, so it is resolved here rather than left to each
+ * caller to spot.
+ */
+export type PlayerMatchRole =
+  | 'started'
+  | 'substitutedOff'
+  | 'substitutedIn'
+  | 'substitutedInAndOff'
+  | 'didNotPlay'
+  | 'injured'
+  | 'upcoming'
+
+export const MATCH_ROLE_LABEL: Record<PlayerMatchRole, string> = {
+  started: 'Startelf',
+  substitutedOff: 'Ausgewechselt',
+  substitutedIn: 'Eingewechselt',
+  substitutedInAndOff: 'Ein- & ausgewechselt',
+  didNotPlay: 'Nicht im Einsatz',
+  injured: 'Verletzt',
+  upcoming: 'Ausstehend',
+}
+
+/** True for the roles that mean the player was actually on the pitch. */
+export function didPlay(role: PlayerMatchRole): boolean {
+  return (
+    role === 'started' ||
+    role === 'substitutedOff' ||
+    role === 'substitutedIn' ||
+    role === 'substitutedInAndOff'
+  )
+}
+
+/** How one of the club's matches went, from this player's point of view. */
+export type MatchOutcome = 'win' | 'draw' | 'loss'
+
+export interface PlayerMatch {
+  matchId: string
+  day: number
+  /** Kick-off, ISO 8601. */
+  kickoff: string
+  /** The API reports the match played to the end. */
+  isFinished: boolean
+  isHome: boolean
+  opponentId: string
+  opponentImage?: string
+  goalsFor?: number
+  goalsAgainst?: number
+  /** `undefined` until the match has been played. */
+  outcome?: MatchOutcome
+  role: PlayerMatchRole
+  /** `undefined` means the player did not feature — deliberately not `0`. */
+  points?: number
+  /** Minutes on the pitch. `0` for a non-appearance. */
+  minutes: number
+  /** Goals, cards and the rest, collapsed to one entry per kind. */
+  events: MatchEventTally[]
+}
+
+/** One season of a player's career, as the performance tab lists it. */
+export interface PlayerSeason {
+  /** Season id — unique, and what the picker keys on. */
+  id: string
+  /** Season label, e.g. `"2026/2027"`. */
+  label: string
+  /** Competition name, e.g. `"Bundesliga"`. */
+  competition: string
+  /** Every fixture of the club that season, ascending by matchday. */
+  matches: PlayerMatch[]
+  /** Matches the player featured in. */
+  appearances: number
+  /** Points across those appearances. */
+  totalPoints: number
+  goals: number
+  assists: number
+}
+
+/* --- Market value --------------------------------------------------------- */
+
+/** One day's market value. */
+export interface MarketValueDay {
+  /** Midnight UTC of that day, as an epoch millisecond count. */
+  timestamp: number
+  /** ISO date, `YYYY-MM-DD` — a stable React key and axis label source. */
+  date: string
+  value: number
+  /**
+   * Change against the previous day, in €.
+   *
+   * `undefined` on the first day of the series and on any day whose
+   * predecessor is one of the `0` placeholders, where a "change" would be the
+   * player's whole value appearing out of nowhere.
+   */
+  change?: number
+}
+
+/** The windows the market tab offers, and how densely each one lists days. */
+export const MARKET_VALUE_WINDOWS = [
+  { days: 30, label: '1M', step: 1 },
+  { days: 90, label: '3M', step: 3 },
+  { days: 180, label: '6M', step: 5 },
+  { days: 365, label: '12M', step: 10 },
+] as const
+
+export type MarketValueWindow = (typeof MARKET_VALUE_WINDOWS)[number]
+
+/** A player's market value over the last year, plus what it says about it. */
+export interface MarketValueHistory {
+  /**
+   * Daily values, oldest first, with the leading `mv: 0` placeholders
+   * stripped — those are days before the player entered the competition, not
+   * a valuation of zero.
+   */
+  days: MarketValueDay[]
+  /** Highest value in the year, and when. `undefined` for an empty series. */
+  high?: MarketValueDay
+  /** Lowest **real** value — the `0` days do not count. */
+  low?: MarketValueDay
+  /** Ownership, when somebody owns the player. */
+  ownership?: PlayerOwnership
+}
+
+/**
+ * What owning this player has been worth.
+ *
+ * `purchasePrice` is a price somebody actually paid only when
+ * {@link wasGranted} is false. For a player dealt out at league start
+ * Kickbase still books a basis — the market value of that day — and reports
+ * it in the same field, so quoting it as "paid" would be wrong.
+ */
+export interface PlayerOwnership {
+  managerId: string
+  managerName?: string
+  managerImage?: string
+  /** In €. See the caveat above. */
+  purchasePrice: number
+  /** Profit or loss at today's market value, in €. */
+  profitLoss: number
+  /** Handed out at league start rather than bought. */
+  wasGranted: boolean
+  /** True when the signed-in user is the owner. */
+  isViewer: boolean
+  /** When they took the player on, ISO 8601. */
+  since?: string
+  /**
+   * The market value on the day of purchase, looked up in the history.
+   *
+   * `undefined` when the purchase predates the year the API serves, which is
+   * the normal case for a long-held player.
+   */
+  marketValueAtPurchase?: number
+}
+
+/**
+ * How much over the market value the owner paid, in €.
+ *
+ * Positive means they overpaid. `undefined` when the purchase day is outside
+ * the year of history, or when the player was granted rather than bought —
+ * in both cases there is no pair of numbers to compare.
+ */
+export function purchasePremium(
+  ownership: PlayerOwnership | undefined,
+): number | undefined {
+  if (ownership === undefined || ownership.wasGranted) return undefined
+  if (ownership.marketValueAtPurchase === undefined) return undefined
+  return ownership.purchasePrice - ownership.marketValueAtPurchase
+}
+
+/**
+ * The slice of history a window covers, and the rows to list for it.
+ *
+ * Two different densities on purpose. The **chart** gets every day in the
+ * window, because a line drawn from every tenth point over a year loses the
+ * spikes that are the whole reason to look at it. The **list** gets one row
+ * per `step` days, because 365 rows is not a list anyone reads.
+ *
+ * Sampling walks backwards from today, so the most recent day is always a row
+ * whichever window is selected — a list that starts at "9 days ago" because
+ * the arithmetic happened to land there looks broken.
+ */
+export function windowSlice(
+  history: MarketValueHistory,
+  window: MarketValueWindow,
+): { chart: MarketValueDay[]; rows: MarketValueDay[] } {
+  const chart = history.days.slice(-window.days)
+
+  const rows: MarketValueDay[] = []
+  for (let index = chart.length - 1; index >= 0; index -= window.step) {
+    const day = chart[index]
+    if (day !== undefined) rows.push(day)
+  }
+
+  return { chart, rows }
 }

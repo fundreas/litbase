@@ -33,6 +33,13 @@ export const api = axios.create({
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    // Kickbase localises the prose it serves — the injury reasons in `stxt`
+    // above all. Without this header they arrive in English ("Training deficit
+    // - misses DFB-Pokal match") in the middle of an otherwise German UI; with
+    // it, "Trainingsrückstand - verpasst DFB-Pokal-Spiel". Verified against a
+    // live response. Everything else in the payloads is codes and numbers, so
+    // this is the only thing the header changes.
+    'Accept-Language': 'de-DE,de;q=0.9',
   },
 })
 

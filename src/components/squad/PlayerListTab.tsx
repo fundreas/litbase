@@ -9,6 +9,7 @@ import {
   type TeamFixture,
 } from '@/api/models'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
+import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
@@ -40,11 +41,14 @@ export function PlayerListTab({
   editor,
   fixtureByTeamId,
   startProbabilities,
+  statusReasons,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   startProbabilities: Map<string, StartProbability>
+  /** `stxt` per unavailable player; empty until the lookups land. */
+  statusReasons: Map<string, string>
 }) {
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
@@ -81,6 +85,7 @@ export function PlayerListTab({
                 isFielded={editor.isFielded(player.id)}
                 fixture={fixtureByTeamId?.get(player.teamId)}
                 startProbability={startProbabilities.get(player.id)}
+                statusReason={statusReasons.get(player.id)}
                 onToggle={handleToggle}
               />
             ))}
@@ -124,6 +129,7 @@ function PlayerRow({
   isFielded,
   fixture,
   startProbability,
+  statusReason,
   onToggle,
 }: {
   player: SquadMember
@@ -131,6 +137,8 @@ function PlayerRow({
   fixture: TeamFixture | undefined
   /** Absent until it loads, and absent for good without Membership. */
   startProbability: StartProbability | undefined
+  /** Absent for a fit player, and for a status Kickbase does not explain. */
+  statusReason: string | undefined
   onToggle: (player: SquadMember) => void
 }) {
   return (
@@ -191,16 +199,15 @@ function PlayerRow({
 
       <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-ink">
-            {player.lastName}
-            {player.status !== 0 && (
-              <span
-                className="ml-1.5 align-middle text-xs text-negative"
-                title="Nicht einsatzbereit"
-              >
-                ●
-              </span>
-            )}
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-sm font-semibold text-ink">
+              {player.lastName}
+            </span>
+            <PlayerStatusBadge
+              status={player.status}
+              reason={statusReason}
+              size={13}
+            />
           </span>
           {/* The probability leads the stats line rather than sitting beside
               the name. Next to the name it would collide with the availability

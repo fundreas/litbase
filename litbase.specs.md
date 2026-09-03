@@ -44,11 +44,16 @@ now when clicking on some duell item in the duells-page -> the user gets navigat
 
 # Find out how match-updates work and how to fetch live-points/events for a player/team/manager
 
-# Show available linup formations when clicking the current lineup.
-
-# Lineup Predictions
-  - find out by comparing with app, what field defines the lineup-propability
 
 # Live Match Points
   - show the match details (goals, minute, events)
   - show the lineup with live points and the manager owning a player
+
+
+# Transfermarkt
+
+# Manager Details
+
+# Team Details
+
+# Squad -> Live Tab when matchday is active

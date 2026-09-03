@@ -518,14 +518,51 @@ export interface MarketPlayer {
 }
 
 /**
- * `GET /v4/leagues/{leagueId}/players/{playerId}`. **Nothing fetches this
- * yet** — it is declared for the availability fields below, which no other
- * endpoint exposes.
+ * Availability, as `st` on any player payload and as the entries of `stl`.
  *
- * Only those fields are declared; the real response is much larger
- * (market-value history, per-matchday performance, the next fixture).
+ * Probed live across all 18 Bundesliga squads (467 players) and confirmed
+ * against the German `stxt` each one carries:
  *
- * This is where the **Startelf-Wahrscheinlichkeit** lives, and two things
+ * | `st` | `stxt` seen on it |
+ * | ---- | ----------------- |
+ * | 0 | *(none — fit)* |
+ * | 1 | "Schulterverletzung – fällt 2-3 Wochen aus" |
+ * | 2 | "Nach muskulären Problemen – verpasst M05 (H)" |
+ * | 4 | "Nach Fußverletzung – absolviert erste Laufeinheit" |
+ * | 8 | *(none)* — the two players carrying it had both been sent off in
+ *       their club's last fixture (`k` contained a red card), so it is a
+ *       **suspension** |
+ *
+ * `stl` is the same information as a list, and every player observed had at
+ * most one entry in it. Codes above 8 exist in the wire format but none has
+ * been seen, so anything unrecognised falls back to `stxt`, which the API
+ * always supplies for a player who is not fit.
+ */
+export const PLAYER_AVAILABILITY = {
+  FIT: 0,
+  INJURED: 1,
+  /** Knock — training individually, likely to miss the next match. */
+  DOUBTFUL: 2,
+  /** Working back to fitness after an injury. */
+  BUILDING_UP: 4,
+  /** Inferred from a red card in the preceding fixture; carries no `stxt`. */
+  SUSPENDED: 8,
+} as const
+
+/**
+ * `GET /v4/leagues/{leagueId}/players/{playerId}` — one player, in full.
+ *
+ * Everything the [player detail page](../../docs/pages/player-detail.md)
+ * renders on its first tab. The competition-scoped
+ * `/v4/competitions/{id}/players/{id}` returns the same body **minus `oui`**,
+ * so the league-scoped spelling is the one to use whenever ownership matters.
+ *
+ * **Zeroed counters are omitted, not sent as `0`.** A player who has not
+ * featured this season carries no `tp`, `ap`, `sec`, `g`, `a`, `y`, `r` or
+ * `cs` at all, while one who has played carries all of them, `0` included.
+ * Every counter below is therefore optional and every consumer defaults it.
+ *
+ * This is also where the **Startelf-Wahrscheinlichkeit** lives, and two things
  * about it shape whatever ends up consuming it:
  *
  *  - **There is no numeric probability.** The assessment arrives as one of
@@ -550,14 +587,79 @@ export interface PlayerDetailResponse {
   ln: string
   /** First name. */
   fn?: string
+  /** Squad number. */
+  shn?: number
   /** Team id. */
   tid?: string
   /** Team name, spelled out. */
   tn?: string
-  /** Owning manager's user id — absent when nobody owns the player. */
+  /** Team crest, CDN-relative (an SVG). */
+  tim?: string
+  /** Player photo, CDN-relative. */
+  pim?: string
+  /**
+   * Owning manager's user id. **`"0"` when nobody owns the player** — it is
+   * not omitted, so an emptiness test has to check the string, not presence.
+   */
   oui?: string
   /** The matchday this response is "current" for. */
   day?: number
+
+  /* --- Season totals. Omitted entirely when the player has not featured. --- */
+
+  /** Total points this season. */
+  tp?: number
+  /** Average points per appearance. */
+  ap?: number
+  /** **Seconds** played this season — not minutes. */
+  sec?: number
+  /** Goals. */
+  g?: number
+  /** Assists. */
+  a?: number
+  /** Yellow cards. */
+  y?: number
+  /** Red cards — straight reds and second yellows together. */
+  r?: number
+  /** Clean sheets. */
+  cs?: number
+  /**
+   * Penalties, but **which side of one is unresolved**: it sits beside `cs`
+   * in the goalkeeper group, which argues for "saved", while the name argues
+   * for "scored". Every player probed had `0` (the season was one matchday
+   * old), so nothing could separate the two. Deliberately not rendered — the
+   * per-match event for a saved penalty (`MATCH_EVENT.PENALTY_SAVED`) covers
+   * the case that is confirmed.
+   */
+  pes?: number
+
+  /* --- Market value ------------------------------------------------------ */
+
+  /** Market value, in €. */
+  mv?: number
+  /** Market-value trend, see MARKET_VALUE_TREND. */
+  mvt?: number
+  /**
+   * Change over the **last 24 hours**, in €, signed.
+   *
+   * Named for "twenty-four-hour market-value trend", and the reading is
+   * confirmed arithmetically: it is the difference between the last two daily
+   * points of `/marketvalue/365`. Its sibling `sdmvt` on the squad payload is
+   * the same measure over seven days.
+   */
+  tfhmvt?: number
+  /**
+   * A rounded market value — `59.800.000` against an `mv` of `59.866.450`.
+   * What Kickbase rounds it *for* is unknown, and it is never the figure to
+   * show; `mv` is. Declared only so it is not mistaken for something else.
+   */
+  cv?: number
+
+  /**
+   * The club's fixtures either side of the current matchday — three in
+   * practice: the one just played and the next two. Ordered by matchday.
+   */
+  mdsum?: PlayerFixtureSummary[]
   /**
    * Points per matchday, oldest first.
    *
@@ -623,6 +725,285 @@ export interface PlayerMatchdayPoints {
   hp: boolean
   /** Points scored — only present when `hp` is true. */
   p?: number
+}
+
+/** One fixture in {@link PlayerDetailResponse.mdsum}. */
+export interface PlayerFixtureSummary {
+  /** Matchday number. */
+  day: number
+  /** Kick-off, ISO 8601. */
+  md: string
+  /** **Home** team id. */
+  t1: string
+  /** **Away** team id. */
+  t2: string
+  /** Home goals. `0` before kick-off, so `mdst` is what says whether it counts. */
+  t1g?: number
+  /** Away goals. */
+  t2g?: number
+  /** Home crest, CDN-relative. */
+  t1im?: string
+  /** Away crest, CDN-relative. */
+  t2im?: string
+  /** Matchday status: 0 = not played, 2 = finished. Same scale as `st` on a fixture. */
+  mdst?: number
+  /** True on the competition's current matchday. */
+  cur?: boolean
+  /** Display name, e.g. `"2 Match Day"`. */
+  mdln?: string
+}
+
+/* --- Per-match performance ------------------------------------------------ */
+
+/**
+ * What happened to a player in one match, as the entries of
+ * {@link PlayerPerformanceMatch.k}.
+ *
+ * **Decoded by correlation, not from documentation.** Season counters on
+ * `/players/{id}` (`g`, `a`, `y`, `r`, `cs`) were compared against the number
+ * of times each code appears across the same season for 60 players; the four
+ * marked *exact* matched on every single player with no exceptions. The
+ * others were pinned individually:
+ *
+ * | Code | How it was established |
+ * | ---- | ---------------------- |
+ * | 1 `GOAL` | exact match with `g` |
+ * | 2 `OWN_GOAL` | **inferred** — 8 occurrences, all defenders; no counter exposes own goals, so nothing could confirm it |
+ * | 3 `ASSIST` | exact match with `a` |
+ * | 4 `YELLOW_CARD` | exact match with `y` |
+ * | 5 `SECOND_YELLOW` | never appears without a `4` beside it |
+ * | 6 `RED_CARD` | heavily negative points, player off early, and both players carrying `PLAYER_AVAILABILITY.SUSPENDED` had one in their last match |
+ * | 7 `PENALTY_SAVED` | only ever on goalkeepers |
+ * | 8 `SUBSTITUTED_IN` | present on all 266 matches with `st: 3` and on no other; median 29 minutes played against 72 without it |
+ * | 9 `SUBSTITUTED_OFF` | only ever alongside `8` or a start, never on a non-appearance |
+ * | 25 `CLEAN_SHEET` | exact match with `cs` |
+ */
+export const MATCH_EVENT = {
+  GOAL: 1,
+  /** Inferred — see the table above. */
+  OWN_GOAL: 2,
+  ASSIST: 3,
+  YELLOW_CARD: 4,
+  /** Always accompanied by a {@link MATCH_EVENT.YELLOW_CARD} in the same match. */
+  SECOND_YELLOW: 5,
+  RED_CARD: 6,
+  PENALTY_SAVED: 7,
+  SUBSTITUTED_IN: 8,
+  SUBSTITUTED_OFF: 9,
+  CLEAN_SHEET: 25,
+} as const
+
+/**
+ * A player's involvement in one match, as `st` on
+ * {@link PlayerPerformanceMatch}.
+ *
+ * **A different scale to {@link PLAYER_AVAILABILITY}**, despite the shared
+ * key name. Established from the payload's own internal agreement:
+ *
+ *  - `0` carries no `mp` and no `p` at all — the fixture is in the future.
+ *  - `5` is a start: `MATCH_EVENT.SUBSTITUTED_IN` never appears on it, and
+ *    it is the only value whose minutes routinely reach 90+.
+ *  - `3` is an appearance off the bench: all 266 observed carry
+ *    `SUBSTITUTED_IN`, and the median is 29 minutes.
+ *  - `1` and `4` both mean **did not play** — `0'` and no points. They are
+ *    separated by availability at the time: every currently-injured player
+ *    probed (an ACL tear, a shoulder injury) carries `1` for the matchday
+ *    they missed, while players who were merely rested, doubtful or left out
+ *    carry `4`. So `1` is "out injured" and `4` is everything else.
+ *
+ * The one thing `4` deliberately does *not* claim is a place on the bench.
+ * Counting a full squad's statuses per matchday put `3 + 4` at up to eleven
+ * players on a matchday, which is more than a bench holds — so `4` covers the
+ * unused substitute and the player left out of the squad alike, and the two
+ * are not distinguishable here.
+ */
+export const PLAYER_MATCH_STATUS = {
+  /** Fixture has not been played. */
+  UPCOMING: 0,
+  /** Missed the match through injury. */
+  INJURED: 1,
+  /** Came on as a substitute. */
+  SUBSTITUTE: 3,
+  /** Did not play — bench or not in the squad; the two are indistinguishable. */
+  DID_NOT_PLAY: 4,
+  /** Started. */
+  STARTED: 5,
+} as const
+
+/** `GET /v4/leagues/{leagueId}/players/{playerId}/performance`. */
+export interface PlayerPerformanceResponse {
+  /** Seasons, **oldest first**, one per competition season played. */
+  it: PlayerPerformanceSeason[]
+}
+
+export interface PlayerPerformanceSeason {
+  /** Season id, e.g. `"42"`. Unique, and what a picker should key on. */
+  sid: string
+  /** Season label, e.g. `"2026/2027"`. */
+  ti: string
+  /** Competition name, e.g. `"Bundesliga"`. */
+  n: string
+  /**
+   * Every fixture of the player's club that season, ascending by matchday —
+   * including the ones they took no part in.
+   *
+   * The club is **the club they were at that season**, so a player who moved
+   * has another Bundesliga side's fixtures in the earlier entries. `pt` names
+   * which of `t1`/`t2` they were on, but only for matches they played.
+   */
+  ph: PlayerPerformanceMatch[]
+}
+
+export interface PlayerPerformanceMatch {
+  /** Match id. */
+  mi: string
+  /** Matchday number. */
+  day: number
+  /** Kick-off, ISO 8601. */
+  md: string
+  /** **Home** team id. */
+  t1: string
+  /** **Away** team id. */
+  t2: string
+  /** Home goals — absent until the match is played. */
+  t1g?: number
+  /** Away goals. */
+  t2g?: number
+  /** Home crest, CDN-relative. */
+  t1im?: string
+  /** Away crest, CDN-relative. */
+  t2im?: string
+  /**
+   * The player's own team id for this match — `t1` or `t2`.
+   *
+   * **Only present when they played.** For a match they sat out, which side
+   * they were on has to be inferred from the season's other entries.
+   */
+  pt?: string
+  /**
+   * Points scored. Absent — not `0` — for any match the player did not
+   * appear in, which is what separates "played and scored nothing" from
+   * "did not play".
+   */
+  p?: number
+  /**
+   * Minutes played, as a string with a trailing apostrophe: `"96'"`. Reaches
+   * past 90 because stoppage time counts. `"0'"` for a non-appearance, and
+   * absent entirely for a fixture still to come.
+   */
+  mp?: string
+  /** Events, see {@link MATCH_EVENT}. Repeats — two assists arrive as `[3, 3]`. */
+  k?: number[]
+  /** The player's involvement, see {@link PLAYER_MATCH_STATUS}. */
+  st?: number
+  /** Matchday status: 0 = not played, 2 = finished. */
+  mdst?: number
+  /** True on the competition's current matchday. */
+  cur?: boolean
+  /** Season points **to date**, i.e. after this match. */
+  tp?: number
+  /** Season average **to date**. */
+  ap?: number
+  /** Season seconds played **to date**. */
+  asp?: number
+  /** Short matchday label, e.g. `"#1"` for the current one. */
+  mdsn?: string
+}
+
+/* --- Market value --------------------------------------------------------- */
+
+/**
+ * `GET /v4/leagues/{leagueId}/players/{playerId}/marketvalue/365`.
+ *
+ * One entry per day for the last year, plus what the current owner paid.
+ */
+export interface PlayerMarketValueResponse {
+  /** Daily values, oldest first, no gaps. Empty for any window but 365. */
+  it: MarketValuePoint[]
+  /**
+   * What the **current owner** paid, in €. `0` when nobody owns the player.
+   *
+   * Confirmed against two real purchases in a live league: a player bought
+   * for 80.000.000 € reports exactly that, and `mv - trp` reproduces `prlo`
+   * here and `mvgl` on the squad row to the euro.
+   *
+   * For a player *handed out* at league start (see {@link idp}) it is not a
+   * price anybody paid — Kickbase books the basis at the market value of the
+   * day instead, and `prlo` stays `0`. The UI has to say "Startkader" rather
+   * than quote it as a purchase.
+   */
+  trp: number
+  /** Profit or loss for the owner, in €. Exactly `mv - trp`. */
+  prlo: number
+  /**
+   * Lowest value in the returned window, in €.
+   *
+   * **Can be `0`, and often is**: days before the player entered the
+   * competition are still returned, carrying `mv: 0`, and this is the plain
+   * minimum over all of them. A meaningful low has to ignore those — see
+   * `marketValueExtremes` in `models.ts`.
+   */
+  lmv: number
+  /** Highest value in the returned window, in €. */
+  hmv: number
+  /** True when the signed-in user is the owner. Absent when nobody owns them. */
+  iso?: boolean
+  /**
+   * "Is default player" — handed out when a manager joined rather than
+   * bought. Inferred, and it lines up on every player checked: it is true for
+   * exactly those whose transfer history is a single `TRANSFER_TYPE.GRANTED`
+   * entry, and false for both real purchases and unowned players.
+   */
+  idp?: boolean
+}
+
+export interface MarketValuePoint {
+  /**
+   * **Days since the Unix epoch**, not a timestamp — `20698` is 2026-09-02.
+   * Whole days in UTC, so a plain `dt * 86_400_000` reconstructs the date.
+   */
+  dt: number
+  /** Market value that day, in €. `0` before the player entered the league. */
+  mv: number
+}
+
+/* --- Transfer history ----------------------------------------------------- */
+
+/**
+ * What kind of ownership event a {@link PlayerTransferItem} describes.
+ *
+ * Only these three have been observed. `1` and anything above `3` presumably
+ * exist — a sale back to the market is the obvious gap — so unknown values
+ * are rendered as a neutral "Wechsel" rather than guessed at.
+ */
+export const TRANSFER_TYPE = {
+  /** Handed to a manager without a fee — the squad dealt at league start. */
+  GRANTED: 0,
+  /** Bought. The only type observed with a non-zero `trp`. */
+  BOUGHT: 2,
+  /** Released back to the market; carries no `u`, because nobody received them. */
+  RELEASED: 3,
+} as const
+
+/** `GET /v4/leagues/{leagueId}/players/{playerId}/transferHistory`. */
+export interface PlayerTransferHistoryResponse {
+  /** Ownership events, **oldest first**. Empty for an unowned player. */
+  it: PlayerTransferItem[]
+}
+
+export interface PlayerTransferItem {
+  /** Manager's user id. Absent on a `TRANSFER_TYPE.RELEASED` entry. */
+  u?: string
+  /** Manager's display name. */
+  unm?: string
+  /** Manager's avatar, CDN-relative. */
+  uim?: string
+  /** When it happened, ISO 8601. */
+  dt: string
+  /** Fee paid, in €. `0` for anything but a `TRANSFER_TYPE.BOUGHT` entry. */
+  trp: number
+  /** See {@link TRANSFER_TYPE}. */
+  t: number
 }
 
 /**

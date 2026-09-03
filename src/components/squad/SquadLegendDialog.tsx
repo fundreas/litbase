@@ -3,6 +3,7 @@ import { House, PlaneTakeoff, Shirt } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { START_PROBABILITY, START_PROBABILITY_TIERS } from '@/api/models'
+import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
@@ -108,6 +109,20 @@ export function SquadLegendDialog({
                 />
               </LegendSection>
             )}
+
+            <LegendSection title="Verfügbarkeit">
+              {/* One row, because there is one mark. Kickbase distinguishes
+                  injury from suspension from "not in the squad" in a numeric
+                  code whose values are not confirmed, so the description names
+                  the range rather than the app pretending to a precision it
+                  does not have — and the tooltip on the mark itself carries
+                  Kickbase's own wording when there is any. */}
+              <LegendRow
+                symbol={<PlayerStatusBadge status={1} size={16} decorative />}
+                label="Nicht einsatzbereit"
+                description="Verletzt, angeschlagen, gesperrt oder nicht im Kader. Antippen und halten zeigt den Grund, wenn Kickbase einen nennt."
+              />
+            </LegendSection>
 
             <LegendSection title="Nächstes Spiel">
               <LegendRow

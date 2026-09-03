@@ -70,9 +70,9 @@ duplicated here.
 | Element | Source | Notes |
 | ------- | ------ | ----- |
 | Lineup rail | `editor.isFielded()` | Full-height **button**, accent-tinted with a solid shirt when fielded, faint outline when not |
-| Image | `player.image` (`pim`) | Rounded square via `Avatar square`, falls back to initials |
+| Image | `player.image` (`pim`) | Full-bleed portrait via `Avatar fill` — no padding, flush against the rail, inner edge masked |
 | Name | `player.lastName` | Last name only — first names rarely fit |
-| Status dot | `player.status !== 0` | Red `●` with `title="Nicht einsatzbereit"` |
+| Status mark | `player.status !== 0` | `PlayerStatusBadge` — white cross in a red disc, tooltip from `stxt` |
 | Points | `totalPoints`, `averagePoints` | `412 Pkt · ⌀ 39` |
 | Market value | `marketValue` | Compact euros, tabular figures |
 | Profit / loss | `profitLoss` (`mvgl`) | Signed, coloured green/red, `–` when flat |
@@ -148,7 +148,7 @@ model currently exposes:
   rendered.
 - `ofc` — offer count, mapped as `offerCount`, not rendered. Useful for
   showing "3 Angebote" on a listed player.
-- `stl` — an additional status list beyond `st`.
+- `stl` — an additional status list beyond `st`. See [Availability (`st`)](#availability-st).
 - `lo` — lineup slot order, now mapped as `lineupOrder` and used to seed the
   [lineup tab](#lineup-tab).
 - `iotm` — player of the match.
@@ -227,12 +227,48 @@ a player nobody has assessed yet. The three are identical on the wire.
 
 `stxt` carries the reason behind a non-zero `st` when there is one, e.g.
 *"Neurological dysfunction - individual training, misses DFB-Pokal match"*. It
-is not rendered yet and is the obvious next thing to put in a player detail
-sheet.
+is the tooltip on the [status mark](#availability-st), fetched by
+[`useStatusReasons`](../../src/api/hooks/useStatusReasons.ts) for the
+unavailable players only. Plenty of statuses carry no text, so the mark falls
+back to a generic *"Nicht einsatzbereit"*.
 
 Once `GET /v4/matches/{matchId}/details` reports `il: true` the lineup is
 official and `t1lp`/`t2lp` (the XI) plus `t1nlp`/`t2nlp` supersede the estimate
 with a hard in/out.
+
+## Availability (`st`)
+
+`st` is **a code, not a boolean**. `0` is fit; every other value is some flavour
+of unavailable, and `stl` carries further codes alongside it on the same
+payload. So yes — Kickbase does distinguish an injury from a knock from a
+suspension from "not in the squad". What it has never told us is *which number
+means which*.
+
+What has actually been observed, and where:
+
+| Value | Where | What it appeared to mean |
+| ----- | ----- | ------------------------ |
+| `0` | everywhere | Fit |
+| `2` | manager squad | Out, with `stxt` naming the injury |
+| `128` | `lineup/overview`, alongside `lst: 0` | Cannot be fielded at all |
+| `5` | `/v4/competitions/{id}/players` | Completed a match — probably a *different* axis, not availability |
+
+`128` is the interesting one: a plain enum would not reach it by the fourth or
+fifth distinct state, so `st` is more likely a set of **power-of-two flags**,
+which would also explain why `stl` exists as a list. That is a reading of four
+data points, not a confirmed scheme.
+
+**What the UI does with that.** [`PlayerStatusBadge`](../../src/components/squad/PlayerStatusBadge.tsx)
+draws one mark — a white cross in a red disc — for every non-zero value, and
+puts the specifics in the tooltip using Kickbase's own `stxt`. The alternative,
+mapping guessed codes to a plaster and a red card, risks telling the manager
+his suspended striker is injured. One honest mark plus real text beats five
+confident wrong ones.
+
+**To settle it**, log `st` and `stl` across a full squad and a full competition
+player list over a matchday or two — enough to catch a suspension and a knock
+in the same sample — and fill in the table above. The badge takes a code→icon
+registry the moment there is one to write.
 
 ## Lineup tab
 
@@ -635,8 +671,8 @@ one: placeholders would have to be drawn against some assumed formation, which
 would imply a shape the user has not chosen.
 
 Each fielded player shows their image with a white ring, a name label on a
-dark plate beneath (legible over grass), a red dot when not match-fit, and
-their next fixture.
+dark plate beneath (legible over grass), the status mark in the top-left corner
+when not match-fit, and their next fixture.
 
 ### Verified
 
@@ -665,8 +701,12 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
 - **`POST /lineup/fill`** auto-fills a lineup. Note its body uses different
   field names to `POST /lineup`: `{ lud, pls }` rather than `{ type, players }`.
 - Drag and drop between bench and pitch, in addition to tapping.
-- Show `stxt` — the reason behind an injury or suspension — in the bench card's
-  text, alongside the [probability badge](#lineup-probability-prob) that is
-  already on its avatar.
+- **Confirm what the `st` codes mean** and give each kind its own mark — a
+  plaster for an injury, a card for a suspension. See
+  [Availability (`st`)](#availability-st): the values have never been observed
+  systematically, so one mark stands for all of them today.
+- Show `stxt` in the bench card's text as well, alongside the
+  [probability badge](#lineup-probability-prob) already on its avatar. The
+  bench card carries no status mark at all yet.
 - Warn on save when the lineup contains players at tier `4` or `5`: the badge
   is passive, and an eleven with three excluded players is worth interrupting.

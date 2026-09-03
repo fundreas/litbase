@@ -64,6 +64,20 @@ export const qk = {
    */
   playerDetail: (leagueId: string, playerId: string) =>
     [...qk.league(leagueId), 'player', playerId] as const,
+  /**
+   * Everything else about one player, hung under {@link playerDetail} so a
+   * single `invalidateQueries` on that key drops the whole detail page.
+   */
+  playerPerformance: (leagueId: string, playerId: string) =>
+    [...qk.playerDetail(leagueId, playerId), 'performance'] as const,
+  /**
+   * Market-value history. **Not keyed by window** — only `/365` returns data
+   * and the shorter windows are slices of it, so all four share one entry.
+   */
+  playerMarketValue: (leagueId: string, playerId: string) =>
+    [...qk.playerDetail(leagueId, playerId), 'marketValue'] as const,
+  playerTransfers: (leagueId: string, playerId: string) =>
+    [...qk.playerDetail(leagueId, playerId), 'transfers'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
 
   competition: (competitionId: string) =>

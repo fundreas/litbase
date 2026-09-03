@@ -13,6 +13,7 @@ import {
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { FormationsDialog } from '@/components/squad/FormationsDialog'
 import { Pitch } from '@/components/squad/Pitch'
+import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityCorner } from '@/components/squad/StartProbabilityBadge'
 import {
   useLineupDrag,
@@ -147,11 +148,14 @@ export function LineupTab({
   editor,
   fixtureByTeamId,
   startProbabilities,
+  statusReasons,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   startProbabilities: Map<string, StartProbability>
+  /** `stxt` per unavailable player; empty until the lookups land. */
+  statusReasons: Map<string, string>
 }) {
   const { lineup, counts, formation } = editor
 
@@ -361,6 +365,7 @@ export function LineupTab({
               placeholders={missingAtPosition(counts, position)}
               fixtureByTeamId={fixtureByTeamId}
               startProbabilities={startProbabilities}
+              statusReasons={statusReasons}
               metrics={metrics}
               drag={drag}
               onRemove={editor.remove}
@@ -374,6 +379,7 @@ export function LineupTab({
           player={drag.dragging}
           fixture={fixtureByTeamId?.get(drag.dragging.teamId)}
           startProbability={startProbabilities.get(drag.dragging.id)}
+          statusReason={statusReasons.get(drag.dragging.id)}
           metrics={metrics}
           ghostRef={drag.ghostRef}
         />
@@ -400,6 +406,7 @@ function PitchRow({
   placeholders,
   fixtureByTeamId,
   startProbabilities,
+  statusReasons,
   metrics,
   drag,
   onRemove,
@@ -410,6 +417,7 @@ function PitchRow({
   placeholders: number
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   startProbabilities: Map<string, StartProbability>
+  statusReasons: Map<string, string>
   metrics: PlayerMetrics
   drag: LineupDrag<SquadMember>
   onRemove: (playerId: string) => void
@@ -434,6 +442,7 @@ function PitchRow({
           player={player}
           fixture={fixtureByTeamId?.get(player.teamId)}
           startProbability={startProbabilities.get(player.id)}
+          statusReason={statusReasons.get(player.id)}
           metrics={metrics}
           isDragging={drag.dragging?.id === player.id}
           dragProps={drag.dragProps(player)}
@@ -502,6 +511,7 @@ function PitchPlayer({
   player,
   fixture,
   startProbability,
+  statusReason,
   metrics,
   isDragging,
   dragProps,
@@ -510,6 +520,7 @@ function PitchPlayer({
   player: SquadMember
   fixture: TeamFixture | undefined
   startProbability: StartProbability | undefined
+  statusReason: string | undefined
   metrics: PlayerMetrics
   /** This portrait is the one being carried; the ghost shows it instead. */
   isDragging: boolean
@@ -543,6 +554,7 @@ function PitchPlayer({
         player={player}
         fixture={fixture}
         startProbability={startProbability}
+        statusReason={statusReason}
         metrics={metrics}
       />
     </button>
@@ -558,11 +570,13 @@ function PlayerFace({
   player,
   fixture,
   startProbability,
+  statusReason,
   metrics,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
   startProbability: StartProbability | undefined
+  statusReason: string | undefined
   metrics: PlayerMetrics
 }) {
   return (
@@ -574,16 +588,17 @@ function PlayerFace({
           size={metrics.avatar}
           className="ring-2 ring-white/70"
         />
-        {/* Top-*left*. This dot had the top-right corner first; the
+        {/* Top-*left*. This mark had the top-right corner first; the
             probability badge is the busier of the two and wants the corner
-            that reads most easily against the pitch, so the dot moved rather
+            that reads most easily against the pitch, so the mark moved rather
             than the badge taking a weaker spot. */}
-        {player.status !== 0 && (
-          <span
-            className="absolute -top-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-white bg-negative"
-            title="Nicht einsatzbereit"
-          />
-        )}
+        <PlayerStatusBadge
+          status={player.status}
+          reason={statusReason}
+          size={cornerBadgeSize(metrics.avatar)}
+          onImage
+          className="absolute -top-0.5 -left-0.5"
+        />
         {/* Sized from the portrait, so it stays legible from a 40px phone
             avatar up to a 96px one on a desktop pitch. */}
         {startProbability !== undefined && (
@@ -640,12 +655,14 @@ function DragGhost({
   player,
   fixture,
   startProbability,
+  statusReason,
   metrics,
   ghostRef,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
   startProbability: StartProbability | undefined
+  statusReason: string | undefined
   metrics: PlayerMetrics
   ghostRef: (node: HTMLElement | null) => void
 }) {
@@ -661,6 +678,7 @@ function DragGhost({
           player={player}
           fixture={fixture}
           startProbability={startProbability}
+          statusReason={statusReason}
           metrics={metrics}
         />
       </span>

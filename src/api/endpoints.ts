@@ -74,6 +74,41 @@ export const endpoints = {
     player: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/players/${playerId}`,
     /**
+     * Every season the player has appeared in, each with **one entry per
+     * fixture of their club's season** — played or not.
+     *
+     * The only source of per-match detail: minutes (`mp`), the events that
+     * happened (`k`), and whether they started, came on or sat out (`st`).
+     * Identical byte-for-byte to the competition-scoped
+     * `/v4/competitions/{id}/players/{id}/performance`; the league-scoped
+     * spelling is used so the whole page caches under one league key.
+     */
+    playerPerformance: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/players/${playerId}/performance`,
+    /**
+     * Daily market values, plus what the owning manager paid for the player.
+     *
+     * **`days` is not a free parameter — only `365` returns anything.** Every
+     * other value probed (1, 7, 30, 90, 180, 366, 1000, and 0…6 as an enum)
+     * answers 200 with an empty `it` and zeroed metadata, which is easy to
+     * mistake for "this player has no history". The shorter windows the UI
+     * offers are therefore sliced client-side out of the one response — see
+     * {@link MarketValueWindow}.
+     */
+    playerMarketValue: (leagueId: string, playerId: string, days: number) =>
+      `/v4/leagues/${leagueId}/players/${playerId}/marketvalue/${String(days)}`,
+    /**
+     * Who has owned the player in this league, oldest first.
+     *
+     * Each entry is one ownership event, not a purchase: `t` says which
+     * (see `TRANSFER_TYPE`), and only a real buy carries a non-zero `trp`.
+     * A player handed out when a manager joined has `trp: 0`, which is why
+     * the purchase price the UI shows comes from the market-value response's
+     * `trp` instead — see {@link PlayerMarketValueResponse.trp}.
+     */
+    playerTransfers: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/players/${playerId}/transferHistory`,
+    /**
      * The manager's lineup. `GET` reads it, `POST` replaces it wholesale
      * (`PUT` answers 405). The POST body is `{ type, players }` — see
      * `SaveLineupRequest`.
