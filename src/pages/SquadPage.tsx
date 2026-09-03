@@ -9,7 +9,7 @@ import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { PageHeading } from '@/components/PageHeading'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
-import { StartProbabilityDialog } from '@/components/squad/StartProbabilityDialog'
+import { SquadLegendDialog } from '@/components/squad/SquadLegendDialog'
 import { SwapDialog } from '@/components/squad/SwapDialog'
 import { useLineupEditor } from '@/components/squad/useLineupEditor'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -92,17 +92,17 @@ export function SquadPage() {
       <PageHeading
         title="Mannschaft"
         subtitle={`${String(data.length)} Spieler · ${money(totalValue)} Gesamtwert`}
-        // In the page header rather than inside the squad tab, because the
-        // badges it explains appear on both tabs — the pitch portraits carry
-        // the same five icons as the list rows.
+        // In the page header rather than inside a tab: most of what it
+        // explains — the probability badges, the fixture icons — appears on
+        // both, and a legend that moves between tabs is one nobody finds.
         action={
           <button
             type="button"
             onClick={() => {
               setIsLegendOpen(true)
             }}
-            title="Was bedeuten die Startelf-Symbole?"
-            aria-label="Legende der Startelf-Wahrscheinlichkeit anzeigen"
+            title="Was bedeuten die Symbole?"
+            aria-label="Legende anzeigen"
             className={cn(
               'flex shrink-0 cursor-pointer items-center justify-center rounded-full border p-1.5',
               'border-line bg-surface text-muted transition-colors',
@@ -115,9 +115,10 @@ export function SquadPage() {
         }
       />
 
-      <StartProbabilityDialog
+      <SquadLegendDialog
         open={isLegendOpen}
         onOpenChange={setIsLegendOpen}
+        showShirtRail={tab === TABS.squad}
       />
 
       <Tabs
