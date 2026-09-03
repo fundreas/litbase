@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import { useLocation, useParams } from 'react-router'
 
 import { useTeamDirectory } from '@/api/hooks/useCompetition'
+import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import {
   useOwnership,
   usePlayerDetail,
@@ -8,7 +10,7 @@ import {
   usePlayerPerformance,
 } from '@/api/hooks/usePlayer'
 import { useRanking } from '@/api/hooks/useRanking'
-import type { PlayerOwnership } from '@/api/models'
+import { matchdayState, type PlayerOwnership } from '@/api/models'
 import { PlayerDetailsTab } from '@/components/player/PlayerDetailsTab'
 import { PlayerHeader } from '@/components/player/PlayerHeader'
 import { PlayerMarketTab } from '@/components/player/PlayerMarketTab'
@@ -41,8 +43,9 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  *
  *  - the **profile**, which the squad page has usually already fetched for its
  *    lineup-probability badges, so arriving here is often free;
- *  - the **performance** history, only once the Leistung tab is opened;
- *  - the **market values**, only once the Markt tab is opened;
+ *  - the **performance** history on Details and Leistung — Details needs it
+ *    for the matchday strip and for the points and minutes on the Spiele rows;
+ *  - the **market values** on Details and Markt;
  *  - the **transfer history**, which pairs with the market values to say what
  *    the owner paid.
  *
@@ -60,13 +63,14 @@ export function PlayerDetailPage() {
   const player = usePlayerDetail(leagueId, playerId)
   const teams = useTeamDirectory(competitionId)
 
-  // Both are `enabled` only for the tab that renders them: the market history
-  // is a year of daily values and the performance list is a full career, and
-  // neither is worth fetching for someone who opened the page to read a
-  // market value off the header.
+  // The career history backs both the Leistung tab and, on Details, the
+  // current-matchday strip in the header and the points and minutes on the
+  // Spiele rows — so it is fetched for either. It is the page's largest
+  // response (a twelve-season career runs to ~110 kB uncompressed), which is
+  // why the Markt tab, which needs none of it, does not pull it.
   const performance = usePlayerPerformance(
     leagueId,
-    tab === PLAYER_TABS.performance ? playerId : undefined,
+    tab === PLAYER_TABS.market ? undefined : playerId,
   )
   const marketValue = usePlayerMarketValue(
     leagueId,
@@ -86,6 +90,36 @@ export function PlayerDetailPage() {
   const ranking = useRanking(leagueId)
   const resolved = withManagerFromRanking(ownership, ranking.data?.managers)
 
+  // The running season is the first entry — the hook reverses the API's
+  // oldest-first order. Its matches are indexed by matchday so the header and
+  // the Spiele card can look up the one they need without scanning.
+  const currentSeason = performance.data?.[0]
+  const matchesByDay = useMemo(() => {
+    if (currentSeason === undefined) return undefined
+    return new Map(currentSeason.matches.map((match) => [match.day, match]))
+  }, [currentSeason])
+
+  // The header's matchday strip appears **only while the matchday is being
+  // played** — between matchdays it would be a permanent line saying nothing
+  // the Spiele card does not. "Being played" is the schedule's own reading:
+  // the first kick-off has passed and not every fixture reports finished. The
+  // matchday list is the same cache entry the squad page fills, so this costs
+  // no request of its own.
+  const schedule = useSeasonSchedule(competitionId)
+  const currentMatchday = schedule.data?.matchdays.find(
+    (entry) => entry.day === schedule.data?.currentDay,
+  )
+  const isMatchdayLive =
+    currentMatchday !== undefined && matchdayState(currentMatchday) === 'live'
+
+  const currentFixture = isMatchdayLive
+    ? player.data?.fixtures.find((fixture) => fixture.isCurrent)
+    : undefined
+  const currentMatch =
+    currentFixture === undefined
+      ? undefined
+      : matchesByDay?.get(currentFixture.day)
+
   if (player.isPending) {
     return <SkeletonList rows={6} />
   }
@@ -103,7 +137,12 @@ export function PlayerDetailPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PlayerHeader player={player.data} />
+      <PlayerHeader
+        player={player.data}
+        currentFixture={currentFixture}
+        currentMatch={currentMatch}
+        teams={teams.data}
+      />
 
       <div className="flex-1">
         {tab === PLAYER_TABS.details && (
@@ -111,6 +150,9 @@ export function PlayerDetailPage() {
             player={player.data}
             ownership={resolved}
             teams={teams.data}
+            matchesByDay={matchesByDay}
+            appearances={currentSeason?.appearances}
+            isLoadingMatches={performance.isPending}
           />
         )}
 
@@ -142,11 +184,7 @@ export function PlayerDetailPage() {
               }}
             />
           ) : (
-            <PlayerMarketTab
-              player={player.data}
-              history={marketValue.data}
-              ownership={resolved}
-            />
+            <PlayerMarketTab player={player.data} history={marketValue.data} />
           ))}
       </div>
 

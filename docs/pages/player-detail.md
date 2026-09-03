@@ -45,9 +45,15 @@ needs them.
 | Endpoint | Fetched | Carries |
 | -------- | ------- | ------- |
 | `/v4/leagues/{lid}/players/{pid}` | always | Profile, season totals, availability, lineup probability, **owner id** |
-| `/v4/leagues/{lid}/players/{pid}/performance` | Leistung tab only | Every season, every fixture |
+| `/v4/leagues/{lid}/players/{pid}/performance` | Details + Leistung | Every season, every fixture |
 | `/v4/leagues/{lid}/players/{pid}/marketvalue/365` | Details + Markt | A year of daily values, purchase price, profit/loss |
 | `/v4/leagues/{lid}/players/{pid}/transferHistory` | when owned | Who owns them, and since when |
+
+The performance history is the page's largest response — a twelve-season career
+runs to about 110 kB uncompressed — and Details needs it for three things: the
+[current-matchday strip](#current-matchday-strip), the points and minutes on
+the Spiele rows, and the appearance count. Only the Markt tab, which uses none
+of it, goes without.
 
 The profile is the **same query key the squad page already fills** for its
 lineup-probability badges (`useStartProbabilities`) and injury tooltips
@@ -63,6 +69,50 @@ come from either; the league spelling is used throughout so one cache key
 covers the lot. (The competition spelling needs no league membership, which
 makes it the one to probe with.)
 
+## Header
+
+Shared by all three tabs, so a market chart is never a chart of nobody.
+
+The **club is a line of its own** — a 22 px crest and the name in `text-ink`
+semibold, with the position as a chip beside it. It used to ride at the end of
+a 12 px meta row in the same grey as everything else, which for a page whose
+whole subject is one footballer made his club the quietest thing on it.
+
+### Current matchday strip
+
+Under the identity, and **only while the matchday is actually being played**.
+It answers three questions with one strip: has he played, is he playing, and if
+not yet — when.
+
+"Being played" is the schedule's own reading — `matchdayState` is `live`: the
+first kick-off of the matchday has passed and not every fixture reports
+finished. Between matchdays the strip would be a permanent line in the header
+saying nothing the Spiele card does not already say. His own club may kick off
+later that weekend, which is why all three states below stay reachable while
+the matchday is live. The matchday list is the same cache entry the squad page
+fills, so the check costs no request.
+
+The fixture itself is the profile's `mdsum` entry with `cur: true`.
+
+| State | Left | Right |
+| ----- | ---- | ----- |
+| Upcoming | `Sa, 5. Sep. · 18:30` | the matchday number |
+| Running | pulsing dot, *Läuft*, accent-tinted card | points so far |
+| Finished | the role — *Startelf*, *Eingewechselt*, … — plus minutes and event badges | points |
+
+**"Läuft" is inferred from the clock, not reported.** No observed field
+distinguishes a match in progress: fixtures carry `mdst`, and only `0` (not
+played) and `2` (finished) have ever been seen. Kick-off having passed on an
+unfinished fixture is what live means here — the same reading `fixtureState`
+uses across the app, which was widened to accept a `PlayerMatch` rather than
+gaining a near-identical twin. There is no live *minute* either: Kickbase
+serves minutes played only once the match is over, so a running match shows its
+points and stays quiet about the clock.
+
+The fixture comes from the profile, so the strip appears with the rest of the
+header; the points and minutes inside it fill in when the performance request
+lands.
+
 ## Details tab
 
 | Block | Source |
@@ -71,8 +121,18 @@ makes it the one to probe with.)
 | Marktwert card | `mv` with `tfhmvt` beneath it |
 | Punkte card | `tp` with `ap` beneath it |
 | Manager | `transferHistory` + `marketvalue/365` — see [Ownership](#ownership) |
-| Saisonstatistik | `sec` (÷60), `g`, `a`, `y`, `r`, `cs` |
-| Spiele | `mdsum` — the fixture just played and the next two |
+| Saisonstatistik | `sec` (÷60), `g`, `a`, `y`, `r`, `cs`, plus appearances in the header |
+| Spiele | the days `mdsum` names, rendered as full match rows |
+
+**Spiele are the same rows as the Leistung tab.**
+[`PlayerMatchRow`](../../src/components/player/PlayerMatchRow.tsx) is shared, so
+a match never looks like a different kind of thing depending on which tab you
+found it on — and the played ones carry points, minutes, role and event badges
+rather than just a scoreline. `mdsum` says *which* fixtures ("around now": the
+one just played and the next two) and the season's performance list supplies
+the detail, matched by matchday. The card is a skeleton until that lands, not a
+list that grows numbers a second later. A day the performance list has no entry
+for falls back to a fixture-only row of the same shape.
 
 The first two are **one card each, not two tiles**. A market value and its
 24-hour move are one fact read two ways, as are a points total and its average;
@@ -154,12 +214,32 @@ players. The four marked *exact* matched every player with no exceptions.
 
 `8` and `9` are **not** drawn as badges — they say where a player was, not what
 he did, and the role column already carries that. Repeats collapse: a two-assist
-match is one `👟2` badge, not two identical marks.
+match is one badge with a `2` on it, not two identical marks.
+
+### One mark per statistic
+
+[`statGlyphs.tsx`](../../src/components/player/statGlyphs.tsx) owns the marks,
+and everything that counts a thing uses the same one: the badge on a match row,
+the cell in Saisonstatistik, and the season summary under the picker. A reader
+who learns that a ball means a goal on a row should not meet a second symbol
+for the same idea three cards further down, and a season total that disagreed
+visually with the rows it sums would read as a different statistic.
+
+Cards are literal rectangles rather than icons — a yellow card *is* a yellow
+rectangle, and Gelb-Rot is drawn as the two halves it is so it cannot be
+mistaken for either card alone. Everything else is a lucide glyph, which stays
+crisp at 11 px and takes its colour from a theme token. In the stat grid the
+mark sits on the *label* line, not beside the figure: next to the values it
+made the numbers themselves hard to compare across a row.
 
 ## Markt tab
 
-Current value and 24-hour change, a window toggle, the chart, the
-twelve-month extremes, the ownership panel, and a dated list.
+Current value and 24-hour change, a window toggle, the chart, the twelve-month
+extremes, and a dated list.
+
+**No manager panel.** It had one, repeating the Details tab's Manager card a
+scroll further down; ownership lives in one place now. See
+[Known gaps](#known-gaps) for the two figures that went with it.
 
 ### One request, four windows
 
@@ -198,7 +278,17 @@ minimum over them, so `lmv` is `0` for anyone who joined the league inside the
 last year — confirmed on two real players. The mapper strips the `mv: 0`
 placeholders first and derives both ends from what is left.
 
-### Ownership
+## Ownership
+
+Shown on the Details tab as the **Manager card**: the manager on the left, the
+purchase price as the figure on the right, the running profit or loss under it,
+and nothing else. It is one line by request — a breakdown of the purchase under
+it made a summary into a panel.
+
+The model still computes more than the card shows —
+`marketValueAtPurchase` and `purchasePremium` — because the arithmetic is the
+interesting part and the wiring is done; nothing renders them at the moment.
+See [Known gaps](#known-gaps).
 
 Assembled from **three** sources, because no single one has it:
 
@@ -229,7 +319,7 @@ unknowable, and the card says so rather than showing a blank cell.
 `transferHistory` names the owner, but not every entry carries `unm`/`uim`. The
 standings (`useRanking`) always do, so they fill the gaps.
 
-### Transfer types (`t`)
+## Transfer types (`t`)
 
 | `t` | Meaning |
 | --- | ------- |
@@ -263,6 +353,14 @@ itself carries and treats the name as the optional half.
 
 ## Known gaps
 
+- **The market value at purchase, and the over/underpay it implies, are
+  computed but not rendered anywhere.** They were the Markt tab's manager
+  panel, which was removed as a duplicate of the Details card; the Details card
+  is deliberately one line. `PlayerOwnership.marketValueAtPurchase` and
+  `purchasePremium()` are still there and still correct, so putting them back
+  — a third line on the Manager card, or a marker on the chart at the purchase
+  date, which is where they would arguably read best — is a rendering change
+  only.
 - **Nothing links here from the market, duel or ranking pages yet.** The route
   takes any player id in the competition, so wiring another entry point is one
   `<Link>`.

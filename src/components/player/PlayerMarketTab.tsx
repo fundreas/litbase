@@ -3,25 +3,25 @@ import { useState } from 'react'
 
 import {
   MARKET_VALUE_WINDOWS,
-  purchasePremium,
   windowSlice,
   type MarketValueDay,
   type MarketValueHistory,
   type MarketValueWindow,
   type PlayerDetail,
-  type PlayerOwnership,
 } from '@/api/models'
 import { MarketValueChart } from '@/components/player/MarketValueChart'
 import { MarketValueCard } from '@/components/player/PlayerStatCards'
-import { Avatar } from '@/components/ui/Avatar'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { money, moneyDelta, weekdayDate } from '@/lib/format'
 
 /**
- * The market value: where it is, where it has been, and what it has cost the
- * manager who owns the player.
+ * The market value: where it is and where it has been.
+ *
+ * **No manager panel here.** Who owns the player, what they paid and how that
+ * is going is the Details tab's Manager card; a second copy on this tab was
+ * the same three facts a scroll apart.
  *
  * One request backs the whole tab. `/marketvalue/{days}` only answers for
  * `365` — every shorter window returns an empty list rather than an error — so
@@ -36,12 +36,9 @@ import { money, moneyDelta, weekdayDate } from '@/lib/format'
 export function PlayerMarketTab({
   player,
   history,
-  ownership,
 }: {
   player: PlayerDetail
   history: MarketValueHistory
-  /** Absent while loading, and for a player nobody owns. */
-  ownership: PlayerOwnership | undefined
 }) {
   const [window, setWindow] = useState<MarketValueWindow>(
     // 3 months: long enough to show a trend, short enough that a single day's
@@ -74,10 +71,6 @@ export function PlayerMarketTab({
       <MarketValueChart days={chart} />
 
       <ExtremesCard history={history} />
-
-      {ownership !== undefined && (
-        <OwnershipCard ownership={ownership} marketValue={player.marketValue} />
-      )}
 
       <Card>
         <CardHeader
@@ -195,101 +188,6 @@ function Extreme({
         {weekdayDate(day.date)}
       </div>
     </div>
-  )
-}
-
-/** What the owner paid, what it was worth then, and where they stand now. */
-function OwnershipCard({
-  ownership,
-  marketValue,
-}: {
-  ownership: PlayerOwnership
-  marketValue: number
-}) {
-  const premium = purchasePremium(ownership)
-
-  return (
-    <Card>
-      <CardHeader
-        title={
-          <span className="flex items-center gap-2">
-            <Avatar
-              src={ownership.managerImage}
-              name={ownership.managerName}
-              size={20}
-            />
-            {ownership.managerName ?? 'Manager'}
-            {ownership.isViewer && (
-              <span className="text-xs font-medium text-accent">du</span>
-            )}
-          </span>
-        }
-        action={
-          <span
-            className={cn(
-              'nums text-sm font-bold',
-              ownership.profitLoss > 0 && 'text-positive',
-              ownership.profitLoss < 0 && 'text-negative',
-              ownership.profitLoss === 0 && 'text-faint',
-            )}
-          >
-            {moneyDelta(ownership.profitLoss)}
-          </span>
-        }
-      />
-
-      {ownership.wasGranted ? (
-        <p className="px-4 py-3 text-xs text-muted">
-          Beim Ligastart zugeteilt, nicht gekauft — Kickbase führt den
-          Einstandswert mit dem damaligen Marktwert, deshalb steht der
-          Gewinn/Verlust auf {moneyDelta(ownership.profitLoss)}. Aktueller
-          Marktwert: <strong className="text-ink">{money(marketValue)}</strong>.
-        </p>
-      ) : (
-        <dl className="grid grid-cols-3 divide-x divide-line">
-          <div className="px-3 py-2.5">
-            <dt className="truncate text-[0.6875rem] tracking-wide text-faint uppercase">
-              Gezahlt
-            </dt>
-            <dd className="nums mt-0.5 truncate text-sm font-semibold text-ink">
-              {money(ownership.purchasePrice)}
-            </dd>
-          </div>
-          <div className="px-3 py-2.5">
-            <dt className="truncate text-[0.6875rem] tracking-wide text-faint uppercase">
-              Wert damals
-            </dt>
-            <dd className="nums mt-0.5 truncate text-sm font-semibold text-ink">
-              {ownership.marketValueAtPurchase === undefined
-                ? '–'
-                : money(ownership.marketValueAtPurchase)}
-            </dd>
-          </div>
-          <div className="px-3 py-2.5">
-            <dt className="truncate text-[0.6875rem] tracking-wide text-faint uppercase">
-              Aufschlag
-            </dt>
-            <dd
-              className={cn(
-                'nums mt-0.5 truncate text-sm font-semibold',
-                premium === undefined && 'text-faint',
-                premium !== undefined && premium > 0 && 'text-negative',
-                premium !== undefined && premium < 0 && 'text-positive',
-                premium === 0 && 'text-ink',
-              )}
-            >
-              {premium === undefined ? '–' : moneyDelta(premium)}
-            </dd>
-          </div>
-        </dl>
-      )}
-
-      {ownership.since !== undefined && (
-        <p className="border-t border-line px-4 py-2 text-[0.6875rem] text-faint">
-          Im Kader seit {weekdayDate(ownership.since)}
-        </p>
-      )}
-    </Card>
   )
 }
 

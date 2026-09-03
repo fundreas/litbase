@@ -161,7 +161,10 @@ export type FixtureState = 'upcoming' | 'running' | 'finished'
  * from one that has not kicked off — only `0` and `2` have ever been seen.
  */
 export function fixtureState(
-  fixture: MatchdayFixture,
+  // Structural rather than `MatchdayFixture`, so a `PlayerMatch` — which
+  // carries the same two fields and asks the same question — can use it
+  // without a near-identical copy of the four lines below.
+  fixture: { isFinished: boolean; kickoff: string },
   now: number = Date.now(),
 ): FixtureState {
   if (fixture.isFinished) return 'finished'

@@ -95,6 +95,32 @@ export function weekdayDate(iso: string | null | undefined): string {
   return Number.isNaN(parsed) ? '–' : weekdayDateFormatter.format(parsed)
 }
 
+const timeFormatter = new Intl.DateTimeFormat(LOCALE, {
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+/**
+ * `18:30` — kick-off time, in the reader's own timezone.
+ *
+ * The API dates everything in UTC (`2026-09-05T16:30:00Z`), which is an hour
+ * or two off what the fixture list says in Germany. `Intl` converts to the
+ * browser's zone, which is the only one the reader cares about.
+ */
+export function time(iso: string | null | undefined): string {
+  if (!iso) return '–'
+  const parsed = Date.parse(iso)
+  return Number.isNaN(parsed) ? '–' : timeFormatter.format(parsed)
+}
+
+/** `Sa, 5. Sep. · 18:30` — a kick-off, spelled out in full. */
+export function kickoff(iso: string | null | undefined): string {
+  if (!iso) return '–'
+  const parsed = Date.parse(iso)
+  if (Number.isNaN(parsed)) return '–'
+  return `${weekdayDateFormatter.format(parsed)} · ${timeFormatter.format(parsed)}`
+}
+
 /**
  * `Fr, 4. Sep. – So, 6. Sep.` — a matchday's span.
  *
