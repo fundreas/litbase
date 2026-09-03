@@ -239,36 +239,47 @@ with a hard in/out.
 ## Availability (`st`)
 
 `st` is **a code, not a boolean**. `0` is fit; every other value is some flavour
-of unavailable, and `stl` carries further codes alongside it on the same
-payload. So yes — Kickbase does distinguish an injury from a knock from a
-suspension from "not in the squad". What it has never told us is *which number
-means which*.
+of unavailable, and `stl` carries the same information as a list. This section
+used to say the individual numbers had never been pinned down. They have been —
+by pulling `/v4/competitions/1/teams/{tid}/teamprofile` for **all 18 Bundesliga
+clubs (467 players)** and reading each distinct code's German `stxt` back off
+the player detail:
 
-What has actually been observed, and where:
+| `st` | Count | `stxt` observed on it | Meaning |
+| ---- | ----- | --------------------- | ------- |
+| `0` | 398 | *(none)* | Fit |
+| `1` | 22 | "Schulterverletzung – fällt 2-3 Wochen aus" | Injured |
+| `2` | 30 | "Nach muskulären Problemen – verpasst M05 (H)" | Angeschlagen |
+| `4` | 15 | "Nach Fußverletzung – absolviert erste Laufeinheit" | Aufbautraining |
+| `8` | 2 | *(none)* | **Suspended** |
 
-| Value | Where | What it appeared to mean |
-| ----- | ----- | ------------------------ |
-| `0` | everywhere | Fit |
-| `2` | manager squad | Out, with `stxt` naming the injury |
-| `128` | `lineup/overview`, alongside `lst: 0` | Cannot be fielded at all |
-| `5` | `/v4/competitions/{id}/players` | Completed a match — probably a *different* axis, not availability |
+`8` carries no text, so it was pinned indirectly: both players holding it had a
+red card (`MATCH_EVENT.RED_CARD`) in their club's most recent fixture. That is
+also the one case the previous, deliberately-vague badge was designed to avoid
+getting wrong.
 
-`128` is the interesting one: a plain enum would not reach it by the fourth or
-fifth distinct state, so `st` is more likely a set of **power-of-two flags**,
-which would also explain why `stl` exists as a list. That is a reading of four
-data points, not a confirmed scheme.
+The **power-of-two reading was right**. The observed run is 1, 2, 4, 8, and the
+`128` seen earlier on `lineup/overview` fits the same ladder, which is why
+`stl` exists as a list at all. `16`, `32` and `64` have not been seen and are
+left unmapped.
 
-**What the UI does with that.** [`PlayerStatusBadge`](../../src/components/squad/PlayerStatusBadge.tsx)
-draws one mark — a white cross in a red disc — for every non-zero value, and
-puts the specifics in the tooltip using Kickbase's own `stxt`. The alternative,
-mapping guessed codes to a plaster and a red card, risks telling the manager
-his suspended striker is injured. One honest mark plus real text beats five
-confident wrong ones.
+The `5` once noted on `/v4/competitions/{id}/players` is **a different axis**,
+now identified: that endpoint returns a matchday's performers and its `st` is
+the *per-match* status (`PLAYER_MATCH_STATUS.STARTED`), not availability. See
+[Player detail](player-detail.md#per-match-status-st).
 
-**To settle it**, log `st` and `stl` across a full squad and a full competition
-player list over a matchday or two — enough to catch a suspension and a knock
-in the same sample — and fill in the table above. The badge takes a code→icon
-registry the moment there is one to write.
+**What the UI does with that.**
+[`PlayerStatusBadge`](../../src/components/squad/PlayerStatusBadge.tsx) draws a
+**red card** for `8` and the white-cross-in-a-red-disc for everything else. The
+scale is deliberately not opened up further: injury, knock and rehab differ in
+severity but not in what the manager has to do about them, and three shades of
+red disc is a legend nobody reads. The tooltip still carries `stxt` verbatim,
+and now falls back to the code's own label rather than a generic one.
+
+`stxt` arrives in **German** because the client sends
+`Accept-Language: de-DE` — without it Kickbase serves "Training deficit -
+misses DFB-Pokal match" into an otherwise German UI. See
+[API layer](../api-layer.md).
 
 ## Lineup tab
 

@@ -33,6 +33,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Stub |
 | `/leagues/:leagueId/table` | [Bundesliga table](pages/table.md) | Stub |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
+| `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |
 | `*` | [Not found](pages/not-found.md) | Implemented |
 
 A **stub** page already calls its real query hook and reports how many rows

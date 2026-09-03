@@ -25,6 +25,13 @@ component
 20 s timeout, JSON headers, base URL from `env`. It contains **no React**,
 which is what lets the auth layer depend on it without a circular import.
 
+It also sends **`Accept-Language: de-DE`**. Kickbase localises the prose it
+serves from that header, and the one field it matters for is `stxt`, the reason
+a player is unavailable: without it you get "Training deficit - misses
+DFB-Pokal match" in the middle of an otherwise German UI, with it
+"Trainingsrückstand - verpasst DFB-Pokal-Spiel". Everything else in the
+payloads is codes and numbers, so that is the only thing the header changes.
+
 The auth layer injects two functions at startup:
 
 ```ts

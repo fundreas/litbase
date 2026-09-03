@@ -43,6 +43,57 @@ export function useCompetitionPlayers(
   })
 }
 
+/** A club, as anything that only needs to name one sees it. */
+export interface TeamSummary {
+  id: string
+  name: string
+  image?: string
+}
+
+/*
+ * Module-level so React Query can memoise `select` on its identity — an arrow
+ * created during render would hand back a new Map every time. Same reason as
+ * the selectors in `useMatchday`.
+ */
+function selectTeamDirectory(
+  data: CompetitionTableResponse,
+): Map<string, TeamSummary> {
+  const byId = new Map<string, TeamSummary>()
+  for (const row of data.it ?? []) {
+    byId.set(row.tid, { id: row.tid, name: row.tn, image: row.tim })
+  }
+  return byId
+}
+
+/**
+ * Team id → name and crest, built from the league table.
+ *
+ * The one lookup of its kind: there is no `/v4/competitions/{id}/teams`
+ * endpoint (404), and the fixture payloads carry crests and three-letter
+ * symbols but never a full name.
+ *
+ * **It only knows this season's clubs.** A relegated side in a player's older
+ * seasons resolves to nothing, which is why every consumer pairs it with the
+ * crest the payload itself carries and treats the name as the optional half.
+ *
+ * Reads the same cache entry as {@link useCompetitionTable}, so a page showing
+ * both pays for one request.
+ */
+export function useTeamDirectory(
+  competitionId: string | undefined,
+): UseQueryResult<Map<string, TeamSummary>> {
+  return useQuery({
+    queryKey: qk.competitionTable(competitionId ?? 'none'),
+    enabled: competitionId !== undefined,
+    staleTime: HOUR,
+    select: selectTeamDirectory,
+    queryFn: () =>
+      get<CompetitionTableResponse>(
+        endpoints.competitions.table(competitionId as string),
+      ),
+  })
+}
+
 /** The real-world league table. */
 export function useCompetitionTable(
   competitionId: string | undefined,

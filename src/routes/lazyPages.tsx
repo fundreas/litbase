@@ -47,3 +47,7 @@ export const TablePage = lazy(async () => ({
 export const PlayersPage = lazy(async () => ({
   default: (await import('@/pages/PlayersPage')).PlayersPage,
 }))
+
+export const PlayerDetailPage = lazy(async () => ({
+  default: (await import('@/pages/PlayerDetailPage')).PlayerDetailPage,
+}))

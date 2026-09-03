@@ -101,6 +101,9 @@ src/
 /leagues/:leagueId/duels/:duelId/ranking
 /leagues/:leagueId/table
 /leagues/:leagueId/players
+/leagues/:leagueId/players/:playerId              one player — Details
+/leagues/:leagueId/players/:playerId/performance  every season, every match
+/leagues/:leagueId/players/:playerId/market       a year of market values
 ```
 
 The league id lives **in the path**, so a refresh, a bookmark or a link shared
@@ -184,8 +187,12 @@ Components should never see abbreviated keys like `mvt` or `spl`.
 
 ## Mobile notes
 
-- Hamburger drawer as the single navigation surface on a phone — no bottom tab
-  bar, so full-height pages like the lineup get that row back. From `lg`
+- Hamburger drawer as the single navigation surface on a phone — no *global*
+  bottom tab bar, so full-height pages like the lineup get that row back. The
+  one exception is the [player detail
+  page](docs/pages/player-detail.md#why-this-page-has-a-bottom-bar), where a
+  docked bar switches between three views of the same player rather than
+  between pages, and only exists while that page is open. From `lg`
   (64rem) up the same nav is a permanent sidebar and the hamburger disappears;
   the header spans the full width above both. The switch is CSS, so there is no
   flash and no resize handler in the layout path.

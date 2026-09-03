@@ -1,5 +1,7 @@
 import { Plus } from 'lucide-react'
 
+import { availabilityLabel } from '@/api/models'
+import { PLAYER_AVAILABILITY } from '@/api/types'
 import { cn } from '@/lib/cn'
 
 /**
@@ -12,16 +14,20 @@ import { cn } from '@/lib/cn'
  * needs no legend and stays crisp where a plaster or a syringe glyph turns to
  * mush: this renders at 13–14px on a list row and 12px on a pitch portrait.
  *
- * **One mark for every non-zero status.** Kickbase's `st` is a code, not a
- * flag — injury, knock, rehab, suspension and "not in the squad" are different
- * values, and `stl` carries further ones alongside — but the meaning of the
- * individual numbers is not confirmed against live data, and guessing would
- * put a medical mark on a suspended player. So the *icon* says the one thing
- * we know for certain (he cannot be counted on this week) and the *tooltip*
- * carries the specifics, in Kickbase's own words, from `stxt`. When the reason
- * has not arrived — a healthy fetch that simply carried no text, or a status
- * Kickbase leaves unexplained — the mark falls back to the generic label
- * rather than inventing one.
+ * **Two marks, because the codes are now known.** This used to be one cross
+ * for every non-zero `st`, on the grounds that guessing at the numbers would
+ * sooner or later put a medical mark on a suspended player. The numbers have
+ * since been read off live data — see {@link PLAYER_AVAILABILITY}, decoded
+ * across all 18 squads against the German `stxt` each carries — and that one
+ * case turned out to be real: `st: 8` is a suspension, and both players
+ * carrying it had been sent off in their club's previous fixture.
+ *
+ * So a suspension gets a red card and everything else keeps the cross. The
+ * scale is deliberately *not* opened up any further than that: injury, knock
+ * and rehab differ in severity but not in what the reader has to do about
+ * them, and three shades of red disc is a legend nobody reads. The tooltip
+ * still carries the specifics in Kickbase's own words from `stxt`, and falls
+ * back to the code's label — not a generic one — when no text arrives.
  */
 export function PlayerStatusBadge({
   /** The wire's `st`. `0` renders nothing, so callers need no guard. */
@@ -42,9 +48,29 @@ export function PlayerStatusBadge({
   decorative?: boolean
   className?: string
 }) {
-  if (status === 0) return null
+  if (status === PLAYER_AVAILABILITY.FIT) return null
 
-  const spoken = reason ?? 'Nicht einsatzbereit'
+  const isSuspended = status === PLAYER_AVAILABILITY.SUSPENDED
+  // `stxt` when Kickbase supplies one, the code's own label otherwise — a
+  // suspension carries no text at all, and "Nicht einsatzbereit" would be the
+  // one thing the red card has already said.
+  const spoken = reason ?? availabilityLabel(status)
+
+  if (isSuspended) {
+    return (
+      <span
+        {...(decorative
+          ? { 'aria-hidden': true }
+          : { role: 'img', 'aria-label': spoken, title: spoken })}
+        style={{ width: Math.round(size * 0.72), height: size }}
+        className={cn(
+          'inline-block shrink-0 rounded-[2px] bg-negative',
+          onImage && 'ring-2 ring-white/85',
+          className,
+        )}
+      />
+    )
+  }
 
   return (
     <span

@@ -179,6 +179,7 @@ function SquadTabs({
         <PlayerListTab
           squad={squad}
           editor={editor}
+          leagueId={leagueId}
           fixtureByTeamId={fixtureByTeamId}
           startProbabilities={startProbabilities}
           statusReasons={statusReasons}

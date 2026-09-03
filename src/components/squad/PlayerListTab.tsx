@@ -1,5 +1,6 @@
 import { Shirt } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 
 import {
   POSITION_LABEL,
@@ -39,12 +40,15 @@ const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 export function PlayerListTab({
   squad,
   editor,
+  leagueId,
   fixtureByTeamId,
   startProbabilities,
   statusReasons,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
+  /** For linking each row to the player's detail page. */
+  leagueId: string
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   startProbabilities: Map<string, StartProbability>
   /** `stxt` per unavailable player; empty until the lookups land. */
@@ -86,6 +90,7 @@ export function PlayerListTab({
                 fixture={fixtureByTeamId?.get(player.teamId)}
                 startProbability={startProbabilities.get(player.id)}
                 statusReason={statusReasons.get(player.id)}
+                to={`/leagues/${leagueId}/players/${player.id}`}
                 onToggle={handleToggle}
               />
             ))}
@@ -130,6 +135,7 @@ function PlayerRow({
   fixture,
   startProbability,
   statusReason,
+  to,
   onToggle,
 }: {
   player: SquadMember
@@ -139,6 +145,8 @@ function PlayerRow({
   startProbability: StartProbability | undefined
   /** Absent for a fit player, and for a status Kickbase does not explain. */
   statusReason: string | undefined
+  /** The player's detail page. */
+  to: string
   onToggle: (player: SquadMember) => void
 }) {
   return (
@@ -197,7 +205,15 @@ function PlayerRow({
         )}
       />
 
-      <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
+      {/* Everything but the rail and the fixture panel opens the player.
+          The rail stays a button: it is the lineup control, and wrapping the
+          row in a link would make a mis-tap on it navigate instead of field
+          the player. Splitting the row this way keeps both targets large and
+          keeps the link's hit area the part that reads as "this player". */}
+      <Link
+        to={to}
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-2/60"
+      >
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="truncate text-sm font-semibold text-ink">
@@ -249,7 +265,7 @@ function PlayerRow({
             {moneyDelta(player.profitLoss)}
           </span>
         </span>
-      </span>
+      </Link>
 
       {/* Full-height fixture panel, matching the swap dialog's treatment. */}
       <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">

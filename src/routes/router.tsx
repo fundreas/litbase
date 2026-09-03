@@ -14,6 +14,7 @@ import {
   JoinLeaguePage,
   LeagueGate,
   MarketPage,
+  PlayerDetailPage,
   PlayersPage,
   RankingPage,
   SquadPage,
@@ -30,6 +31,7 @@ import {
  *                                when the account has none
  *   /join                        browse and join leagues
  *   /leagues/:leagueId/<page>    every league-scoped page
+ *   /leagues/:leagueId/players/:playerId   one player, three tabs
  *
  * The league id lives in the path, not in context alone, so a refresh, a
  * bookmark or a link shared between managers all resolve to the same view.
@@ -91,6 +93,18 @@ export const router = createBrowserRouter([
               { path: 'duels/:duelId/ranking', element: <DuelDetailPage /> },
               { path: 'table', element: <TablePage /> },
               { path: 'players', element: <PlayersPage /> },
+              // Three routes, one component, as on the squad and duel-detail
+              // pages: the bottom bar's tab is read out of the segment, so
+              // each view is linkable and survives a refresh.
+              { path: 'players/:playerId', element: <PlayerDetailPage /> },
+              {
+                path: 'players/:playerId/performance',
+                element: <PlayerDetailPage />,
+              },
+              {
+                path: 'players/:playerId/market',
+                element: <PlayerDetailPage />,
+              },
             ],
           },
         ],

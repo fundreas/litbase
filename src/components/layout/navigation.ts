@@ -71,7 +71,17 @@ export function isNavItemActive(
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
-  { to: 'squad', label: 'Mannschaft', icon: Users, alsoMatches: ['lineup'] },
+  {
+    to: 'squad',
+    label: 'Mannschaft',
+    icon: Users,
+    // `players` covers the player detail page, which is reached by tapping a
+    // squad row and has no drawer entry of its own. It also covers the
+    // unlisted `/players` stub — harmless while that stub is not offered
+    // anywhere, and the line to revisit if "Alle Spieler" ever becomes its
+    // own entry.
+    alsoMatches: ['lineup', 'players'],
+  },
   { to: 'ranking', label: 'Rangliste', icon: Trophy },
   { to: 'duels', label: 'Duelle', icon: Swords, requiresDuelMode: true },
 ]
