@@ -276,19 +276,36 @@ true:
    range. `MatchdaySquad.isEmpty` carries that, and the page renders an
    `EmptyState` saying so rather than two blank teams.
 
-### Positions come from today's squad
+### Positions, and the sold players that went missing
 
 The snapshot does not reliably carry `pos` — it is present on
 `teamcenter/myeleven`'s entries and absent from the day-scoped variant's — so
-`useManagerSquad` is read for that one field and passed to `useMatchdaySquad`
-as a back-fill. It is needed anyway as the live-matchday roster source, so this
-costs no extra request.
+it is back-filled from two sources, in order:
 
-A player **transferred away since** that matchday is in the snapshot but in no
-current squad, so his position can be unknown. `DuelPlayer.position` is
-therefore optional: a row renders `–` for the label, and the squad page's live
-pitch says how many players it could not place rather than inventing a
-position. `toPosition()`'s midfield default would have put a stranger in the
+1. **Today's squad** (`useManagerSquad`), which is read anyway as the
+   live-matchday roster source, so this costs no request.
+2. **The player's own detail**, which
+   [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) already
+   fetches for the points and which carries `pos`. It hands back a
+   `positionByPlayerId` map as a by-product.
+
+The second source exists because of a bug worth remembering. A player
+**transferred away since** the matchday is in the snapshot but in nobody's
+current squad, so his position was `undefined` — and the pitch places players
+by filtering each band on `position`, so he matched no band and was **silently
+dropped**. The ranking view listed him correctly all along, which is what made
+it look like a data problem rather than a rendering one: same rosters, same
+points, one view showing him and the other not.
+
+So the fan-out now takes a `needsPosition` flag per player and fetches him even
+when his match cannot have produced points yet — the answer does not depend on
+any match having started. On a settled matchday every player is fetched for the
+points anyway, so this adds requests only for a sold player on a matchday still
+to be played.
+
+`DuelPlayer.position` stays optional even so: if neither source answers, a row
+renders `–` for the label and the pitch leaves the player out rather than
+guessing. `toPosition()`'s midfield default would have put a stranger in the
 middle of the park and looked deliberate.
 
 ## Points cost: one request per player

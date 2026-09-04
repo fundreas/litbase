@@ -88,6 +88,27 @@ on open, via a ref callback: the drawer mounts when it opens, 34 matchdays do
 not fit on a screen, and opening the list at matchday 1 in April would be
 useless.
 
+### A step either side
+
+`‹` and `›` flank the label, from
+[`StepButton`](../../src/components/ui/StepButton.tsx). Stepping to the
+neighbouring matchday is what this control is used for nearly every time, and
+routing that through a drawer of 34 rows was three taps and a scroll to see
+last week.
+
+They are **disabled, not hidden**, at matchday 1 and 34: an arrow that vanishes
+takes the layout with it and shifts the label sideways as you walk the season.
+Each one names its **destination** rather than its direction — "3. Spieltag",
+not "zurück" — since that is both the tooltip and the accessible name.
+
+The neighbours are read out of the schedule by index rather than computed as
+`selectedDay ± 1`, so a gap in the fixture list can never step onto a matchday
+that does not exist.
+
+The same control flanks the season picker on the
+[player's performance tab](player-detail.md#the-season-picker), which had the
+identical problem.
+
 ### Which matchday is "current"
 
 **The default comes from the competition, not from the ranking.** The two
@@ -213,5 +234,3 @@ first.
 
 - Show the running duel-point total (`hhsp`) per side — already mapped as
   `duelPoints` and currently unrendered.
-- Previous/next matchday arrows flanking the picker, for stepping through a
-  season without opening the drawer.

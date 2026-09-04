@@ -155,8 +155,11 @@ answers differently per `dayNumber`.
 
 `useMatchdayPoints` is the one **fan-out** in the app: there is no bulk source
 of per-player matchday points, so it issues one request per player — but only
-for players whose match has actually kicked off, and it polls only the ones
-still on the pitch. It backs both the [duel detail](pages/duel-detail.md) page
+for players whose match has actually kicked off (plus any the caller flags with
+`needsPosition`, since the same response carries `pos` and is the only source
+of a position for a player nobody owns any more), and it polls only the ones
+still on the pitch. It returns a `positionByPlayerId` map alongside the points
+for that reason. It backs both the [duel detail](pages/duel-detail.md) page
 and the squad page's [live view](pages/squad.md#live-tab), and shares the
 `qk.playerDetail` cache entry with `useStartProbabilities`, so a page showing
 both pays for each player once.

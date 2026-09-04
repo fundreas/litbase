@@ -160,6 +160,10 @@ export function LiveTab({
   const subjects = [...roster.fielded, ...roster.bench].map((player) => ({
     id: player.id,
     teamId: player.teamId,
+    // A player sold since the matchday is in no current squad, so his own
+    // detail is the only source of a position — and without one the pitch
+    // cannot place him and would drop him silently.
+    needsPosition: player.position === undefined,
   }))
   const matchdayPoints = useMatchdayPoints(
     leagueId,
@@ -181,7 +185,10 @@ export function LiveTab({
       id: player.id,
       name: player.name,
       teamId: player.teamId,
-      position: player.position,
+      // Today's squad first, then the player's own detail — which is the only
+      // source for someone the manager no longer owns.
+      position:
+        player.position ?? matchdayPoints.positionByPlayerId.get(player.id),
       lineupOrder: wasFielded ? 0 : undefined,
       status: duelPlayerStatus({
         lineupOrder: wasFielded ? 0 : undefined,

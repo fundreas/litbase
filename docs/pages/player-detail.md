@@ -224,6 +224,21 @@ Points read `–`, never `0`, for a match the player took no part in. `0` would
 claim they were on the pitch and scored nothing, which is a different — and
 much worse — thing to be told about your striker.
 
+### The season picker
+
+The header is the control, as on the [duels page](duels.md#the-matchday-picker):
+tap the season you are looking at and the full list opens in a drawer. Flanking
+it are `‹` and `›` from
+[`StepButton`](../../src/components/ui/StepButton.tsx), because stepping one
+season is what the control is mostly used for, and a drawer is a lot of
+ceremony for that.
+
+**The arrows are chronological, the array is not.** `seasons` comes back newest
+first, so the *older* season is the next index **up** — the two steps are
+crossed over relative to the array so that left always means back in time, the
+way it does on the matchday picker. They disable at the ends of a player's
+career rather than disappearing, so the label beside them does not shift.
+
 ### The points scale
 
 Kickbase points have no natural ceiling and no scale a newcomer knows: 87 is a

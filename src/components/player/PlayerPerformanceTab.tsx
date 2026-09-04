@@ -5,6 +5,7 @@ import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { pointsScaleFor, type PlayerSeason } from '@/api/models'
 import { PlayerMatchRow } from '@/components/player/PlayerMatchRow'
 import { Drawer } from '@/components/ui/Drawer'
+import { StepButton } from '@/components/ui/StepButton'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { points as formatPoints } from '@/lib/format'
@@ -14,8 +15,10 @@ import { points as formatPoints } from '@/lib/format'
  *
  * The season picker is the header itself, following
  * [`MatchdayPicker`](../duels/MatchdayPicker.tsx) — the thing you are looking
- * at is the thing you tap. Seasons come back oldest first and are reversed by
- * the hook, so this opens on the running season.
+ * at is the thing you tap — with a [step](../ui/StepButton.tsx) either side of
+ * it for the neighbouring season, which is what the control is mostly used
+ * for. Seasons come back oldest first and are reversed by the hook, so this
+ * opens on the running season.
  *
  * The rows are [`PlayerMatchRow`](./PlayerMatchRow.tsx), the same component the
  * Details tab uses for the handful of matches around the current matchday.
@@ -75,33 +78,64 @@ function SeasonPicker({
   selected,
   onSelect,
 }: {
+  /** Newest first. */
   seasons: PlayerSeason[]
   selected: PlayerSeason
   onSelect: (id: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
 
+  /*
+   * `seasons` is newest first, so the *older* season is the next index up.
+   * The arrows are chronological regardless — left steps back in time, as on
+   * the matchday picker — which is why these two are crossed over relative to
+   * the array.
+   */
+  const index = seasons.findIndex((season) => season.id === selected.id)
+  const older = index >= 0 ? seasons[index + 1] : undefined
+  const newer = index > 0 ? seasons[index - 1] : undefined
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setIsOpen(true)
-        }}
-        aria-haspopup="dialog"
-        className={cn(
-          'flex w-full items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left',
-          'transition-colors hover:border-accent/40 hover:bg-surface-2',
-        )}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="nums block truncate text-base font-bold text-ink">
-            {selected.label}
+      <div className="flex items-stretch gap-2">
+        <StepButton
+          direction="previous"
+          label={older === undefined ? 'Keine frühere Saison' : older.label}
+          disabled={older === undefined}
+          onClick={() => {
+            if (older !== undefined) onSelect(older.id)
+          }}
+        />
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(true)
+          }}
+          aria-haspopup="dialog"
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left',
+            'transition-colors hover:border-accent/40 hover:bg-surface-2',
+          )}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="nums block truncate text-base font-bold text-ink">
+              {selected.label}
+            </span>
+            <SeasonSummary season={selected} />
           </span>
-          <SeasonSummary season={selected} />
-        </span>
-        <ChevronDown size={20} className="shrink-0 text-faint" />
-      </button>
+          <ChevronDown size={20} className="shrink-0 text-faint" />
+        </button>
+
+        <StepButton
+          direction="next"
+          label={newer === undefined ? 'Keine spätere Saison' : newer.label}
+          disabled={newer === undefined}
+          onClick={() => {
+            if (newer !== undefined) onSelect(newer.id)
+          }}
+        />
+      </div>
 
       <Drawer
         open={isOpen}

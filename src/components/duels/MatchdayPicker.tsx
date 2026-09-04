@@ -8,6 +8,7 @@ import {
   type SeasonSchedule,
 } from '@/api/models'
 import { Drawer } from '@/components/ui/Drawer'
+import { StepButton } from '@/components/ui/StepButton'
 import { cn } from '@/lib/cn'
 import { dateRange } from '@/lib/format'
 
@@ -24,15 +25,22 @@ const STATE_CLASS: Record<MatchdayState, string> = {
 }
 
 /**
- * The selected matchday, and the way to another one.
+ * The selected matchday, and three ways to another one.
  *
  * The heading of the [Duels](../../../docs/pages/duels.md) page is itself the
- * control: the whole block is a button, so the thing you are looking at is the
- * thing you tap. The alternative — a separate "Spieltag wählen" button beside
- * a static label — spends a second row of a phone screen saying the same
- * thing twice.
+ * control: the middle block is a button, so the thing you are looking at is
+ * the thing you tap for the full list. The alternative — a separate "Spieltag
+ * wählen" button beside a static label — spends a second row of a phone screen
+ * saying the same thing twice.
  *
- * The list opens in a drawer on the **right**. Left belongs to the app's
+ * **A step either side of it.** Stepping to the neighbouring matchday is what
+ * this control is used for nearly every time; making that go through a drawer
+ * of 34 rows was three taps for something that should be one. The arrows flank
+ * the label rather than sitting under it, so the block stays one row tall, and
+ * they disable at the ends of the season instead of vanishing — a control that
+ * disappears takes the layout with it.
+ *
+ * The list still opens in a drawer on the **right**. Left belongs to the app's
  * navigation, and two drawers arriving from the same edge read as the same
  * surface.
  */
@@ -48,34 +56,76 @@ export function MatchdayPicker({
   const [isOpen, setIsOpen] = useState(false)
   const selected = schedule.matchdays.find((entry) => entry.day === selectedDay)
 
+  /*
+   * The neighbours are taken from the schedule rather than `selectedDay ± 1`,
+   * so a gap in the fixture list can never step onto a matchday that does not
+   * exist. The list is sorted ascending by `useSeasonSchedule`.
+   */
+  const index = schedule.matchdays.findIndex(
+    (entry) => entry.day === selectedDay,
+  )
+  const previous = index > 0 ? schedule.matchdays[index - 1] : undefined
+  const next =
+    index >= 0 && index < schedule.matchdays.length - 1
+      ? schedule.matchdays[index + 1]
+      : undefined
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setIsOpen(true)
-        }}
-        aria-haspopup="dialog"
-        className={cn(
-          'flex w-full items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left',
-          'transition-colors hover:border-accent/40 hover:bg-surface-2',
-        )}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-2">
-            <span className="nums truncate text-base font-bold text-ink">
-              {selectedDay}. Spieltag
+      <div className="flex items-stretch gap-2">
+        <StepButton
+          direction="previous"
+          label={
+            previous === undefined
+              ? 'Kein früherer Spieltag'
+              : `${String(previous.day)}. Spieltag`
+          }
+          disabled={previous === undefined}
+          onClick={() => {
+            if (previous !== undefined) onSelect(previous.day)
+          }}
+        />
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(true)
+          }}
+          aria-haspopup="dialog"
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left',
+            'transition-colors hover:border-accent/40 hover:bg-surface-2',
+          )}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="flex items-baseline gap-2">
+              <span className="nums truncate text-base font-bold text-ink">
+                {selectedDay}. Spieltag
+              </span>
+              {selected !== undefined && <StateChip matchday={selected} />}
             </span>
-            {selected !== undefined && <StateChip matchday={selected} />}
+            <span className="mt-0.5 block truncate text-xs text-muted">
+              {selected === undefined
+                ? 'Kein Spielplan'
+                : dateRange(selected.start, selected.end)}
+            </span>
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted">
-            {selected === undefined
-              ? 'Kein Spielplan'
-              : dateRange(selected.start, selected.end)}
-          </span>
-        </span>
-        <ChevronDown size={20} className="shrink-0 text-faint" />
-      </button>
+          <ChevronDown size={20} className="shrink-0 text-faint" />
+        </button>
+
+        <StepButton
+          direction="next"
+          label={
+            next === undefined
+              ? 'Kein späterer Spieltag'
+              : `${String(next.day)}. Spieltag`
+          }
+          disabled={next === undefined}
+          onClick={() => {
+            if (next !== undefined) onSelect(next.day)
+          }}
+        />
+      </div>
 
       <Drawer
         open={isOpen}

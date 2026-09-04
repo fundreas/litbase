@@ -2,7 +2,12 @@ import { useQueries } from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import { fixtureState, type MatchdayFixture } from '@/api/models'
+import {
+  fixtureState,
+  toPosition,
+  type MatchdayFixture,
+  type PositionKey,
+} from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { PlayerDetailResponse } from '@/api/types'
 
@@ -14,9 +19,29 @@ export interface PointsSubject {
   id: string
   /** Which club they play for — how their fixture is found. */
   teamId: string
+  /**
+   * Fetch this player even if his match cannot have produced points yet,
+   * because the caller does not know his **position** and the response
+   * carries it.
+   *
+   * The case is a player transferred away since the matchday: he is in that
+   * matchday's snapshot but in nobody's current squad, so nothing else on the
+   * page can say what he plays — and a pitch that cannot place him would
+   * simply drop him, which is how sold players went missing from the duel
+   * lineup while showing up correctly in the ranking.
+   */
+  needsPosition?: boolean
 }
 
 export interface MatchdayPoints {
+  /**
+   * Position per player id, for every player whose detail was fetched.
+   *
+   * A by-product worth having: the response is already on the wire for the
+   * points, and it is the only source of a position for a player no current
+   * squad contains. Callers merge it under whatever their own squad knows.
+   */
+  positionByPlayerId: Map<string, PositionKey>
   /**
    * Points per player id, for the players who have a figure.
    *
@@ -74,10 +99,13 @@ export function useMatchdayPoints(
           const fixture = fixtureByTeamId.get(player.teamId)
           const state =
             fixture === undefined ? undefined : fixtureState(fixture)
+          const canHavePoints = state === 'running' || state === 'finished'
           return {
             id: player.id,
             // Nothing to read before kick-off: the matchday has no points yet.
-            needed: state === 'running' || state === 'finished',
+            // The exception is a player whose position the caller is missing —
+            // that answer does not depend on any match having started.
+            needed: canHavePoints || player.needsPosition === true,
             isLive: state === 'running',
           }
         })
@@ -103,10 +131,15 @@ export function useMatchdayPoints(
   // path: a page using this re-renders on a once-a-minute poll and on a tab
   // switch.
   const byPlayerId = new Map<string, number>()
+  const positionByPlayerId = new Map<string, PositionKey>()
 
   for (const query of queries) {
     const detail = query.data
-    if (detail === undefined || day === undefined) continue
+    if (detail === undefined) continue
+    if (detail.pos !== undefined) {
+      positionByPlayerId.set(detail.i, toPosition(detail.pos))
+    }
+    if (day === undefined) continue
     // `ph` is dense from matchday 1, so the index is the matchday minus one.
     // A matchday not played yet is simply past the end of the array, and a
     // player who missed one carries `hp: false` with no `p` — which must stay
@@ -119,6 +152,7 @@ export function useMatchdayPoints(
 
   return {
     byPlayerId,
+    positionByPlayerId,
     isPending: queries.some((query) => query.isFetching),
   }
 }

@@ -145,6 +145,12 @@ export function useDuelRosters(
     [...roster.fielded, ...roster.bench].map((player) => ({
       id: player.id,
       teamId: player.teamId,
+      // A player nobody owns any more has no position from either squad, and
+      // the detail response is the only place left to get one. Without it the
+      // pitch cannot place him and drops him — which is exactly how players
+      // sold since the matchday went missing from the lineup view while
+      // appearing correctly in the ranking.
+      needsPosition: player.position === undefined,
     })),
   )
 
@@ -177,7 +183,9 @@ export function useDuelRosters(
           id: player.id,
           name: player.name,
           teamId: player.teamId,
-          position: player.position,
+          // Today's squad first, then the player's own detail — which is the
+          // only source for someone no manager owns now.
+          position: player.position ?? points.positionByPlayerId.get(player.id),
           // The snapshot states membership of the lineup outright, so there is
           // no slot index to read `lo` from any more. `lineupOrder` carries
           // the payload's own ordering, which is what keeps the keeper first.
