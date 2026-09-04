@@ -39,18 +39,43 @@ export const endpoints = {
     squad: (leagueId: string) => `/v4/leagues/${leagueId}/squad`,
     /**
      * **Another** manager's players, including which of them are fielded
-     * (`lo`). This is the only way to see an opponent's lineup: there is no
-     * opponent equivalent of `teamcenter/myeleven`, which serves the signed-in
-     * user's eleven and nothing else — `userId`, `uid`, `u` and `dayNumber`
-     * are all silently ignored, and 18 other path spellings answer 404.
+     * (`lo`) and what they are worth.
      *
-     * It has no matchday parameter either (`?dayNumber=` is ignored), so it is
-     * always the lineup **as it stands now**. For a past matchday that is the
-     * current lineup, not the one that was fielded then — see
-     * [docs/pages/duel-detail.md](../../docs/pages/duel-detail.md#what-a-past-matchday-shows).
+     * It takes **no matchday parameter** — `?dayNumber=` is accepted and
+     * silently ignored — so it is always the squad **as it stands now**. For a
+     * past matchday that is today's players, not the ones fielded then.
+     *
+     * For a matchday snapshot use {@link managerTeamcenter} instead. This
+     * comment claimed until 2026-09-04 that no such thing existed; it does,
+     * and the mistake was probing the wrong spelling.
      */
     managerSquad: (leagueId: string, userId: string) =>
       `/v4/leagues/${leagueId}/managers/${userId}/squad`,
+    /**
+     * One manager's squad **as it stood on a given matchday** — the historical
+     * snapshot, including who was actually fielded.
+     *
+     * `?dayNumber=` is **required and honoured** (verified 2026-09-04 against
+     * a league with played matchdays): the player set and the lineup come back
+     * as they were that matchday, not as they are today. Works for **any**
+     * manager in the league, not just the signed-in one — asking for another
+     * manager's id returns that manager's team, which
+     * `teamcenter/myeleven` cannot do.
+     *
+     * Two fields carry the split: **`lp`** is the fielded eleven and **`nlp`**
+     * everyone else, the same pair `teamcenter/myeleven` uses. Out-of-range
+     * days (`0`, `99`) and matchdays before the league existed answer 200 with
+     * both lists empty rather than erroring, so the caller has to treat empty
+     * as "nothing to show".
+     *
+     * **Note the spelling**: `users/{userId}/teamcenter`, not
+     * `managers/{userId}/…`. Both segments differ from the neighbouring
+     * endpoints, which is why an earlier round of probing concluded — wrongly,
+     * for two months — that no historical lineup existed anywhere in the API.
+     * `users/{userId}/squad` really is a 404; only this spelling resolves.
+     */
+    managerTeamcenter: (leagueId: string, userId: string) =>
+      `/v4/leagues/${leagueId}/users/${userId}/teamcenter`,
     /** Transfer market listings. */
     market: (leagueId: string) => `/v4/leagues/${leagueId}/market`,
     /**

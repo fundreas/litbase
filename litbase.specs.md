@@ -38,6 +38,8 @@ now when clicking on some duell item in the duells-page -> the user gets navigat
   - show players from both managers mixed ranked by their points
   - also show the totals of the managers + active matches of players + open matches of players
 
+# run on matchday as host
+VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
 
 
 # TODO
@@ -49,6 +51,18 @@ now when clicking on some duell item in the duells-page -> the user gets navigat
   - show the match details (goals, minute, events)
   - show the lineup with live points and the manager owning a player
 
+# Duell Page
+  - how to get the squad+lineup as matchday snapshot?
+    ANSWERED (2026-09-04, verified live):
+    GET /v4/leagues/{leagueId}/users/{userId}/teamcenter?dayNumber={n}
+    - dayNumber is required and honoured; returns that matchday's squad, not today's
+    - works for ANY manager in the league, not just the signed-in one
+    - lp = the eleven that was fielded, nlp = the rest
+    - note the spelling: users/{id}/teamcenter, NOT managers/{id}/squad
+      (that one accepts ?dayNumber= and silently ignores it)
+    - empty lp+nlp for out-of-range days and for matchdays before the league existed
+    -> not wired up yet: would fix the duel page's past-matchday compromise and
+       let the squad page's Live view work for past matchdays too
 
 # Transfermarkt
 

@@ -1052,14 +1052,20 @@ minute each. It shares the `qk.playerDetail` cache entry with
 [`useStartProbabilities`](#where-it-comes-from-and-what-it-costs), so a manager
 who has been on the Kader view has already paid for most of these.
 
-**The gap:** Kickbase serves a squad only **as it stands now** — there is no
-`?dayNumber=` — so "the players I had this matchday" is really "the players I
-have". For the live matchday that is nearly always the same set, which is why
-this view exists here and not for past matchdays; but a player transferred
-away mid-matchday disappears from the list along with the points he scored for
-you, and a player bought after kick-off appears with `–`. The same limitation
-is documented at length, with measurements, on the
-[duel detail page](duel-detail.md#what-a-past-matchday-shows).
+**The gap — and its fix, not yet wired up.** `useSquad` serves the squad only
+**as it stands now**, so "the players I had this matchday" is really "the
+players I have". For the live matchday that is nearly always the same set,
+which is why this view exists here and not for past matchdays; but a player
+transferred away mid-matchday disappears from the list along with the points he
+scored for you, and one bought after kick-off appears with `–`.
+
+A real snapshot **does** exist:
+`GET /v4/leagues/{leagueId}/users/{userId}/teamcenter?dayNumber={n}` returns the
+squad and lineup as they stood that matchday, for any manager — verified
+2026-09-04, see
+[the snapshot endpoint](duel-detail.md#the-snapshot-endpoint) for why two months
+of notes said otherwise. Moving this view onto it would close the gap here and
+open the same view up for **past** matchdays, which is the larger prize.
 
 ### States
 

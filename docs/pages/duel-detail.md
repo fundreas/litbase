@@ -102,13 +102,15 @@ signed-in user), and `st` on `/v4/competitions/{id}/players`, where a value of
 
 ## What a past matchday shows
 
-**This is the page's one real compromise, and it is visible in the UI.**
+**This is the page's one real compromise, it is visible in the UI, and as of
+2026-09-04 it is fixable — see [the snapshot endpoint](#the-snapshot-endpoint)
+below.**
 
 `/v4/leagues/{id}/managers/{uid}/squad` serves a squad only **as it stands
-now** — `?dayNumber=` is ignored, and no historical variant exists. So for any
-matchday before the current one, the page lists *today's* eleven with that
-matchday's points beside each player. The per-player figures are real; the set
-of players is not the one that was fielded.
+now** — `?dayNumber=` is accepted and ignored. So for any matchday before the
+current one, the page lists *today's* eleven with that matchday's points beside
+each player. The per-player figures are real; the set of players is not the one
+that was fielded.
 
 Measured on a real league, matchday 1: one manager's current eleven scores
 **1434** on a matchday they actually took **824** from — they have rebuilt the
@@ -125,6 +127,26 @@ Two things follow:
 
 The current matchday — the default, and the case the feature exists for — has
 no such gap: the lineup on screen *is* the lineup being played.
+
+### The snapshot endpoint
+
+**`GET /v4/leagues/{leagueId}/users/{userId}/teamcenter?dayNumber={n}` returns
+the squad and lineup as they stood on that matchday**, for any manager in the
+league. Verified 2026-09-04 against a league with played matchdays: `dayNumber`
+is honoured, `lp` is the eleven that was fielded and `nlp` the rest.
+
+This page and the [squad page's live view](squad.md#live-tab) were both built
+on the assumption that no such endpoint existed, and both say so in prose. The
+assumption was wrong, and the reason is worth recording: the earlier probing
+covered `managers/{uid}/squad?dayNumber=` (ignored) and `teamcenter/myeleven`
+(own user only) plus eighteen 404s, but never the spelling that works — which
+differs on *both* segments, `users/…/teamcenter` rather than `managers/…/squad`.
+`users/{uid}/squad` is genuinely a 404, which made the whole `users/…` branch
+look dead.
+
+**Not wired up yet.** What it changes when it is: this page becomes honest for
+every matchday rather than only the current one, the notice above can go, and
+the totals could be summed from the rows as a cross-check.
 
 ## Points cost: one request per player
 
@@ -167,13 +189,16 @@ too — the rules are the hook's, not this page's.
 | `useMatchdayFixtures` | `/competitions/{id}/matchdays` | squad page, duel picker |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Squad — live tab](squad.md#live-tab) |
 
-`useManagerSquad` is the **only** way to see another manager's lineup. There is
-no opponent equivalent of `teamcenter/myeleven`, which serves the signed-in
-user's eleven and nothing else: `userId`, `uid`, `u` and `dayNumber` are all
-silently ignored, and 18 other path spellings answer 404. It does carry a `mu`
-block naming both duel managers, which is how the current pairing could be read
-without the standings — the app uses the standings anyway, because those work
-for every matchday.
+`useManagerSquad` is how the app reads another manager's lineup today. It is
+**not** the only way, though this file said so until 2026-09-04:
+`users/{uid}/teamcenter?dayNumber=` ([above](#the-snapshot-endpoint)) serves any
+manager's team for any matchday. `teamcenter/myeleven` really is own-user-only —
+`userId`, `uid`, `u` and `dayNumber` are all silently ignored there, and 18
+other path spellings answer 404, which is what the old claim was based on.
+
+`useManagerSquad` does carry a `mu` block naming both duel managers, which is
+how the current pairing could be read without the standings — the app uses the
+standings anyway, because those work for every matchday.
 
 `useMatchdayFixtures` reads the same cache entry as `useCurrentMatchday` and
 `useSeasonSchedule` through a third `select`. Its selector closes over `day`,
