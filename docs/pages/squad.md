@@ -88,6 +88,45 @@ overdrawn manager pays interest — so the sign is a state worth seeing without
 reading the number, and it belongs next to the squad because every transfer
 decision starts here.
 
+Tapping it opens the [sale calculator](#sale-calculator).
+
+## Sale calculator
+
+*"What would I have if I sold these?"* — a mode, not a panel.
+
+Tap the budget chip and the page header is **replaced** by the calculator:
+tapping a player now marks him for sale instead of opening him, the lineup rail
+disappears from the rows, and the header keeps a running total. An ✕ leaves.
+
+| Shown | From |
+| ----- | ---- |
+| Budget danach | `budget + Σ marketValue` of the selected players — red if still negative |
+| *n* Spieler · Erlös | how many are marked, and what they add up to |
+| Jetzt | the budget as it stands, for comparison |
+
+The header is replaced rather than added to because the rows quietly change
+what they do: a heading still reading *Mannschaft · 20 Spieler* over rows that
+now select instead of navigate would be the wrong kind of quiet. The lineup
+rail goes for the same reason — fielding a player you are pricing up is a
+different job, and leaving the rail would make every tap on the row's edge a
+question about which one you meant.
+
+**Nothing here is a transaction.** The figures are arithmetic on the squad's
+own market values and no request is sent. Kickbase's real sale price is
+whatever the market pays, which equals the market value only for a sale back to
+the computer — hence *Rechner*, and hence an ✕ to leave rather than anything
+that reads like a confirm button.
+
+Selection is an accent **border and ring**, no fill and no checkbox: the row
+and the tile are already dense, tinting the whole surface would fight
+everything on them, and a checkbox would add a second target to a card that is
+itself the target.
+
+State is one `ReadonlySet<string> | null` — `null` is "off" — so the mode and
+the selection cannot disagree, and leaving drops the selection by
+construction. Switching to the lineup view clears it: that view has no header
+to show the total in.
+
 ## Kader — two layouts
 
 A **list** or a **grid**, chosen by a single icon-only toggle above them.

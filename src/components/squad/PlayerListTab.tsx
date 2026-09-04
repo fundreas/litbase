@@ -1,5 +1,5 @@
 import { LayoutGrid, List, Shirt } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import {
@@ -27,6 +27,17 @@ type SquadView = 'list' | 'grid'
 const VIEW_STORAGE_KEY = 'litbase.squad.view'
 
 /**
+ * How a player marked for sale is drawn.
+ *
+ * Border and a ring, not a fill or a tick. The row and the tile are already
+ * dense — a portrait, marks, money — and tinting the whole surface would fight
+ * every one of them; a checkbox would add a second target to a card that is
+ * itself the target. An accent outline says "this one" and changes nothing
+ * else, which is what a reversible, consequence-free selection deserves.
+ */
+const SELECTED_CLASS = 'border-accent ring-1 ring-accent bg-accent/5'
+
+/**
  * The full squad as a grouped list, and a second place to edit the lineup.
  *
  * The shirt rail on each row is a control: tap it to field a benched player or
@@ -50,6 +61,8 @@ export function PlayerListTab({
   fixtureByTeamId,
   startProbabilities,
   statusReasons,
+  forSale,
+  onToggleForSale,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
@@ -59,6 +72,16 @@ export function PlayerListTab({
   startProbabilities: Map<string, StartProbability>
   /** `stxt` per unavailable player; empty until the lookups land. */
   statusReasons: Map<string, string>
+  /**
+   * Ids marked for sale, or `null` when the calculator is off.
+   *
+   * Non-null puts the list in **calculator mode**: a tap marks a player for
+   * sale instead of opening him, and the lineup rail is gone. Selling and
+   * picking an eleven are different jobs, and a row that did both would make
+   * every tap a question about which one you meant.
+   */
+  forSale: ReadonlySet<string> | null
+  onToggleForSale: (playerId: string) => void
 }) {
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
@@ -105,6 +128,8 @@ export function PlayerListTab({
                 startProbability={startProbabilities.get(player.id)}
                 statusReason={statusReasons.get(player.id)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
+                isForSale={forSale?.has(player.id)}
+                onToggleForSale={onToggleForSale}
               />
             ))}
         </ul>
@@ -125,6 +150,8 @@ export function PlayerListTab({
                   startProbability={startProbabilities.get(player.id)}
                   statusReason={statusReasons.get(player.id)}
                   to={`/leagues/${leagueId}/players/${player.id}`}
+                  isForSale={forSale?.has(player.id)}
+                  onToggleForSale={onToggleForSale}
                   onToggle={handleToggle}
                 />
               ))}
@@ -250,8 +277,8 @@ function ViewToggle({
  * **No lineup control and no money.** The grid is for taking in a whole squad
  * at once — who is fit, who is likely to start — and a third-of-a-screen tile
  * cannot hold a market value, a profit and a shirt rail without becoming a
- * worse version of the row. Tapping opens the player; the list view is where
- * the lineup gets edited.
+ * worse version of the row. Tapping opens the player — or marks him for sale
+ * while the calculator is on; the list view is where the lineup gets edited.
  *
  * The badges sit in opposite corners of the portrait, availability left and
  * probability right, as on the pitch. They are **inset rather than straddling
@@ -265,57 +292,82 @@ function PlayerTile({
   startProbability,
   statusReason,
   to,
+  isForSale,
+  onToggleForSale,
 }: {
   player: SquadMember
   startProbability: StartProbability | undefined
   statusReason: string | undefined
   to: string
+  /** `undefined` when the calculator is off; a boolean when it is on. */
+  isForSale: boolean | undefined
+  onToggleForSale: (playerId: string) => void
 }) {
+  const body = (
+    <>
+      {/* Taller than wide: the Kickbase cutouts are standing figures, and a
+            square crops them at the chest. */}
+      <span className="relative block aspect-4/5 bg-surface-2/60">
+        <Avatar
+          src={player.image}
+          name={player.lastName}
+          fill
+          className="h-full w-full bg-transparent"
+        />
+        <PlayerStatusBadge
+          status={player.status}
+          reason={statusReason}
+          size={14}
+          onImage
+          className="absolute top-1 left-1"
+        />
+        {startProbability !== undefined && (
+          <StartProbabilityBadge
+            tier={startProbability}
+            size={15}
+            onImage
+            className="absolute top-1 right-1"
+          />
+        )}
+      </span>
+
+      <span className="block px-1.5 py-1.5 text-center">
+        <span className="block truncate text-xs font-semibold text-ink">
+          {player.lastName}
+        </span>
+        {/* The position, which the grid no longer says with a heading. */}
+        <span className="block text-[0.625rem] tracking-wide text-faint uppercase">
+          {POSITION_LABEL[player.position]}
+        </span>
+      </span>
+    </>
+  )
+
+  const shell = cn(
+    'flex w-full flex-col overflow-hidden rounded-card border bg-surface transition-colors',
+    isForSale === true
+      ? SELECTED_CLASS
+      : 'border-line hover:border-accent/40 hover:bg-surface-2',
+  )
+
   return (
     <li>
-      <Link
-        to={to}
-        className={cn(
-          'flex flex-col overflow-hidden rounded-card border border-line bg-surface',
-          'transition-colors hover:border-accent/40 hover:bg-surface-2',
-        )}
-      >
-        {/* Taller than wide: the Kickbase cutouts are standing figures, and a
-            square crops them at the chest. */}
-        <span className="relative block aspect-4/5 bg-surface-2/60">
-          <Avatar
-            src={player.image}
-            name={player.lastName}
-            fill
-            className="h-full w-full bg-transparent"
-          />
-          <PlayerStatusBadge
-            status={player.status}
-            reason={statusReason}
-            size={14}
-            onImage
-            className="absolute top-1 left-1"
-          />
-          {startProbability !== undefined && (
-            <StartProbabilityBadge
-              tier={startProbability}
-              size={15}
-              onImage
-              className="absolute top-1 right-1"
-            />
-          )}
-        </span>
-
-        <span className="block px-1.5 py-1.5 text-center">
-          <span className="block truncate text-xs font-semibold text-ink">
-            {player.lastName}
-          </span>
-          {/* The position, which the grid no longer says with a heading. */}
-          <span className="block text-[0.625rem] tracking-wide text-faint uppercase">
-            {POSITION_LABEL[player.position]}
-          </span>
-        </span>
-      </Link>
+      {isForSale === undefined ? (
+        <Link to={to} className={shell}>
+          {body}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          aria-pressed={isForSale}
+          onClick={() => {
+            onToggleForSale(player.id)
+          }}
+          className={shell}
+        >
+          {body}
+        </button>
+      )}
     </li>
   )
 }
@@ -327,6 +379,8 @@ function PlayerRow({
   startProbability,
   statusReason,
   to,
+  isForSale,
+  onToggleForSale,
   onToggle,
 }: {
   player: SquadMember
@@ -338,40 +392,58 @@ function PlayerRow({
   statusReason: string | undefined
   /** The player's detail page. */
   to: string
+  /** `undefined` when the calculator is off; a boolean when it is on. */
+  isForSale: boolean | undefined
+  onToggleForSale: (playerId: string) => void
   onToggle: (player: SquadMember) => void
 }) {
+  const isCalculating = isForSale !== undefined
+
   return (
-    <li className="flex items-stretch overflow-hidden rounded-card border border-line bg-surface">
+    <li
+      className={cn(
+        'flex items-stretch overflow-hidden rounded-card border bg-surface',
+        isForSale === true ? SELECTED_CLASS : 'border-line',
+      )}
+    >
       {/* Full-height rail, and the row's lineup control. Always rendered,
           tinted only when fielded, so rows stay aligned either way. The
           outline shirt reads as an empty slot inviting a tap, rather than as
-          a disabled version of the filled one. */}
-      <button
-        type="button"
-        onClick={() => {
-          onToggle(player)
-        }}
-        aria-pressed={isFielded}
-        title={
-          isFielded ? 'Aus der Aufstellung nehmen' : 'In die Aufstellung setzen'
-        }
-        className={cn(
-          'flex w-7 shrink-0 items-center justify-center self-stretch border-r transition-colors',
-          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
-          isFielded
-            ? 'border-accent/30 bg-accent/15 text-accent hover:bg-accent/25'
-            : 'border-line bg-surface-2/40 text-faint hover:bg-surface-2',
-        )}
-      >
-        <span className="sr-only">
-          {isFielded ? 'Aufgestellt' : 'Nicht aufgestellt'}
-        </span>
-        <Shirt
-          size={15}
-          strokeWidth={isFielded ? 2 : 1.5}
-          className={cn(!isFielded && 'opacity-40')}
-        />
-      </button>
+          a disabled version of the filled one.
+
+          Gone in calculator mode: fielding a player you are pricing up for
+          sale is a different job, and leaving the rail there would make every
+          tap on the row's edge a question about which one you meant. */}
+      {!isCalculating && (
+        <button
+          type="button"
+          onClick={() => {
+            onToggle(player)
+          }}
+          aria-pressed={isFielded}
+          title={
+            isFielded
+              ? 'Aus der Aufstellung nehmen'
+              : 'In die Aufstellung setzen'
+          }
+          className={cn(
+            'flex w-7 shrink-0 items-center justify-center self-stretch border-r transition-colors',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+            isFielded
+              ? 'border-accent/30 bg-accent/15 text-accent hover:bg-accent/25'
+              : 'border-line bg-surface-2/40 text-faint hover:bg-surface-2',
+          )}
+        >
+          <span className="sr-only">
+            {isFielded ? 'Aufgestellt' : 'Nicht aufgestellt'}
+          </span>
+          <Shirt
+            size={15}
+            strokeWidth={isFielded ? 2 : 1.5}
+            className={cn(!isFielded && 'opacity-40')}
+          />
+        </button>
+      )}
 
       {/* Flush portrait: no padding on any side, so it fills the row's height
           and butts straight against the rail.
@@ -396,14 +468,21 @@ function PlayerRow({
         )}
       />
 
-      {/* Everything but the rail and the fixture panel opens the player.
-          The rail stays a button: it is the lineup control, and wrapping the
-          row in a link would make a mis-tap on it navigate instead of field
-          the player. Splitting the row this way keeps both targets large and
-          keeps the link's hit area the part that reads as "this player". */}
-      <Link
+      {/* Everything but the rail and the fixture panel is one target: it opens
+          the player, or marks him for sale while the calculator is on.
+
+          The rail stays a button of its own: it is the lineup control, and
+          wrapping the row in a link would make a mis-tap on it navigate
+          instead of field the player. Splitting the row this way keeps both
+          targets large and keeps this one the part that reads as "this
+          player". */}
+      <BodyShell
+        isCalculating={isCalculating}
         to={to}
-        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-2/60"
+        isForSale={isForSale === true}
+        onSelect={() => {
+          onToggleForSale(player.id)
+        }}
       >
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
@@ -456,12 +535,57 @@ function PlayerRow({
             {moneyDelta(player.profitLoss)}
           </span>
         </span>
-      </Link>
+      </BodyShell>
 
       {/* Full-height fixture panel, matching the swap dialog's treatment. */}
       <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">
         <FixtureBadge fixture={fixture} size="lg" layout="stacked" />
       </span>
     </li>
+  )
+}
+
+/**
+ * The row's main target: a link to the player, or a sale toggle while the
+ * calculator is on.
+ *
+ * Split out only so the row's contents are written once. An element type
+ * chosen by a variable would do the same in fewer lines, but a `<Link>` and a
+ * `<button>` do not take the same props and the difference matters here — one
+ * navigates, the other must announce a pressed state.
+ */
+function BodyShell({
+  isCalculating,
+  to,
+  isForSale,
+  onSelect,
+  children,
+}: {
+  isCalculating: boolean
+  to: string
+  isForSale: boolean
+  onSelect: () => void
+  children: ReactNode
+}) {
+  const className =
+    'flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-2/60'
+
+  if (!isCalculating) {
+    return (
+      <Link to={to} className={className}>
+        {children}
+      </Link>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      aria-pressed={isForSale}
+      onClick={onSelect}
+      className={className}
+    >
+      {children}
+    </button>
   )
 }

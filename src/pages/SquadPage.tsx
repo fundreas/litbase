@@ -1,4 +1,4 @@
-import { Info, Shirt, Users, Wallet } from 'lucide-react'
+import { Calculator, Info, Shirt, Users, Wallet, X } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation } from 'react-router'
 
@@ -51,10 +51,24 @@ export function SquadPage() {
   const manager = useLeagueManager(leagueId)
   // Above the early returns below, as every hook here has to be.
   const [isLegendOpen, setIsLegendOpen] = useState(false)
+  /**
+   * The sale calculator: `null` when off, otherwise the ids marked for sale.
+   *
+   * One piece of state rather than a boolean plus a set, so "in calculator
+   * mode" and "what is selected" cannot disagree — leaving the mode drops the
+   * selection by construction.
+   */
+  const [forSale, setForSale] = useState<ReadonlySet<string> | null>(null)
 
   const view: ViewValue = location.pathname.endsWith(`/${VIEWS.lineup}`)
     ? VIEWS.lineup
     : VIEWS.squad
+
+  // The calculator lives on the Kader view: the pitch has no header to show
+  // the running total in, and selling from an XI you are picking is two jobs
+  // at once. Adjusted during render rather than in an effect so the pitch
+  // never paints a frame with a stale selection behind it.
+  if (forSale !== null && view !== VIEWS.squad) setForSale(null)
 
   const base = `/leagues/${leagueId}/${VIEWS.squad}`
   const tabs: BottomTab[] = [
@@ -105,6 +119,21 @@ export function SquadPage() {
     setIsLegendOpen(true)
   }
 
+  const toggleForSale = (playerId: string) => {
+    setForSale((current) => {
+      if (current === null) return current
+      const next = new Set(current)
+      if (!next.delete(playerId)) next.add(playerId)
+      return next
+    })
+  }
+
+  const soldValue = squad.data.reduce(
+    (sum, player) =>
+      forSale?.has(player.id) === true ? sum + player.marketValue : sum,
+    0,
+  )
+
   return (
     /* The `min-h-0` on every level of this chain is what lets the lineup view
        fill the remaining height rather than overflow: a flex child defaults to
@@ -115,14 +144,32 @@ export function SquadPage() {
           taken from it on the screens where it has least, for facts that are
           either obvious or belong beside the transfer decisions they inform.
           Its legend button moves onto the bench heading. */}
-      {view === VIEWS.squad && (
+      {view === VIEWS.squad &&
+        forSale !== null &&
+        manager.data !== undefined && (
+          <SaleCalculator
+            budget={manager.data.budget}
+            soldCount={forSale.size}
+            soldValue={soldValue}
+            onClose={() => {
+              setForSale(null)
+            }}
+          />
+        )}
+
+      {view === VIEWS.squad && forSale === null && (
         <PageHeading
           title="Mannschaft"
           subtitle={`${String(squad.data.length)} Spieler · ${money(totalValue)} Gesamtwert`}
           action={
             <div className="flex shrink-0 items-center gap-2">
               {manager.data !== undefined && (
-                <BudgetChip budget={manager.data.budget} />
+                <BudgetChip
+                  budget={manager.data.budget}
+                  onClick={() => {
+                    setForSale(new Set())
+                  }}
+                />
               )}
               <button
                 type="button"
@@ -162,6 +209,8 @@ export function SquadPage() {
           competitionId={competitionId}
           view={view}
           onShowLegend={showLegend}
+          forSale={forSale}
+          onToggleForSale={toggleForSale}
         />
       </div>
 
@@ -171,31 +220,137 @@ export function SquadPage() {
 }
 
 /**
- * What is left in the budget, as a chip beside the page title.
+ * What is left in the budget, as a chip beside the page title — and the way
+ * into the [sale calculator](#SaleCalculator).
  *
  * Green at or above zero, red below. Kickbase lets a budget go negative — an
  * overdrawn manager pays interest on it — so the sign is a state worth seeing
  * without reading the number, and it belongs next to the squad because every
  * transfer decision starts here.
+ *
+ * The chip is the trigger because the question it answers ("can I afford
+ * this?") and the question the calculator answers ("what if I sold these?")
+ * are the same question one step apart. A separate "Rechner" button would sit
+ * next to the number it is about and say the same thing twice.
  */
-function BudgetChip({ budget }: { budget: number }) {
+function BudgetChip({
+  budget,
+  onClick,
+}: {
+  budget: number
+  onClick: () => void
+}) {
   const isNegative = budget < 0
 
   return (
-    <span
-      title={`Budget: ${money(budget)}`}
+    <button
+      type="button"
+      onClick={onClick}
+      title="Verkaufsrechner öffnen"
       className={cn(
-        'nums flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1',
-        'text-xs font-semibold',
+        'nums flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1',
+        'text-xs font-semibold transition-[filter]',
+        'hover:brightness-125 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
         isNegative
           ? 'border-negative/40 bg-negative/15 text-negative'
           : 'border-positive/40 bg-positive/15 text-positive',
       )}
     >
       <Wallet size={12} aria-hidden="true" className="shrink-0" />
-      <span className="sr-only">Budget: </span>
+      <span className="sr-only">Budget, Verkaufsrechner öffnen: </span>
       {money(budget)}
-    </span>
+    </button>
+  )
+}
+
+/**
+ * "What would I have if I sold these?" — the page header, while the
+ * calculator is open.
+ *
+ * It **replaces** the normal heading rather than sitting under it. The
+ * calculator is a mode, not a panel: while it is on, tapping a player marks
+ * him for sale instead of opening him, and the lineup rail is gone. A header
+ * that still said "Mannschaft · 20 Spieler" over rows that had quietly changed
+ * what they do would be the wrong kind of quiet.
+ *
+ * Nothing here is a transaction. The figures are arithmetic on the squad's own
+ * market values, and no request is sent — Kickbase's real sale price is what
+ * the market pays, which is the market value only for a sale back to the
+ * computer. The heading says *Rechner* for that reason, and the button that
+ * leaves is an ✕ rather than anything that reads like "confirm".
+ */
+function SaleCalculator({
+  budget,
+  soldCount,
+  soldValue,
+  onClose,
+}: {
+  budget: number
+  soldCount: number
+  soldValue: number
+  onClose: () => void
+}) {
+  const projected = budget + soldValue
+
+  return (
+    <div className="rounded-card border border-accent/40 bg-accent/10 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+            <Calculator size={15} aria-hidden="true" className="text-accent" />
+            Verkaufsrechner
+          </h1>
+          <p className="mt-0.5 text-xs text-muted">
+            {soldCount === 0
+              ? 'Spieler antippen, um sie einzurechnen'
+              : `${String(soldCount)} ${soldCount === 1 ? 'Spieler' : 'Spieler'} · ${money(soldValue)} Erlös`}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          title="Rechner schließen"
+          aria-label="Rechner schließen"
+          className={cn(
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+            'text-muted transition-colors hover:bg-surface-2 hover:text-ink',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+          )}
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
+      </div>
+
+      <dl className="mt-2.5 flex items-end justify-between gap-3 border-t border-accent/20 pt-2.5">
+        <div className="min-w-0">
+          <dt className="text-[0.6875rem] tracking-wide text-faint uppercase">
+            Budget danach
+          </dt>
+          {/* `aria-live` so a screen reader hears the running total change as
+              players are tapped — the number is the whole point of the mode,
+              and it updates somewhere other than where the tap happened. */}
+          <dd
+            aria-live="polite"
+            className={cn(
+              'nums truncate text-xl font-bold',
+              projected < 0 ? 'text-negative' : 'text-positive',
+            )}
+          >
+            {money(projected)}
+          </dd>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <dt className="text-[0.6875rem] tracking-wide text-faint uppercase">
+            Jetzt
+          </dt>
+          <dd className="nums text-sm font-semibold text-muted">
+            {money(budget)}
+          </dd>
+        </div>
+      </dl>
+    </div>
   )
 }
 
@@ -219,6 +374,8 @@ function SquadViews({
   competitionId,
   view,
   onShowLegend,
+  forSale,
+  onToggleForSale,
 }: {
   squad: SquadMember[]
   leagueId: string
@@ -226,6 +383,9 @@ function SquadViews({
   view: ViewValue
   /** The lineup view has no page header, so it renders its own trigger. */
   onShowLegend: () => void
+  /** Ids marked for sale, or `null` when the calculator is off. */
+  forSale: ReadonlySet<string> | null
+  onToggleForSale: (playerId: string) => void
 }) {
   const editor = useLineupEditor({ squad, leagueId })
   const matchday = useCurrentMatchday(competitionId)
@@ -245,6 +405,8 @@ function SquadViews({
           fixtureByTeamId={fixtureByTeamId}
           startProbabilities={startProbabilities}
           statusReasons={statusReasons}
+          forSale={forSale}
+          onToggleForSale={onToggleForSale}
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
