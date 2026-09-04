@@ -961,11 +961,13 @@ enough.
 The fielded eleven, each portrait carrying the points it has scored so far:
 **picture, name, points**, in that order down the card.
 
-The points replace the fixture badge that the editor's plate carries, and they
-render as `–` rather than `0` while unknown — the same rule the
-[duel page](duel-detail.md#player-status) states, and the reason the model's
-`points` is optional. On grass that is the difference between *hasn't kicked
-off* and *played and scored nothing*.
+The points replace the fixture badge that the editor's plate carries, and the
+plate follows the same rule as the duel pitch: the points when they are known,
+the **kick-off time** while the match is still to come, and `–` only when there
+is nothing to say — never `0` for a player who has not scored. See
+[the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets); on
+grass that distinction is the difference between *hasn't kicked off* and
+*played and scored nothing*.
 
 **A running match tints the ring and the figure accent-coloured, and nothing
 else does.** It is the one state that is going to change, so it is the one

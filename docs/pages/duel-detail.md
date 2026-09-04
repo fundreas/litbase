@@ -49,11 +49,12 @@ and the bottom half runs the usual way up (`ROW_ORDER`). The card sizing in
 `rows: 8`, or every portrait is budgeted twice the height it has and the lot
 gets clipped.
 
-**Portraits carry a picture and a points figure, nothing else.** With 22
-players on a 360px screen a name under each is unreadable and a fixture badge
-is noise. The points are the only number that changes, and the only one worth
-reading off a pitch — tinted accent while that player's match is running, `–`
-rather than `0` while unknown. The plate is sized for one line
+**Portraits carry a picture and one figure, nothing else.** With 22 players on
+a 360px screen a name under each is unreadable and a fixture badge is noise.
+That figure is the points, or the **kick-off time** while the match is still to
+come — see [the one figure a player gets](#the-one-figure-a-player-gets) — and
+it is tinted accent while that player's match is running. The plate is sized
+for one line
 (`plate: 'points'`), which is also what lets the avatar floor drop to 26px on a
 phone.
 
@@ -147,11 +148,39 @@ for a word under a portrait — so a running player's points show in accent and
 everything else in white. The [Rangliste](#the-ranking-tab) spells all five
 out.
 
-**Points render as `–`, never `0`, while unknown.** That distinction is why
-`DuelPlayer.points` is optional: a player whose match has not started has *no*
-score, and printing `0` would claim they played and failed to score. A player
-who genuinely did not feature carries `hp: false` in the API and also stays
-`undefined`.
+## The one figure a player gets
+
+Every player has exactly one slot for a number — the plate under a portrait,
+or the right-hand column of a row — and four things can go in it.
+`playerFigure()` in [`models.ts`](../../src/api/models.ts) decides which, in
+this order:
+
+| Shown | When | Why this order |
+| ----- | ---- | -------------- |
+| **Points** | they are known | The most informative thing available, benched players included — a bench that outscored the eleven is why benches are on screen at all |
+| **`Bank`** | benched, no points | A kick-off time would mislead: his match starting changes nothing, because his points will never count |
+| **Kick-off** (`20:30`) | fielded, match still to come | Answers the question the dash left hanging. On a Friday evening most of a lineup has not kicked off |
+| **`–`** | nothing to say | No fixture that matchday, or a match under way whose points have not arrived |
+
+**Points are never `0` for a player who has not scored.** That distinction is
+why `DuelPlayer.points` is optional: printing `0` would claim they played and
+failed to score. A player who genuinely did not feature carries `hp: false` in
+the API and also stays `undefined` — and `0` really does render as `0`, for
+someone who played and scored nothing.
+
+The kick-off is the **time alone**, in the reader's own timezone. A matchday
+page covers one weekend and the row or plate already says which fixture it is;
+on a pitch plate the width is the portrait's, which is about five characters on
+a phone. A Sunday match seen on Friday therefore reads `17:30` with no day
+attached, which is the one thing this trades away.
+
+**The status word is dropped when the figure already is that word** — a
+benched player with no points would otherwise read "Bank … Bank" across one
+row. One who *did* score keeps it, because there the figure is a number and
+the word is what says it did not count.
+
+A real score is drawn at full contrast and a placeholder stays quiet, so the
+eye finds the numbers first.
 
 ### Unverified: `Ausgewechselt`
 

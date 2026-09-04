@@ -2,13 +2,18 @@ import type { ReactNode } from 'react'
 
 import {
   DUEL_PLAYER_STATUS_LABEL,
+  playerFigure,
   POSITION_LABEL,
   type DuelPlayer,
   type DuelPlayerStatus,
 } from '@/api/models'
+import {
+  figureDescription,
+  figureLabel,
+  isScore,
+} from '@/components/player/playerFigure'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
-import { points } from '@/lib/format'
 
 /**
  * Status colours. Only `playing` is loud — it is the one state that is going
@@ -27,10 +32,12 @@ const STATUS_CLASS: Record<DuelPlayerStatus, string> = {
  * One player in a duel: who they are, what their match is doing, what they
  * scored.
  *
- * Points render as `–` rather than `0` while unknown. The distinction is the
- * whole reason `points` is optional: a player whose match has not kicked off
- * has *no* score, and printing `0` would claim they played and failed to
- * score.
+ * The figure on the right is never `0` for a player who has not scored: it is
+ * the points when they exist, the **kick-off time** while the match is still
+ * to come, *Bank* for someone who did not play, and `–` only when there is
+ * nothing to say. That is [`playerFigure()`](../../api/models.ts), shared with
+ * both pitches. Printing `0` would claim a player featured and failed to
+ * score, which is why `points` is optional in the first place.
  */
 export function DuelPlayerRow({
   player,
@@ -43,6 +50,17 @@ export function DuelPlayerRow({
   /** Extra content on the right, e.g. the owning manager's avatar. */
   trailing?: ReactNode
 }) {
+  const figure = playerFigure(player)
+  /*
+   * The status word is dropped when the figure already **is** that word.
+   *
+   * `playerFigure` resolves to `bench` only for a benched player with no
+   * points, and for him "Bank … Bank" across one row is just noise. A benched
+   * player who *did* score keeps the word, because there the figure is a
+   * number and the word is the thing that says it did not count.
+   */
+  const showStatusWord = showStatus && figure.kind !== 'bench'
+
   return (
     <div className="flex items-center gap-2.5 px-3 py-2">
       <Avatar src={player.image} name={player.name} size={34} />
@@ -64,7 +82,7 @@ export function DuelPlayerRow({
               {player.fixture.opponentSymbol}
             </span>
           )}
-          {showStatus && (
+          {showStatusWord && (
             <span
               className={cn(
                 'shrink-0 font-medium',
@@ -80,12 +98,13 @@ export function DuelPlayerRow({
       {trailing}
 
       <span
+        aria-label={figureDescription(figure)}
         className={cn(
           'nums shrink-0 text-sm font-semibold',
-          player.points === undefined ? 'text-faint' : 'text-ink',
+          isScore(figure) ? 'text-ink' : 'text-faint',
         )}
       >
-        {player.points === undefined ? '–' : points(player.points)}
+        {figureLabel(figure)}
       </span>
     </div>
   )

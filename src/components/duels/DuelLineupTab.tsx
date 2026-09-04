@@ -1,4 +1,14 @@
-import type { DuelPlayer, DuelRoster, PositionKey } from '@/api/models'
+import {
+  playerFigure,
+  type DuelPlayer,
+  type DuelRoster,
+  type PositionKey,
+} from '@/api/models'
+import {
+  figureDescription,
+  figureLabel,
+  isScore,
+} from '@/components/player/playerFigure'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   fitPitchMetrics,
@@ -9,7 +19,6 @@ import {
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
-import { points } from '@/lib/format'
 import { useMemo } from 'react'
 
 /**
@@ -160,12 +169,14 @@ function PitchBand({
 }
 
 /**
- * A portrait and its score.
+ * A portrait and its one figure: the points, or the kick-off time while the
+ * match is still to come — see
+ * [`playerFigure()`](../../api/models.ts).
  *
- * The points line is tinted **only while the player's match is running** —
- * the one state that is going to change, and so the only one worth spotting
- * across a pitch of 22. `–` rather than `0` while unknown, the rule the whole
- * page follows.
+ * The figure is tinted **only while the player's match is running** — the one
+ * state that is going to change, and so the only one worth spotting across a
+ * pitch of 22. A real score is drawn at full contrast and a placeholder (a
+ * kick-off time, a dash) stays quiet, so the eye finds the numbers first.
  */
 function PitchPlayer({
   player,
@@ -177,11 +188,11 @@ function PitchPlayer({
   side: Side
 }) {
   const isRunning = player.status === 'playing'
-  const hasPoints = player.points !== undefined
+  const figure = playerFigure(player)
 
   return (
     <span
-      title={`${player.name}: ${hasPoints ? `${points(player.points)} Punkte` : 'noch keine Punkte'}`}
+      title={`${player.name}: ${figureDescription(figure)}`}
       style={{ width: metrics.width }}
       className="flex shrink-0 flex-col items-center p-1"
     >
@@ -201,12 +212,12 @@ function PitchPlayer({
           'nums relative truncate rounded bg-black/70 px-1 text-center font-bold',
           isRunning
             ? 'text-accent'
-            : hasPoints
+            : isScore(figure)
               ? 'text-white'
-              : 'text-white/50',
+              : 'text-white/55',
         )}
       >
-        {points(player.points)}
+        {figureLabel(figure)}
       </span>
     </span>
   )
@@ -278,31 +289,34 @@ function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
         </p>
       ) : (
         <ul className="flex flex-col gap-1">
-          {roster.bench.map((player) => (
-            <li
-              key={player.id}
-              title={`${player.name}: ${player.points === undefined ? 'noch keine Punkte' : `${points(player.points)} Punkte`} (Bank)`}
-              className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-1.5 py-1 opacity-75"
-            >
-              <Avatar
-                src={player.image}
-                name={player.name}
-                size={24}
-                className={cn('ring-1', RING_CLASS[side])}
-              />
-              <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-ink">
-                {player.name}
-              </span>
-              <span
-                className={cn(
-                  'nums shrink-0 text-[0.6875rem] font-semibold',
-                  player.points === undefined ? 'text-faint' : 'text-ink',
-                )}
+          {roster.bench.map((player) => {
+            const figure = playerFigure(player)
+            return (
+              <li
+                key={player.id}
+                title={`${player.name}: ${figureDescription(figure)}`}
+                className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-1.5 py-1 opacity-75"
               >
-                {points(player.points)}
-              </span>
-            </li>
-          ))}
+                <Avatar
+                  src={player.image}
+                  name={player.name}
+                  size={24}
+                  className={cn('ring-1', RING_CLASS[side])}
+                />
+                <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-ink">
+                  {player.name}
+                </span>
+                <span
+                  className={cn(
+                    'nums shrink-0 text-[0.6875rem] font-semibold',
+                    isScore(figure) ? 'text-ink' : 'text-faint',
+                  )}
+                >
+                  {figureLabel(figure)}
+                </span>
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>

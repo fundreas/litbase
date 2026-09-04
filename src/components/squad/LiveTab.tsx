@@ -9,10 +9,16 @@ import {
   DUEL_PLAYER_STATUS_LABEL,
   duelPlayerStatus,
   fixtureState,
+  playerFigure,
   type DuelPlayer,
   type SquadMember,
 } from '@/api/models'
 import { DuelPlayerRow } from '@/components/duels/DuelPlayerRow'
+import {
+  figureDescription,
+  figureLabel,
+  isScore,
+} from '@/components/player/playerFigure'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   fitPitchMetrics,
@@ -401,12 +407,13 @@ function LivePitchRow({
 }
 
 /**
- * One fielded player: portrait, name, points.
+ * One fielded player: portrait, name, and one figure — the points, or the
+ * **kick-off time** while his match is still to come
+ * ([`playerFigure()`](../../api/models.ts), shared with the duel pitch).
  *
- * The points replace the fixture badge the editor's plate carries. Before
- * kick-off there is nothing to read, so the line is a `–` rather than a `0`:
- * that distinction is the whole reason the model's `points` is optional, and
- * on grass it is the difference between "hasn't played" and "played badly".
+ * Never `0` for a player who has not scored: that distinction is the whole
+ * reason the model's `points` is optional, and on grass it is the difference
+ * between "hasn't played" and "played badly".
  *
  * A **running** match tints the ring and the figure with the accent colour,
  * and nothing else does. It is the one state that is going to change, so it is
@@ -423,7 +430,7 @@ function LivePitchPlayer({
   leagueId: string
 }) {
   const isRunning = player.status === 'playing'
-  const hasPoints = player.points !== undefined
+  const figure = playerFigure(player)
 
   return (
     <Link
@@ -432,7 +439,7 @@ function LivePitchPlayer({
       // Spelled out rather than left to the two lines of the plate, which read
       // as "Kane 215" — a number with no unit and no idea whether the match is
       // over.
-      aria-label={`${player.name}: ${hasPoints ? `${points(player.points)} Punkte` : 'noch keine Punkte'}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}`}
+      aria-label={`${player.name}: ${figureDescription(figure)}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}`}
       style={{ width: metrics.width }}
       className="flex shrink-0 flex-col items-center rounded-lg p-1 transition-colors hover:bg-black/20"
     >
@@ -460,12 +467,12 @@ function LivePitchPlayer({
             'nums max-w-full truncate font-bold',
             isRunning
               ? 'text-accent'
-              : hasPoints
+              : isScore(figure)
                 ? 'text-white'
-                : 'text-white/50',
+                : 'text-white/55',
           )}
         >
-          {points(player.points)}
+          {figureLabel(figure)}
         </span>
       </span>
     </Link>

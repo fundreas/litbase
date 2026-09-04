@@ -508,6 +508,56 @@ export interface MatchdaySquad {
 }
 
 /**
+ * What to put in a player's one figure slot — the plate under a portrait, or
+ * the number at the end of a row.
+ *
+ * `points` was the only case for a long time, and `–` stood in for all the
+ * others. That dash is the least informative thing that could go there: on a
+ * Friday evening most of a lineup has not kicked off, so a pitch of eleven
+ * dashes said nothing at all.
+ */
+export type PlayerFigure =
+  | { kind: 'points'; points: number }
+  | { kind: 'bench' }
+  | { kind: 'kickoff'; kickoff: string }
+  | { kind: 'unknown' }
+
+/**
+ * Which of the four applies, in priority order.
+ *
+ *  1. **Points, whenever they are known.** Even for a benched player: they are
+ *     the most informative thing available, and a bench that outscored the
+ *     eleven is the whole reason benches are on screen.
+ *  2. **`bench` otherwise.** For a player who did not play, a kick-off time
+ *     would be actively misleading — his match starting changes nothing,
+ *     because his points will never count.
+ *  3. **The kick-off**, for a fielded player whose match is still to come.
+ *     "18:30" answers the question the dash left hanging.
+ *  4. **`unknown`** only when there is genuinely nothing to say: no fixture
+ *     that matchday, or a match under way whose points have not arrived.
+ *
+ * The decision lives here and the wording lives in the components, so the two
+ * pitches and the two lists cannot drift apart on the rule while differing on
+ * the styling, which they must.
+ */
+export function playerFigure(
+  player: Pick<DuelPlayer, 'points' | 'status' | 'fixture'>,
+  now: number = nowMs(),
+): PlayerFigure {
+  if (player.points !== undefined) {
+    return { kind: 'points', points: player.points }
+  }
+  if (player.status === 'bench') return { kind: 'bench' }
+  if (
+    player.fixture !== undefined &&
+    fixtureState(player.fixture, now) === 'upcoming'
+  ) {
+    return { kind: 'kickoff', kickoff: player.fixture.kickoff }
+  }
+  return { kind: 'unknown' }
+}
+
+/**
  * Sort comparator: **best first**, and a player with no points yet sorts
  * **last** rather than as zero — not knowing is not the same as nothing.
  *
