@@ -96,15 +96,33 @@ Tapping it opens the [sale calculator](#sale-calculator).
 
 Tap the budget chip and the page header is **replaced** by the calculator:
 tapping a player now marks him for sale instead of opening him, the lineup rail
-disappears from the rows, and the header keeps a running total. An ✕ leaves.
+disappears from the rows, and the bar keeps a running total. An ✕ leaves.
+
+```
+┌────────────────────────────────────────┐
+│ ⌂  Mannschaft                    ☰  ⏻ │   the app header
+├────────────────────────────────────────┤
+│ 🧮  75,5 Mio. €                     ✕ │   pinned at --header-total
+│     3 Spieler · 24,5 Mio. € Erlös      │
+└────────────────────────────────────────┘
+```
 
 | Shown | From |
 | ----- | ---- |
-| Budget danach | `budget + Σ marketValue` of the selected players — red if still negative |
-| *n* Spieler · Erlös | how many are marked, and what they add up to |
-| Jetzt | the budget as it stands, for comparison |
+| The figure | `budget + Σ marketValue` of the selected players — green, or red if still negative |
+| Subtitle | how many are marked and what they add up to; before anything is, the prompt to tap |
 
-The header is replaced rather than added to because the rows quietly change
+**Header-height and sticky.** The bar is `h-(--header-h)` — the same height as
+the app header — and pins at `--header-total`, the header plus whatever the
+notch adds, which is the offset the sidebar already uses. Scrolling a squad of
+twenty looking for the next player to mark must not take the total off screen;
+a total you have to scroll back up to read is one you stop consulting.
+
+One figure, not three. The projected budget is the answer, the count and
+proceeds are the working and go underneath at subtitle size, and the budget as
+it stands is gone — it is one tap away, on the chip this bar replaced.
+
+The bar is replaced rather than added to because the rows quietly change
 what they do: a heading still reading *Mannschaft · 20 Spieler* over rows that
 now select instead of navigate would be the wrong kind of quiet. The lineup
 rail goes for the same reason — fielding a player you are pricing up is a

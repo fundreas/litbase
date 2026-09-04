@@ -264,14 +264,26 @@ function BudgetChip({
 }
 
 /**
- * "What would I have if I sold these?" — the page header, while the
- * calculator is open.
+ * "What would I have if I sold these?" — a slim bar, while the calculator is
+ * open.
  *
  * It **replaces** the normal heading rather than sitting under it. The
  * calculator is a mode, not a panel: while it is on, tapping a player marks
  * him for sale instead of opening him, and the lineup rail is gone. A header
  * that still said "Mannschaft · 20 Spieler" over rows that had quietly changed
  * what they do would be the wrong kind of quiet.
+ *
+ * **Header-height and sticky.** It is `h-(--header-h)`, the same bar height as
+ * the app header, and pins at `--header-total` — the header plus whatever the
+ * notch adds — so the running total stays on screen while you scroll a squad
+ * of twenty looking for the next player to mark. That is the whole point of
+ * the mode; a total you have to scroll back up to read is a total you stop
+ * consulting. The same offset the sidebar uses, for the same reason.
+ *
+ * One figure, not three. The projected budget is the answer; the count and the
+ * proceeds are the working, and go underneath at subtitle size. The budget as
+ * it stands was a third column and is gone — it is one tap away, on the chip
+ * this bar replaced.
  *
  * Nothing here is a transaction. The figures are arithmetic on the squad's own
  * market values, and no request is sent — Kickbase's real sale price is what
@@ -293,17 +305,39 @@ function SaleCalculator({
   const projected = budget + soldValue
 
   return (
-    <div className="rounded-card border border-accent/40 bg-accent/10 px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-            <Calculator size={15} aria-hidden="true" className="text-accent" />
-            Verkaufsrechner
-          </h1>
-          <p className="mt-0.5 text-xs text-muted">
+    <div
+      className={cn(
+        // `-mx-3` bleeds to the edges of the content column so it reads as a
+        // second header rather than a card that happens to be pinned.
+        'sticky top-(--header-total) z-20 -mx-3 px-3',
+        'border-b border-accent/30 bg-canvas/95 backdrop-blur-md',
+      )}
+    >
+      <div className="flex h-(--header-h) items-center gap-2.5">
+        <Calculator
+          size={18}
+          aria-hidden="true"
+          className="shrink-0 text-accent"
+        />
+
+        <div className="min-w-0 flex-1">
+          <h1 className="sr-only">Verkaufsrechner</h1>
+          {/* `aria-live` so a screen reader hears the running total change as
+              players are tapped — the number is the whole point of the mode,
+              and it updates somewhere other than where the tap happened. */}
+          <p
+            aria-live="polite"
+            className={cn(
+              'nums truncate text-base leading-tight font-bold',
+              projected < 0 ? 'text-negative' : 'text-positive',
+            )}
+          >
+            {money(projected)}
+          </p>
+          <p className="nums truncate text-[0.6875rem] text-muted">
             {soldCount === 0
-              ? 'Spieler antippen, um sie einzurechnen'
-              : `${String(soldCount)} ${soldCount === 1 ? 'Spieler' : 'Spieler'} · ${money(soldValue)} Erlös`}
+              ? 'Verkaufsrechner · Spieler antippen'
+              : `${String(soldCount)} Spieler · ${money(soldValue)} Erlös`}
           </p>
         </div>
 
@@ -313,43 +347,14 @@ function SaleCalculator({
           title="Rechner schließen"
           aria-label="Rechner schließen"
           className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
             'text-muted transition-colors hover:bg-surface-2 hover:text-ink',
             'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
           )}
         >
-          <X size={16} aria-hidden="true" />
+          <X size={18} aria-hidden="true" />
         </button>
       </div>
-
-      <dl className="mt-2.5 flex items-end justify-between gap-3 border-t border-accent/20 pt-2.5">
-        <div className="min-w-0">
-          <dt className="text-[0.6875rem] tracking-wide text-faint uppercase">
-            Budget danach
-          </dt>
-          {/* `aria-live` so a screen reader hears the running total change as
-              players are tapped — the number is the whole point of the mode,
-              and it updates somewhere other than where the tap happened. */}
-          <dd
-            aria-live="polite"
-            className={cn(
-              'nums truncate text-xl font-bold',
-              projected < 0 ? 'text-negative' : 'text-positive',
-            )}
-          >
-            {money(projected)}
-          </dd>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <dt className="text-[0.6875rem] tracking-wide text-faint uppercase">
-            Jetzt
-          </dt>
-          <dd className="nums text-sm font-semibold text-muted">
-            {money(budget)}
-          </dd>
-        </div>
-      </dl>
     </div>
   )
 }
