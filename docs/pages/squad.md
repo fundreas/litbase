@@ -197,7 +197,7 @@ a portrait floating over grass but not here, because the tile clips its
 overflow to keep its rounded corners and was cutting the badge in half.
 
 No lineup rail and no money: the grid is for taking in a whole squad at once,
-and a third-of-a-screen tile cannot hold a market value, a profit *and* a shirt
+and a third-of-a-screen tile cannot hold a market value, its change *and* a shirt
 rail without becoming a worse version of the row. Tapping opens the player; the
 list is where the lineup gets edited.
 
@@ -235,7 +235,7 @@ duplicated here.
 | Status mark | `player.status !== 0` | `PlayerStatusBadge` — red card when suspended, white cross in a red disc otherwise, tooltip from `stxt` |
 | Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name |
 | Market value | `marketValue` | Compact euros, tabular figures |
-| Profit / loss | `profitLoss` (`mvgl`) | Signed, coloured green/red, `–` when flat |
+| 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
 | Fixture panel | `useCurrentMatchday` | Full-height panel on the right, house/aeroplane + opponent crest |
 
 The lineup rail is **always rendered** and only tinted when the player is
@@ -260,14 +260,26 @@ made here is on the pitch the moment you switch across. An earlier version read
 `lo` directly and showed stale rows for about a second after every edit, until
 the save round trip and refetch landed.
 
-The bottom-right figure is **`profitLoss` alone** — how much has been gained or
-lost *against the purchase price*, signed and coloured.
+The bottom-right figure is the **market-value change over the last 24 hours** —
+`tfhmvt`, signed and coloured, with a trend arrow in front of it.
 
-`marketValueTrend` (`mvt`, which way the value moved *recently*) used to sit in
-front of it as a ↗/↘/— arrow and is **no longer rendered**. The two are
-different signals, and a player can be up overall while trending down, so an
-arrow directly in front of the profit figure read as if it qualified that
-figure. The model still carries the field for anywhere it can stand on its own.
+It used to be `profitLoss` (`mvgl`), the gain or loss *against the purchase
+price*. That is a fact about a trade made months ago and it never moves on its
+own, whereas what this page gets read for is what changed overnight: who is
+climbing, who is bleeding value and belongs on the market. Profit still lives
+on `SquadMember` and is rendered on the [player's own page](player-detail.md),
+next to the purchase price that gives it meaning.
+
+`tfhmvt` is **not documented on the squad endpoint**, so the model types it as
+optional and an absent value renders as `–` rather than a false `0 €`. Its
+sibling `sdmvt` (the same measure over seven days) is declared and unused.
+
+The arrow is `TrendingUp`/`TrendingDown` derived from the sign of that same
+figure — not `marketValueTrend` (`mvt`). An `mvt` arrow sat here once, in front
+of the profit figure, and was removed: the two were different signals, so the
+arrow read as if it qualified a number it had nothing to do with. Derived from
+the amount it precedes, it cannot contradict it. `mvt` stays on the model for
+anywhere it can stand on its own.
 
 `moneyDelta()` formats the signed value and uses a real minus sign (U+2212)
 rather than a hyphen, so negative figures align with positive ones in tabular

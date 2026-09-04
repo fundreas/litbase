@@ -21,6 +21,7 @@ function mapSquad(data: SquadResponse): SquadMember[] {
     marketValue: player.mv,
     marketValueTrend: toTrend(player.mvt),
     profitLoss: player.mvgl ?? 0,
+    marketValueChangeDay: player.tfhmvt,
     totalPoints: player.p,
     averagePoints: player.ap,
     status: player.st,

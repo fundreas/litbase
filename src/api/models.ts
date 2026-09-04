@@ -533,6 +533,14 @@ export interface SquadMember {
   marketValueTrend: MarketValueTrend
   /** Profit/loss versus purchase price, in €. */
   profitLoss: number
+  /**
+   * Change over the last 24 hours, in €, signed.
+   *
+   * `undefined` when the squad payload omits `tfhmvt` — it is not a documented
+   * field on that endpoint, so absence is treated as "unknown" rather than as
+   * a flat 0.
+   */
+  marketValueChangeDay?: number
   totalPoints: number
   averagePoints: number
   /** 0 means available; anything else is injured / suspended / away. */

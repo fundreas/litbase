@@ -449,6 +449,17 @@ export interface SquadPlayer {
   mvt: number
   /** Market-value gain/loss since purchase, in €. */
   mvgl?: number
+  /**
+   * Change over the **last 24 hours**, in €, signed — see
+   * {@link PlayerDetailResponse.tfhmvt}, the same measure on the player
+   * endpoint.
+   *
+   * Not in the published docs for this endpoint, so it is optional and the
+   * squad row degrades to `–` if it ever stops arriving.
+   */
+  tfhmvt?: number
+  /** The same measure over **seven days**, in €, signed. Unused. */
+  sdmvt?: number
   /** Total points this season. */
   p: number
   /** Average points. */

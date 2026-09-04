@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Shirt } from 'lucide-react'
+import { LayoutGrid, List, Shirt, TrendingDown, TrendingUp } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -277,7 +277,7 @@ function ViewToggle({
  *
  * **No lineup control and no money.** The grid is for taking in a whole squad
  * at once — who is fit, who is likely to start — and a third-of-a-screen tile
- * cannot hold a market value, a profit and a shirt rail without becoming a
+ * cannot hold a market value, its change and a shirt rail without becoming a
  * worse version of the row. Tapping opens the player — or marks him for sale
  * while the calculator is on; the list view is where the lineup gets edited.
  *
@@ -459,6 +459,10 @@ function PlayerRow({
 
   const bodyClass = 'flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5'
 
+  const changeDay = player.marketValueChangeDay
+  const ChangeIcon =
+    changeDay !== undefined && changeDay < 0 ? TrendingDown : TrendingUp
+
   const details = (
     <>
       <span className="min-w-0 flex-1">
@@ -497,19 +501,31 @@ function PlayerRow({
         <span className="nums block text-sm font-semibold text-ink">
           {money(player.marketValue)}
         </span>
-        {/* Profit/loss only. The `mvt` trend arrow used to sit in front of
-              it and read as if it belonged to this figure, when the two are
-              different signals — a player can be up overall while trending
-              down. The signed, coloured amount carries this one on its own. */}
+        {/* The **last 24 hours**, not profit against the purchase price.
+              Profit is a fact about a trade made months ago and it never
+              changes on its own; what a squad page is read for is what moved
+              overnight — who is climbing, who is bleeding value and should go
+              on the market. `profitLoss` still lives on the model and on the
+              player's own page, where the purchase price is next to it and
+              the figure means something.
+
+              The arrow belongs here in a way it did not in front of the
+              profit figure: it is the *same* signal as the amount, its
+              direction, so the two cannot contradict each other. */}
         <span
           className={cn(
-            'nums block text-xs',
-            player.profitLoss > 0 && 'text-positive',
-            player.profitLoss < 0 && 'text-negative',
-            player.profitLoss === 0 && 'text-faint',
+            'nums flex items-center justify-end gap-0.5 text-xs',
+            changeDay !== undefined && changeDay > 0 && 'text-positive',
+            changeDay !== undefined && changeDay < 0 && 'text-negative',
+            (changeDay === undefined || changeDay === 0) && 'text-faint',
           )}
+          title="Marktwertänderung in den letzten 24 Stunden"
         >
-          {moneyDelta(player.profitLoss)}
+          {changeDay !== undefined && changeDay !== 0 && (
+            <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
+          )}
+          {moneyDelta(changeDay)}
+          <span className="sr-only"> in den letzten 24 Stunden</span>
         </span>
       </span>
     </>
