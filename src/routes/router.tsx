@@ -22,6 +22,18 @@ import {
 } from '@/routes/lazyPages'
 
 /**
+ * Where the app is mounted, taken from Vite's `base`.
+ *
+ * `/` for `npm run dev` and for any deploy that serves the app at a domain
+ * root. GitHub Pages serves a project site under `/<repo>/`, so the Pages
+ * workflow builds with `--base=/litbase/` and every route has to resolve
+ * beneath that prefix. The trailing slash `BASE_URL` carries is stripped:
+ * react-router does tolerate it, but only via a special case in
+ * `stripBasename`, and `/litbase` is what the option actually means.
+ */
+const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
+
+/**
  * Route table.
  *
  *   /login                       public
@@ -41,92 +53,95 @@ import {
  * `lazyPages.tsx`, add a child route below, and add an entry to
  * `components/layout/navigation.ts`.
  */
-export const router = createBrowserRouter([
-  {
-    path: '/login',
-    element: (
-      <RedirectIfAuthenticated>
-        <LoginPage />
-      </RedirectIfAuthenticated>
-    ),
-  },
-  {
-    path: '/register',
-    element: (
-      <RedirectIfAuthenticated>
-        <RegisterPage />
-      </RedirectIfAuthenticated>
-    ),
-  },
-  {
-    element: <RequireAuth />,
-    children: [
-      { index: true, element: <HomeRedirect /> },
-      { path: 'leagues', element: <LeagueGate /> },
-      // Top level, not under /leagues/:leagueId: joining is not scoped to a
-      // league, and a user with none has to be able to reach it.
-      { path: 'join', element: <JoinLeaguePage /> },
-      {
-        path: 'leagues/:leagueId',
-        element: <LeagueProvider />,
-        children: [
-          {
-            element: <AppShell />,
-            children: [
-              { index: true, element: <Navigate to="dashboard" replace /> },
-              { path: 'dashboard', element: <DashboardPage /> },
-              // Two routes, one component: the active view is derived from
-              // the segment, so each is linkable and refresh-safe. The pitch
-              // is nested **under** the squad rather than a sibling, which is
-              // what it always was conceptually and what keeps the drawer's
-              // prefix match lighting "Mannschaft" for free.
-              { path: 'squad', element: <SquadPage /> },
-              { path: 'squad/lineup', element: <SquadPage /> },
-              // `/lineup` was the pitch's own route until it moved under
-              // `/squad`. Kept as a redirect so an old bookmark lands on the
-              // page rather than on the 404.
-              //
-              // A loader rather than `<Navigate to="../squad/lineup">`: the
-              // relative form depends on how `..` counts a pathless layout
-              // route, which is a subtlety to get wrong silently. Rebuilding
-              // the path from `params` says exactly where it goes.
-              {
-                path: 'lineup',
-                loader: ({ params }) =>
-                  redirect(`/leagues/${params.leagueId ?? ''}/squad/lineup`),
-              },
-              { path: 'market', element: <MarketPage /> },
-              { path: 'ranking', element: <RankingPage /> },
-              // Duel leagues only. The route is registered unconditionally —
-              // the table is built once, before any league is known — and the
-              // page itself redirects to the dashboard when the league does
-              // not play duels, so the URL is a dead end exactly where the
-              // drawer entry is missing.
-              { path: 'duels', element: <DuelsPage /> },
-              // `:duelId` is both manager ids joined with `-`. Two routes, one
-              // component — the tab comes from the segment, so each view is
-              // linkable and survives a refresh, as on the squad page.
-              { path: 'duels/:duelId', element: <DuelDetailPage /> },
-              { path: 'duels/:duelId/ranking', element: <DuelDetailPage /> },
-              { path: 'table', element: <TablePage /> },
-              { path: 'players', element: <PlayersPage /> },
-              // Three routes, one component, as on the squad and duel-detail
-              // pages: the bottom bar's tab is read out of the segment, so
-              // each view is linkable and survives a refresh.
-              { path: 'players/:playerId', element: <PlayerDetailPage /> },
-              {
-                path: 'players/:playerId/performance',
-                element: <PlayerDetailPage />,
-              },
-              {
-                path: 'players/:playerId/market',
-                element: <PlayerDetailPage />,
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  { path: '*', element: <NotFoundPage /> },
-])
+export const router = createBrowserRouter(
+  [
+    {
+      path: '/login',
+      element: (
+        <RedirectIfAuthenticated>
+          <LoginPage />
+        </RedirectIfAuthenticated>
+      ),
+    },
+    {
+      path: '/register',
+      element: (
+        <RedirectIfAuthenticated>
+          <RegisterPage />
+        </RedirectIfAuthenticated>
+      ),
+    },
+    {
+      element: <RequireAuth />,
+      children: [
+        { index: true, element: <HomeRedirect /> },
+        { path: 'leagues', element: <LeagueGate /> },
+        // Top level, not under /leagues/:leagueId: joining is not scoped to a
+        // league, and a user with none has to be able to reach it.
+        { path: 'join', element: <JoinLeaguePage /> },
+        {
+          path: 'leagues/:leagueId',
+          element: <LeagueProvider />,
+          children: [
+            {
+              element: <AppShell />,
+              children: [
+                { index: true, element: <Navigate to="dashboard" replace /> },
+                { path: 'dashboard', element: <DashboardPage /> },
+                // Two routes, one component: the active view is derived from
+                // the segment, so each is linkable and refresh-safe. The pitch
+                // is nested **under** the squad rather than a sibling, which is
+                // what it always was conceptually and what keeps the drawer's
+                // prefix match lighting "Mannschaft" for free.
+                { path: 'squad', element: <SquadPage /> },
+                { path: 'squad/lineup', element: <SquadPage /> },
+                // `/lineup` was the pitch's own route until it moved under
+                // `/squad`. Kept as a redirect so an old bookmark lands on the
+                // page rather than on the 404.
+                //
+                // A loader rather than `<Navigate to="../squad/lineup">`: the
+                // relative form depends on how `..` counts a pathless layout
+                // route, which is a subtlety to get wrong silently. Rebuilding
+                // the path from `params` says exactly where it goes.
+                {
+                  path: 'lineup',
+                  loader: ({ params }) =>
+                    redirect(`/leagues/${params.leagueId ?? ''}/squad/lineup`),
+                },
+                { path: 'market', element: <MarketPage /> },
+                { path: 'ranking', element: <RankingPage /> },
+                // Duel leagues only. The route is registered unconditionally —
+                // the table is built once, before any league is known — and the
+                // page itself redirects to the dashboard when the league does
+                // not play duels, so the URL is a dead end exactly where the
+                // drawer entry is missing.
+                { path: 'duels', element: <DuelsPage /> },
+                // `:duelId` is both manager ids joined with `-`. Two routes, one
+                // component — the tab comes from the segment, so each view is
+                // linkable and survives a refresh, as on the squad page.
+                { path: 'duels/:duelId', element: <DuelDetailPage /> },
+                { path: 'duels/:duelId/ranking', element: <DuelDetailPage /> },
+                { path: 'table', element: <TablePage /> },
+                { path: 'players', element: <PlayersPage /> },
+                // Three routes, one component, as on the squad and duel-detail
+                // pages: the bottom bar's tab is read out of the segment, so
+                // each view is linkable and survives a refresh.
+                { path: 'players/:playerId', element: <PlayerDetailPage /> },
+                {
+                  path: 'players/:playerId/performance',
+                  element: <PlayerDetailPage />,
+                },
+                {
+                  path: 'players/:playerId/market',
+                  element: <PlayerDetailPage />,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    { path: '*', element: <NotFoundPage /> },
+  ],
+  { basename },
+)

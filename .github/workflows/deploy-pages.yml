@@ -1,0 +1,82 @@
+# Build the SPA and publish it to GitHub Pages.
+#
+# Runs on the `github-pages` branch only — `main` is left alone, so this is a
+# deploy you opt into by pushing here.
+#
+# Two settings have to be made once, by hand, in the repository:
+#
+#   1. Settings → Pages → Build and deployment → Source: "GitHub Actions".
+#   2. Settings → Environments → github-pages → Deployment branches: add the
+#      `github-pages` branch. The environment ships allowing the default branch
+#      only, and without this the deploy job fails with "Branch is not allowed
+#      to deploy to github-pages due to environment protection rules". The
+#      branch and the environment sharing a name is a coincidence, not a link.
+#
+# The result is served at https://fundreas.github.io/litbase/.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [github-pages]
+  # Lets a deploy be re-run from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  # deploy-pages authenticates to Pages with an OIDC token, not a PAT.
+  id-token: write
+
+# One deploy at a time. Pages has a single live version, so a superseded run
+# has nothing left to publish.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # typecheck + lint + format:check. A deploy is a poor place to discover
+      # any of the three.
+      - run: npm run check
+
+      # A Pages project site lives under /<repo>/, so asset URLs have to be
+      # built with that prefix. Passing it here rather than setting `base` in
+      # vite.config.ts keeps `npm run dev` serving at the root, and keeps the
+      # prefix next to the one deploy that needs it. `--` appends to the end of
+      # the `build` script, which is `tsc -b && vite build` — so the flag lands
+      # on `vite build`. Change this if the repo is renamed, and drop it
+      # entirely for a custom domain (those are served at the root).
+      - run: npm run build -- --base=/litbase/
+
+      # Pages has no rewrite rules, so a deep link like /litbase/leagues/1/squad
+      # matches no file on disk. It serves 404.html for a miss, and this copy of
+      # the app shell boots, reads the URL and renders the right route. The
+      # response still carries an HTTP 404 status — unavoidable here.
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
