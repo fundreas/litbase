@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router'
+import { createBrowserRouter, Navigate, redirect } from 'react-router'
 
 import { RedirectIfAuthenticated, RequireAuth } from '@/auth/RequireAuth'
 import { AppShell } from '@/components/layout/AppShell'
@@ -31,6 +31,7 @@ import {
  *                                when the account has none
  *   /join                        browse and join leagues
  *   /leagues/:leagueId/<page>    every league-scoped page
+ *   /leagues/:leagueId/squad/lineup        the pitch, under the squad
  *   /leagues/:leagueId/players/:playerId   one player, three tabs
  *
  * The league id lives in the path, not in context alone, so a refresh, a
@@ -74,10 +75,26 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },
               { path: 'dashboard', element: <DashboardPage /> },
-              // Two routes, one component: the active tab is derived from
-              // the segment, so each view is linkable and refresh-safe.
+              // Two routes, one component: the active view is derived from
+              // the segment, so each is linkable and refresh-safe. The pitch
+              // is nested **under** the squad rather than a sibling, which is
+              // what it always was conceptually and what keeps the drawer's
+              // prefix match lighting "Mannschaft" for free.
               { path: 'squad', element: <SquadPage /> },
-              { path: 'lineup', element: <SquadPage /> },
+              { path: 'squad/lineup', element: <SquadPage /> },
+              // `/lineup` was the pitch's own route until it moved under
+              // `/squad`. Kept as a redirect so an old bookmark lands on the
+              // page rather than on the 404.
+              //
+              // A loader rather than `<Navigate to="../squad/lineup">`: the
+              // relative form depends on how `..` counts a pathless layout
+              // route, which is a subtlety to get wrong silently. Rebuilding
+              // the path from `params` says exactly where it goes.
+              {
+                path: 'lineup',
+                loader: ({ params }) =>
+                  redirect(`/leagues/${params.leagueId ?? ''}/squad/lineup`),
+              },
               { path: 'market', element: <MarketPage /> },
               { path: 'ranking', element: <RankingPage /> },
               // Duel leagues only. The route is registered unconditionally —

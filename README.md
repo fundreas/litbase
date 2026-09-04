@@ -93,7 +93,7 @@ src/
 /join                        browse and join leagues
 /leagues/:leagueId/dashboard
 /leagues/:leagueId/squad
-/leagues/:leagueId/lineup
+/leagues/:leagueId/squad/lineup            the pitch, under the squad
 /leagues/:leagueId/market
 /leagues/:leagueId/ranking
 /leagues/:leagueId/duels        ?day=N — duel leagues only
@@ -188,11 +188,12 @@ Components should never see abbreviated keys like `mvt` or `spl`.
 ## Mobile notes
 
 - Hamburger drawer as the single navigation surface on a phone — no *global*
-  bottom tab bar, so full-height pages like the lineup get that row back. The
-  one exception is the [player detail
-  page](docs/pages/player-detail.md#why-this-page-has-a-bottom-bar), where a
-  docked bar switches between three views of the same player rather than
-  between pages, and only exists while that page is open. From `lg`
+  bottom tab bar, so pages get that row back. Two pages dock one of their own:
+  the [squad](docs/pages/squad.md#the-bottom-bar) (Kader / Aufstellung) and the
+  [player detail page](docs/pages/player-detail.md#why-this-page-has-a-bottom-bar)
+  (Details / Leistung / Markt). Both switch between views of the page you are
+  already on rather than between pages, exist only while that page is open, and
+  are `sticky` so they stay inside the content column beside a sidebar. From `lg`
   (64rem) up the same nav is a permanent sidebar and the hamburger disappears;
   the header spans the full width above both. The switch is CSS, so there is no
   flash and no resize handler in the layout path.

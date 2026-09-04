@@ -54,14 +54,17 @@ export function isNavItemActive(
  * The app's navigation. Add a page here and it appears in the drawer —
  * nothing else to wire up.
  *
- * "Mannschaft" is the only entry for the team page even though `/lineup` is its
- * own route: the tabs on that page are the natural way between the two views,
- * and a second drawer entry for a sibling tab is noise.
+ * "Mannschaft" is the only entry for the team page even though the pitch has
+ * its own route: the bottom bar on that page is the natural way between the
+ * two views, and a second drawer entry for a sibling view is noise. Since the
+ * pitch moved to `/squad/lineup`, the prefix test below covers it anyway.
  *
- * There is no bottom tab bar: it duplicated the drawer, ate a row of screen
- * height on exactly the small screens where the pitch needs it, and forced a
- * second, coarser notion of "which entry is active". The drawer is the single
- * navigation surface.
+ * There is no *global* bottom tab bar: it duplicated the drawer, ate a row of
+ * screen height on exactly the small screens where the pitch needs it, and
+ * forced a second, coarser notion of "which entry is active". The drawer is
+ * the single navigation surface between pages. The squad and player pages do
+ * dock a `BottomTabBar` of their own, but that switches between views of one
+ * page rather than between pages, and never leaves it.
  *
  * **Only built pages are listed.** `market` (Transfermarkt), `table`
  * (Bundesliga-Tabelle) and `players` (Alle Spieler) are still
@@ -75,12 +78,16 @@ export const NAV_ITEMS: NavItem[] = [
     to: 'squad',
     label: 'Mannschaft',
     icon: Users,
+    // The pitch lives at `/squad/lineup`, which the prefix test in
+    // `isNavItemActive` already covers — no entry needed for it.
+    //
     // `players` covers the player detail page, which is reached by tapping a
     // squad row and has no drawer entry of its own. It also covers the
     // unlisted `/players` stub — harmless while that stub is not offered
     // anywhere, and the line to revisit if "Alle Spieler" ever becomes its
-    // own entry.
-    alsoMatches: ['lineup', 'players'],
+    // own entry. `lineup` is the pre-move URL, kept so the redirect flashes
+    // the right entry on its way through.
+    alsoMatches: ['players', 'lineup'],
   },
   { to: 'ranking', label: 'Rangliste', icon: Trophy },
   { to: 'duels', label: 'Duelle', icon: Swords, requiresDuelMode: true },

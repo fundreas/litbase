@@ -1,55 +1,107 @@
 # Squad — "Mannschaft"
 
 [← Back to index](../README.md) · Routes `/leagues/:leagueId/squad` and
-`/leagues/:leagueId/lineup` ·
+`/leagues/:leagueId/squad/lineup` ·
 [`src/pages/SquadPage.tsx`](../../src/pages/SquadPage.tsx)
 
-The signed-in manager's own players, in two tabs that are **separate routes**:
+The signed-in manager's own players, in two views that are **separate routes**,
+switched by a [bottom tab bar](#the-bottom-bar):
 
-| Route | Tab | Content |
-| ----- | --- | ------- |
-| `/squad` | **Kader** | The full squad as a grouped list (below) |
-| `/lineup` | **Aufstellung** | The interactive lineup on a pitch ([see below](#lineup-tab)) |
+| Route | View | Content |
+| ----- | ---- | ------- |
+| `/squad` | **Kader** | The full squad, as a grouped list or a grid (below) |
+| `/squad/lineup` | **Aufstellung** | The interactive lineup on a pitch ([see below](#lineup-tab)) |
 
-Both routes render the same component; the active tab is derived from the last
-path segment rather than held in local state, so each view is linkable,
-survives a refresh, and can be opened straight from the nav drawer. Switching
-tabs navigates with `replace`, so flicking between them does not fill the
-history stack — back leaves the page instead of walking through every visit.
+**The pitch is nested under the squad**, not a sibling at `/lineup`. It always
+was the squad seen another way, the URL now says so, and the drawer's prefix
+match in `isNavItemActive` lights *Mannschaft* for both without a special case.
+The old `/lineup` is kept as a redirect — a route `loader` returning
+`redirect()` rather than a relative `<Navigate>`, because how `..` counts a
+pathless layout route is a subtlety that fails silently.
 
-Both read the same `useSquad` query, so switching tabs costs no request. The
+Both routes render the same component; the active view is derived from the last
+path segment rather than held in local state, so each is linkable, survives a
+refresh, and can be opened straight from the nav drawer. The bar navigates with
+`replace`, so flicking between them does not fill the history stack — back
+leaves the page instead of walking through every visit.
+
+Both read the same `useSquad` query, so switching costs no request. The
 list lives in [`PlayerListTab`](../../src/components/squad/PlayerListTab.tsx)
 and the lineup in [`LineupTab`](../../src/components/squad/LineupTab.tsx); the
-page itself only owns loading, error and empty states plus the tab shell.
+page itself only owns loading, error and empty states plus the shell.
 
-**Both tabs edit the same lineup.** The state and every mutation live in
+**Both views edit the same lineup.** The state and every mutation live in
 [`useLineupEditor`](../../src/components/squad/useLineupEditor.ts), held by an
-inner `SquadTabs` component and passed to both — a hook cannot sit behind the
+inner `SquadViews` component and passed to both — a hook cannot sit behind the
 page's loading and error returns, and the squad it seeds from only exists after
 them. The swap dialog is rendered once at that level too, since either tab can
-open it. Two copies of this state would let the tabs disagree; the list
+open it. Two copies of this state would let the views disagree; the list
 previously dodged that by reading the server's `lo` instead, which lagged by a
 save round trip.
 
-## Kader tab — layout
+## The bottom bar
+
+[`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx), shared with the
+[player detail page](player-detail.md#why-this-page-has-a-bottom-bar).
+
+This is not a return of the global bottom tab bar that
+[Navigation](../routing-and-layout.md#navigation) describes removing — that one
+duplicated the drawer and cost a row of height on every screen. This one
+switches between two views of the page you are already on, exists only while
+that page is open, and sits where a thumb already is. It is `sticky` rather
+than `fixed`, so at `lg` and up it stays inside the content column instead of
+lying across the sidebar.
+
+Each tab is a real `<Link>`, so both views are linkable and middle-clickable.
+
+## Header
+
+| Element | Source | Notes |
+| ------- | ------ | ----- |
+| Title | — | *Mannschaft* |
+| Subtitle | `useSquad` | `20 Spieler · 194,4 Mio. € Gesamtwert` |
+| Budget chip | `useLeagueManager` | **Green at or above zero, red below** |
+| Legend button | — | Opens `SquadLegendDialog` |
+
+The **budget chip** is its own small query (`/leagues/{id}/me`), which the
+dashboard has usually filled already. Kickbase lets a budget go negative — an
+overdrawn manager pays interest — so the sign is a state worth seeing without
+reading the number, and it belongs next to the squad because every transfer
+decision starts here.
+
+## Kader — two layouts
+
+A **list** or a **grid**, chosen by an icon-only toggle above the groups.
+Both keep the position grouping.
 
 ```
-  Mannschaft
+  Mannschaft                    [51,0 Mio. €] [i]
   20 Spieler · 194,4 Mio. € Gesamtwert
 
-  TW · 2
-  ┌────────────────────────────────────┐
-  │ [img] Nübel            10,5 Mio. € │
-  │       412 Pkt · ⌀ 39     +2,2 Mio. │
-  └────────────────────────────────────┘
-
-  ABW · 6
-  ┌────────────────────────────────────┐
-  │ [img] Fernández ●       6,8 Mio. € │
-  │       39 Pkt · ⌀ 39      −1,1 Mio. │
-  └────────────────────────────────────┘
-  …
+                                      [≡] [▦]
+  TW · 2                     ┌─────┬─────┬─────┐
+  ┌────────────────────────┐ │ ✚[] │  [] │  []★│
+  │▮[img] Nübel  10,5 Mio.€│ │ img │ img │ img │
+  │       ★        +2,2 Mio│ │Nübel│Atu. │Bau. │
+  └────────────────────────┘ └─────┴─────┴─────┘
 ```
+
+The choice is remembered in `localStorage` through the app's safe wrapper, so
+it survives a reload and silently falls back to the list where storage is
+blocked. It is deliberately **not** in the URL: a layout is a preference, not a
+place, and a shared link should open in the reader's own.
+
+### Tiles
+
+Portrait, last name, and the two marks that say whether you can count on the
+player this week — availability top-left, lineup probability top-right,
+**exactly as on the pitch portraits**, so anyone who has used the lineup screen
+already knows the tile.
+
+No lineup rail and no money: the grid is for taking in a whole squad at once,
+and a third-of-a-screen tile cannot hold a market value, a profit *and* a shirt
+rail without becoming a worse version of the row. Tapping opens the player; the
+list is where the lineup gets edited.
 
 ## Grouping and ordering
 
@@ -72,8 +124,8 @@ duplicated here.
 | Lineup rail | `editor.isFielded()` | Full-height **button**, accent-tinted with a solid shirt when fielded, faint outline when not |
 | Image | `player.image` (`pim`) | Full-bleed portrait via `Avatar fill` — no padding, flush against the rail, inner edge masked |
 | Name | `player.lastName` | Last name only — first names rarely fit |
-| Status mark | `player.status !== 0` | `PlayerStatusBadge` — white cross in a red disc, tooltip from `stxt` |
-| Points | `totalPoints`, `averagePoints` | `412 Pkt · ⌀ 39` |
+| Status mark | `player.status !== 0` | `PlayerStatusBadge` — red card when suspended, white cross in a red disc otherwise, tooltip from `stxt` |
+| Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name |
 | Market value | `marketValue` | Compact euros, tabular figures |
 | Profit / loss | `profitLoss` (`mvgl`) | Signed, coloured green/red, `–` when flat |
 | Fixture panel | `useCurrentMatchday` | Full-height panel on the right, house/aeroplane + opponent crest |
@@ -112,6 +164,12 @@ figure. The model still carries the field for anywhere it can stand on its own.
 `moneyDelta()` formats the signed value and uses a real minus sign (U+2212)
 rather than a hyphen, so negative figures align with positive ones in tabular
 figures.
+
+**Points and average are no longer on the row.** They read `412 Pkt · ⌀ 39`
+under the name until the [player detail page](player-detail.md) gave season
+scoring a whole tab of its own — per matchday, with minutes and events. This
+page is about who is fit, who is likely to start and what they are worth, and
+the row is quieter for keeping to that.
 
 ## Header total
 

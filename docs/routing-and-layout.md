@@ -252,14 +252,22 @@ so any future detail route inherits it without a per-item flag.
 **Mannschaft** is the only entry for the team page, even though it has two
 routes: the tabs on that page are the natural way between the squad list and
 the lineup, and a second drawer entry for a sibling tab is noise. It therefore
-declares `alsoMatches: ['lineup']`, and `NavDrawer` resolves the active item
-with `isNavItemActive()` rather than `NavLink`'s own matching — otherwise the
-drawer would highlight nothing while the lineup tab is open.
+resolves the active item with `isNavItemActive()` rather than `NavLink`'s own
+matching. That helper also prefix-matches, so a page's detail routes keep its
+entry lit: `/squad/lineup` and `/players/:playerId` both leave **Mannschaft**
+highlighted, rather than the drawer going dark the moment you tap into a row.
 
-There is **no bottom tab bar**: it duplicated the drawer, ate a row of screen
-height on exactly the small screens where the pitch needs it, and forced a
-second, coarser notion of which entry was active (`/lineup` had no bar entry of
-its own, so **Mannschaft** had to stand in for it).
+There is **no global bottom tab bar**: it duplicated the drawer, ate a row of
+screen height on exactly the small screens where the pitch needs it, and forced
+a second, coarser notion of which entry was active (`/lineup` had no bar entry
+of its own, so **Mannschaft** had to stand in for it).
+
+Two pages dock a bar **of their own**, which is a different thing:
+[`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
+of the page you are already on — squad ⇄ lineup, and the player page's three
+tabs — rather than between pages, and exists only while that page is open. It
+is `sticky`, not `fixed`, so at `lg` and up it stays inside the content column
+instead of lying across the sidebar.
 
 Pages can claim the leftover viewport height: `main` is a flex column, so a
 page root with `flex-1` fills it. The [lineup](pages/squad.md#lineup-tab) uses
