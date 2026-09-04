@@ -1,4 +1,4 @@
-import { Store, TrendingDown, TrendingUp } from 'lucide-react'
+import { TrendingDown, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router'
 
 import {
@@ -42,7 +42,7 @@ export function MarketRow({
   now: number
   onOffer: () => void
 }) {
-  const { ownOffer, seller } = listing
+  const { ownOffer, seller, price, marketValue } = listing
   const ChangeIcon =
     marketValueChange !== undefined && marketValueChange < 0
       ? TrendingDown
@@ -74,7 +74,18 @@ export function MarketRow({
   )
 
   return (
-    <li className="flex items-stretch overflow-hidden rounded-card border border-line bg-surface">
+    <li
+      className={cn(
+        'flex items-stretch overflow-hidden rounded-card border bg-surface',
+        // A standing bid marks the **whole row**, the same outline the squad
+        // page uses for a player marked for sale. A label under the price said
+        // the same thing in a place you had to look for it; an outline is seen
+        // while scanning the list, which is when it matters.
+        ownOffer === undefined
+          ? 'border-line'
+          : 'border-accent bg-accent/5 ring-1 ring-accent',
+      )}
+    >
       {portrait}
 
       <button
@@ -85,26 +96,24 @@ export function MarketRow({
       >
         <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
           <span className="min-w-0 flex-1">
-            <span className="flex items-baseline gap-1.5">
-              <span className="truncate text-sm font-semibold text-ink">
-                {listing.lastName}
-              </span>
-              <span className="shrink-0 text-[0.625rem] tracking-wide text-faint uppercase">
-                {POSITION_LABEL[listing.position]}
-              </span>
+            <span className="block truncate text-sm font-semibold text-ink">
+              {listing.lastName}
             </span>
 
-            {/* Who you would be buying from. A computer listing has no seller
-                on the wire, and that absence *is* the information: nobody owns
-                the player, so there is no manager to negotiate with. */}
+            {/* Position, and who you would be buying from — when there is
+                anyone. A computer listing has no seller on the wire, and
+                naming Kickbase in that slot says nothing you could act on:
+                the absence of a manager *is* the fact. The position takes the
+                line instead, and shares it when a manager is there. */}
             <span className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted">
-              {seller === undefined ? (
+              <span className="shrink-0 tracking-wide uppercase">
+                {POSITION_LABEL[listing.position]}
+              </span>
+              {seller !== undefined && (
                 <>
-                  <Store size={11} aria-hidden="true" className="shrink-0" />
-                  <span className="truncate">Kickbase</span>
-                </>
-              ) : (
-                <>
+                  <span aria-hidden="true" className="text-faint">
+                    ·
+                  </span>
                   <Avatar src={seller.image} name={seller.name} size={14} />
                   <span className="truncate">{seller.name}</span>
                 </>
@@ -113,27 +122,23 @@ export function MarketRow({
           </span>
 
           <span className="shrink-0 text-right">
-            {/* The price you would pay — your own offer once you have made
-                one, which is the number that has stopped being a question. */}
+            {/* **One figure, the one that answers the question.** Your own
+                offer if you have made one, else what a manager is asking, else
+                the market value — which is what a computer listing charges
+                anyway. Printing all three stacked them into a column the eye
+                had to reconcile, and two of them are usually the same number.
+                The row's outline says when the figure is your own bid. */}
             <span
               className={cn(
                 'nums block text-sm font-semibold',
                 ownOffer === undefined ? 'text-ink' : 'text-accent',
               )}
             >
-              {money(ownOffer ?? listing.price)}
+              {money(ownOffer ?? (seller === undefined ? marketValue : price))}
             </span>
-            {ownOffer !== undefined && (
-              <span className="block text-[0.625rem] tracking-wide text-accent/80 uppercase">
-                Dein Gebot
-              </span>
-            )}
 
-            {/* Market value and its overnight move, under the price: the two
-                figures are only interesting against each other. */}
-            <span className="nums block text-xs text-muted">
-              MW {money(listing.marketValue)}
-            </span>
+            {/* The overnight move as the subtitle: the one thing about the
+                figure above that is not visible in the figure above. */}
             <span
               className={cn(
                 'nums flex items-center justify-end gap-0.5 text-xs',

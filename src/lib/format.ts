@@ -58,16 +58,39 @@ export function placement(value: number | null | undefined): string {
   return `${decimal.format(value)}.`
 }
 
-/** `2 Tage`, `3 Std.`, `14 Min.` — for market listing countdowns. */
+/** Below this, the countdown counts **seconds** — see {@link duration}. */
+export const COUNTDOWN_SECONDS_FROM = 3 * 60
+
+/**
+ * `41 Std.`, `3 Std.`, `14 Min.`, `2:45` — for market listing countdowns.
+ *
+ * **Hours are the largest unit**, so a listing with two days on it reads
+ * `41 Std.` rather than `1 Tag`. Days are the wrong currency here: the
+ * question a countdown answers is "can I still think about this", and the
+ * answer is arithmetic against the hours in an evening. Rounding 41 hours down
+ * to "1 Tag" throws away most of what was asked.
+ *
+ * The last minutes are spelled out to the second. A listing settles at zero,
+ * to whatever bid stands at that moment, so the closing minutes are the only
+ * ones where the exact figure changes what you would do — and "1 Min." held
+ * still for sixty seconds while the thing you were watching quietly ended.
+ * Above {@link COUNTDOWN_SECONDS_FROM} the coarser units are enough, and the
+ * caller can tick slowly.
+ */
 export function duration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return 'abgelaufen'
+
+  if (seconds < COUNTDOWN_SECONDS_FROM) {
+    const whole = Math.floor(seconds)
+    const rest = whole % 60
+    return `${String(Math.floor(whole / 60))}:${String(rest).padStart(2, '0')}`
+  }
+
   const minutes = Math.floor(seconds / 60)
   const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
 
-  if (days >= 1) return `${String(days)} ${days === 1 ? 'Tag' : 'Tage'}`
   if (hours >= 1) return `${String(hours)} Std.`
-  return `${String(Math.max(minutes, 1))} Min.`
+  return `${String(minutes)} Min.`
 }
 
 const dateFormatter = new Intl.DateTimeFormat(LOCALE, {

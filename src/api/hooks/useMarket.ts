@@ -2,10 +2,22 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import { toPosition, toTrend, type MarketListing } from '@/api/models'
+import {
+  toPosition,
+  toTrend,
+  type Market,
+  type MarketListing,
+} from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { MarketResponse } from '@/api/types'
 import { nowMs } from '@/lib/clock'
+
+/** ISO 8601 → epoch ms, so it compares directly against `expiresAt`. */
+function toInstant(iso: string | undefined): number | undefined {
+  if (iso === undefined) return undefined
+  const parsed = Date.parse(iso)
+  return Number.isNaN(parsed) ? undefined : parsed
+}
 
 function mapMarket(data: MarketResponse): MarketListing[] {
   // One reading for the whole response, so listings fetched together share an
@@ -49,7 +61,7 @@ function mapMarket(data: MarketResponse): MarketListing[] {
  */
 export function useMarket(
   leagueId: string | undefined,
-): UseQueryResult<MarketListing[]> {
+): UseQueryResult<Market> {
   return useQuery({
     queryKey: qk.market(leagueId ?? 'none'),
     enabled: leagueId !== undefined,
@@ -60,14 +72,19 @@ export function useMarket(
     // background, so it costs nothing when nobody is looking.
     refetchInterval: 30_000,
     queryFn: async () => {
-      const listings = mapMarket(
-        await get<MarketResponse>(endpoints.leagues.market(leagueId as string)),
+      const data = await get<MarketResponse>(
+        endpoints.leagues.market(leagueId as string),
       )
-      return listings.sort(
-        (a, b) =>
-          (a.expiresAt ?? Number.POSITIVE_INFINITY) -
-          (b.expiresAt ?? Number.POSITIVE_INFINITY),
-      )
+      return {
+        listings: mapMarket(data).sort(
+          (a, b) =>
+            (a.expiresAt ?? Number.POSITIVE_INFINITY) -
+            (b.expiresAt ?? Number.POSITIVE_INFINITY),
+        ),
+        marketValueUpdateAt: toInstant(data.mvud),
+        matchdayStartAt: toInstant(data.dt),
+        day: data.day,
+      } satisfies Market
     },
   })
 }

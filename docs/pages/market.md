@@ -17,17 +17,43 @@ Each row carries what a buying decision actually needs:
 
 ```
 ┌────┬─────────────────────────────┬────┬────────┐
-│    │ Kohr                 ABW    │    │ 9 Std. │
-│ 👤 │ 🏪 Kickbase   7,77 Mio. €   │ 🏠 │ 22:48  │
-│    │            MW 7,77 Mio. €   │ FCB│        │
-│    │            ↘ −390 Tsd. €    │    │        │
+│ 👤 │ Kohr          7,77 Mio. €   │ 🏠 │ 9 Std. │
+│    │ ABW          ↘ −390 Tsd. €  │ FCB│ 22:48  │
 └────┴─────────────────────────────┴────┴────────┘
 ```
 
-name and position · who owns him (a manager, or *Kickbase* when nobody does) ·
-what he would cost · market value and its overnight move · his club's next
-fixture, home or away · how long the listing has left, and the clock time that
-lands on.
+name · position, and the manager who owns him when one does · **one** money
+figure and its overnight move · his club's next fixture, home or away · how
+long the listing has left, and the clock time that lands on.
+
+**One figure, not three.** It is your own offer if you have made one, else what
+a manager is asking, else the market value — which is what a computer listing
+charges anyway. Price, market value and offer stacked in one column made the
+eye reconcile three numbers of which two were usually identical; the 24-hour
+move sits under the survivor as its subtitle, being the one thing about that
+figure the figure itself does not say.
+
+**Nobody is named "Kickbase".** A computer listing has no seller on the wire,
+and printing the house name in that slot says nothing you could act on — the
+absence of a manager *is* the fact. The position takes the line instead, and
+shares it when there is a manager to name.
+
+**The list is cut where the clock matters.** Because it is ordered by expiry it
+is also a timeline, so two hairlines are drawn into it: the nightly
+**market-value recalculation** and the matchday's **first kick-off**. A row's
+position against them is the point — a listing settling after the
+recalculation is settled against a value nobody knows yet, and one settling
+after kick-off is a player who may already have played the matchday you were
+buying him for. Both instants come off the market response itself (`mvud` and
+`dt`, the latter verified against the fixture list), so neither costs a
+request. A milestone already past is dropped rather than drawn at the top,
+where it would be a line about nothing.
+
+**The heading counts what you have promised.** Beside the budget, and only when
+at least one bid stands, sits what would be left **if every one of them won**.
+Kickbase checks each offer against the budget on its own, so five live bids can
+commit a manager to far more than they hold, and nothing else on the page adds
+them up. It turns red when the total goes past what there is.
 
 **Two targets, split at the portrait.** Tapping the picture opens the player's
 page — the reference move, the one you make to read a scoring history before
@@ -37,15 +63,27 @@ the market is *for* and it deserves the large target.
 The price shown is the asking price until you have bid, and **your own offer**
 once you have — see `offerBaseline` in [`models.ts`](../../src/api/models.ts).
 The question changes after you bid: not "what would this cost" but "what did I
-say I would pay", and the row turns accent-coloured to say so.
+say I would pay". A row you have bid on takes the **accent outline** the squad
+page uses for a player marked for sale — a label under the price said the same
+thing somewhere you had to look for it, and an outline is seen while scanning.
 
 ### The bid dialog
 
 [`OfferDialog`](../../src/components/market/OfferDialog.tsx) opens seeded with
 that same baseline, so the default action is "buy it at the number on the row".
+It names the market value and its 24-hour move; the **asking price only appears
+when it differs** from the market value, which on a computer listing it never
+does — the same number under two labels invites a hunt for a difference that is
+not there.
+
 Six shortcut buttons step the amount by ±1, ±1 000 and ±100 000 — a hundred
 thousand is the unit market values move in overnight, a thousand is haggling
-range, and one euro exists because a tie goes to the higher bid.
+range, and one euro exists because a tie goes to the higher bid. They **repeat
+while held**, like a keyboard key: 400 ms before the first repeat, then every
+60 ms. Reaching a five-figure adjustment a euro per tap is not something to ask
+of anyone. The step goes through the functional form of `setAmount`, because
+the interval is installed once per press and a captured amount would add the
+same step to the same number for as long as the finger stayed down.
 
 Three ways out, and they differ:
 
@@ -53,11 +91,11 @@ Three ways out, and they differ:
 | ------- | ---- |
 | *Abbrechen* | closes the dialog, changes nothing |
 | *Bieten* / *Gebot ändern* | `POST`s the amount in the field |
-| **X** beside the title | withdraws the offer that already stands |
+| **X**, at the end of the field | withdraws the offer that already stands |
 
-The X only appears when there is an offer to withdraw, and sits away from the
-two full-width buttons deliberately: it is the destructive one, and it should
-not be reachable by the same thumb sweep that dismisses the dialog.
+The X only appears when there is an offer to withdraw. It rides the input's
+`trailing` slot rather than joining the two buttons below: it acts on the
+amount it sits beside, and it is not one of the dialog's two conclusions.
 
 Bidding costs nothing up front — the budget is debited only when the listing
 settles — which is what makes a plain button the right affordance. The dialog
@@ -68,9 +106,22 @@ still refuses an amount above the budget, because Kickbase would.
 `exs` is a snapshot of the response, so the model converts it to an **absolute
 instant** (`expiresAt`) against the clock at fetch time; seconds-left read back
 off a cached response would be as stale as the response. The page holds one
-interval for the whole list — ten seconds, since `duration()` shows whole
-minutes — and passes `now` down, so twenty rows cannot drift apart. Under an
-hour the countdown takes the accent.
+interval for the whole list and passes `now` down, so twenty rows cannot drift
+apart. Under an hour the countdown takes the accent.
+
+**Hours are the largest unit** — `41 Std.`, never `1 Tag`. The question a
+countdown answers is "can I still think about this", and that is arithmetic
+against the hours in an evening; rounding 41 hours down to a day throws away
+most of what was asked.
+
+**The last three minutes count seconds** (`2:45`, from
+`COUNTDOWN_SECONDS_FROM` in [`format.ts`](../../src/lib/format.ts)), and the
+page's interval drops from ten seconds to one to keep them honest. That is the
+only window where the exact figure changes what you would do — a listing
+settles at zero to whatever stands at that instant, and "1 Min." held still for
+sixty seconds while the thing being watched quietly ended. The switch happens
+thirty seconds *before* the seconds appear, so the first one drawn is right
+rather than `2:51` where `3:00` belonged.
 
 The market query also **polls every 30 seconds**, the only polled query in the
 app: this is a page you leave open while a listing runs out, and nothing else
@@ -90,10 +141,13 @@ the overlap once.
 ## The data
 
 [`useMarket(leagueId)`](../../src/api/hooks/useMarket.ts) →
-`/v4/leagues/{leagueId}/market`, mapped to `MarketListing[]`:
+`/v4/leagues/{leagueId}/market`, mapped to a `Market`: the `listings` below,
+plus `marketValueUpdateAt`, `matchdayStartAt` and `day` — the response's own
+`mvud`, `dt` and `day`, resolved to epoch millis so they compare directly
+against a listing's `expiresAt`. Those are what the milestone rules are drawn
+from.
 
-[`useMarket(leagueId)`](../../src/api/hooks/useMarket.ts) →
-`/v4/leagues/{leagueId}/market`, mapped to `MarketListing[]`:
+Each listing:
 
 | Field | Meaning |
 | ----- | ------- |

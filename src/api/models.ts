@@ -904,6 +904,26 @@ export interface MarketListing {
 }
 
 /**
+ * The market, and the two instants the listings are read against.
+ *
+ * Both arrive on the market response itself rather than having to be found:
+ * `mvud` names the nightly market-value recalculation, and `dt` — verified
+ * against the fixture list — is the **first kick-off of the current matchday**.
+ * They are the two moments that change what a listing is worth, which is why
+ * they are worth drawing into a list ordered by expiry.
+ */
+export interface Market {
+  /** Soonest to expire first; manager listings, which never expire, last. */
+  listings: MarketListing[]
+  /** When market values are next recalculated, epoch ms. */
+  marketValueUpdateAt?: number
+  /** The current matchday's first kick-off, epoch ms. */
+  matchdayStartAt?: number
+  /** The matchday {@link matchdayStartAt} belongs to. */
+  day?: number
+}
+
+/**
  * What a manager pays to buy a listing outright, before haggling.
  *
  * The asking price, unless an offer of one's own already stands — then it is
