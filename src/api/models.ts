@@ -867,6 +867,29 @@ export interface PlayerSeason {
   assists: number
 }
 
+/**
+ * The top of the scale for the bar under a match row.
+ *
+ * **The player's own best game, or 150, whichever is larger.** A shared scale
+ * across all players would flatten most of them into a stub — a defender who
+ * tops out at 120 would never fill a bar sized for a striker's 400 — so each
+ * player is measured against himself. The 150 floor stops the reverse problem:
+ * a player whose season best is 40 would otherwise have that 40 draw a full
+ * bar and read as a triumph.
+ *
+ * Taken across **every season**, not the one on screen, so switching seasons
+ * does not silently rescale the bars underneath you.
+ */
+export function pointsScaleFor(seasons: PlayerSeason[]): number {
+  let best = 0
+  for (const season of seasons) {
+    for (const match of season.matches) {
+      if (match.points !== undefined && match.points > best) best = match.points
+    }
+  }
+  return Math.max(150, best)
+}
+
 /* --- Market value --------------------------------------------------------- */
 
 /** One day's market value. */

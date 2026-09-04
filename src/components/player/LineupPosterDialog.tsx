@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { X, ZoomIn, ZoomOut } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useState } from 'react'
 
 import { cdnUrl } from '@/api/cdn'
@@ -20,11 +20,15 @@ import { weekdayDate } from '@/lib/format'
  * ## Fit, then zoom
  *
  * It opens **fit to the screen**, so the shape of the formation is the first
- * thing you see. Tapping (or the button in the bar) switches to natural width
- * inside a scroll container, which is what makes the names legible on a phone:
- * 1280 px of poster in a 390 px viewport is a third of a pixel per pixel, and
- * no amount of `object-contain` fixes that. Native pinch-zoom is left alone on
- * top of it.
+ * thing you see. Tapping the poster switches to natural width inside a scroll
+ * container, which is what makes the names legible on a phone: 1280 px of
+ * poster in a 390 px viewport is a third of a pixel per pixel, and no amount
+ * of `object-contain` fixes that. Native pinch-zoom is left alone on top.
+ *
+ * The image is the only control. A zoom button in the bar said the same thing
+ * twice on a screen holding one tappable object — the cursor turns to a
+ * magnifier on a pointer device, and on a touch screen a full-bleed photo is
+ * already something people pinch and tap.
  *
  * The dialog is `fixed inset-0` rather than the app's usual centred card. This
  * is one large image and nothing else — a padded panel around it would spend
@@ -111,21 +115,6 @@ export function LineupPosterDialog({
               </Dialog.Description>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsZoomed((current) => !current)
-              }}
-              aria-pressed={isZoomed}
-              title={isZoomed ? 'Verkleinern' : 'Vergrößern'}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-            >
-              <span className="sr-only">
-                {isZoomed ? 'Verkleinern' : 'Vergrößern'}
-              </span>
-              {isZoomed ? <ZoomOut size={20} /> : <ZoomIn size={20} />}
-            </button>
-
             <Dialog.Close
               aria-label="Schließen"
               className="-mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-ink"
@@ -147,9 +136,9 @@ export function LineupPosterDialog({
               onClick={() => {
                 setIsZoomed((current) => !current)
               }}
-              // The image is the target, so the whole thing toggles. `block`
-              // and the sizing below are on the button so the click area is
-              // the poster and not a band across the dialog.
+              // The image is the only control, so the whole thing toggles.
+              // `block` and the sizing below are on the button so the click
+              // area is the poster and not a band across the dialog.
               className={cn(
                 'block cursor-zoom-in',
                 isZoomed ? 'w-max cursor-zoom-out' : 'h-full w-full',

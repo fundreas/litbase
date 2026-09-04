@@ -5,6 +5,7 @@ import {
   Hand,
   ShieldCheck,
   Volleyball,
+  X,
 } from 'lucide-react'
 
 import {
@@ -130,14 +131,15 @@ export function EventGlyph({
   }
 }
 
-/** Only the roles that are a word rather than an arrow. */
+/**
+ * The only role still spelled out.
+ *
+ * *Nicht im Einsatz* became an ✕ and *Startelf* an `S11` chip, but an injury
+ * is worth a word: it is the one non-appearance with a cause, and the cause is
+ * why the reader is looking.
+ */
 const ROLE_TEXT: Partial<Record<PlayerMatchRole, string>> = {
-  // A player taken off still started, and that is the half worth spelling out
-  // — the arrow beside it says the rest.
-  started: MATCH_ROLE_LABEL.started,
-  substitutedOff: MATCH_ROLE_LABEL.started,
   injured: MATCH_ROLE_LABEL.injured,
-  didNotPlay: MATCH_ROLE_LABEL.didNotPlay,
 }
 
 const ROLE_TEXT_CLASS: Partial<Record<PlayerMatchRole, string>> = {
@@ -145,18 +147,31 @@ const ROLE_TEXT_CLASS: Partial<Record<PlayerMatchRole, string>> = {
 }
 
 /**
- * Where the player was, as football writes it: **an up arrow for coming on and
- * a down arrow for going off**, not the words.
+ * Where the player was, in marks rather than words: **`S11` for a start, an up
+ * arrow for coming on, a down arrow for going off.**
  *
- * "Ausgewechselt" is thirteen characters on a row that also has to hold an
- * opponent, a scoreline, minutes, event badges and a points total — on a phone
- * it pushed the badges off the end. The arrows are the notation every match
- * report and every scoreboard already uses, they survive at 11px, and they
- * compose: a player who came on and went off again gets both, which no single
- * word does without becoming longer still.
+ * The row already holds an opponent, a scoreline, minutes, event badges and a
+ * points total. "Startelf" and "Ausgewechselt" are nine and thirteen
+ * characters, and on a phone they pushed the badges off the end.
+ *
+ * The arrows are the notation every match report and scoreboard already uses,
+ * they survive at 11px, and they **compose** — a player who came on and went
+ * off again gets both, which no single word manages without getting longer
+ * still. `S11` is the same trick for the starting eleven: a chip, not prose,
+ * and it sits happily beside a down arrow to say "started, then came off".
+ *
+ * **There is no bench mark, because there is no bench state in the data.**
+ * `PLAYER_MATCH_STATUS.DID_NOT_PLAY` covers the unused substitute *and* the
+ * player left out of the squad entirely, and nothing separates them: counting
+ * a full roster's statuses per matchday — with each player's club resolved
+ * from `pt` so nobody at an opposing club is miscounted — put `SUBSTITUTE +
+ * DID_NOT_PLAY` at eleven players on seven of thirty-four matchdays, and a
+ * Bundesliga bench holds nine. So the mark is a plain ✕, "did not feature",
+ * which is true either way. An armchair here would tell the reader his striker
+ * was among the substitutes on days he was not in the squad at all.
  *
  * The full wording stays in the accessible name and the tooltip, so nothing is
- * lost to a screen reader or to anyone unsure what an arrow means.
+ * lost to a screen reader or to anyone meeting the marks for the first time.
  */
 export function MatchRoleMark({
   role,
@@ -166,6 +181,8 @@ export function MatchRoleMark({
   className?: string
 }) {
   const text = ROLE_TEXT[role]
+  // A player taken off still started, so he keeps the chip and gains an arrow.
+  const started = role === 'started' || role === 'substitutedOff'
   const cameOn = role === 'substitutedIn' || role === 'substitutedInAndOff'
   const cameOff = role === 'substitutedOff' || role === 'substitutedInAndOff'
 
@@ -177,6 +194,24 @@ export function MatchRoleMark({
         className,
       )}
     >
+      {started && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'rounded border border-line bg-surface-2 px-1',
+            'text-[0.625rem] leading-[1.5] font-bold text-muted',
+          )}
+        >
+          S11
+        </span>
+      )}
+      {role === 'didNotPlay' && (
+        <X
+          size={12}
+          aria-hidden="true"
+          className="shrink-0 stroke-[3] text-faint"
+        />
+      )}
       {text !== undefined && (
         <span className={ROLE_TEXT_CLASS[role] ?? 'text-faint'}>{text}</span>
       )}

@@ -39,6 +39,7 @@ export function PlayerDetailsTab({
   teams,
   matchesByDay,
   appearances,
+  pointsScale,
   isLoadingMatches,
 }: {
   player: PlayerDetail
@@ -50,6 +51,8 @@ export function PlayerDetailsTab({
   matchesByDay: Map<number, PlayerMatch> | undefined
   /** Appearances this season — from the same request. */
   appearances: number | undefined
+  /** Top of the scale for the bar under a match row — see `pointsScaleFor`. */
+  pointsScale: number
   isLoadingMatches: boolean
 }) {
   return (
@@ -142,7 +145,11 @@ export function PlayerDetailsTab({
                     {match === undefined ? (
                       <FixtureRow fixture={fixture} teams={teams} />
                     ) : (
-                      <PlayerMatchRow match={match} teams={teams} />
+                      <PlayerMatchRow
+                        match={match}
+                        teams={teams}
+                        pointsScale={pointsScale}
+                      />
                     )}
                   </li>
                 )

@@ -22,14 +22,15 @@ spending the first line of a small screen.
 
 ## Why this page has a bottom bar
 
-It is the only bottom bar in the app, and that is deliberate.
-[Navigation](../routing-and-layout.md#navigation) explains why the global one
-was removed: it duplicated the drawer and ate a row of height on every screen,
-including the pitch that needs it most.
+[Navigation](../routing-and-layout.md#navigation) explains why the *global*
+bottom bar was removed: it duplicated the drawer and ate a row of height on
+every screen, including the pitch that needs it most.
 
 None of that applies here. This bar is not navigation between pages but between
 three views of one player; it exists only while this page is open; and the page
 is a long scroll under a thumb, which is exactly where a docked control belongs.
+The [squad page](squad.md#the-bottom-bar) docks one on the same terms, and both
+use [`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx).
 
 It is `sticky`, not `fixed`. Fixed positions against the viewport and would lie
 across the sidebar at `lg` and up, where the content is a column in the middle
@@ -95,12 +96,17 @@ displays, which is read off that poster. So the chip is the way in, and the
 poster gets the whole screen.
 
 **Fit, then zoom.** It opens fit to the screen so the shape of the formation
-reads first; tapping the image (or the button in the bar) switches to natural
-width inside a scroll container. That second step is what makes the names
-legible on a phone — 1280 px of poster in a 390 px viewport is a third of a
-pixel per pixel, and no amount of `object-contain` fixes it. Native pinch-zoom
-still works on top. The zoom resets on close, so reopening never drops you into
-the middle of a poster with no idea where you are.
+reads first; tapping the image switches to natural width inside a scroll
+container. That second step is what makes the names legible on a phone — 1280 px
+of poster in a 390 px viewport is a third of a pixel per pixel, and no amount of
+`object-contain` fixes it. Native pinch-zoom still works on top, and the zoom
+resets on close so reopening never drops you into the middle of a poster with no
+idea where you are.
+
+**The image is the only control.** A zoom button in the bar said the same thing
+twice on a screen holding exactly one tappable object: the cursor already turns
+to a magnifier on a pointer device, and on a touch screen a full-bleed photo is
+something people pinch and tap without being asked.
 
 The dialog is `fixed inset-0` rather than the app's usual centred card: it is
 one large image and nothing else, and a padded panel would spend the width that
@@ -131,7 +137,7 @@ The fixture itself is the profile's `mdsum` entry with `cur: true`.
 | ----- | ---- | ----- |
 | Upcoming | `Sa, 5. Sep. · 18:30` | the matchday number |
 | Running | pulsing dot, *Läuft*, accent-tinted card | points so far |
-| Finished | the role — *Startelf*, *Eingewechselt*, … — plus minutes and event badges | points |
+| Finished | the role marks (`S11`, ↑, ↓) plus minutes and event badges | points |
 
 **"Läuft" is inferred from the clock, not reported.** No observed field
 distinguishes a match in progress: fixtures carry `mdst`, and only `0` (not
@@ -202,6 +208,43 @@ Points read `–`, never `0`, for a match the player took no part in. `0` would
 claim they were on the pitch and scored nothing, which is a different — and
 much worse — thing to be told about your striker.
 
+### The points scale
+
+Kickbase points have no natural ceiling and no scale a newcomer knows: 87 is a
+quiet afternoon, 340 is the best game of someone's season, and nothing about
+the digits says which. So the figure is **coloured**, and a bar along the
+bottom edge of the card repeats the same colour at the same width.
+
+| Points | Band | Colour |
+| ------ | ---- | ------ |
+| `< 0` | `negative` | red |
+| `0`–`99` | `low` | white |
+| `100`–`199` | `good` | lime |
+| `200`–`299` | `strong` | green |
+| `300`+ | `elite` | gold |
+
+Boundaries are **inclusive at the bottom** — 100 is already lime — so a score
+sitting exactly on one reads as the achievement it just reached rather than the
+one it just left. The ramp is deliberately not dark→bright: white is the
+unremarkable middle, and the top band is gold because a 300-point game is a
+trophy, not just more green. Colours are literals rather than theme tokens, for
+the reason the probability badge uses literals: five steps, and the palette has
+one green, one red and one amber.
+
+The bar's scale is **the player's own career best, or 150, whichever is
+larger** (`pointsScaleFor`). A shared scale would flatten most players into a
+stub — a defender topping out at 120 never filling a bar sized for a striker's
+400 — so each is measured against himself; the 150 floor stops the reverse,
+where a season best of 40 would draw a full bar and read as a triumph. It is
+taken across **every** season, so switching seasons does not silently rescale
+the bars underneath you.
+
+A **negative score does not grow the bar**: it gets a short fixed marker
+instead. Scaling by magnitude would draw a long bar for a bad game, and a long
+bar reads as good however it is coloured — the red figure beside it carries the
+amount. Rows for matches that were never played get no bar at all rather than
+an empty track.
+
 ### Per-match status (`st`)
 
 **A different scale to the availability `st`** described in
@@ -216,15 +259,38 @@ payload's own internal agreement across 60 players' full careers:
 | `4` | Did not play | `0'`, no points, and the player was fit — rested, doubtful or left out |
 | `5` | Started | Never carries `SUBSTITUTED_IN`; the only value routinely reaching 90+ minutes |
 
-`4` deliberately does **not** claim a place on the bench. Counting a full
-squad's statuses per matchday put `3 + 4` at up to eleven players, which is
-more than a bench holds — so it covers the unused substitute and the player
-left out of the squad alike, and the two are not distinguishable here.
+`4` deliberately does **not** claim a place on the bench, and the row shows no
+bench mark for it. Counting a full roster's statuses per matchday — with each
+player's club resolved from `pt`, so nobody who spent that season at an
+opposing club is miscounted — puts `3 + 4` at **eleven players on seven of
+thirty-four matchdays**, and a Bundesliga bench holds nine. So `4` covers the
+unused substitute and the player left out of the squad alike, and nothing in
+any payload separates them. An armchair icon would tell the reader his striker
+was among the substitutes on days he was not in the squad at all.
 
 The model adds a state the wire does not have: a **starter who was taken off**.
 `st` stays `5` for them and only the `SUBSTITUTED_OFF` event gives it away, so
 `PlayerMatchRole` resolves `started` / `substitutedOff` / `substitutedIn` /
 `substitutedInAndOff` once, centrally.
+
+On the row those become **marks, not words**:
+
+| Role | Mark |
+| ---- | ---- |
+| Started | `S11` chip |
+| Started, then taken off | `S11` ↓ |
+| Came on | ↑ |
+| Came on, then taken off | ↑ ↓ |
+| Did not feature | ✕ |
+| Out injured | *Verletzt* |
+
+The row already holds an opponent, a scoreline, minutes, event badges and a
+points total, and "Startelf" and "Ausgewechselt" — nine and thirteen
+characters — pushed the badges off the end of a phone. The marks also compose,
+which the words do not: a starter taken off keeps the chip *and* gains the
+arrow. Only an injury is still spelled out; it is the one non-appearance with a
+cause, and the cause is why the reader is looking. Full wording stays in the
+tooltip and the accessible name throughout.
 
 ### Event codes (`k`)
 

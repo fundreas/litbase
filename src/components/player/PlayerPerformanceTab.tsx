@@ -2,7 +2,7 @@ import { ChevronDown, Footprints, Shirt, Volleyball } from 'lucide-react'
 import { useState } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
-import type { PlayerSeason } from '@/api/models'
+import { pointsScaleFor, type PlayerSeason } from '@/api/models'
 import { PlayerMatchRow } from '@/components/player/PlayerMatchRow'
 import { Drawer } from '@/components/ui/Drawer'
 import { EmptyState } from '@/components/ui/States'
@@ -29,6 +29,8 @@ export function PlayerPerformanceTab({
   teams: Map<string, TeamSummary> | undefined
 }) {
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
+  // Across every season, so switching seasons does not rescale the bars.
+  const pointsScale = pointsScaleFor(seasons)
 
   if (seasons.length === 0) {
     return (
@@ -56,7 +58,11 @@ export function PlayerPerformanceTab({
       <ul className="flex flex-col gap-1.5">
         {selected.matches.map((match) => (
           <li key={match.matchId}>
-            <PlayerMatchRow match={match} teams={teams} />
+            <PlayerMatchRow
+              match={match}
+              teams={teams}
+              pointsScale={pointsScale}
+            />
           </li>
         ))}
       </ul>

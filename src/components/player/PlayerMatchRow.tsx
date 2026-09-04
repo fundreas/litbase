@@ -3,6 +3,7 @@ import { House, PlaneTakeoff, Timer } from 'lucide-react'
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { didPlay, type MatchOutcome, type PlayerMatch } from '@/api/models'
 import { MatchEventBadge } from '@/components/player/MatchEventBadge'
+import { pointsColor, pointsFraction } from '@/components/player/pointsScale'
 import { MatchRoleMark } from '@/components/player/statGlyphs'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
@@ -46,91 +47,116 @@ const OUTCOME_NAME: Record<MatchOutcome, string> = {
 export function PlayerMatchRow({
   match,
   teams,
+  pointsScale,
 }: {
   match: PlayerMatch
   /** Team id → name. Only this season's clubs resolve; the crest always does. */
   teams: Map<string, TeamSummary> | undefined
+  /** Top of the bar's scale — see `pointsScaleFor`. */
+  pointsScale: number
 }) {
   const opponent = teams?.get(match.opponentId)
   const Venue = match.isHome ? House : PlaneTakeoff
   const played = didPlay(match.role)
+  const color =
+    match.points === undefined ? undefined : pointsColor(match.points)
 
   return (
     <div
       className={cn(
-        'flex items-center gap-2.5 rounded-card border border-line bg-surface px-3 py-2',
+        'flex flex-col overflow-hidden rounded-card border border-line bg-surface',
         // A fixture still to come is a placeholder, not a result.
         !match.isFinished && 'opacity-60',
       )}
     >
-      <span className="nums w-6 shrink-0 text-xs text-faint">{match.day}.</span>
+      <div className="flex items-center gap-2.5 px-3 py-2">
+        <span className="nums w-6 shrink-0 text-xs text-faint">
+          {match.day}.
+        </span>
 
-      <span className="flex w-5 shrink-0 justify-center">
-        <Venue
-          size={13}
-          aria-label={match.isHome ? 'Heimspiel' : 'Auswärtsspiel'}
-          className={match.isHome ? 'text-positive' : 'text-accent'}
+        <span className="flex w-5 shrink-0 justify-center">
+          <Venue
+            size={13}
+            aria-label={match.isHome ? 'Heimspiel' : 'Auswärtsspiel'}
+            className={match.isHome ? 'text-positive' : 'text-accent'}
+          />
+        </span>
+
+        <Avatar
+          src={match.opponentImage}
+          name={opponent?.name ?? match.opponentId}
+          size={22}
+          square
+          className="shrink-0 bg-transparent"
         />
-      </span>
 
-      <Avatar
-        src={match.opponentImage}
-        name={opponent?.name ?? match.opponentId}
-        size={22}
-        square
-        className="shrink-0 bg-transparent"
-      />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="min-w-0 truncate text-sm font-medium text-ink">
+              {opponent?.name ?? '–'}
+            </span>
+            {match.isFinished && (
+              <Scoreline
+                goalsFor={match.goalsFor}
+                goalsAgainst={match.goalsAgainst}
+                outcome={match.outcome}
+              />
+            )}
+          </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="min-w-0 truncate text-sm font-medium text-ink">
-            {opponent?.name ?? '–'}
-          </span>
-          {match.isFinished && (
-            <Scoreline
-              goalsFor={match.goalsFor}
-              goalsAgainst={match.goalsAgainst}
-              outcome={match.outcome}
-            />
-          )}
+          <div className="mt-0.5 flex items-center gap-1.5 text-[0.6875rem]">
+            {match.isFinished ? (
+              <MatchRoleMark role={match.role} />
+            ) : (
+              <span className="shrink-0 text-faint">
+                {kickoff(match.kickoff)}
+              </span>
+            )}
+            {played && (
+              <span className="nums flex shrink-0 items-center gap-0.5 text-faint">
+                <Timer size={10} aria-hidden="true" />
+                {match.minutes}′
+              </span>
+            )}
+            {match.events.length > 0 && (
+              <span className="flex min-w-0 items-center gap-1">
+                {match.events.map((event) => (
+                  <MatchEventBadge key={event.kind} event={event} />
+                ))}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="mt-0.5 flex items-center gap-1.5 text-[0.6875rem]">
-          {match.isFinished ? (
-            <MatchRoleMark role={match.role} />
-          ) : (
-            <span className="shrink-0 text-faint">
-              {kickoff(match.kickoff)}
-            </span>
+        <span
+          style={color === undefined ? undefined : { color }}
+          className={cn(
+            'nums shrink-0 text-sm font-bold',
+            match.points === undefined && 'text-faint',
           )}
-          {played && (
-            <span className="nums flex shrink-0 items-center gap-0.5 text-faint">
-              <Timer size={10} aria-hidden="true" />
-              {match.minutes}′
-            </span>
-          )}
-          {match.events.length > 0 && (
-            <span className="flex min-w-0 items-center gap-1">
-              {match.events.map((event) => (
-                <MatchEventBadge key={event.kind} event={event} />
-              ))}
-            </span>
-          )}
-        </div>
+        >
+          {match.points === undefined ? '–' : formatPoints(match.points)}
+        </span>
       </div>
 
-      <span
-        className={cn(
-          'nums shrink-0 text-sm font-bold',
-          match.points === undefined
-            ? 'text-faint'
-            : match.points < 0
-              ? 'text-negative'
-              : 'text-ink',
-        )}
-      >
-        {match.points === undefined ? '–' : formatPoints(match.points)}
-      </span>
+      {/* Flush against the card's bottom edge, so a column of rows reads as a
+          bar chart on its side without anything drawing a chart. Only for
+          matches that were actually played — an empty track under every
+          upcoming fixture would be a row of nothing. */}
+      {match.points !== undefined && color !== undefined && (
+        <span
+          aria-hidden="true"
+          className="block h-1 w-full shrink-0 bg-surface-2"
+        >
+          <span
+            className="block h-full rounded-r-full transition-[width]"
+            style={{
+              width: `${String(pointsFraction(match.points, pointsScale) * 100)}%`,
+              background: color,
+            }}
+          />
+        </span>
+      )}
     </div>
   )
 }

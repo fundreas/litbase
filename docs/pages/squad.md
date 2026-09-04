@@ -54,7 +54,7 @@ lying across the sidebar.
 
 Each tab is a real `<Link>`, so both views are linkable and middle-clickable.
 
-## Header
+## Header — Kader only
 
 | Element | Source | Notes |
 | ------- | ------ | ----- |
@@ -62,6 +62,13 @@ Each tab is a real `<Link>`, so both views are linkable and middle-clickable.
 | Subtitle | `useSquad` | `20 Spieler · 194,4 Mio. € Gesamtwert` |
 | Budget chip | `useLeagueManager` | **Green at or above zero, red below** |
 | Legend button | — | Opens `SquadLegendDialog` |
+
+**The lineup view has no header at all.** The pitch is the page there, and a
+title, a squad count, a total value and a budget were four lines of height
+taken from it on exactly the screens where it has least — for facts that are
+either obvious (you are looking at your own team) or belong beside the transfer
+decisions they inform, which is the Kader view. The legend button was the one
+thing worth keeping and moves to the [bench heading](#lineup-tab).
 
 The **budget chip** is its own small query (`/leagues/{id}/me`), which the
 dashboard has usually filled already. Kickbase lets a budget go negative — an
@@ -564,6 +571,12 @@ The bench holds **only players who are not fielded** — a player moves between
 the pitch and the bench rather than appearing in both. It groups by position
 (keeper, defence, midfield, attack) and sorts by market value within each
 group, scrolling sideways.
+
+Its heading is the **only chrome this view has**, so it carries two things: an
+armchair glyph beside the word *Bank* on the left, and the legend button on the
+right, orphaned when the page header went. The heading used to read *"Bank ·
+tippen zum Aufstellen"*; the instruction taught the tap once and then repeated
+itself forever, and the portraits already look like buttons.
 
 **No bench card is ever dimmed or disabled.** Every one is tappable: if that
 position is already full, the tap opens the swap dialog instead of adding

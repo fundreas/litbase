@@ -1,4 +1,4 @@
-import { AlertTriangle, Info, UserMinus } from 'lucide-react'
+import { AlertTriangle, Armchair, Info, UserMinus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -149,6 +149,7 @@ export function LineupTab({
   fixtureByTeamId,
   startProbabilities,
   statusReasons,
+  onShowLegend,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
@@ -156,6 +157,12 @@ export function LineupTab({
   startProbabilities: Map<string, StartProbability>
   /** `stxt` per unavailable player; empty until the lookups land. */
   statusReasons: Map<string, string>
+  /**
+   * Opens the symbol legend. It rides on the bench heading here rather than in
+   * a page header, because this view has none — see the comment on
+   * {@link Bench}.
+   */
+  onShowLegend: () => void
 }) {
   const { lineup, counts, formation } = editor
 
@@ -391,6 +398,7 @@ export function LineupTab({
         fixtureByTeamId={fixtureByTeamId}
         startProbabilities={startProbabilities}
         onAdd={editor.toggle}
+        onShowLegend={onShowLegend}
       />
     </div>
   )
@@ -691,18 +699,30 @@ function DragGhost({
 /* Bench                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The unfielded players, and the only heading this view has.
+ *
+ * The lineup view carries **no page header** — no title, no squad count, no
+ * total value, no budget. The pitch is the page, and on a phone every one of
+ * those lines was height taken from it for information that is either obvious
+ * (you are looking at your team) or belongs on the Kader view next to the
+ * decisions it informs. The legend button was the one thing worth keeping, so
+ * it rides on the right of this heading, which is the only chrome left.
+ */
 function Bench({
   squad,
   isFielded,
   fixtureByTeamId,
   startProbabilities,
   onAdd,
+  onShowLegend,
 }: {
   squad: SquadMember[]
   isFielded: (playerId: string) => boolean
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   startProbabilities: Map<string, StartProbability>
   onAdd: (player: SquadMember) => void
+  onShowLegend: () => void
 }) {
   // The bench is what is *not* fielded. Players move between the pitch and
   // here rather than appearing in both.
@@ -717,9 +737,30 @@ function Bench({
     /* `shrink-0`: the bench keeps its natural height and the pitch above it
        absorbs whatever is left, rather than the two competing for space. */
     <section className="flex shrink-0 flex-col gap-2">
-      <h2 className="px-0.5 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
-        Bank · tippen zum Aufstellen
-      </h2>
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <h2 className="flex items-center gap-1.5 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
+          <Armchair size={13} aria-hidden="true" />
+          Bank
+        </h2>
+
+        {/* "tippen zum Aufstellen" used to follow the word. It taught the tap
+            once and then repeated itself forever, and the portraits already
+            look like buttons. */}
+        <button
+          type="button"
+          onClick={onShowLegend}
+          title="Was bedeuten die Symbole?"
+          aria-label="Legende anzeigen"
+          className={cn(
+            'flex shrink-0 cursor-pointer items-center justify-center rounded-full border p-1',
+            'border-line bg-surface text-muted transition-colors',
+            'hover:border-accent/40 hover:bg-surface-2 hover:text-accent active:bg-line',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+          )}
+        >
+          <Info size={14} aria-hidden="true" />
+        </button>
+      </div>
 
       {grouped.length === 0 && (
         <p className="rounded-card border border-line bg-surface px-3 py-4 text-center text-sm text-muted">

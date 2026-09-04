@@ -10,7 +10,11 @@ import {
   usePlayerPerformance,
 } from '@/api/hooks/usePlayer'
 import { useRanking } from '@/api/hooks/useRanking'
-import { matchdayState, type PlayerOwnership } from '@/api/models'
+import {
+  matchdayState,
+  pointsScaleFor,
+  type PlayerOwnership,
+} from '@/api/models'
 import { PlayerDetailsTab } from '@/components/player/PlayerDetailsTab'
 import { PlayerHeader } from '@/components/player/PlayerHeader'
 import { PlayerMarketTab } from '@/components/player/PlayerMarketTab'
@@ -94,6 +98,9 @@ export function PlayerDetailPage() {
   // oldest-first order. Its matches are indexed by matchday so the header and
   // the Spiele card can look up the one they need without scanning.
   const currentSeason = performance.data?.[0]
+  // The bar under a match row is scaled to the player's own career best, so
+  // both tabs measure him against the same number.
+  const pointsScale = pointsScaleFor(performance.data ?? [])
   const matchesByDay = useMemo(() => {
     if (currentSeason === undefined) return undefined
     return new Map(currentSeason.matches.map((match) => [match.day, match]))
@@ -152,6 +159,7 @@ export function PlayerDetailPage() {
             teams={teams.data}
             matchesByDay={matchesByDay}
             appearances={currentSeason?.appearances}
+            pointsScale={pointsScale}
             isLoadingMatches={performance.isPending}
           />
         )}

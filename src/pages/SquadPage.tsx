@@ -101,42 +101,47 @@ export function SquadPage() {
     0,
   )
 
+  const showLegend = () => {
+    setIsLegendOpen(true)
+  }
+
   return (
     /* The `min-h-0` on every level of this chain is what lets the lineup view
        fill the remaining height rather than overflow: a flex child defaults to
        `min-height: auto` and would refuse to shrink below its content. */
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeading
-        title="Mannschaft"
-        subtitle={`${String(squad.data.length)} Spieler · ${money(totalValue)} Gesamtwert`}
-        action={
-          <div className="flex shrink-0 items-center gap-2">
-            {manager.data !== undefined && (
-              <BudgetChip budget={manager.data.budget} />
-            )}
-            {/* In the page header rather than inside a view: most of what it
-                explains — the probability badges, the fixture icons — appears
-                on both, and a legend that moves between views is one nobody
-                finds. */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsLegendOpen(true)
-              }}
-              title="Was bedeuten die Symbole?"
-              aria-label="Legende anzeigen"
-              className={cn(
-                'flex shrink-0 cursor-pointer items-center justify-center rounded-full border p-1.5',
-                'border-line bg-surface text-muted transition-colors',
-                'hover:border-accent/40 hover:bg-surface-2 hover:text-accent active:bg-line',
-                'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+      {/* Kader only. The pitch is the page on the lineup view — a title, a
+          squad count, a total value and a budget were four lines of height
+          taken from it on the screens where it has least, for facts that are
+          either obvious or belong beside the transfer decisions they inform.
+          Its legend button moves onto the bench heading. */}
+      {view === VIEWS.squad && (
+        <PageHeading
+          title="Mannschaft"
+          subtitle={`${String(squad.data.length)} Spieler · ${money(totalValue)} Gesamtwert`}
+          action={
+            <div className="flex shrink-0 items-center gap-2">
+              {manager.data !== undefined && (
+                <BudgetChip budget={manager.data.budget} />
               )}
-            >
-              <Info size={16} aria-hidden="true" />
-            </button>
-          </div>
-        }
-      />
+              <button
+                type="button"
+                onClick={showLegend}
+                title="Was bedeuten die Symbole?"
+                aria-label="Legende anzeigen"
+                className={cn(
+                  'flex shrink-0 cursor-pointer items-center justify-center rounded-full border p-1.5',
+                  'border-line bg-surface text-muted transition-colors',
+                  'hover:border-accent/40 hover:bg-surface-2 hover:text-accent active:bg-line',
+                  'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+                )}
+              >
+                <Info size={16} aria-hidden="true" />
+              </button>
+            </div>
+          }
+        />
+      )}
 
       <SquadLegendDialog
         open={isLegendOpen}
@@ -149,6 +154,7 @@ export function SquadPage() {
         leagueId={leagueId}
         competitionId={competitionId}
         view={view}
+        onShowLegend={showLegend}
       />
 
       <BottomTabBar tabs={tabs} active={view} ariaLabel="Kaderansicht" />
@@ -204,11 +210,14 @@ function SquadViews({
   leagueId,
   competitionId,
   view,
+  onShowLegend,
 }: {
   squad: SquadMember[]
   leagueId: string
   competitionId: string
   view: ViewValue
+  /** The lineup view has no page header, so it renders its own trigger. */
+  onShowLegend: () => void
 }) {
   const editor = useLineupEditor({ squad, leagueId })
   const matchday = useCurrentMatchday(competitionId)
@@ -237,6 +246,7 @@ function SquadViews({
             fixtureByTeamId={fixtureByTeamId}
             startProbabilities={startProbabilities}
             statusReasons={statusReasons}
+            onShowLegend={onShowLegend}
           />
         </div>
       )}
