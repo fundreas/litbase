@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
+import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
 import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
 import {
@@ -107,6 +108,13 @@ export function useDuelRosters(
   const isSettled = areFixturesSettled(fixtures.data)
 
   /**
+   * The live state of each match: the fresh score, the minute, the events.
+   * One request per match rather than per player, polled only while a match
+   * is actually running — see [`useLiveMatches`](./useLiveMatches.ts).
+   */
+  const liveByMatchId = useLiveMatches(fixtures.data)
+
+  /**
    * The roster to render, from whichever source can be believed.
    *
    * The snapshot wins whenever its lineup looks complete — see
@@ -179,6 +187,8 @@ export function useDuelRosters(
     ): DuelRoster => {
       const toPlayer = (player: MatchdaySquadPlayer): DuelPlayer => {
         const fixture = fixtureByTeamId.get(player.teamId)
+        const live =
+          fixture === undefined ? undefined : liveByMatchId.get(fixture.matchId)
         return {
           id: player.id,
           name: player.name,
@@ -198,6 +208,8 @@ export function useDuelRosters(
           availability: player.availability,
           image: player.image,
           fixture,
+          live,
+          events: live?.eventsByPlayerId.get(player.id),
           managerId: side.id,
         }
       }

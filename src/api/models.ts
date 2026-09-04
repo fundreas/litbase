@@ -456,12 +456,78 @@ export interface DuelPlayer {
   /** The player's club fixture that matchday. */
   fixture?: MatchdayFixture
   /**
+   * That match as it stands right now — score, minute, events.
+   *
+   * `undefined` before kick-off (there is nothing to fetch) and while the
+   * request is in flight. Rows fall back to the fixture's own goals, which are
+   * correct for a settled matchday and stale for a running one.
+   */
+  live?: LiveMatch
+  /** What this player did in that match, one tally per kind. */
+  events?: MatchEventTally[]
+  /**
    * Which side of the duel they belong to.
    *
    * Absent when there are no sides to tell apart — the live view of one's own
    * squad, where every row belongs to the same manager.
    */
   managerId?: string
+}
+
+/* -------------------------------------------------------------------------- */
+/* One match, live                                                            */
+/* -------------------------------------------------------------------------- */
+
+/** Something that happened in a match, attributed to a player. */
+export interface LiveMatchEvent {
+  playerId: string
+  playerName?: string
+  teamId?: string
+  /** Event code, on the {@link MATCH_EVENT} scale. */
+  kind: number
+  /** Minute it happened. */
+  minute: number
+}
+
+/**
+ * Where one match stands right now, from
+ * `/v4/matches/{matchId}/details`.
+ *
+ * The score here is the **only fresh one**: the fixture list carries goals too
+ * but is cached for an hour, being the whole season, so a page watching a
+ * match cannot use it. This also brings the two things nothing else had — the
+ * minute, and the events.
+ */
+export interface LiveMatch {
+  matchId: string
+  /** The minute, past 90 in stoppage time. */
+  minute: number
+  /** The API reports it played to the end (`mst === 2`). */
+  isFinished: boolean
+  goalsHome?: number
+  goalsAway?: number
+  /** Which side is home, so a score can be read from either team's view. */
+  homeTeamId?: string
+  /** Everything attributable to a player, newest first. */
+  events: LiveMatchEvent[]
+  /** Those events per player, collapsed to one tally per kind. */
+  eventsByPlayerId: Map<string, MatchEventTally[]>
+}
+
+/**
+ * The score as **this** team's players would read it: theirs first.
+ *
+ * The payload is home-and-away; a row belongs to one club, and "2:1" has to
+ * mean that club is winning or the colour of the row lies.
+ */
+export function liveScoreFor(
+  live: LiveMatch,
+  teamId: string,
+): { for?: number; against?: number } {
+  const isHome = live.homeTeamId === teamId
+  return isHome
+    ? { for: live.goalsHome, against: live.goalsAway }
+    : { for: live.goalsAway, against: live.goalsHome }
 }
 
 /** One player in a {@link MatchdaySquad}. */

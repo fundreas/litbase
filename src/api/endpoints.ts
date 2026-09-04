@@ -188,6 +188,40 @@ export const endpoints = {
     /** Join a league. No request body required. */
     join: (leagueId: string) => `/v4/leagues/${leagueId}/join`,
   },
+  matches: {
+    /**
+     * One match, live: the score, the **minute** (`mt`), the status (`mst`),
+     * the real-world starting elevens (`t1lp`/`t2lp`) and a full `events`
+     * feed.
+     *
+     * The only source of any of it. `/competitions/{id}/matchdays` carries a
+     * score too, but that payload is the whole season and is cached for an
+     * hour, so it is no use to a page watching a match.
+     *
+     * **It does not echo its own id** — no `mi` on the response — so a caller
+     * fanning out over several matches has to keep track of which answer
+     * belongs to which request.
+     *
+     * `events` entries carry `ke`, on the **same code scale** as `k` on the
+     * player-performance endpoint: verified against a finished 5:1 where the
+     * feed held five `1`s and a `2` (five goals and an own goal), four `4`s
+     * for the yellow cards, and ten `8`s for the substitutions. Match-level
+     * entries — kick-off, half-time, the whistle — use `pi: "0"`.
+     */
+    details: (matchId: string) => `/v4/matches/${matchId}/details`,
+  },
+  live: {
+    /**
+     * Names for every scoring event Kickbase knows — 621 of them, from
+     * *Fernschusstor (Bonus)* to *Pass des Todes*.
+     *
+     * **A different, much larger scale than the `ke` codes** on a match's
+     * `events` feed: these ids run into the thousands and repeat per game
+     * mode (classic, PlusOne, 3 Play). Unused so far; it is what a
+     * points-breakdown view would need, not what a live score needs.
+     */
+    eventTypes: '/v4/live/eventtypes',
+  },
   competitions: {
     /** All competitions (Bundesliga, La Liga, MLS, …). */
     all: '/v4/competitions',

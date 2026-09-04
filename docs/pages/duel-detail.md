@@ -399,8 +399,11 @@ and the opponent's three-letter symbol, plus a status word. It now carries
   wordless fixture — a crest is recognised faster than three letters), and
 - the match's own **scoreline**
   ([`MatchStateBadge`](../../src/components/player/MatchStateBadge.tsx)):
-  a faint `–:–` before kick-off, a **pulsing dot** and the running score while
-  it is on, the final score once it is over.
+  a faint `–:–` before kick-off, a **pulsing dot** with the running score and
+  the **minute** while it is on, the final score once it is over, and
+- what the player **did** — goals, own goals, assists, cards — as the same
+  glyphs the [player page](player-detail.md) draws, from the match's own event
+  feed.
 
 Three pieces of text became two marks and a number, and the row gained the one
 thing it never had: how that match is actually going. The score is read from
@@ -411,6 +414,30 @@ winning.
 a list ranked by points, and it is one tap away on his own page. The scoreline
 and the crest are wordless, so both carry the state and the kick-off as their
 tooltip and as screen-reader text.
+
+### Where the live numbers come from
+
+[`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts) →
+`GET /v4/matches/{matchId}/details`, **one request per match** (nine for a
+matchday) rather than per player, polled once a minute only while a match is
+running and fetched once and held for a finished one.
+
+The score used to come from the fixture list, which is the whole season and
+cached for an hour — an hour-old number beside a pulsing "live" dot. The
+fixture is still the fallback, which is right the moment a match is over and
+nothing can change, and it is still the source of every match's *state*: that
+payload now goes stale at once and polls while the current matchday is under
+way, since `st` is what says a matchday is finished.
+
+The score is read from the player's **own side** (`liveScoreFor`), so `2:1`
+always means his club is winning, and the minute reads `90+'` past ninety
+rather than the API's raw `95`.
+
+The events are the same `ke` codes as the player page's `k`, verified on a
+finished 5:1 whose feed decoded to four goals plus an own goal one way and one
+goal the other — which is that scoreline exactly. Substitutions are in the feed
+and deliberately not drawn: `toEventTallies()` drops them, because they say
+where a player was rather than what he did.
 
 ## The ranking tab
 

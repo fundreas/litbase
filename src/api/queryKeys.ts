@@ -90,6 +90,14 @@ export const qk = {
     [...qk.playerDetail(leagueId, playerId), 'transfers'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
 
+  /**
+   * One match's live detail. **Not league-scoped** — a match belongs to the
+   * competition, and two managers in different leagues watching the same
+   * fixture should share the one cache entry and the one poll.
+   */
+  match: (matchId: string) => ['match', matchId] as const,
+  matchDetails: (matchId: string) => [...qk.match(matchId), 'details'] as const,
+
   competition: (competitionId: string) =>
     ['competition', competitionId] as const,
   competitionPlayers: (competitionId: string) =>

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { playerFigure, type DuelPlayer } from '@/api/models'
 import { BenchMark } from '@/components/player/BenchMark'
+import { MatchEventBadge } from '@/components/player/MatchEventBadge'
 import { MatchStateBadge } from '@/components/player/MatchStateBadge'
 import {
   figureDescription,
@@ -76,7 +77,18 @@ export function DuelPlayerRow({
             going" in the width the position abbreviation used to take. */}
         <span className="mt-0.5 flex items-center gap-2">
           <FixtureBadge fixture={player.fixture} size="sm" />
-          <MatchStateBadge fixture={player.fixture} />
+          <MatchStateBadge
+            fixture={player.fixture}
+            live={player.live}
+            teamId={player.teamId}
+          />
+          {/* What he actually did, from the match's own event feed — the same
+              glyphs the player page draws, since the codes turned out to be
+              the same scale. Goals and cards are the reason a score moved,
+              and they belong on the row that shows the score. */}
+          {player.events?.map((event) => (
+            <MatchEventBadge key={event.kind} event={event} />
+          ))}
           {showStatusWord && player.status === 'bench' && (
             <BenchMark size={12} className="text-faint" />
           )}

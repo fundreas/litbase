@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 
 import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
+import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
 import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
 import {
@@ -165,6 +166,9 @@ export function LiveTab({
     // cannot place him and would drop him silently.
     needsPosition: player.position === undefined,
   }))
+  /** Fresh score, minute and events — one request per match, not per player. */
+  const liveByMatchId = useLiveMatches(fixtures.data)
+
   const matchdayPoints = useMatchdayPoints(
     leagueId,
     day,
@@ -181,6 +185,8 @@ export function LiveTab({
     wasFielded: boolean,
   ): DuelPlayer => {
     const fixture = fixtures.data?.get(player.teamId)
+    const live =
+      fixture === undefined ? undefined : liveByMatchId.get(fixture.matchId)
     return {
       id: player.id,
       name: player.name,
@@ -198,6 +204,8 @@ export function LiveTab({
       availability: player.availability,
       image: player.image,
       fixture,
+      live,
+      events: live?.eventsByPlayerId.get(player.id),
     }
   }
 

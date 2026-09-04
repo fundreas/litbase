@@ -143,6 +143,7 @@ is what makes them safe to call before context has resolved.
 | `useCompetitions()` | `/competitions` | 1 hour |
 | `useCurrentMatchday(cid)` | `/competitions/{cid}/matchdays` | 1 hour |
 | `useMatchdaySquad(…)` | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | 5 min |
+| `useLiveMatches(…)` | `/matches/{matchId}/details` × N | ∞ once over, 0 + 1 min poll while playing |
 | `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 1 min poll while playing |
 
 `useMatchdaySquad` is the API's only **historical** source: a manager's squad
@@ -152,6 +153,31 @@ page's live view reads — see
 [duel detail](pages/duel-detail.md#the-squad-it-shows-is-the-matchdays).
 Note its key includes the matchday, unlike `managerSquad`, because the endpoint
 answers differently per `dayNumber`.
+
+`useLiveMatches` is where a **running match** comes from: the score, the
+minute (`mt`), and an `events` feed of who did what. One request per match —
+nine for a Bundesliga matchday — not one per player, and only for matches that
+have kicked off; a finished one is fetched once and held for the session.
+
+Its cache key is deliberately **not league-scoped**: a match belongs to the
+competition, so two managers in different leagues watching the same fixture
+share one entry and one poll.
+
+It also fixed a hole. A score used to be read from the *matchdays* payload,
+which is the whole season and cached for an hour — so a live page could put an
+hour-old number next to a pulsing "live" dot. That payload is still the source
+of every match's **state**, and it now goes stale immediately and polls once a
+minute while any match of the current matchday is under way, because `st` is
+what tells the app a matchday is over.
+
+The event codes (`ke`) turned out to be **the same scale as `k`** on the
+player-performance endpoint, so they go straight through `toEventTallies()` and
+render as the glyphs the player page already draws. Verified against a finished
+5:1: five `1`s and one `2` (four goals plus an own goal for one side, one goal
+for the other — which is exactly that scoreline), four `4`s for the yellow
+cards, ten `8`s for the substitutions. `/v4/live/eventtypes` is a *different*,
+621-entry catalogue of Kickbase's scoring events (*Fernschusstor (Bonus)*,
+*Pass des Todes*); it is what a points-breakdown view would need and is unused.
 
 `useMatchdayPoints` is the one **fan-out** in the app: there is no bulk source
 of per-player matchday points, so it issues one request per player — but only

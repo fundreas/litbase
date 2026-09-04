@@ -12,6 +12,7 @@ import type {
 import { qk } from '@/api/queryKeys'
 import type { MatchdaysResponse } from '@/api/types'
 import { simulateMatchdays } from '@/dev/simulation'
+import { nowMs } from '@/lib/clock'
 
 export interface CurrentMatchday {
   /** Matchday number, as the API reports it. */
@@ -24,6 +25,32 @@ export interface CurrentMatchday {
 const FIXTURE_FINISHED = 2
 
 const HOUR = 60 * 60_000
+
+/** How often the fixture list is re-read while a match is being played. */
+const LIVE_POLL_MS = 60_000
+
+/**
+ * Is any match of the **current** matchday under way?
+ *
+ * Kick-off having passed without the API reporting the match finished — the
+ * same reading as {@link fixtureState}, and it goes through `nowMs()` so the
+ * [development profile's clock](../../dev/simulation.ts) moves it too.
+ *
+ * Only the current matchday is examined. A season's other 33 are either over
+ * or not started, and scanning them would make a page's polling depend on
+ * fixtures nobody is looking at.
+ */
+function hasRunningFixture(data: MatchdaysResponse | undefined): boolean {
+  if (data === undefined) return false
+  const matchday = (data.it ?? []).find((entry) => entry.day === data.day)
+  const now = nowMs()
+
+  return (matchday?.it ?? []).some((fixture) => {
+    if (fixture.st === FIXTURE_FINISHED) return false
+    const kickoff = Date.parse(fixture.dt)
+    return !Number.isNaN(kickoff) && now >= kickoff
+  })
+}
 
 /**
  * The season's fixture list — one request, two views.
@@ -47,7 +74,19 @@ function useMatchdaysQuery<T>(
   return useQuery({
     queryKey: qk.competitionMatchdays(competitionId ?? 'none'),
     enabled: competitionId !== undefined,
-    staleTime: HOUR,
+    /*
+     * An hour is right for a season's fixture list and wrong the moment a
+     * match kicks off: `st` flips to finished in here, and everything that
+     * asks "is this matchday over?" reads it. So while any match of the
+     * current matchday is under way the entry goes stale at once and polls,
+     * and the rest of the week it is left alone.
+     *
+     * The live *score* deliberately does **not** come from here any more —
+     * see [`useLiveMatches`](./useLiveMatches.ts). This is about the states.
+     */
+    staleTime: (query) => (hasRunningFixture(query.state.data) ? 0 : HOUR),
+    refetchInterval: (query) =>
+      hasRunningFixture(query.state.data) ? LIVE_POLL_MS : false,
     select,
     queryFn: async () => {
       const data = await get<MatchdaysResponse>(

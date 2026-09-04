@@ -1045,6 +1045,7 @@ Not in the URL: a layout is a preference, not a place.
 | `useSeasonSchedule` | `/competitions/{id}/matchdays` | `useCurrentMatchday`, duel picker |
 | `useMatchdayFixtures` | the same cache entry, a third `select` | [Duel detail](duel-detail.md) |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Duel detail](duel-detail.md#points-cost-one-request-per-player) |
+| `useLiveMatches` ×N | `/matches/{matchId}/details` | [Duel detail](duel-detail.md#where-the-live-numbers-come-from) |
 
 **The squad is the matchday's whenever it can be.**
 [`useMatchdaySquad`](../../src/api/hooks/useMatchdaySquad.ts) reads the
@@ -1061,6 +1062,13 @@ measurement behind it is written down.
 A player **transferred away since** the matchday is in the snapshot but in no
 current squad, so his position can be unknown. He keeps his points and his row
 in the Rangliste; the pitch cannot place him and simply leaves him out.
+
+The **match** state — the live score, the minute, the goals and cards on each
+row of the Rangliste — comes from
+[`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts): one request per
+match, nine for a matchday, polled only while a match is running. Before it,
+scores came from the hour-cached fixture list and the minute had no source at
+all.
 
 The points are the expensive part and
 [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) owns the cost

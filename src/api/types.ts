@@ -858,6 +858,12 @@ export interface PlayerFixtureSummary {
  * | 9 `SUBSTITUTED_OFF` | only ever alongside `8` or a start, never on a non-appearance |
  * | 25 `CLEAN_SHEET` | exact match with `cs` |
  */
+/**
+ * Event codes, as `k` on {@link PlayerPerformanceMatch} — **and as `ke` on a
+ * match's live `events` feed**, which turned out to use the identical scale
+ * (verified on a finished 5:1: five `1`s and one `2`, four `4`s, ten `8`s).
+ * One decode serves the player page and the live rows.
+ */
 export const MATCH_EVENT = {
   GOAL: 1,
   /** Inferred — see the table above. */
@@ -1251,6 +1257,109 @@ export interface FixtureItem {
   /** Match status: 0 = upcoming, 2 = finished (others unconfirmed). */
   st?: number
   il?: boolean
+}
+
+/* -------------------------------------------------------------------------- */
+/* One match, live                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `GET /v4/matches/{matchId}/details` — the live state of one match.
+ *
+ * Verified against a finished Bundesliga fixture. **There is no `mi`**: the
+ * response does not name the match it describes, so a caller fanning out over
+ * a matchday has to remember which request each answer belongs to.
+ */
+export interface MatchDetailsResponse {
+  /** Home team id. */
+  t1: string
+  /** Away team id. */
+  t2: string
+  /** Home team name, and its short symbol. */
+  t1n?: string
+  t1sy?: string
+  t2n?: string
+  t2sy?: string
+  /** Goals. Present from kick-off, `0` before either side scores. */
+  t1g?: number
+  t2g?: number
+  /** Crests, CDN-relative. */
+  t1im?: string
+  t2im?: string
+  /**
+   * The **minute**, as the API counts it — observed `95` on a finished match
+   * whose `mtd` read `"90"`, so this runs past 90 with stoppage time.
+   */
+  mt: number
+  /** Kick-off, ISO 8601. */
+  md?: string
+  /** Match status. `2` is played to the end, as `st` is elsewhere. */
+  mst?: number
+  /** Minute as a display string, e.g. `"90"`. */
+  mtd?: string
+  /**
+   * The lineups are **official** rather than predicted.
+   *
+   * `false` on a match played weeks ago, so it is not "the lineup is known"
+   * so much as a flag the app sets around kick-off — treat with care.
+   */
+  il?: boolean
+  /** Home starting eleven, and the rest of the squad. */
+  t1lp?: MatchLineupPlayer[]
+  t1nlp?: MatchLineupPlayer[]
+  t2lp?: MatchLineupPlayer[]
+  t2nlp?: MatchLineupPlayer[]
+  /** Formation strings, e.g. `"4-2-3-1"`. */
+  ts1?: string
+  ts2?: string
+  /** Everything that happened, newest first. */
+  events?: MatchEventItem[]
+}
+
+/** One player in a match's real-world lineup. Carries **no points**. */
+export interface MatchLineupPlayer {
+  /** Player id — a **number** here, unlike everywhere else. */
+  i: number
+  /** Last name. */
+  n: string
+  /** Position code, see {@link PLAYER_POSITION}. */
+  pos?: number
+  /** Portrait, CDN-relative. */
+  pim?: string
+}
+
+/** One thing that happened in a match. */
+export interface MatchEventItem {
+  /** Player id, or `"0"` for a match-level event (kick-off, half-time, …). */
+  pi?: string
+  /** Player name. Absent on match-level events. */
+  pn?: string
+  /** Team id. */
+  tid?: string
+  /**
+   * Event kind, on the **same scale as `k`** on the player-performance
+   * endpoint — see {@link MATCH_EVENT}. Verified on a 5:1: five `1`s and one
+   * `2`, four `4`s, ten `8`s.
+   */
+  ke: number
+  /** Minute it happened. */
+  mt: number
+  /**
+   * A related event, e.g. the assist folded into a goal.
+   *
+   * **Its `pi` is `"0"` even though `pn` names somebody**, so the related
+   * player cannot be identified by id. Unused for that reason.
+   */
+  rev?: MatchEventItem
+  /** Portrait, CDN-relative. */
+  pim?: string
+}
+
+/** `GET /v4/live/eventtypes` — names for every scoring event. */
+export interface LiveEventTypesResponse {
+  /** Last updated, ISO 8601. */
+  lcud?: string
+  it: Array<{ i: number; ti: string }>
 }
 
 /* -------------------------------------------------------------------------- */
