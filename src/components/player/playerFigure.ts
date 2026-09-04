@@ -8,6 +8,12 @@ import { points, time } from '@/lib/format'
  * [`playerFigure()`](../../api/models.ts); this is only the wording, and it is
  * shared so the two pitches and the two lists cannot disagree about it.
  *
+ * The **bench case is normally drawn as** [`BenchMark`](./BenchMark.tsx), the
+ * armchair, rather than through this function: a mark where a number would go
+ * says "nothing here counts" in a tenth of the width the word took. The string
+ * stays for the two pitch plates, where a benched player cannot appear at all,
+ * and to keep the switch total.
+ *
  * The kick-off is the **time alone** (`18:30`), not the date. A matchday page
  * covers one weekend, the row or plate it sits in already says which fixture
  * it is, and on a pitch plate the width is the portrait's — about five

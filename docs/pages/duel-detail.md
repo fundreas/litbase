@@ -33,10 +33,10 @@ player ranking.
   │ (A) GOATstaller                          │
   └──────────────────────────────────────────┘
 
-  DANGER DU              GOATSTALLER
+  DANGER DU 🪑           GOATSTALLER 🪑
   ┌────────────────┐     ┌────────────────┐
-  │ (a) Karaman  – │     │ (a) Führich 92 │
-  │ (a) Burkardt 4 │     │ (a) Grimaldo – │
+  │ (a) Karaman  🪑│     │ (a) Führich 92 │
+  │ (a) Burkardt 4 │     │ (a) Grimaldo 🪑│
   └────────────────┘     └────────────────┘
 ```
 
@@ -133,20 +133,21 @@ renders an `EmptyState` with a way back, not an error.
 
 | Status | Means | Source |
 | ------ | ----- | ------ |
-| `Bank` | The manager did not field them | the snapshot's `nlp` list |
-| `Offen` | Fielded, their club has not kicked off | fixture kick-off in the future |
-| `Läuft` | Fielded, match in progress | kick-off passed, not reported finished |
-| `Beendet` | Fielded, match over | fixture `st === 2` |
-| `Ausgewechselt` | Taken off | **nothing produces this yet** — see below |
+| `bench` | The manager did not field them | the snapshot's `nlp` list |
+| `open` | Fielded, their club has not kicked off | fixture kick-off in the future |
+| `playing` | Fielded, match in progress | kick-off passed, not reported finished |
+| `finished` | Fielded, match over | fixture `st === 2` |
+| `substituted` | Taken off | **nothing produces this yet** — see below |
 
-Only `Läuft` is coloured loudly (accent). It is the one state that is going to
-change, and the only one worth scanning a live page for; if all five were
-tinted, eleven rows would read as a warning light.
+**These are hardly ever words on screen any more.** A row shows the match's
+own [scoreline](#a-row-is-two-marks-and-two-numbers) instead, which says the
+same thing and more — "Läuft" cannot tell you it is 2:1 — and the bench is the
+[armchair](../../src/components/player/BenchMark.tsx). On the **pitch** the
+state is a tint: a running player's points are accent-coloured and everything
+else is white, because there is no room for anything else under a portrait.
 
-On the **pitch** the status is carried by that tint alone — there is no room
-for a word under a portrait — so a running player's points show in accent and
-everything else in white. The [Rangliste](#the-ranking-tab) spells all five
-out.
+The union keeps its German labels for tooltips and screen-reader text, where a
+mark needs spelling out.
 
 ### Unverified: `Ausgewechselt`
 
@@ -174,7 +175,7 @@ this order:
 | Shown | When | Why this order |
 | ----- | ---- | -------------- |
 | **Points** | they are known | The most informative thing available, benched players included — a bench that outscored the eleven is why benches are on screen at all |
-| **`Bank`** | benched, no points | A kick-off time would mislead: his match starting changes nothing, because his points will never count |
+| **The armchair** ([`BenchMark`](../../src/components/player/BenchMark.tsx)) | benched, no points | A kick-off time would mislead: his match starting changes nothing, because his points will never count |
 | **Kick-off** (`20:30`) | fielded, match still to come | Answers the question the dash left hanging. On a Friday evening most of a lineup has not kicked off |
 | **`–`** | nothing to say | No fixture that matchday, or a match under way whose points have not arrived |
 
@@ -190,10 +191,15 @@ on a pitch plate the width is the portrait's, which is about five characters on
 a phone. A Sunday match seen on Friday therefore reads `17:30` with no day
 attached, which is the one thing this trades away.
 
-**The status word is dropped when the figure already is that word** — a
-benched player with no points would otherwise read "Bank … Bank" across one
-row. One who *did* score keeps it, because there the figure is a number and
-the word is what says it did not count.
+**The bench is a mark, not a word.** The armchair — the same glyph the squad
+page's bench section is headed with — replaces *Bank* wherever a player is
+labelled as benched: in the figure column, and as the status on a row. It had
+to compete for width with a name, a fixture and a score, and a mark says it in
+a tenth of the space; the word rides along as screen-reader text and as the
+tooltip. **And the status mark is dropped when the figure is already that
+mark** — a benched player with no points would otherwise carry two armchairs
+across one row. One who *did* score keeps both, because there the figure is a
+number and the mark is what says it did not count.
 
 A real score is drawn at full contrast and a placeholder stays quiet, so the
 eye finds the numbers first.
@@ -373,6 +379,38 @@ returns a fresh array each time, so neither can be memoised on its own input
 without inventing a surrogate key — and a signature-string memo is harder to
 trust than the thirty object allocations it saves. Nothing here is on a hot
 path: the page re-renders on a once-a-minute poll and on a tab switch.
+
+## A row is two marks and two numbers
+
+Every player row — in the [Rangliste](#the-ranking-tab), in the bench columns,
+and in the squad page's live list, since they are all
+[`DuelPlayerRow`](../../src/components/duels/DuelPlayerRow.tsx) — reads:
+
+```
+(portrait)  Anton
+            🏠 (crest)  2:1                    158
+```
+
+The second line **used to be `ABW @ ELF`**: a position abbreviation, a `vs`/`@`
+and the opponent's three-letter symbol, plus a status word. It now carries
+
+- the opponent's **crest**, with a house or an aeroplane beside it
+  ([`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx), the app's
+  wordless fixture — a crest is recognised faster than three letters), and
+- the match's own **scoreline**
+  ([`MatchStateBadge`](../../src/components/player/MatchStateBadge.tsx)):
+  a faint `–:–` before kick-off, a **pulsing dot** and the running score while
+  it is on, the final score once it is over.
+
+Three pieces of text became two marks and a number, and the row gained the one
+thing it never had: how that match is actually going. The score is read from
+the player's own side of the fixture, so `2:1` always means his club is
+winning.
+
+**The position went with them.** It is the least useful thing about a player in
+a list ranked by points, and it is one tap away on his own page. The scoreline
+and the crest are wordless, so both carry the state and the kick-off as their
+tooltip and as screen-reader text.
 
 ## The ranking tab
 

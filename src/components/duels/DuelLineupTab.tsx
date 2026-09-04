@@ -4,6 +4,7 @@ import {
   type DuelRoster,
   type PositionKey,
 } from '@/api/models'
+import { BenchMark } from '@/components/player/BenchMark'
 import {
   figureDescription,
   figureLabel,
@@ -274,6 +275,9 @@ function SideLabel({
 function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
+      {/* The armchair is what says "bench" here — the column is otherwise just
+          a manager's name over some players, and the word would eat width a
+          truncated name needs. */}
       <h3 className="flex min-w-0 items-center gap-1.5 px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
         <Avatar
           src={roster.manager.image}
@@ -281,6 +285,7 @@ function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
           size={14}
         />
         <span className="truncate">{roster.manager.name}</span>
+        <BenchMark size={12} />
       </h3>
 
       {roster.bench.length === 0 ? (
@@ -306,14 +311,18 @@ function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
                 <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-ink">
                   {player.name}
                 </span>
-                <span
-                  className={cn(
-                    'nums shrink-0 text-[0.6875rem] font-semibold',
-                    isScore(figure) ? 'text-ink' : 'text-faint',
-                  )}
-                >
-                  {figureLabel(figure)}
-                </span>
+                {figure.kind === 'bench' ? (
+                  <BenchMark size={12} className="text-faint" />
+                ) : (
+                  <span
+                    className={cn(
+                      'nums shrink-0 text-[0.6875rem] font-semibold',
+                      isScore(figure) ? 'text-ink' : 'text-faint',
+                    )}
+                  >
+                    {figureLabel(figure)}
+                  </span>
+                )}
               </li>
             )
           })}
