@@ -16,6 +16,7 @@ import { useSquad } from '@/api/hooks/useSquad'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { useStatusReasons } from '@/api/hooks/useStatusReasons'
 import { liveMatchday, type SquadMember } from '@/api/models'
+import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { LiveTab } from '@/components/squad/LiveTab'
@@ -57,6 +58,9 @@ type ViewValue = (typeof VIEWS)[keyof typeof VIEWS]
 export function SquadPage() {
   const { leagueId, competitionId } = useActiveLeague()
   const location = useLocation()
+  // The live view fetches *this* manager's matchday snapshot, so it needs the
+  // signed-in user's id. `RequireAuth` guarantees a session above this page.
+  const { user } = useAuth()
   const squad = useSquad(leagueId)
   // The budget is the manager's, not the squad's, so it is its own query —
   // a small one the dashboard has usually filled already.
@@ -271,11 +275,12 @@ export function SquadPage() {
             the probability and status lookups those views share. Mounting it
             here keeps a read-only view from firing a fan-out of ~25 requests
             it would never render. */}
-        {view === VIEWS.live && live !== undefined ? (
+        {view === VIEWS.live && live !== undefined && user !== null ? (
           <LiveTab
             squad={squad.data}
             leagueId={leagueId}
             competitionId={competitionId}
+            userId={user.id}
             day={live.day}
           />
         ) : (

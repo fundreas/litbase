@@ -1196,7 +1196,7 @@ export interface FixtureItem {
  * The only historical source in the API, and the only way to see *any*
  * manager's lineup for a matchday other than the current one. See
  * {@link endpoints.leagues.managerTeamcenter} for the spelling trap that hid
- * it, and [duel detail](../../docs/pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded)
+ * it, and [duel detail](../../docs/pages/duel-detail.md#the-squad-it-shows-is-the-matchdays)
  * for what it fixes.
  *
  * **`dayNumber` is required.** Omitted, out of range (`0`, `99`), or naming a

@@ -64,10 +64,13 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
     - CAVEAT (measured): lp is EMPTY until the matchday starts. 6h before kickoff:
       lp=[] and nlp=all 15, while squad showed 11 fielded with lo 0..10.
       So the snapshot is only complete once a matchday is finished.
-    -> WIRED UP (useMatchdaySquad) on the duel page: finished matchday = snapshot
-       (real squad+lineup, "historical" notice deleted), live/upcoming = lo as
-       before. The squad Live view deliberately keeps lo: mid-matchday lp would
-       draw a partial eleven and charge a false -100/slot penalty.
+    -> WIRED UP (useMatchdaySquad) on BOTH the duel page and the squad Live view.
+       canUseMatchdaySquad(): use the snapshot as soon as its lineup looks
+       complete (settled matchday: always; running: only once lp >= today's
+       fielded count), else fall back to today's lo. An earlier gate required
+       the matchday to be FINISHED, which meant live matchdays and everything
+       under dev:live fell back to today's squad — the data was there and the
+       app refused it.
        Positions come from today's squad (snapshot has no reliable `pos`);
        points still come from ph[day-1].
     - NEXT PROBE (during a running matchday): does lp hold all 11, or only the

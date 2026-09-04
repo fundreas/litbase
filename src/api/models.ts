@@ -508,6 +508,66 @@ export interface MatchdaySquad {
 }
 
 /**
+ * Is the matchday snapshot usable, or does the caller have to fall back to
+ * today's squad and its `lo`?
+ *
+ * The snapshot is the only source that knows a squad *as it stood*, so the
+ * answer should be "always". It is not, for one measured reason: **`lp` is
+ * empty until the matchday starts.** Probed six hours before kick-off, the
+ * snapshot returned `lp: []` with all fifteen players in `nlp`, while `/squad`
+ * plainly had eleven fielded with `lo` `0…10`. So it fills at or after the
+ * first kick-off.
+ *
+ * An earlier version of this gated on the matchday being **finished**, which
+ * was safe and too crude by half: a live matchday fell back to today's squad,
+ * and so did every matchday under `dev:live`, since the simulation marks the
+ * replayed one unfinished on purpose. The data was there and the app refused
+ * it.
+ *
+ * So the test is completeness, not the clock:
+ *
+ *  - **No lineup at all** → fall back. This is the pre-kick-off case, and also
+ *    a matchday before the league existed.
+ *  - **Matchday settled** → trust it, whatever the count. A manager who
+ *    fielded nine that day really did field nine, and `lo` cannot tell you
+ *    that any more.
+ *  - **Matchday running** → trust it only once it holds at least as many
+ *    players as are fielded today. If `lp` turns out to fill per match rather
+ *    than all at once, this is what stops a half-filled lineup being drawn as
+ *    the whole team, with the rest wrongly on the bench and an empty-slot
+ *    penalty to match.
+ *
+ * `todaysFieldedCount` is the count from the manager's current squad — the
+ * lineup Kickbase locked at kick-off, and therefore the number the snapshot
+ * has to reach before it can be believed mid-matchday.
+ */
+export function canUseMatchdaySquad(
+  snapshot: MatchdaySquad | undefined,
+  todaysFieldedCount: number,
+  isSettled: boolean,
+): boolean {
+  if (snapshot === undefined || snapshot.isEmpty) return false
+  if (snapshot.fielded.length === 0) return false
+  if (isSettled) return true
+  return snapshot.fielded.length >= todaysFieldedCount
+}
+
+/**
+ * Has every match of a matchday been played to the end?
+ *
+ * The API's own `st === 2` on all of them, which is what
+ * {@link SeasonMatchday.isFinished} means too — deliberately not a clock
+ * comparison, so a simulated clock cannot make a matchday look settled when it
+ * is not.
+ */
+export function areFixturesSettled(
+  fixtureByTeamId: Map<string, MatchdayFixture> | undefined,
+): boolean {
+  if (fixtureByTeamId === undefined || fixtureByTeamId.size === 0) return false
+  return [...fixtureByTeamId.values()].every((fixture) => fixture.isFinished)
+}
+
+/**
  * What to put in a player's one figure slot — the plate under a portrait, or
  * the number at the end of a row.
  *

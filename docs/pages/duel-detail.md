@@ -148,6 +148,22 @@ for a word under a portrait — so a running player's points show in accent and
 everything else in white. The [Rangliste](#the-ranking-tab) spells all five
 out.
 
+### Unverified: `Ausgewechselt`
+
+Nothing in any observed payload distinguishes a player taken off from one still
+on the pitch. The manager squad carries only availability (`st`: 0 fit, 2 out,
+with `stxt` naming the injury), and the per-player live fields are absent
+outside a running matchday — every probe here was run between matchday 1
+finishing and matchday 2 kicking off.
+
+The status is therefore **in the union, labelled and styled, but never
+returned**. Wiring it up is a change to
+[`duelPlayerStatus()`](../../src/api/models.ts) alone once the field is
+identified during a live matchday. Candidates to check then: `st`/`mst` on
+`teamcenter/myeleven` (which carries per-player match state but only for the
+signed-in user), and `st` on `/v4/competitions/{id}/players`, where a value of
+`5` appears on players who completed a match.
+
 ## The one figure a player gets
 
 Every player has exactly one slot for a number — the plate under a portrait,
@@ -182,61 +198,48 @@ the word is what says it did not count.
 A real score is drawn at full contrast and a placeholder stays quiet, so the
 eye finds the numbers first.
 
-### Unverified: `Ausgewechselt`
+## The squad it shows is the matchday's
 
-Nothing in any observed payload distinguishes a player taken off from one still
-on the pitch. The manager squad carries only availability (`st`: 0 fit, 2 out,
-with `stxt` naming the injury), and the per-player live fields are absent
-outside a running matchday — every probe here was run between matchday 1
-finishing and matchday 2 kicking off.
+Both rosters come from the **matchday snapshot**,
+`GET /v4/leagues/{leagueId}/users/{userId}/teamcenter?dayNumber={n}`, read
+through [`useMatchdaySquad`](../../src/api/hooks/useMatchdaySquad.ts). `lp` is
+the eleven that was fielded that matchday and `nlp` the rest, for **any**
+manager in the league — so a matchday from four weeks ago lists the players who
+played it, not today's squad.
 
-The status is therefore **in the union, labelled and styled, but never
-returned**. Wiring it up is a change to
-[`duelPlayerStatus()`](../../src/api/models.ts) alone once the field is
-identified during a live matchday. Candidates to check then: `st`/`mst` on
-`teamcenter/myeleven` (which carries per-player match state but only for the
-signed-in user), and `st` on `/v4/competitions/{id}/players`, where a value of
-`5` appears on players who completed a match.
+### The one thing the snapshot cannot do, and the fallback for it
 
-## A settled matchday shows what was actually fielded
+**`lp` is empty until the matchday starts.** Probed six hours before kick-off:
+the snapshot returned `lp: []` with all fifteen players in `nlp`, while
+`/squad` plainly had eleven fielded with `lo` `0…10`. So it fills at or after
+the first kick-off, and before then there is nothing in it to draw.
 
-| Matchday | Roster source |
-| -------- | ------------- |
-| **Finished** (every fixture `st === 2`) | the **matchday snapshot**, `users/{uid}/teamcenter?dayNumber=` |
-| **Live or upcoming** | `managers/{uid}/squad` and its `lo`, as before |
+`canUseMatchdaySquad()` in [`models.ts`](../../src/api/models.ts) decides,
+per manager:
 
-The snapshot is the historical source: `lp` is the eleven that was fielded that
-matchday and `nlp` the rest, for **any** manager in the league — so a matchday
-from four weeks ago lists the players who played it, not today's squad. It is
-read through [`useMatchdaySquad`](../../src/api/hooks/useMatchdaySquad.ts).
+| Snapshot | Matchday | Source |
+| -------- | -------- | ------ |
+| no lineup in it | any | today's squad and its `lo` |
+| has a lineup | settled (`st === 2` on every fixture) | **the snapshot**, whatever the count — a manager who fielded nine really did field nine |
+| has a lineup | still running | **the snapshot**, once it holds at least as many players as are fielded today |
+| empty both lists | any | today's squad — this is a matchday before the league existed |
 
-### Why the source depends on the matchday's state
+The third row is the guard that matters. If `lp` turns out to fill *per match*
+rather than all at once, a half-filled lineup would otherwise be drawn as the
+whole team, with the rest wrongly on the bench and an empty-slot penalty to
+match. Comparing against today's fielded count catches exactly that, because
+Kickbase locks the lineup at kick-off — so during a matchday `lo` is both
+complete and current, and the right yardstick.
 
-**`lp` is empty until the matchday starts.** Measured on a real payload: for a
-matchday six hours from kick-off, `teamcenter?dayNumber=` returned `lp: []` and
-`nlp:` all fifteen players, while `squad` plainly showed eleven of them fielded
-with `lo` `0…10`. So `lp` fills at or after the first kick-off, and a page that
-read it mid-matchday would draw a partial eleven, bench the rest as *Bank*, and
-— on the squad page — invoice the manager 100 points for slots that are not
-empty.
+**An earlier version gated on the matchday being *finished*.** That was safe
+and too crude by half: a live matchday fell back to today's squad, and so did
+every matchday under `dev:live`, since the simulation marks the replayed one
+unfinished on purpose. The data was sitting there and the app refused it.
+Testing completeness rather than the clock fixed both.
 
-`lo` has the opposite profile: it is complete and authoritative while the
-matchday runs (Kickbase locks the lineup at kick-off) and wrong afterwards,
-because the squad keeps changing. Each source is used exactly where it is
-right, and `isSettled` — every fixture reporting `st === 2`, the API's own
-word — is the switch.
-
-**One probe would collapse the two branches into one.** During a running
-matchday, check whether `lp` holds all eleven or only the players whose match
-has kicked off:
-
-```bash
-KB "/v4/leagues/$L/users/$U/teamcenter?dayNumber=$CURRENT" | jq -c '{lp:(.lp|length), nlp:(.nlp|length)}'
-```
-
-`lp: 11` means the snapshot can be the only source everywhere, and `lo` drops
-out of this page entirely. Fewer than eleven means the split above is
-permanent.
+`isSettled` deliberately reads the API's own `st === 2` rather than comparing
+kick-offs to the clock, so a [simulated clock](../infrastructure.md#development-profiles)
+cannot make a matchday look settled when it is not.
 
 ### What this replaced, and why it is worth remembering
 
@@ -332,7 +335,7 @@ too — the rules are the hook's, not this page's.
 
 `useManagerSquad` is how the app reads another manager's lineup today. It is
 **not** the only way, though this file said so until 2026-09-04:
-`users/{uid}/teamcenter?dayNumber=` ([above](#a-settled-matchday-shows-what-was-actually-fielded)) serves any
+`users/{uid}/teamcenter?dayNumber=` ([above](#the-squad-it-shows-is-the-matchdays)) serves any
 manager's team for any matchday. `teamcenter/myeleven` really is own-user-only —
 `userId`, `uid`, `u` and `dayNumber` are all silently ignored there, and 18
 other path spellings answer 404, which is what the old claim was based on.
@@ -374,7 +377,7 @@ than as zero — not knowing is not the same as nothing.
 | Rosters loading | The header and toggle render; `SkeletonList` in place of the pitch |
 | Error | `ErrorState` with retry |
 | Pairing not on this matchday | `EmptyState` with a link back to the list |
-| Matchday the API has no squads for | `EmptyState` — `isEmpty`, not an error; see [above](#a-settled-matchday-shows-what-was-actually-fielded) |
+| Matchday the API has no squads for | `EmptyState` — `isEmpty`, not an error; see [above](#the-squad-it-shows-is-the-matchdays) |
 
 Points arriving late do **not** block the rows: a player renders with `–` and
 fills in, which is what keeps a live page from flashing a skeleton every minute.

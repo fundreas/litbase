@@ -68,7 +68,7 @@ export function mapMatchdaySquad(
  * `GET /v4/leagues/{id}/users/{uid}/teamcenter?dayNumber={n}`, which is the
  * API's only historical source and works for **any** manager in the league.
  * `lp` is the eleven that was fielded, `nlp` the rest. See
- * [duel detail](../../docs/pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded) for how
+ * [duel detail](../../docs/pages/duel-detail.md#the-squad-it-shows-is-the-matchdays) for how
  * this was found and what it replaced.
  *
  * **Points do not come from here.** They stay with

@@ -28,13 +28,15 @@
  *
  * ## What it costs in honesty
  *
- * A replayed matchday deliberately reports itself **unfinished**, which is
- * what makes it live — and which also means the pages treat it as a matchday
- * in progress and read *today's* squad rather than the
- * [matchday snapshot](../api/hooks/useMatchdaySquad.ts). So the fixtures,
- * the points and the states are real, and the set of players is today's.
- * Fine for building the UI, misleading if mistaken for a real result, which
- * is why the badge in the header says loudly that the app is simulating.
+ * **Only the clock is fake.** A replayed matchday reports itself unfinished,
+ * which is what makes it live, and the pages still show the squad that was
+ * actually fielded: the [matchday snapshot](../api/hooks/useMatchdaySquad.ts)
+ * is used as soon as its lineup looks complete rather than only once a
+ * matchday is over — which is precisely the case a simulated matchday is in.
+ * So the fixtures, the players, the lineups and the points are all real. That
+ * makes this convincing enough to be mistaken for a live result an hour later,
+ * which is why the badge in the header says loudly that the app is
+ * simulating.
  *
  * ## Adding another transform
  *

@@ -7,7 +7,9 @@ import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
 import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
 import {
+  areFixturesSettled,
   byMatchdayPoints,
+  canUseMatchdaySquad,
   duelPlayerStatus,
   fixtureState,
   toPosition,
@@ -60,7 +62,7 @@ export function useManagerSquad(
  * What would collapse the two branches into one is knowing whether `lp` fills
  * with **all eleven** at the matchday's start or only per match as each kicks
  * off — one probe during a running matchday, noted in
- * [duel detail](../../docs/pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded).
+ * [duel detail](../../docs/pages/duel-detail.md#the-squad-it-shows-is-the-matchdays).
  *
  * The points are still the expensive part, and
  * [`useMatchdayPoints`](./useMatchdayPoints.ts) owns that: there is no bulk
@@ -102,29 +104,29 @@ export function useDuelRosters(
   const snapshotA = useMatchdaySquad(leagueId, sides?.[0].id, day, positionsA)
   const snapshotB = useMatchdaySquad(leagueId, sides?.[1].id, day, positionsB)
 
-  /**
-   * Is every match of this matchday over?
-   *
-   * Read from the fixtures the page already has rather than from the clock, so
-   * it is the API's own `st === 2` on all nine — the same definition
-   * `SeasonMatchday.isFinished` uses. Only then is the snapshot's `lp`
-   * complete; see the note on this hook.
-   */
-  const isSettled =
-    fixtures.data !== undefined &&
-    fixtures.data.size > 0 &&
-    [...fixtures.data.values()].every((fixture) => fixture.isFinished)
+  const isSettled = areFixturesSettled(fixtures.data)
 
-  /** The roster to render, from whichever source is trustworthy right now. */
+  /**
+   * The roster to render, from whichever source can be believed.
+   *
+   * The snapshot wins whenever its lineup looks complete — see
+   * `canUseMatchdaySquad`, which is where the "why not always?" is written
+   * down. Today's squad is the fallback, and the only source before a matchday
+   * kicks off.
+   */
   const rosterOf = (
     snapshot: MatchdaySquad | undefined,
     squad: ManagerSquadResponse | undefined,
     positions: Map<string, PositionKey>,
   ): { fielded: MatchdaySquadPlayer[]; bench: MatchdaySquadPlayer[] } => {
-    if (isSettled && snapshot !== undefined && !snapshot.isEmpty) {
+    const today = fromManagerSquad(squad, positions)
+    if (
+      snapshot !== undefined &&
+      canUseMatchdaySquad(snapshot, today.fielded.length, isSettled)
+    ) {
       return { fielded: snapshot.fielded, bench: snapshot.bench }
     }
-    return fromManagerSquad(squad, positions)
+    return today
   }
 
   const rosterA = rosterOf(snapshotA.data, squadA.data, positionsA)
@@ -159,9 +161,8 @@ export function useDuelRosters(
     if (
       sides === undefined ||
       fixtureByTeamId === undefined ||
-      (isSettled
-        ? snapshotA.data === undefined || snapshotB.data === undefined
-        : squadA.data === undefined || squadB.data === undefined)
+      squadA.data === undefined ||
+      squadB.data === undefined
     ) {
       return undefined
     }
@@ -225,11 +226,10 @@ export function useDuelRosters(
 
   return {
     data,
-    isPending:
-      fixtures.isPending ||
-      (isSettled
-        ? snapshotA.isPending || snapshotB.isPending
-        : squadA.isPending || squadB.isPending),
+    // Both sources are always in flight, and the roster falls back to today's
+    // squad, so the page is ready as soon as *that* is — waiting for the
+    // snapshot too would delay a live duel for no gain.
+    isPending: fixtures.isPending || squadA.isPending || squadB.isPending,
     isError:
       fixtures.isError ||
       squadA.isError ||
@@ -243,15 +243,17 @@ export function useDuelRosters(
       snapshotA.error ??
       snapshotB.error,
     /**
-     * The API had nothing for this matchday — before the league existed, or a
-     * day out of range. Only meaningful for a settled matchday, since that is
-     * the only time the snapshot is the source. Distinct from an error, and
-     * the page says so rather than drawing two empty teams.
+     * Neither manager has anything to show for this matchday: the snapshot is
+     * empty (before the league existed, or a day out of range) *and* today's
+     * squads cannot stand in because nothing is fielded in them either.
+     * Distinct from an error, and the page says so rather than drawing two
+     * empty teams.
      */
     isEmpty:
-      isSettled &&
       snapshotA.data?.isEmpty === true &&
-      snapshotB.data?.isEmpty === true,
+      snapshotB.data?.isEmpty === true &&
+      rosterA.fielded.length === 0 &&
+      rosterB.fielded.length === 0,
     isPointsPending: points.isPending,
     refetch: () => {
       void snapshotA.refetch()

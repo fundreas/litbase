@@ -149,7 +149,7 @@ is what makes them safe to call before context has resolved.
 and lineup as they stood on a given matchday, for any manager in the league.
 It is what makes the duel page honest for past matchdays and what the squad
 page's live view reads — see
-[duel detail](pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded).
+[duel detail](pages/duel-detail.md#the-squad-it-shows-is-the-matchdays).
 Note its key includes the matchday, unlike `managerSquad`, because the endpoint
 answers differently per `dayNumber`.
 

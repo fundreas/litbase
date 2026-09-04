@@ -4,13 +4,18 @@ import { Link } from 'react-router'
 
 import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
+import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
 import {
+  areFixturesSettled,
   byMatchdayPoints,
+  canUseMatchdaySquad,
   DUEL_PLAYER_STATUS_LABEL,
   duelPlayerStatus,
   fixtureState,
   playerFigure,
   type DuelPlayer,
+  type MatchdaySquad,
+  type MatchdaySquadPlayer,
   type SquadMember,
 } from '@/api/models'
 import { DuelPlayerRow } from '@/components/duels/DuelPlayerRow'
@@ -57,23 +62,18 @@ const VIEW_STORAGE_KEY = 'litbase.squad.live.view'
  *    can tell a manager, and leaving them out would make the list disagree
  *    with the pitch about who exists.
  *
- * **Why this view does *not* read the matchday snapshot.** It would be the
- * obvious source — the duel page uses it for past matchdays, and it is the
- * only thing that knows a squad as it stood — but it cannot be trusted while a
- * matchday runs. Measured on a real payload: for a matchday that has not
- * kicked off, the snapshot's `lp` is **empty** while the squad plainly has
- * eleven fielded (`lo` `0…10`). So `lp` fills at or after kick-off, and a view
- * that read it at 15:45 on a Saturday would draw a partial eleven, bench the
- * rest, and invoice the manager for empty slots that are not empty.
+ * **The squad is the matchday's whenever it can be.** The
+ * [snapshot](../../api/hooks/useMatchdaySquad.ts) is the only source that
+ * knows a squad as it stood, so a player sold after kick-off keeps the points
+ * he scored for you. It is used as soon as its lineup looks complete —
+ * `canUseMatchdaySquad` holds that test and the measurement behind it — and
+ * today's `lineupOrder` stands in until then, which before the first kick-off
+ * is the only thing that knows the lineup at all.
  *
- * Today's `lineupOrder` is the right source here precisely because this view
- * only exists *during* the matchday: Kickbase locks the lineup at the first
- * kick-off, so `lo` is both complete and current. The gap that remains is
- * narrow — a player transferred away mid-matchday drops out of the list along
- * with his points — and closing it means learning whether `lp` fills with all
- * eleven at the matchday's start or only per match. One probe during a running
- * matchday settles it; see
- * [duel detail](../../../docs/pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded).
+ * The fallback is not a formality: `lo` is complete and current for the whole
+ * matchday because Kickbase locks the lineup at kick-off, so a view that only
+ * ever exists *during* a matchday loses nothing by leaning on it for a few
+ * seconds while the snapshot arrives.
  *
  * **Read-only.** Kickbase locks the lineup at the first kick-off, so there is
  * nothing here to edit: no rail, no swap dialog, no save. Tapping a player
@@ -88,23 +88,79 @@ export function LiveTab({
   squad,
   leagueId,
   competitionId,
+  userId,
   day,
 }: {
+  /** Today's squad: the fallback roster, and the source of every position. */
   squad: SquadMember[]
   leagueId: string
   competitionId: string
+  /** The signed-in manager, whose snapshot is fetched. */
+  userId: string
   /** The matchday being played. */
   day: number
 }) {
   const [view, setView] = useLiveView()
   const fixtures = useMatchdayFixtures(competitionId, day)
 
-  // Only the ids and clubs go to the points hook, so it is not re-keyed by
-  // every market-value tick the squad query brings back.
-  const subjects = useMemo(
-    () => squad.map((player) => ({ id: player.id, teamId: player.teamId })),
+  /**
+   * Position per player, which the snapshot payload does not reliably carry.
+   * Today's squad answers for everyone still owned; a player sold since is in
+   * neither and keeps `undefined`.
+   */
+  const positions = useMemo(
+    () => new Map(squad.map((player) => [player.id, player.position])),
     [squad],
   )
+
+  const snapshot = useMatchdaySquad(leagueId, userId, day, positions)
+
+  /** Today's squad in the snapshot's shape, as the fallback source. */
+  const today = useMemo(() => {
+    const players = squad.map((player) => ({
+      id: player.id,
+      name: player.lastName,
+      teamId: player.teamId,
+      position: player.position,
+      availability: player.status,
+      image: player.image,
+      wasFielded: player.lineupOrder !== undefined,
+      lineupOrder: player.lineupOrder,
+    }))
+    return {
+      // `lo` is 0-based and `0` is the goalkeeper, so membership is tested
+      // against `undefined` — `lineupOrder > 0` would silently bench the
+      // keeper, the trap the squad page documents at length.
+      fielded: players
+        .filter((player) => player.wasFielded)
+        .sort((a, b) => (a.lineupOrder ?? 0) - (b.lineupOrder ?? 0)),
+      bench: players.filter((player) => !player.wasFielded),
+    }
+  }, [squad])
+
+  /**
+   * The matchday's squad when it can be believed, today's until then. The
+   * "when" is `canUseMatchdaySquad`, which carries the measurement behind it.
+   */
+  const matchdaySquad: MatchdaySquad | undefined = snapshot.data
+  const roster =
+    matchdaySquad !== undefined &&
+    canUseMatchdaySquad(
+      matchdaySquad,
+      today.fielded.length,
+      areFixturesSettled(fixtures.data),
+    )
+      ? matchdaySquad
+      : today
+
+  // Not memoised: the roster is picked fresh every render, so a memo keyed on
+  // it would never hit and one keyed on the queries behind it would be a
+  // dependency list that lies. `useQueries` inside the points hook compares by
+  // key, so a fresh array of the same ids costs nothing.
+  const subjects = [...roster.fielded, ...roster.bench].map((player) => ({
+    id: player.id,
+    teamId: player.teamId,
+  }))
   const matchdayPoints = useMatchdayPoints(
     leagueId,
     day,
@@ -116,29 +172,34 @@ export function LiveTab({
   // points map behind it is a fresh object on every poll, so memoising this
   // would need a surrogate key harder to trust than the twenty allocations it
   // saves. This view re-renders once a minute.
-  const players: DuelPlayer[] = squad.map((player) => {
+  const toPlayer = (
+    player: MatchdaySquadPlayer,
+    wasFielded: boolean,
+  ): DuelPlayer => {
     const fixture = fixtures.data?.get(player.teamId)
     return {
       id: player.id,
-      name: player.lastName,
+      name: player.name,
       teamId: player.teamId,
       position: player.position,
-      lineupOrder: player.lineupOrder,
-      status: duelPlayerStatus({ lineupOrder: player.lineupOrder, fixture }),
+      lineupOrder: wasFielded ? 0 : undefined,
+      status: duelPlayerStatus({
+        lineupOrder: wasFielded ? 0 : undefined,
+        fixture,
+      }),
       points: matchdayPoints.byPlayerId.get(player.id),
-      availability: player.status,
+      availability: player.availability,
       image: player.image,
       fixture,
     }
-  })
+  }
 
-  // `lo` is 0-based and `0` is the goalkeeper, so membership is tested against
-  // `undefined` — `lineupOrder > 0` would silently bench the keeper, the trap
-  // the squad page documents at length.
-  const lineup = players
-    .filter((player) => player.lineupOrder !== undefined)
-    .sort((a, b) => (a.lineupOrder ?? 0) - (b.lineupOrder ?? 0))
-  const ranked = [...players].sort(byMatchdayPoints)
+  // Straight from whichever source's own split, in its own order.
+  const lineup = roster.fielded.map((player) => toPlayer(player, true))
+  const ranked = [
+    ...lineup,
+    ...roster.bench.map((player) => toPlayer(player, false)),
+  ].sort(byMatchdayPoints)
 
   const countState = (state: 'running' | 'upcoming') =>
     lineup.filter(
@@ -152,6 +213,7 @@ export function LiveTab({
         error={fixtures.error}
         onRetry={() => {
           void fixtures.refetch()
+          void snapshot.refetch()
         }}
       />
     )

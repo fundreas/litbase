@@ -1020,7 +1020,7 @@ this *is* today's lineup, being played right now — and summing the rows keeps
 the header consistent with the players underneath it as they fill in, one
 request at a time. A spinner sits beside it while any of them is in flight,
 because a total that is still climbing should not look settled. (The
-[duel page](duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded) takes the opposite
+[duel page](duel-detail.md#the-squad-it-shows-is-the-matchdays) takes the opposite
 decision for the opposite reason: it also renders *past* matchdays, where
 today's squad and that day's points do not add up to the official total.)
 
@@ -1046,22 +1046,21 @@ Not in the URL: a layout is a preference, not a place.
 | `useMatchdayFixtures` | the same cache entry, a third `select` | [Duel detail](duel-detail.md) |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Duel detail](duel-detail.md#points-cost-one-request-per-player) |
 
-**This view reads today's `lineupOrder`, not the matchday snapshot** — and
-that is deliberate, though the snapshot exists and the duel page uses it.
+**The squad is the matchday's whenever it can be.**
+[`useMatchdaySquad`](../../src/api/hooks/useMatchdaySquad.ts) reads the
+snapshot endpoint, so a player sold after kick-off keeps the points he scored
+for you and one bought mid-matchday does not appear with a borrowed `–`.
 
-`lp` on the snapshot is **empty until the matchday starts**: measured six hours
-before kick-off it returned no fielded players while the squad plainly had
-eleven with `lo` `0…10`. A live view that read it at 15:45 on a Saturday would
-draw a partial eleven, bench the rest, and show a `−100`-per-slot penalty for
-slots that are not empty. `lo` is the opposite: locked at the first kick-off,
-so during the matchday — the only time this view exists — it is both complete
-and current.
+Today's squad is still read, for two things: every player's **position**,
+which the snapshot does not reliably carry, and as the **fallback roster**
+until the snapshot has a lineup in it — `lp` is empty before the matchday
+starts, and `lo` is the only thing that knows the eleven until then. The switch
+is `canUseMatchdaySquad()`, shared with the duel page, which is also where the
+measurement behind it is written down.
 
-The gap that remains is narrow: a player transferred away mid-matchday drops
-out of the list along with the points he scored for you. Closing it means
-learning whether `lp` fills with all eleven at the matchday's start or only per
-match, which is
-[one probe during a running matchday](duel-detail.md#why-the-source-depends-on-the-matchdays-state).
+A player **transferred away since** the matchday is in the snapshot but in no
+current squad, so his position can be unknown. He keeps his points and his row
+in the Rangliste; the pitch cannot place him and simply leaves him out.
 
 The points are the expensive part and
 [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) owns the cost
