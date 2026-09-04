@@ -530,6 +530,339 @@ export function liveScoreFor(
     : { for: live.goalsAway, against: live.goalsHome }
 }
 
+/* -------------------------------------------------------------------------- */
+/* A matchday's fixtures, and one match in full                               */
+/* -------------------------------------------------------------------------- */
+
+/** One club, as a fixture names it. */
+export interface MatchTeam {
+  id: string
+  /** Full club name, when the payload carries one. */
+  name?: string
+  /** Short symbol, e.g. `"FCB"`. Falls back to the id. */
+  symbol: string
+  /** Crest, CDN-relative. */
+  image?: string
+}
+
+/**
+ * One match of a matchday, **as a match** rather than from a team's side.
+ *
+ * {@link MatchdayFixture} answers "what is this player's club doing", which is
+ * why it is keyed by team and resolves an `opponent`. A fixture *list* answers
+ * "who plays whom", so here home and away stay where they are and neither side
+ * is privileged. Both are selected out of the same season payload — see
+ * [`useMatchday`](./hooks/useMatchday.ts).
+ *
+ * It carries the two fields {@link fixtureState} needs, so a match's state is
+ * read the same way a player's fixture is.
+ */
+export interface MatchdayMatch {
+  matchId: string
+  day: number
+  /** Kick-off, ISO 8601. */
+  kickoff: string
+  /** The API reports the match played to the end (`st === 2`). */
+  isFinished: boolean
+  home: MatchTeam
+  away: MatchTeam
+  /** Goals, once they exist. */
+  goalsHome?: number
+  goalsAway?: number
+}
+
+/**
+ * One player in a match's **real-world** lineup, plus everything the app can
+ * find out about him.
+ *
+ * The first four fields are all `/matches/{id}/details` carries — it has no
+ * points and no notion of a Kickbase league. The rest is layered on from the
+ * per-player fan-out and the league standings: see
+ * [`useMatchLineup`](./hooks/useMatchLineup.ts).
+ */
+export interface MatchPlayer {
+  id: string
+  /** Last name, as the match payload spells it. */
+  name: string
+  teamId: string
+  /**
+   * `undefined` when the match payload omits `pos` and the player's own detail
+   * has not arrived. The pitch cannot place him and says how many it left out
+   * rather than defaulting him into midfield.
+   */
+  position?: PositionKey
+  image?: string
+  /**
+   * Kickbase points for this matchday.
+   *
+   * `undefined` means *not known* — before kick-off there is nothing to read,
+   * and during the match the request may still be in flight. Deliberately not
+   * `0`, which would claim he played and scored nothing.
+   */
+  points?: number
+  /** The league manager who owns him, when anybody does. */
+  owner?: MatchPlayerOwner
+  /** What he did in this match, one tally per kind. */
+  events?: MatchEventTally[]
+  /** Whether he was swapped, from the match's own event feed. */
+  role?: 'substitutedIn' | 'substitutedOff' | 'substitutedInAndOff'
+}
+
+/** Nobody owns the player. The API sends the string, not an absent field. */
+const NO_OWNER = '0'
+
+/**
+ * The wire's `oui`, narrowed to an owning manager's id.
+ *
+ * Unowned players carry the *string* `"0"` rather than an absent field, which
+ * is a trap worth having in exactly one place: read naively it is a truthy id
+ * that matches no manager, so every free agent would show as owned by a
+ * manager the app cannot find.
+ */
+export function toOwnerId(oui: string | undefined): string | undefined {
+  return oui === undefined || oui === NO_OWNER ? undefined : oui
+}
+
+/** A manager in the viewer's league who owns a player in this match. */
+export interface MatchPlayerOwner {
+  id: string
+  name: string
+  image?: string
+  /** True when the signed-in user is the owner. */
+  isViewer: boolean
+}
+
+/**
+ * One club's team sheet for a match.
+ *
+ * **No formation.** The payload has one (`ts1`/`ts2`, e.g. `"4-2-3-1"`) and it
+ * was drawn in the pitch's corner labels for exactly as long as it took to see
+ * that a dashed run of digits at 10px reads as a date. The corner carries the
+ * team's points total instead, which nothing else on the screen added up. The
+ * wire field stays documented in `types.ts` if it is ever wanted again.
+ */
+export interface MatchLineup {
+  team: MatchTeam
+  /** The starting eleven, in the order the payload lists it. */
+  starters: MatchPlayer[]
+  /** The rest of the match-day squad. */
+  substitutes: MatchPlayer[]
+}
+
+/**
+ * One match in full, from `/v4/matches/{matchId}/details`.
+ *
+ * The richer sibling of {@link LiveMatch}, which reduces the same payload to
+ * what a *player row* needs. Both map the one cached response, so opening a
+ * match from a matchday list costs no request — see
+ * [`useMatchDetails`](./hooks/useMatchDetails.ts).
+ *
+ * **No `matchId`.** The response does not echo the id it was asked for, and
+ * inventing one here would mean either a lie or a per-match `select`. Every
+ * caller already holds the {@link MatchdayMatch} it navigated by, which is
+ * where the id, the matchday and the authoritative state all come from.
+ */
+export interface MatchDetail {
+  home: MatchTeam
+  away: MatchTeam
+  goalsHome?: number
+  goalsAway?: number
+  /** The minute, past 90 in stoppage time. */
+  minute: number
+  /** The API reports it played to the end (`mst === 2`). */
+  isFinished: boolean
+  /** Kick-off, ISO 8601, when the payload names one. */
+  kickoff?: string
+  /**
+   * Kickbase says the team sheets are **official** rather than predicted
+   * (`il`). Observed `false` on a match played weeks ago, so it is closer to a
+   * flag set around kick-off than to a durable fact — the lineups are rendered
+   * either way and this only qualifies them.
+   */
+  isLineupOfficial: boolean
+  home11: MatchLineup
+  away11: MatchLineup
+  /** Everything that happened, newest first. */
+  events: MatchTimelineEvent[]
+  /** Those events per player, collapsed to one tally per kind. */
+  eventsByPlayerId: Map<string, MatchEventTally[]>
+}
+
+/* --- The timeline --------------------------------------------------------- */
+
+/**
+ * What a timeline entry can be.
+ *
+ * {@link MatchEventKind} plus `substitution`, which the badge scale
+ * deliberately leaves out: on a player's row a swap says where he was rather
+ * than what he did, but on a *match* timeline it is one of the events the
+ * viewer came for.
+ *
+ * The two wire codes for a swap (`SUBSTITUTED_IN` and `SUBSTITUTED_OFF`) both
+ * collapse to this one kind. A real feed was observed to carry only the
+ * incoming one, with the outgoing player folded in as `rev` — see
+ * {@link MatchTimelineEvent.relatedName}.
+ */
+export type TimelineEventKind = MatchEventKind | 'substitution'
+
+/** Spelled-out name for a timeline entry's kind. */
+export function timelineEventLabel(kind: TimelineEventKind): string {
+  return kind === 'substitution' ? 'Wechsel' : MATCH_EVENT_LABEL[kind]
+}
+
+/**
+ * The wire's `ke`, narrowed for a timeline.
+ *
+ * A code that maps to nothing degrades to `undefined` and the entry is dropped:
+ * Kickbase can add an event kind, and a match timeline is not the place to find
+ * out about it via an unlabelled marker.
+ */
+export function toTimelineKind(code: number): TimelineEventKind | undefined {
+  if (
+    code === MATCH_EVENT.SUBSTITUTED_IN ||
+    code === MATCH_EVENT.SUBSTITUTED_OFF
+  ) {
+    return 'substitution'
+  }
+  return toMatchEventKind(code)
+}
+
+/** Something that happened in a match, as a timeline reads it. */
+export interface MatchTimelineEvent {
+  kind: TimelineEventKind
+  /** Minute it happened, as the API counts it. */
+  minute: number
+  /** `undefined` when the feed names no club — it has not been seen. */
+  teamId?: string
+  playerId?: string
+  playerName?: string
+  /**
+   * The **other** player the feed folds into the entry: the assist on a goal,
+   * the player coming off in a substitution.
+   *
+   * A name and nothing else, on purpose — the nested `rev` entry carries
+   * `pi: "0"` even when `pn` names somebody, so the related player cannot be
+   * identified by id and cannot be linked to.
+   */
+  relatedName?: string
+  /**
+   * For a substitution, which way it went — `undefined` for every other kind.
+   *
+   * Both wire codes collapse to the `substitution` kind, but the direction is
+   * worth keeping: it is an arrow on the timeline row and it is how the
+   * [match lineup](./hooks/useMatchLineup.ts) works out who came on.
+   *
+   * A real feed was observed to carry only `SUBSTITUTED_IN` — ten of them for
+   * a match's ten substitutions, none of the outgoing code — so `off` is
+   * declared and may never appear. The player going the other way is named in
+   * {@link relatedName}.
+   */
+  swap?: 'in' | 'off'
+}
+
+/**
+ * The three structural moments of a match.
+ *
+ * **Derived from the match's state, not read from the feed.** The feed does
+ * carry match-level entries — they are the ones with `pi: "0"` — but their `ke`
+ * codes are not on the player scale and have not been identified, so believing
+ * a guess would put a mislabelled marker in the middle of a real timeline.
+ * Kick-off, half-time and the final whistle are all implied by data the app
+ * already trusts (the kick-off time, the minute, `st`), which is why they are
+ * computed here instead. See
+ * [Match detail](../../docs/pages/match-detail.md#the-structural-markers).
+ */
+export type TimelineMarker = 'kickoff' | 'halfTime' | 'fullTime'
+
+export const TIMELINE_MARKER_LABEL: Record<TimelineMarker, string> = {
+  kickoff: 'Anpfiff',
+  halfTime: 'Halbzeit',
+  fullTime: 'Abpfiff',
+}
+
+/** One row of a match timeline: an event, or one of the three whistles. */
+export type MatchTimelineItem =
+  | { kind: 'event'; id: string; event: MatchTimelineEvent }
+  | { kind: 'marker'; id: string; marker: TimelineMarker }
+
+/** The minute the first half is taken to end at. */
+const HALF_TIME_MINUTE = 45
+
+/**
+ * The match's events with the whistles woven in, **newest first**.
+ *
+ * Newest first because the timeline's live case is the one that matters: what
+ * just happened belongs where the eye lands, not at the end of a list that
+ * grows downwards for two hours. So the final whistle heads the list once it
+ * has blown and the kick-off closes it.
+ *
+ * Half-time goes in between the last event of the first half and the first of
+ * the second — it is a divider derived from the minutes, and it appears only
+ * once the match has actually reached it.
+ *
+ * `state` is passed in rather than read off `detail` because the two can
+ * legitimately disagree: `mst` on the match payload is what the *server* says,
+ * while the fixture list's `st` is what the app (and
+ * [the live development profile](../dev/simulation.ts)) treats as the truth
+ * about a matchday.
+ */
+export function matchTimeline(
+  detail: MatchDetail,
+  state: FixtureState,
+): MatchTimelineItem[] {
+  if (state === 'upcoming') return []
+
+  const items: MatchTimelineItem[] = []
+  if (state === 'finished') {
+    items.push({ kind: 'marker', id: 'fullTime', marker: 'fullTime' })
+  }
+
+  // Descending by minute, with the feed's own order breaking ties — two goals
+  // in the same minute should stay in the order Kickbase reported them.
+  const ordered = detail.events
+    .map((event, index) => ({ event, index }))
+    .sort((a, b) => b.event.minute - a.event.minute || a.index - b.index)
+
+  const reachedHalfTime =
+    state === 'finished' || detail.minute > HALF_TIME_MINUTE
+  let halfTimeDone = !reachedHalfTime
+
+  for (const { event, index } of ordered) {
+    if (!halfTimeDone && event.minute <= HALF_TIME_MINUTE) {
+      items.push({ kind: 'marker', id: 'halfTime', marker: 'halfTime' })
+      halfTimeDone = true
+    }
+    items.push({
+      kind: 'event',
+      id: `${String(index)}:${event.playerId ?? ''}`,
+      event,
+    })
+  }
+
+  // A second half under way in which nothing has happened yet: the divider
+  // still belongs, above the kick-off and below the first-half events.
+  if (!halfTimeDone) {
+    items.push({ kind: 'marker', id: 'halfTime', marker: 'halfTime' })
+  }
+
+  items.push({ kind: 'marker', id: 'kickoff', marker: 'kickoff' })
+  return items
+}
+
+/**
+ * Which side of the match an event belongs to, or `undefined` when the feed
+ * names no club.
+ */
+export function eventSide(
+  event: MatchTimelineEvent,
+  detail: MatchDetail,
+): 'home' | 'away' | undefined {
+  if (event.teamId === undefined) return undefined
+  if (event.teamId === detail.home.id) return 'home'
+  if (event.teamId === detail.away.id) return 'away'
+  return undefined
+}
+
 /** One player in a {@link MatchdaySquad}. */
 export interface MatchdaySquadPlayer {
   id: string
@@ -729,7 +1062,7 @@ export interface DuelRoster {
  * fields are absent outside a running matchday. It is in the union, labelled
  * and styled, so that wiring it up when the field is identified during a live
  * matchday is a change to this one function — see
- * [docs/pages/duel-detail.md](../../docs/pages/duel-detail.md#unverified-substituted).
+ * [docs/pages/duel-detail.md](../../docs/pages/duel-detail.md#unverified-ausgewechselt).
  */
 export function duelPlayerStatus(
   player: { lineupOrder?: number; fixture?: MatchdayFixture },
@@ -1086,6 +1419,19 @@ const EVENT_BY_CODE: Record<number, MatchEventKind> = {
   [MATCH_EVENT.RED_CARD]: 'redCard',
   [MATCH_EVENT.PENALTY_SAVED]: 'penaltySaved',
   [MATCH_EVENT.CLEAN_SHEET]: 'cleanSheet',
+}
+
+/**
+ * One wire code, narrowed to a kind — `undefined` for anything not in the
+ * table above, which includes the substitution codes and whatever Kickbase
+ * adds next.
+ *
+ * The lookup itself has been module-private since `toEventTallies` was the only
+ * caller. The [match timeline](#toTimelineKind) needs the same table plus the
+ * substitutions, so it goes through this rather than duplicating the mapping.
+ */
+export function toMatchEventKind(code: number): MatchEventKind | undefined {
+  return EVENT_BY_CODE[code]
 }
 
 export const MATCH_EVENT_LABEL: Record<MatchEventKind, string> = {

@@ -14,7 +14,7 @@ import { points as formatPoints } from '@/lib/format'
  * Every match of a season, from this player's side of it.
  *
  * The season picker is the header itself, following
- * [`MatchdayPicker`](../duels/MatchdayPicker.tsx) — the thing you are looking
+ * [`MatchdayPicker`](../MatchdayPicker.tsx) — the thing you are looking
  * at is the thing you tap — with a [step](../ui/StepButton.tsx) either side of
  * it for the neighbouring season, which is what the control is mostly used
  * for. Seasons come back oldest first and are reversed by the hook, so this

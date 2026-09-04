@@ -112,7 +112,7 @@ export function useDuelRosters(
    * One request per match rather than per player, polled only while a match
    * is actually running — see [`useLiveMatches`](./useLiveMatches.ts).
    */
-  const liveByMatchId = useLiveMatches(fixtures.data)
+  const liveByMatchId = useLiveMatches(fixtures.data?.values())
 
   /**
    * The roster to render, from whichever source can be believed.

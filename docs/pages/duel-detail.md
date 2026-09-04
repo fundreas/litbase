@@ -165,6 +165,15 @@ identified during a live matchday. Candidates to check then: `st`/`mst` on
 signed-in user), and `st` on `/v4/competitions/{id}/players`, where a value of
 `5` appears on players who completed a match.
 
+**There is now a fourth candidate, and it is a real one.** The match's own event
+feed states substitutions outright, and the
+[match lineup](match-detail.md#who-came-off) already reads them: the incoming
+player by id, the outgoing one by name against the starting eleven. That feed is
+per *match*, not per player, so a duel would need it for every fixture a
+manager's eleven touches — which the page already fetches through
+`useLiveMatches` for the scoreline. So the wiring is: pass the player's own
+`live` match into `duelPlayerStatus()` and read his substitution out of it.
+
 ## The one figure a player gets
 
 Every player has exactly one slot for a number — the plate under a portrait,

@@ -213,7 +213,7 @@ A season picker over a list of every fixture the player's club played that
 season, whether or not they took part in it.
 
 The picker is the header itself, following
-[`MatchdayPicker`](../../src/components/duels/MatchdayPicker.tsx) — the thing
+[`MatchdayPicker`](../../src/components/MatchdayPicker.tsx) — the thing
 you are looking at is the thing you tap. Seasons come back **oldest first** and
 are reversed, so it opens on the running season.
 

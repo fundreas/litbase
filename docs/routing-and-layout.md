@@ -28,6 +28,9 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          ├─ duels      ?day=N — duel leagues only, else → dashboard
          │  └─ :duelId          both manager ids joined with "-"
          │     └─ ranking       second tab of the same component
+         ├─ matchday   ?day=N — every fixture of one matchday
+         │  └─ :matchId         one match; the matchday is looked up from it
+         │     └─ lineup        second tab of the same component
          ├─ table
          └─ players
 /*                                  404
@@ -217,10 +220,12 @@ Both surfaces read one config,
 [`navigation.ts`](../src/components/layout/navigation.ts):
 
 ```ts
-{ to: 'dashboard', label: 'Übersicht', icon: … }
-{ to: 'squad',     label: 'Mannschaft', icon: …, alsoMatches: ['lineup'] }
-{ to: 'ranking',   label: 'Rangliste', icon: … }
-{ to: 'duels',     label: 'Duelle',    icon: …, requiresDuelMode: true }
+{ to: 'dashboard', label: 'Übersicht',    icon: … }
+{ to: 'squad',     label: 'Mannschaft',   icon: …, alsoMatches: ['players', 'lineup'] }
+{ to: 'market',    label: 'Transfermarkt', icon: … }
+{ to: 'ranking',   label: 'Rangliste',    icon: … }
+{ to: 'duels',     label: 'Duelle',       icon: …, requiresDuelMode: true }
+{ to: 'matchday',  label: 'Spieltag',     icon: … }
 ```
 
 **Duelle is conditional.** Only leagues played as duels have that page, and

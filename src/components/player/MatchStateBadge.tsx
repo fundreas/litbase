@@ -5,7 +5,7 @@ import {
   type MatchdayFixture,
 } from '@/api/models'
 import { cn } from '@/lib/cn'
-import { time } from '@/lib/format'
+import { minute as minuteLabel, time } from '@/lib/format'
 
 /**
  * Where a player's club match stands, as a scoreline.
@@ -57,13 +57,11 @@ export function MatchStateBadge({
       : { for: fixture.goalsFor, against: fixture.goalsAgainst }
   const score = `${String(goals.for ?? '–')}:${String(goals.against ?? '–')}`
   // Past 90 the API keeps counting, so `90+` is closer to what a viewer
-  // expects than `95`.
+  // expects than `95` — see `minute()`, shared with the matchday pages.
   const minute =
     live === undefined || state !== 'running'
       ? undefined
-      : live.minute > 90
-        ? "90+'"
-        : `${String(live.minute)}'`
+      : minuteLabel(live.minute)
 
   const label =
     state === 'upcoming'

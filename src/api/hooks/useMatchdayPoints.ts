@@ -4,6 +4,7 @@ import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import {
   fixtureState,
+  toOwnerId,
   toPosition,
   type MatchdayFixture,
   type PositionKey,
@@ -31,6 +32,16 @@ export interface PointsSubject {
    * lineup while showing up correctly in the ranking.
    */
   needsPosition?: boolean
+  /**
+   * Fetch this player even before his match can have produced points, because
+   * the caller wants **who owns him**.
+   *
+   * The [match lineup](./useMatchLineup.ts) sets this on every player of a
+   * fixture: the ownership badges are the point of that view, and they are
+   * worth seeing the evening before as much as during the match. Nothing else
+   * needs it — a squad's players are owned by definition.
+   */
+  needsOwner?: boolean
 }
 
 export interface MatchdayPoints {
@@ -42,6 +53,15 @@ export interface MatchdayPoints {
    * squad contains. Callers merge it under whatever their own squad knows.
    */
   positionByPlayerId: Map<string, PositionKey>
+  /**
+   * Owning manager's id per player, for every player whose detail was fetched.
+   *
+   * The other by-product of the same response (`oui`). A player absent from
+   * the map is either unfetched or unowned — `toOwnerId` collapses the API's
+   * `"0"` placeholder to absent, so a free agent never appears here with an id
+   * that matches no manager.
+   */
+  ownerIdByPlayerId: Map<string, string>
   /**
    * Points per player id, for the players who have a figure.
    *
@@ -80,8 +100,10 @@ export interface MatchdayPoints {
  * showing both pays for the player once.
  *
  * Shared by the [duel detail](./useDuelRosters.ts) page, which asks for both
- * managers' players at once, and the squad page's live view, which asks for
- * its own.
+ * managers' players at once, the squad page's live view, which asks for its
+ * own, and the [match lineup](./useMatchLineup.ts), which asks for everyone in
+ * a fixture — twenty-two players plus the benches, and the one caller that
+ * wants a request even before kick-off, for the ownership badges.
  */
 export function useMatchdayPoints(
   leagueId: string | undefined,
@@ -103,9 +125,13 @@ export function useMatchdayPoints(
           return {
             id: player.id,
             // Nothing to read before kick-off: the matchday has no points yet.
-            // The exception is a player whose position the caller is missing —
-            // that answer does not depend on any match having started.
-            needed: canHavePoints || player.needsPosition === true,
+            // The exceptions are the two other things this response carries —
+            // a position and an owner — neither of which depends on any match
+            // having started.
+            needed:
+              canHavePoints ||
+              player.needsPosition === true ||
+              player.needsOwner === true,
             isLive: state === 'running',
           }
         })
@@ -132,6 +158,7 @@ export function useMatchdayPoints(
   // switch.
   const byPlayerId = new Map<string, number>()
   const positionByPlayerId = new Map<string, PositionKey>()
+  const ownerIdByPlayerId = new Map<string, string>()
 
   for (const query of queries) {
     const detail = query.data
@@ -139,6 +166,8 @@ export function useMatchdayPoints(
     if (detail.pos !== undefined) {
       positionByPlayerId.set(detail.i, toPosition(detail.pos))
     }
+    const ownerId = toOwnerId(detail.oui)
+    if (ownerId !== undefined) ownerIdByPlayerId.set(detail.i, ownerId)
     if (day === undefined) continue
     // `ph` is dense from matchday 1, so the index is the matchday minus one.
     // A matchday not played yet is simply past the end of the array, and a
@@ -153,6 +182,7 @@ export function useMatchdayPoints(
   return {
     byPlayerId,
     positionByPlayerId,
+    ownerIdByPlayerId,
     isPending: queries.some((query) => query.isFetching),
   }
 }

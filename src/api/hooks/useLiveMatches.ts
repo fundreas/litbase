@@ -2,12 +2,7 @@ import { useQueries } from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import {
-  fixtureState,
-  toEventTallies,
-  type LiveMatch,
-  type MatchdayFixture,
-} from '@/api/models'
+import { fixtureState, toEventTallies, type LiveMatch } from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { MatchDetailsResponse } from '@/api/types'
 
@@ -41,21 +36,31 @@ const LIVE_POLL_MS = 60_000
  * `4`s for its yellow cards, ten `8`s for the substitutions), which is why they
  * go straight through `toEventTallies()` and come out as the glyphs the player
  * page already draws. Match-level events — kick-off, half-time, the whistle —
- * carry `pi: "0"` and are dropped.
+ * carry `pi: "0"` and are dropped. The
+ * [match timeline](../../components/matchday/MatchTimelineTab.tsx) needs those
+ * moments and derives them from the match's state instead; see
+ * [`matchTimeline()`](../models.ts).
+ *
+ * **The input is anything that names matches.** A matchday's fixtures arrive
+ * keyed by *team*, so each match is in there twice, and a fixture list arrives
+ * as matches already — both are just sequences of things carrying a match id
+ * and the two fields that decide whether to ask. Callers pass
+ * `fixtureByTeamId?.values()` or the match list directly.
  */
 export function useLiveMatches(
-  fixtureByTeamId: Map<string, MatchdayFixture> | undefined,
+  matches:
+    | Iterable<{ matchId: string; kickoff: string; isFinished: boolean }>
+    | undefined,
 ): Map<string, LiveMatch> {
   /*
-   * A matchday's fixtures arrive keyed by *team*, so each match is in there
-   * twice — once from each side. Deduplicated by match id, and reduced to the
-   * two things that decide whether to ask: has it started, and is it over.
+   * Deduplicated by match id — a team-keyed fixture map holds every match
+   * twice — and reduced to the one thing that changes the query's policy.
    */
   const wanted = new Map<string, { isRunning: boolean }>()
-  for (const fixture of fixtureByTeamId?.values() ?? []) {
-    const state = fixtureState(fixture)
+  for (const match of matches ?? []) {
+    const state = fixtureState(match)
     if (state === 'upcoming') continue
-    wanted.set(fixture.matchId, { isRunning: state === 'running' })
+    wanted.set(match.matchId, { isRunning: state === 'running' })
   }
 
   // Insertion order is fixed by the loop above, and `useQueries` answers in

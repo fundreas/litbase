@@ -94,11 +94,15 @@ src/
 /leagues/:leagueId/dashboard
 /leagues/:leagueId/squad
 /leagues/:leagueId/squad/lineup            the pitch, under the squad
+/leagues/:leagueId/squad/live              only while a matchday is played
 /leagues/:leagueId/market
 /leagues/:leagueId/ranking
 /leagues/:leagueId/duels        ?day=N — duel leagues only
 /leagues/:leagueId/duels/:duelId         both elevens + combined ranking
 /leagues/:leagueId/duels/:duelId/ranking
+/leagues/:leagueId/matchday     ?day=N — every fixture, live scores
+/leagues/:leagueId/matchday/:matchId             one match — Verlauf
+/leagues/:leagueId/matchday/:matchId/lineup      both team sheets + owners
 /leagues/:leagueId/table
 /leagues/:leagueId/players
 /leagues/:leagueId/players/:playerId              one player — Details
@@ -167,7 +171,7 @@ before any league is known. See [docs/pages/duels.md](docs/pages/duels.md).
 [DashboardPage](src/pages/DashboardPage.tsx),
 [RankingPage](src/pages/RankingPage.tsx) and
 [SquadPage](src/pages/SquadPage.tsx) are worked examples.
-`market`, `table` and `players` are still
+`table` and `players` are still
 [PagePlaceholder](src/components/PagePlaceholder.tsx) stubs — each already runs
 its real query and shows how many rows came back, so you can see the endpoint
 works before you build the UI.
@@ -188,10 +192,11 @@ Components should never see abbreviated keys like `mvt` or `spl`.
 ## Mobile notes
 
 - Hamburger drawer as the single navigation surface on a phone — no *global*
-  bottom tab bar, so pages get that row back. Two pages dock one of their own:
-  the [squad](docs/pages/squad.md#the-bottom-bar) (Kader / Aufstellung) and the
-  [player detail page](docs/pages/player-detail.md#why-this-page-has-a-bottom-bar)
-  (Details / Leistung / Markt). Both switch between views of the page you are
+  bottom tab bar, so pages get that row back. Three pages dock one of their own:
+  the [squad](docs/pages/squad.md#the-bottom-bar) (Kader / Aufstellung / Live),
+  the [player detail page](docs/pages/player-detail.md#why-this-page-has-a-bottom-bar)
+  (Details / Leistung / Markt) and
+  [match detail](docs/pages/match-detail.md) (Verlauf / Aufstellung). All switch between views of the page you are
   already on rather than between pages, exist only while that page is open, and
   are `sticky` so they stay inside the content column beside a sidebar. From `lg`
   (64rem) up the same nav is a permanent sidebar and the hamburger disappears;

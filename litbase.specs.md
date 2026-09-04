@@ -50,6 +50,21 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
 # Live Match Points
   - show the match details (goals, minute, events)
   - show the lineup with live points and the manager owning a player
+    DONE -> Match Day page + Match Details, see docs/pages/matchday.md and
+    docs/pages/match-detail.md.
+      /leagues/:leagueId/matchday            ?day=N, all fixtures, live scores
+      /leagues/:leagueId/matchday/:matchId   timeline
+      /leagues/:leagueId/matchday/:matchId/lineup
+    - goals/minute/events all come from GET /v4/matches/{mi}/details, the same
+      cache entry useLiveMatches already fills -> opening a match is free.
+    - owner per player = `oui` on the player detail the points fan-out already
+      fetches, resolved against the standings. ~36 requests per match, and only
+      while the Aufstellung tab is open.
+    - OPEN PROBE: match-level events carry `pi: "0"` and their `ke` codes are
+      NOT on the player scale (1=goal, 4=yellow, 8=sub, ...). Unknown, so
+      Anpfiff/Halbzeit/Abpfiff are derived from the fixture's own state instead.
+      One read of a `pi: "0"` entry's `ke` during/after a match settles it:
+        KB "/v4/matches/$MI/details" | jq -c '[.events[]|select(.pi=="0")|{ke,mt,pn}]'
 
 # Duell Page
   - how to get the squad+lineup as matchday snapshot?

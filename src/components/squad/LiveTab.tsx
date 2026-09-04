@@ -167,7 +167,7 @@ export function LiveTab({
     needsPosition: player.position === undefined,
   }))
   /** Fresh score, minute and events — one request per match, not per player. */
-  const liveByMatchId = useLiveMatches(fixtures.data)
+  const liveByMatchId = useLiveMatches(fixtures.data?.values())
 
   const matchdayPoints = useMatchdayPoints(
     leagueId,

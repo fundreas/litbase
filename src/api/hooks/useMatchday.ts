@@ -5,12 +5,13 @@ import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import type {
   MatchdayFixture,
+  MatchdayMatch,
   SeasonMatchday,
   SeasonSchedule,
   TeamFixture,
 } from '@/api/models'
 import { qk } from '@/api/queryKeys'
-import type { MatchdaysResponse } from '@/api/types'
+import type { FixtureItem, MatchdaysResponse } from '@/api/types'
 import { simulateMatchdays } from '@/dev/simulation'
 import { nowMs } from '@/lib/clock'
 
@@ -158,6 +159,42 @@ function selectSeasonSchedule(data: MatchdaysResponse): SeasonSchedule {
 }
 
 /**
+ * One fixture as a **match**, with home and away left where they are.
+ *
+ * The team-indexed selectors above answer "what is this club doing"; this
+ * answers "who plays whom", which is what a fixture list and a match page both
+ * want. Same payload, one more reading of it.
+ */
+function toMatchdayMatch(fixture: FixtureItem): MatchdayMatch {
+  return {
+    matchId: fixture.mi,
+    day: fixture.day,
+    kickoff: fixture.dt,
+    isFinished: fixture.st === FIXTURE_FINISHED,
+    home: {
+      id: fixture.t1,
+      symbol: fixture.t1sy ?? fixture.t1,
+      image: fixture.t1im,
+    },
+    away: {
+      id: fixture.t2,
+      symbol: fixture.t2sy ?? fixture.t2,
+      image: fixture.t2im,
+    },
+    goalsHome: fixture.t1g,
+    goalsAway: fixture.t2g,
+  }
+}
+
+/** Kick-off first, then the home club, so the list order never wobbles. */
+function byKickoff(a: MatchdayMatch, b: MatchdayMatch): number {
+  return (
+    a.kickoff.localeCompare(b.kickoff) ||
+    a.home.symbol.localeCompare(b.home.symbol)
+  )
+}
+
+/**
  * The current matchday's fixtures, indexed by team.
  *
  * Within one matchday each team appears exactly once (verified: 18 teams
@@ -246,6 +283,64 @@ export function useMatchdayFixtures(
       return byTeamId
     },
     [day],
+  )
+
+  return useMatchdaysQuery(competitionId, select)
+}
+
+/**
+ * Every match of one matchday, kick-off first.
+ *
+ * The [matchday page](../../../docs/pages/matchday.md)'s list. Reads the same
+ * cache entry as everything else in this file, so a page that shows the
+ * fixtures *and* annotates players with them pays for one request.
+ *
+ * Memoised on `day` for the reason spelled out above the module-level
+ * selectors: React Query memoises `select` on the function's identity, so an
+ * inline arrow would re-map on every render and hand back a fresh array each
+ * time.
+ */
+export function useMatchdayMatches(
+  competitionId: string | undefined,
+  day: number | undefined,
+): UseQueryResult<MatchdayMatch[]> {
+  const select = useCallback(
+    (data: MatchdaysResponse) => {
+      const matchday = (data.it ?? []).find((entry) => entry.day === day)
+      return (matchday?.it ?? []).map(toMatchdayMatch).sort(byKickoff)
+    },
+    [day],
+  )
+
+  return useMatchdaysQuery(competitionId, select)
+}
+
+/**
+ * One match, found by id **anywhere in the season**.
+ *
+ * What the [match detail page](../../../docs/pages/match-detail.md) resolves
+ * its URL with: the route carries a match id and nothing else, and this is
+ * what turns that into a matchday number — which everything else on the page
+ * then needs, since points, fixtures and the standings are all matchday-scoped.
+ *
+ * `undefined` data with a settled query means the id is not in the fixture
+ * list, which is a 404 for that page rather than an error.
+ */
+export function useSeasonMatch(
+  competitionId: string | undefined,
+  matchId: string | undefined,
+): UseQueryResult<MatchdayMatch | undefined> {
+  const select = useCallback(
+    (data: MatchdaysResponse) => {
+      for (const matchday of data.it ?? []) {
+        const fixture = (matchday.it ?? []).find(
+          (entry) => entry.mi === matchId,
+        )
+        if (fixture !== undefined) return toMatchdayMatch(fixture)
+      }
+      return undefined
+    },
+    [matchId],
   )
 
   return useMatchdaysQuery(competitionId, select)

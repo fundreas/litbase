@@ -5,6 +5,7 @@ import { endpoints } from '@/api/endpoints'
 import {
   didPlay,
   toEventTallies,
+  toOwnerId,
   toPosition,
   toStartProbability,
   toTrend,
@@ -32,9 +33,6 @@ import {
 
 /** Fixture status code for a match that has been played to the end. */
 const FIXTURE_FINISHED = 2
-
-/** Nobody owns the player. The API sends the string, not an absent field. */
-const NO_OWNER = '0'
 
 /** The only window `/marketvalue/{days}` actually serves — see `endpoints`. */
 const MARKET_VALUE_DAYS = 365
@@ -96,9 +94,9 @@ function mapPlayerDetail(data: PlayerDetailResponse): PlayerDetail {
     probabilitySourceLogo: data.plpurl,
     probabilityUpdatedAt: data.ts,
     lineupPoster: data.plpim,
-    // `oui` is `"0"` rather than absent when nobody owns them.
-    ownerId:
-      data.oui === undefined || data.oui === NO_OWNER ? undefined : data.oui,
+    // `oui` is `"0"` rather than absent when nobody owns them — the trap lives
+    // in `toOwnerId`, shared with the match lineup's ownership badges.
+    ownerId: toOwnerId(data.oui),
 
     marketValue: data.mv ?? 0,
     marketValueTrend: toTrend(data.mvt),

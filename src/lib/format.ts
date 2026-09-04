@@ -136,6 +136,19 @@ export function time(iso: string | null | undefined): string {
   return Number.isNaN(parsed) ? '–' : timeFormatter.format(parsed)
 }
 
+/**
+ * `67'`, `90+'` — the minute a match is at.
+ *
+ * The API keeps counting into stoppage time: `95` was observed on a finished
+ * match whose own `mtd` read `"90"`. Past ninety this collapses to `90+'`,
+ * which is what a scoreboard shows and what a viewer expects — the exact figure
+ * in the fourth minute of added time is not information anybody wanted.
+ */
+export function minute(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '–'
+  return value > 90 ? "90+'" : `${decimal.format(value)}'`
+}
+
 /** `Sa, 5. Sep. · 18:30` — a kick-off, spelled out in full. */
 export function kickoff(iso: string | null | undefined): string {
   if (!iso) return '–'

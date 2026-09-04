@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   LayoutDashboard,
   Store,
   Swords,
@@ -92,5 +93,9 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { to: 'market', label: 'Transfermarkt', icon: Store },
   { to: 'ranking', label: 'Rangliste', icon: Trophy },
+  // The competition's fixtures. `isNavItemActive`'s prefix test already covers
+  // the match detail page at `/matchday/:matchId`, so it needs no
+  // `alsoMatches` — tapping into a match keeps *Spieltag* lit.
+  { to: 'matchday', label: 'Spieltag', icon: CalendarDays },
   { to: 'duels', label: 'Duelle', icon: Swords, requiresDuelMode: true },
 ]

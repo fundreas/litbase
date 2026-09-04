@@ -27,11 +27,16 @@ const STATE_CLASS: Record<MatchdayState, string> = {
 /**
  * The selected matchday, and three ways to another one.
  *
- * The heading of the [Duels](../../../docs/pages/duels.md) page is itself the
- * control: the middle block is a button, so the thing you are looking at is
- * the thing you tap for the full list. The alternative — a separate "Spieltag
- * wählen" button beside a static label — spends a second row of a phone screen
- * saying the same thing twice.
+ * **Shared, not duel-specific** — it lived under `components/duels/` while the
+ * [Duels](../../docs/pages/duels.md) page was its only caller, and moved up
+ * here when the [Matchday](../../docs/pages/matchday.md) page needed the same
+ * control. Both pages keep the selection in `?day=`, so the picker itself holds
+ * no state beyond whether its drawer is open.
+ *
+ * The heading of the page is itself the control: the middle block is a button,
+ * so the thing you are looking at is the thing you tap for the full list. The
+ * alternative — a separate "Spieltag wählen" button beside a static label —
+ * spends a second row of a phone screen saying the same thing twice.
  *
  * **A step either side of it.** Stepping to the neighbouring matchday is what
  * this control is used for nearly every time; making that go through a drawer

@@ -142,9 +142,13 @@ is what makes them safe to call before context has resolved.
 | `useJoinableLeagues(f)` | `/leagues/list` | 2 min |
 | `useCompetitions()` | `/competitions` | 1 hour |
 | `useCurrentMatchday(cid)` | `/competitions/{cid}/matchdays` | 1 hour |
+| `useMatchdayMatches(cid, day)` | `/competitions/{cid}/matchdays` | 1 hour — same entry |
+| `useSeasonMatch(cid, mi)` | `/competitions/{cid}/matchdays` | 1 hour — same entry |
 | `useMatchdaySquad(…)` | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | 5 min |
 | `useLiveMatches(…)` | `/matches/{matchId}/details` × N | ∞ once over, 0 + 1 min poll while playing |
+| `useMatchDetails(match)` | `/matches/{matchId}/details` | as above, plus 5 min before kick-off |
 | `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 1 min poll while playing |
+| `useMatchLineup(…)` | `useMatchdayPoints` + `useRanking` | — composes the two |
 
 `useMatchdaySquad` is the API's only **historical** source: a manager's squad
 and lineup as they stood on a given matchday, for any manager in the league.
@@ -162,6 +166,19 @@ have kicked off; a finished one is fetched once and held for the session.
 Its cache key is deliberately **not league-scoped**: a match belongs to the
 competition, so two managers in different leagues watching the same fixture
 share one entry and one poll.
+
+`useMatchDetails` reads **that same entry** with a fuller mapping — club names,
+formations, both real-world team sheets, the whole event feed. The raw response
+is what sits in the cache and each hook maps it in `select`, which is why
+opening a match from the [matchday list](pages/matchday.md) issues no request at
+all. It adds one policy the list has no use for: an upcoming match *is* fetched,
+held for five minutes, because the team sheets appear about an hour before
+kick-off. See [Match detail](pages/match-detail.md#opening-a-match-costs-no-request).
+
+`useLiveMatches` takes **any sequence** of things carrying a match id, a
+kick-off and a finished flag. A matchday's fixtures arrive keyed by team (so
+every match is in there twice, and it dedupes); a fixture *list* arrives as
+matches already. Both are the same question.
 
 It also fixed a hole. A score used to be read from the *matchdays* payload,
 which is the whole season and cached for an hour — so a live page could put an
@@ -184,11 +201,22 @@ of per-player matchday points, so it issues one request per player — but only
 for players whose match has actually kicked off (plus any the caller flags with
 `needsPosition`, since the same response carries `pos` and is the only source
 of a position for a player nobody owns any more), and it polls only the ones
-still on the pitch. It returns a `positionByPlayerId` map alongside the points
-for that reason. It backs both the [duel detail](pages/duel-detail.md) page
-and the squad page's [live view](pages/squad.md#live-tab), and shares the
-`qk.playerDetail` cache entry with `useStartProbabilities`, so a page showing
-both pays for each player once.
+still on the pitch. It returns `positionByPlayerId` and `ownerIdByPlayerId`
+alongside the points for that reason — both are by-products of a response
+already on the wire.
+
+It backs three views: the [duel detail](pages/duel-detail.md) page, the squad
+page's [live view](pages/squad.md#live-tab), and the
+[match lineup](pages/match-detail.md#what-the-lineup-costs) — the biggest caller
+at ~36 players, and the only one that sets `needsOwner` to fetch *before*
+kick-off, because the ownership badges are that view's whole point. It shares
+the `qk.playerDetail` cache entry with `useStartProbabilities`, so a page
+showing both pays for each player once, and the key carries no matchday, so
+stepping through a season re-reads nothing.
+
+`useMatchLineup` is the composition on top: `useMatchdayPoints` for points,
+owners and positions, `useRanking` for turning an owner id into a name and an
+avatar, and the match's own event feed for who came on and who went off.
 
 Mutations:
 

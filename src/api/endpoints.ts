@@ -205,8 +205,14 @@ export const endpoints = {
      * `events` entries carry `ke`, on the **same code scale** as `k` on the
      * player-performance endpoint: verified against a finished 5:1 where the
      * feed held five `1`s and a `2` (five goals and an own goal), four `4`s
-     * for the yellow cards, and ten `8`s for the substitutions. Match-level
-     * entries — kick-off, half-time, the whistle — use `pi: "0"`.
+     * for the yellow cards, and ten `8`s for the substitutions.
+     *
+     * **Match-level entries use `pi: "0"`** — kick-off, half-time, the
+     * whistle — and their `ke` codes are *not* on the player scale and have
+     * not been identified. They are dropped, and the
+     * [match timeline](../../docs/pages/match-detail.md#the-structural-markers)
+     * derives those three moments from the fixture's own state instead. One
+     * probe reading the `ke` of a `pi: "0"` entry would settle it.
      */
     details: (matchId: string) => `/v4/matches/${matchId}/details`,
   },
