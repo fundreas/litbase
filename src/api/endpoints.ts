@@ -76,8 +76,29 @@ export const endpoints = {
      */
     managerTeamcenter: (leagueId: string, userId: string) =>
       `/v4/leagues/${leagueId}/users/${userId}/teamcenter`,
-    /** Transfer market listings. */
+    /**
+     * Transfer market listings. `GET` reads them; `POST` puts one of your own
+     * players up, body `{ pi, prc }` — wire-style names, `{ playerId, price }`
+     * answers 500 `NotFound`.
+     *
+     * The rest of the surface was read off the `Allow` header an `OPTIONS`
+     * request returns: a wrong verb answers 405 and names the right one. See
+     * [docs/pages/market.md](../../docs/pages/market.md).
+     */
     market: (leagueId: string) => `/v4/leagues/${leagueId}/market`,
+    /** One listing. `DELETE` only — withdraws your own. */
+    marketListing: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/market/${playerId}`,
+    /**
+     * Offers on one listing. `POST` bids, body `{ price }` — note the *plain*
+     * name, where listing a player takes the abbreviated `prc`. It answers
+     * `{ ofi }`, the offer id, which for one's own offer is the user id.
+     */
+    marketOffers: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/market/${playerId}/offers`,
+    /** One offer. `DELETE` withdraws it; the id is `uoid` on the listing. */
+    marketOffer: (leagueId: string, playerId: string, offerId: string) =>
+      `/v4/leagues/${leagueId}/market/${playerId}/offers/${offerId}`,
     /**
      * One player, in the context of a league.
      *

@@ -3,31 +3,94 @@
 [← Back to index](../README.md) · Route `/leagues/:leagueId/market` ·
 [`src/pages/MarketPage.tsx`](../../src/pages/MarketPage.tsx)
 
-**Status: stub.** The query is wired and proven; the UI is not built.
+**Status: implemented.**
 
-## What it does today
+## What it does
 
-The page calls the real hook and renders
-[`PagePlaceholder`](../../src/components/PagePlaceholder.tsx), which reports
-how many listings came back:
+One list, **soonest to expire first**. That order is the page's whole
+argument: a computer listing settles the instant its countdown reaches zero,
+to the highest bid standing at that moment and with no second round, so the
+listings about to close are the only ones you can still do anything about.
+Manager listings have no expiry at all and sort last.
+
+Each row carries what a buying decision actually needs:
 
 ```
-  Transfermarkt
-  Noch nicht gebaut
-
-           🔨
-  Diese Seite wartet auf ihre UI
-
-  12 Einträge geladen — die API-Anbindung steht.
-
-        useMarket(leagueId)
+┌────┬─────────────────────────────┬────┬────────┐
+│    │ Kohr                 ABW    │    │ 9 Std. │
+│ 👤 │ 🏪 Kickbase   7,77 Mio. €   │ 🏠 │ 22:48  │
+│    │            MW 7,77 Mio. €   │ FCB│        │
+│    │            ↘ −390 Tsd. €    │    │        │
+└────┴─────────────────────────────┴────┴────────┘
 ```
 
-That number is the point of the stub: it proves the endpoint, the bearer
-token, the mapping and the cache all work before any layout is written.
-Loading and error states are already handled by the placeholder.
+name and position · who owns him (a manager, or *Kickbase* when nobody does) ·
+what he would cost · market value and its overnight move · his club's next
+fixture, home or away · how long the listing has left, and the clock time that
+lands on.
 
-## Data ready to use
+**Two targets, split at the portrait.** Tapping the picture opens the player's
+page — the reference move, the one you make to read a scoring history before
+deciding. Tapping anywhere else opens the bid dialog, because bidding is what
+the market is *for* and it deserves the large target.
+
+The price shown is the asking price until you have bid, and **your own offer**
+once you have — see `offerBaseline` in [`models.ts`](../../src/api/models.ts).
+The question changes after you bid: not "what would this cost" but "what did I
+say I would pay", and the row turns accent-coloured to say so.
+
+### The bid dialog
+
+[`OfferDialog`](../../src/components/market/OfferDialog.tsx) opens seeded with
+that same baseline, so the default action is "buy it at the number on the row".
+Six shortcut buttons step the amount by ±1, ±1 000 and ±100 000 — a hundred
+thousand is the unit market values move in overnight, a thousand is haggling
+range, and one euro exists because a tie goes to the higher bid.
+
+Three ways out, and they differ:
+
+| Control | Does |
+| ------- | ---- |
+| *Abbrechen* | closes the dialog, changes nothing |
+| *Bieten* / *Gebot ändern* | `POST`s the amount in the field |
+| **X** beside the title | withdraws the offer that already stands |
+
+The X only appears when there is an offer to withdraw, and sits away from the
+two full-width buttons deliberately: it is the destructive one, and it should
+not be reachable by the same thumb sweep that dismisses the dialog.
+
+Bidding costs nothing up front — the budget is debited only when the listing
+settles — which is what makes a plain button the right affordance. The dialog
+still refuses an amount above the budget, because Kickbase would.
+
+### Countdowns
+
+`exs` is a snapshot of the response, so the model converts it to an **absolute
+instant** (`expiresAt`) against the clock at fetch time; seconds-left read back
+off a cached response would be as stale as the response. The page holds one
+interval for the whole list — ten seconds, since `duration()` shows whole
+minutes — and passes `now` down, so twenty rows cannot drift apart. Under an
+hour the countdown takes the accent.
+
+The market query also **polls every 30 seconds**, the only polled query in the
+app: this is a page you leave open while a listing runs out, and nothing else
+would take the settled ones off it. React Query pauses the interval while the
+tab is in the background.
+
+### The 24-hour change costs a fan-out
+
+`tfhmvt` lives only on the player detail endpoint — the market payload carries
+`mvt`, the *direction*, and no amount. So
+[`useMarketValueChanges`](../../src/api/hooks/useMarketValueChanges.ts) issues
+one request per listing, about twenty, cached half an hour under
+`qk.playerDetail`. That is the same cache entry the squad, player and
+probability lookups use, so a manager arriving from their own squad pays for
+the overlap once.
+
+## The data
+
+[`useMarket(leagueId)`](../../src/api/hooks/useMarket.ts) →
+`/v4/leagues/{leagueId}/market`, mapped to `MarketListing[]`:
 
 [`useMarket(leagueId)`](../../src/api/hooks/useMarket.ts) →
 `/v4/leagues/{leagueId}/market`, mapped to `MarketListing[]`:
@@ -39,25 +102,25 @@ Loading and error states are already handled by the placeholder.
 | `marketValue` | Current market value, € |
 | `marketValueTrend` | `'up' \| 'down' \| 'flat'` |
 | `price` | Asking price, € — may differ from market value on user listings |
-| `expiresInSeconds` | Seconds left on the listing. **Only on computer listings** — see below |
+| `expiresAt` | When the listing settles, epoch ms. **`undefined` on a manager's listing** — see below |
+| `listedAt` | When it went up, ISO 8601 |
 | `seller` | `{ id, name, image }`, **`undefined` for computer listings** |
 | `status` | 0 = fit, otherwise injured/suspended/away |
 | `offerCount` | Offers **this account can see** — see below |
+| `ownOffer`, `ownOfferId` | This account's standing bid, and the id needed to withdraw it |
 | `image` | Player image, CDN-relative |
 
-`staleTime` is **30 seconds**, the shortest in the app — prices and countdowns
-are the most time-sensitive data Kickbase exposes.
+`staleTime` is **30 seconds** and the query polls at the same rate — prices and
+countdowns are the most time-sensitive data Kickbase exposes.
 
-The wire payload carries more than the model maps today
-(`MarketPlayer` in [`types.ts`](../../src/api/types.ts)):
+The wire payload carries more still (`MarketPlayer` in
+[`types.ts`](../../src/api/types.ts)), unmapped because nothing renders it yet:
 
 | Wire field | Meaning |
 | ---------- | ------- |
-| `dt` | When the listing went up, ISO 8601 |
 | `isn` | **New to the market today** — see the correction below |
 | `p`, `ap` | Season points and average; absent for a player yet to appear |
 | `prob` | Lineup-probability tier, 1..5 — the same field the squad tabs use |
-| `uop`, `uoid` | This account's own standing offer and its id |
 | `ofs[]` | The offers this account may see: `{ u, unm, uoid, uop, st }` |
 | `iposl` | Position locked. `false` on every listing observed |
 
@@ -121,30 +184,6 @@ was then bought for 12.0 M against an asking price of 10.6 M — somebody else's
 bid, invisible the whole time. Read `0` as "you have not bid", never as
 "nobody has".
 
-## Things to get right when building it
-
-**The countdown is the hard part.** `expiresInSeconds` is a snapshot from
-whenever the response arrived, not a live value. Rendering it directly means
-it freezes until the next refetch. Options:
-
-- Record `Date.now()` at fetch time and derive remaining seconds on a 1 s
-  interval. `duration()` in [`lib/format.ts`](../../src/lib/format.ts) already
-  formats a seconds count as `2 Tage` / `3 Std.` / `14 Min.` and returns
-  *abgelaufen* at zero.
-- Or refetch on an interval and accept coarse granularity.
-
-The first is better; the formatter deliberately drops to minute precision so a
-per-second re-render is not needed for most listings.
-
-**Seller presence is the meaningful split.** `seller === undefined` means the
-computer-run market; a defined seller means another manager listed the player.
-These want visually distinct treatment — and only the first has a countdown to
-show at all. (`isn` does *not* say the same thing; see above.)
-
-**Price versus market value.** Both are present and they differ on user
-listings. Showing the delta (asking price over or under market value) is more
-useful than showing either alone.
-
 ## Buying and selling — the endpoints, probed
 
 The whole surface, read off the `Allow` header an `OPTIONS` request returns —
@@ -171,14 +210,22 @@ All five were exercised against the test account on 2026-09-04 (list a player,
 bid on a computer listing, withdraw both) and the account was restored — squad,
 budget and lineup byte-identical to the capture taken first.
 
-Wiring buy/sell into the app still means adding these to
-[`endpoints.ts`](../../src/api/endpoints.ts) and writing the first
-`useMutation` hooks in the codebase — `queryClient` has mutation defaults
-(`retry: false`) but nothing uses them. They should invalidate
-`qk.market(leagueId)` and `qk.leagueMe(leagueId)` (budget) on success.
+The page uses the two offer rows —
+[`usePlaceOffer` and `useWithdrawOffer`](../../src/api/hooks/useMarketOffers.ts),
+both invalidating `qk.market(leagueId)`. `useWithdrawOffer` is the app's only
+`DELETE` and calls the axios instance directly rather than growing a `del()`
+helper for one caller.
 
-## Suggested layout
+## Not built yet
 
-A list of cards, sorted by expiry ascending so the urgent listings lead —
-that matches how the Kickbase app presents it and how the data is most
-actionable. Filters by position and price band would come next.
+**Selling.** `POST /market` and `DELETE /market/{playerId}` are probed and in
+[`endpoints.ts`](../../src/api/endpoints.ts), but nothing calls them — listing
+a player belongs on the squad page, next to the player you would be listing,
+not here.
+
+**Filters.** Position and price band are the obvious next ones; twenty-odd
+rows do not need them yet.
+
+**Offers on your own listings.** `ofs[]` carries the bids made *to* you with
+the bidder's name, and accepting one is presumably a verb on the same paths.
+Neither was probed, because the test account had nothing listed at the time.

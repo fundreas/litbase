@@ -31,7 +31,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/ranking` | [Ranking](pages/ranking.md) | Implemented |
 | `/leagues/:leagueId/duels` | [Duels](pages/duels.md) | Implemented — duel leagues only |
 | `/leagues/:leagueId/duels/:duelId` | [Duel detail](pages/duel-detail.md) | Implemented — duel leagues only |
-| `/leagues/:leagueId/market` | [Market](pages/market.md) | Stub |
+| `/leagues/:leagueId/market` | [Market](pages/market.md) | Implemented |
 | `/leagues/:leagueId/table` | [Bundesliga table](pages/table.md) | Stub |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
 | `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |

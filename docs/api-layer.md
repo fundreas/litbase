@@ -170,9 +170,15 @@ Mutations:
 | ---- | -------- | ----------- |
 | `useJoinLeague()` | `POST /leagues/{id}/join` | `qk.leagues.all`, `qk.joinable.all` |
 | `useSaveLineup(id)` | `POST /leagues/{id}/lineup` or `…/lineup/clear` | `qk.squad(id)` |
+| `usePlaceOffer(id)` | `POST /leagues/{id}/market/{pid}/offers` | `qk.market(id)` |
+| `useWithdrawOffer(id)` | `DELETE /leagues/{id}/market/{pid}/offers/{oid}` | `qk.market(id)` |
 
-See [Join a league](pages/join-league.md) and
-[Squad](pages/squad.md#persistence).
+See [Join a league](pages/join-league.md),
+[Squad](pages/squad.md#persistence) and [Market](pages/market.md).
+
+`useWithdrawOffer` is the app's only **`DELETE`**, so it calls the axios
+instance directly rather than growing a `del()` helper beside `get()` and
+`post()` for a single caller.
 
 The market is the shortest because prices and expiry countdowns are the most
 time-sensitive data in the app. The competition player list is the longest

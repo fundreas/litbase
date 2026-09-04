@@ -84,6 +84,9 @@ const MESSAGE_BY_API_ERROR: Record<string, string> = {
   UserNameAlreadyTaken: 'Dieser Benutzername ist schon vergeben.',
   // Returned as HTTP 500 when joining a league that does not exist.
   NotFound: 'Diese Liga gibt es nicht mehr.',
+  // 400 on a write whose body Kickbase would not take — an offer below what
+  // it will entertain, or a price it considers out of range.
+  InvalidData: 'Kickbase hat diesen Wert nicht akzeptiert.',
 }
 
 /** Turn anything thrown by axios into an {@link ApiError}. */

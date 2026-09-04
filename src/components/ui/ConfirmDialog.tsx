@@ -22,6 +22,7 @@ export function ConfirmDialog({
   isBusy = false,
   isConfirmDisabled = false,
   error,
+  headerAction,
   children,
 }: {
   open: boolean
@@ -35,6 +36,15 @@ export function ConfirmDialog({
   /** For dialogs whose confirm needs a selection first. */
   isConfirmDisabled?: boolean
   error?: string | null
+  /**
+   * A third action, drawn small beside the title.
+   *
+   * For the one thing that is neither confirming nor cancelling — withdrawing
+   * a standing offer, say. It sits away from the two full-width buttons on
+   * purpose: it is destructive, and it should not be reachable by the same
+   * thumb sweep that dismisses the dialog.
+   */
+  headerAction?: ReactNode
   /** Extra content between the description and the actions. */
   children?: ReactNode
 }) {
@@ -62,9 +72,12 @@ export function ConfirmDialog({
             event.preventDefault()
           }}
         >
-          <Dialog.Title className="text-base font-semibold text-ink">
-            {title}
-          </Dialog.Title>
+          <div className="flex items-start justify-between gap-3">
+            <Dialog.Title className="text-base font-semibold text-ink">
+              {title}
+            </Dialog.Title>
+            {headerAction}
+          </div>
 
           {description !== undefined && (
             <Dialog.Description asChild>

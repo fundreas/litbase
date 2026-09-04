@@ -495,6 +495,18 @@ export interface SquadPlayer {
 
 export interface MarketResponse {
   it: MarketPlayer[]
+  /** Players in the signed-in manager's squad. */
+  nps?: number
+  /** The manager's team value, in €. */
+  tv?: number
+  /** When market values are next recalculated, ISO 8601 — nightly, 20:00 UTC. */
+  mvud?: string
+  /** The next matchday's deadline, ISO 8601. */
+  dt?: string
+  /** Current matchday. */
+  day?: number
+  /** Season, e.g. `"26/27"`. */
+  sn?: string
 }
 
 export interface MarketPlayer {
@@ -508,24 +520,80 @@ export interface MarketPlayer {
   mvt: number
   /** Asking price, in €. */
   prc: number
-  /** Seconds until the listing expires. */
-  exs: number
+  /**
+   * Seconds until the listing expires — a real countdown, decrementing one per
+   * second between polls.
+   *
+   * **Only computer listings carry it.** A listing put up by a manager ({@link
+   * u} present) has no `exs` at all: it stands until the seller withdraws it
+   * or accepts an offer.
+   */
+  exs?: number
   /** Listed at, ISO 8601. */
   dt?: string
   /** Status. */
   st: number
-  /** Offer count. */
+  /**
+   * Offers standing on the listing — but **only the ones this account may
+   * see**, which on a computer listing means its own and nothing else. A
+   * listing showing `0` up to expiry was then bought by another manager over
+   * the asking price, so `0` means "you have not bid", not "nobody has".
+   */
   ofc?: number
-  /** Is listed by a user (vs. the computer-run market). */
+  /**
+   * **New to the market today**, i.e. `dt` after the most recent 00:00 UTC.
+   * Not "listed by a user" — the marker for that is {@link u}.
+   */
   isn?: boolean
-  /** Seller, absent for computer listings. */
-  u?: { i: string; n: string; uim?: string }
+  /** Seller. Absent for computer listings, which is what identifies them. */
+  u?: { i: string; n: string; uim?: string; isvf?: boolean; vft?: number }
+  /** This account's own offer, in € — present only while one stands. */
+  uop?: number
+  /** Id of this account's own offer, needed to withdraw it. Equals the uid. */
+  uoid?: string
+  /** The offers this account may see. Same visibility rule as {@link ofc}. */
+  ofs?: MarketOffer[]
+  /** Season points and average. Absent for a player yet to appear. */
+  p?: number
+  ap?: number
+  /** Position locked. `false` on every listing observed. */
+  iposl?: boolean
   pim?: string
   prob?: number
   /** Lineup-probability icon, CDN-relative. See {@link PlayerDetailResponse}. */
   plpim?: string
   /** Last update of the lineup-probability assessment, ISO 8601. */
   ts?: string
+}
+
+export interface MarketOffer {
+  /** Bidding manager's user id. */
+  u: string
+  /** Bidding manager's display name. */
+  unm: string
+  /** Offer id — for one's own offer this is the user id again. */
+  uoid: string
+  /** Offer price, in €. */
+  uop: number
+  /** Offer status. `0` on every offer observed. */
+  st: number
+}
+
+/**
+ * `POST /v4/leagues/{leagueId}/market/{playerId}/offers`.
+ *
+ * Spelled out, unlike almost everything else on the wire — the abbreviated
+ * `{ prc }` is rejected with 400 `InvalidData`. Listing a player takes the
+ * opposite convention; see {@link endpoints.leagues.market}.
+ */
+export interface PlaceOfferRequest {
+  /** Offer price, in €. */
+  price: number
+}
+
+export interface PlaceOfferResponse {
+  /** The new offer's id. For one's own offer this is the user id. */
+  ofi?: string
 }
 
 /**

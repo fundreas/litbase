@@ -806,14 +806,46 @@ export interface MarketListing {
   position: PositionKey
   marketValue: number
   marketValueTrend: MarketValueTrend
+  /** What the seller is asking, in €. */
   price: number
-  /** Seconds remaining on the listing. */
-  expiresInSeconds: number
+  /**
+   * When the listing is settled, as an epoch milli — **`undefined` on a
+   * manager's listing**, which has no expiry at all and stands until they
+   * withdraw it or accept an offer.
+   *
+   * Resolved from the wire's `exs` (a live countdown in seconds) against the
+   * clock at fetch time, so it survives sitting in the cache: seconds-left
+   * read straight off a cached response would be as stale as the response,
+   * while an instant stays true.
+   */
+  expiresAt?: number
+  /** When the listing went up, ISO 8601. */
+  listedAt?: string
   /** Absent for listings from the computer-run market. */
   seller?: { id: string; name: string; image?: string }
   status: number
+  /**
+   * Offers **this account can see** — its own, and on a manager's listing the
+   * ones made to it. Never a count of what other managers have bid on a
+   * computer listing; those are invisible. See `MarketPlayer.ofc`.
+   */
   offerCount: number
+  /** This account's own standing offer, in €, if it has one. */
+  ownOffer?: number
+  /** Id of that offer, needed to withdraw it. */
+  ownOfferId?: string
   image?: string
+}
+
+/**
+ * What a manager pays to buy a listing outright, before haggling.
+ *
+ * The asking price, unless an offer of one's own already stands — then it is
+ * that offer, because the question the market page answers changes once you
+ * have bid: not "what would this cost" but "what did I say I would pay".
+ */
+export function offerBaseline(listing: MarketListing): number {
+  return listing.ownOffer ?? listing.price
 }
 
 export interface CompetitionPlayerSummary {

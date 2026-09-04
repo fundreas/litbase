@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  Store,
   Swords,
   Trophy,
   Users,
@@ -66,11 +67,11 @@ export function isNavItemActive(
  * dock a `BottomTabBar` of their own, but that switches between views of one
  * page rather than between pages, and never leaves it.
  *
- * **Only built pages are listed.** `market` (Transfermarkt), `table`
- * (Bundesliga-Tabelle) and `players` (Alle Spieler) are still
- * `PagePlaceholder` stubs, and offering them in the drawer promises a screen
- * that is not there. Their routes are untouched, so a direct URL still opens
- * the stub — add the entry back here when the page exists and it reappears.
+ * **Only built pages are listed.** `table` (Bundesliga-Tabelle) and `players`
+ * (Alle Spieler) are still `PagePlaceholder` stubs, and offering them in the
+ * drawer promises a screen that is not there. Their routes are untouched, so a
+ * direct URL still opens the stub — add the entry back here when the page
+ * exists and it reappears.
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
@@ -89,6 +90,7 @@ export const NAV_ITEMS: NavItem[] = [
     // the right entry on its way through.
     alsoMatches: ['players', 'lineup'],
   },
+  { to: 'market', label: 'Transfermarkt', icon: Store },
   { to: 'ranking', label: 'Rangliste', icon: Trophy },
   { to: 'duels', label: 'Duelle', icon: Swords, requiresDuelMode: true },
 ]
