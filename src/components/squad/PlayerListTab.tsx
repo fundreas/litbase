@@ -11,10 +11,7 @@ import {
 } from '@/api/models'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
-import {
-  StartProbabilityBadge,
-  StartProbabilityCorner,
-} from '@/components/squad/StartProbabilityBadge'
+import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -88,25 +85,36 @@ export function PlayerListTab({
     <div className="flex flex-col gap-4">
       <ViewToggle view={view} onChange={setView} />
 
-      {byPosition.map(({ position, players }) => (
-        <section key={position} className="flex flex-col gap-2">
-          <h2 className="px-1 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
-            {POSITION_LABEL[position]} · {players.length}
-          </h2>
+      {/* The grid is **one flat run**, not four grouped ones. Position
+          headings buy little once each tile names its own position, and four
+          of them across a three-column grid leave ragged part-rows and turn
+          twenty players into a page you scroll. The order is still keeper →
+          defence → midfield → attack, most valuable first inside each, so the
+          squad reads the way it always did — the headings are simply gone.
 
-          {view === 'grid' ? (
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {players.map((player) => (
-                <PlayerTile
-                  key={player.id}
-                  player={player}
-                  startProbability={startProbabilities.get(player.id)}
-                  statusReason={statusReasons.get(player.id)}
-                  to={`/leagues/${leagueId}/players/${player.id}`}
-                />
-              ))}
-            </ul>
-          ) : (
+          The list keeps its groups: a row carries no position of its own, and
+          rows stack in one column where a heading costs nothing. */}
+      {view === 'grid' ? (
+        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {byPosition
+            .flatMap((group) => group.players)
+            .map((player) => (
+              <PlayerTile
+                key={player.id}
+                player={player}
+                startProbability={startProbabilities.get(player.id)}
+                statusReason={statusReasons.get(player.id)}
+                to={`/leagues/${leagueId}/players/${player.id}`}
+              />
+            ))}
+        </ul>
+      ) : (
+        byPosition.map(({ position, players }) => (
+          <section key={position} className="flex flex-col gap-2">
+            <h2 className="px-1 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
+              {POSITION_LABEL[position]} · {players.length}
+            </h2>
+
             <ul className="flex flex-col gap-2">
               {players.map((player) => (
                 <PlayerRow
@@ -121,9 +129,9 @@ export function PlayerListTab({
                 />
               ))}
             </ul>
-          )}
-        </section>
-      ))}
+          </section>
+        ))
+      )}
 
       <ConfirmDialog
         open={pendingRemoval !== null}
@@ -180,21 +188,19 @@ function useSquadView(): [SquadView, (view: SquadView) => void] {
   return [view, setView]
 }
 
-const VIEW_OPTIONS: Array<{
-  value: SquadView
-  label: string
-  icon: typeof List
-}> = [
-  { value: 'list', label: 'Liste', icon: List },
-  { value: 'grid', label: 'Kacheln', icon: LayoutGrid },
-]
-
 /**
- * List or grid, as a small segmented control above the groups.
+ * List or grid, as **one button showing both symbols**.
  *
- * Icon-only and right-aligned: it is a preference the reader sets once, not a
- * primary action, and two words would pull the eye away from the squad. Each
- * button keeps its label for assistive tech and as a tooltip.
+ * Two buttons said the same thing with twice the target area and an
+ * `aria-pressed` state each, for a choice with exactly two outcomes and no
+ * cost to getting it wrong. One button that swaps is the smaller, faster
+ * control — and keeping *both* glyphs on it is what makes it legible: a lone
+ * icon has to answer "is this the current view or the one I would switch to?",
+ * which a single glyph cannot. Here the lit one is where you are and the faint
+ * one is where a tap takes you.
+ *
+ * Right-aligned and icon-only: it is a preference set once, not a primary
+ * action, and it should not pull the eye away from the squad.
  */
 function ViewToggle({
   view,
@@ -203,55 +209,56 @@ function ViewToggle({
   view: SquadView
   onChange: (view: SquadView) => void
 }) {
-  return (
-    <div
-      role="group"
-      aria-label="Darstellung"
-      className="flex justify-end gap-1"
-    >
-      {VIEW_OPTIONS.map((option) => {
-        const isSelected = option.value === view
-        const Icon = option.icon
+  const next: SquadView = view === 'list' ? 'grid' : 'list'
+  const label = next === 'grid' ? 'Zur Kachelansicht' : 'Zur Listenansicht'
 
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={isSelected}
-            title={option.label}
-            onClick={() => {
-              onChange(option.value)
-            }}
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-lg border transition-colors',
-              'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-              isSelected
-                ? 'border-accent/40 bg-accent/15 text-accent'
-                : 'border-line bg-surface text-faint hover:bg-surface-2 hover:text-ink',
-            )}
-          >
-            <span className="sr-only">{option.label}</span>
-            <Icon size={15} aria-hidden="true" />
-          </button>
-        )
-      })}
+  return (
+    <div className="flex justify-end">
+      <button
+        type="button"
+        onClick={() => {
+          onChange(next)
+        }}
+        title={label}
+        aria-label={label}
+        className={cn(
+          'flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-2',
+          'transition-colors hover:border-accent/40 hover:bg-surface-2',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+        )}
+      >
+        <List
+          size={15}
+          aria-hidden="true"
+          className={view === 'list' ? 'text-accent' : 'text-faint'}
+        />
+        <span aria-hidden="true" className="h-4 w-px bg-line" />
+        <LayoutGrid
+          size={15}
+          aria-hidden="true"
+          className={view === 'grid' ? 'text-accent' : 'text-faint'}
+        />
+      </button>
     </div>
   )
 }
 
 /**
- * A player as a tile: portrait, name, and the two marks that say whether you
- * can count on him this week.
+ * A player as a tile: portrait, name, position, and the two marks that say
+ * whether you can count on him this week.
  *
  * **No lineup control and no money.** The grid is for taking in a whole squad
- * at once — who is fit, who is likely to start — and a 33%-wide tile cannot
- * hold a market value, a profit and a shirt rail without becoming a worse
- * version of the row. Tapping opens the player; the list view is where the
- * lineup gets edited.
+ * at once — who is fit, who is likely to start — and a third-of-a-screen tile
+ * cannot hold a market value, a profit and a shirt rail without becoming a
+ * worse version of the row. Tapping opens the player; the list view is where
+ * the lineup gets edited.
  *
- * The badges sit in opposite corners, matching the pitch portraits exactly:
- * availability top-left, probability top-right. Someone who has learnt the
- * lineup screen already knows this tile.
+ * The badges sit in opposite corners of the portrait, availability left and
+ * probability right, as on the pitch. They are **inset rather than straddling
+ * the edge**: the pitch's `StartProbabilityCorner` hangs a little outside its
+ * circle, which works on a portrait floating over grass and does not here —
+ * the tile clips its overflow to keep the rounded corners, so half the badge
+ * was being cut off by the frame.
  */
 function PlayerTile({
   player,
@@ -290,12 +297,23 @@ function PlayerTile({
             className="absolute top-1 left-1"
           />
           {startProbability !== undefined && (
-            <StartProbabilityCorner tier={startProbability} size={15} />
+            <StartProbabilityBadge
+              tier={startProbability}
+              size={15}
+              onImage
+              className="absolute top-1 right-1"
+            />
           )}
         </span>
 
-        <span className="truncate px-1.5 py-1.5 text-center text-xs font-semibold text-ink">
-          {player.lastName}
+        <span className="block px-1.5 py-1.5 text-center">
+          <span className="block truncate text-xs font-semibold text-ink">
+            {player.lastName}
+          </span>
+          {/* The position, which the grid no longer says with a heading. */}
+          <span className="block text-[0.625rem] tracking-wide text-faint uppercase">
+            {POSITION_LABEL[player.position]}
+          </span>
         </span>
       </Link>
     </li>

@@ -78,8 +78,7 @@ decision starts here.
 
 ## Kader — two layouts
 
-A **list** or a **grid**, chosen by an icon-only toggle above the groups.
-Both keep the position grouping.
+A **list** or a **grid**, chosen by a single icon-only toggle above them.
 
 ```
   Mannschaft                    [51,0 Mio. €] [i]
@@ -98,17 +97,38 @@ it survives a reload and silently falls back to the list where storage is
 blocked. It is deliberately **not** in the URL: a layout is a preference, not a
 place, and a shared link should open in the reader's own.
 
+The toggle is **one button carrying both symbols**. Two buttons said the same
+thing with twice the target area and an `aria-pressed` state each, for a choice
+with two outcomes and no cost to getting wrong. Keeping both glyphs on the one
+button is what makes it legible: a lone icon has to answer "is this where I am
+or where I would go?", which a single glyph cannot. The lit one is the current
+view, the faint one is a tap away.
+
 ### Tiles
 
-Portrait, last name, and the two marks that say whether you can count on the
-player this week — availability top-left, lineup probability top-right,
-**exactly as on the pitch portraits**, so anyone who has used the lineup screen
-already knows the tile.
+Portrait, last name, position abbreviation, and the two marks that say whether
+you can count on the player this week — availability top-left, lineup
+probability top-right, as on the pitch portraits.
+
+They are **inset rather than straddling the frame**: the pitch's
+`StartProbabilityCorner` hangs slightly outside its circle, which reads well on
+a portrait floating over grass but not here, because the tile clips its
+overflow to keep its rounded corners and was cutting the badge in half.
 
 No lineup rail and no money: the grid is for taking in a whole squad at once,
 and a third-of-a-screen tile cannot hold a market value, a profit *and* a shirt
 rail without becoming a worse version of the row. Tapping opens the player; the
 list is where the lineup gets edited.
+
+### Grouping differs between the two
+
+The **list keeps its position headings**; the **grid is one flat run**. Once a
+tile names its own position, four headings across a three-column grid buy
+little and cost a lot — ragged part-rows, and twenty players turned into a page
+you scroll. The order is unchanged either way (keeper → defence → midfield →
+attack, most valuable first within each), so the grid reads as it always did
+with the headings simply gone. A row carries no position of its own and rows
+stack in one column, where a heading costs nothing.
 
 ## Grouping and ordering
 
