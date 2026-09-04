@@ -1,5 +1,5 @@
 import { LayoutGrid, List, Shirt } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import {
@@ -75,10 +75,11 @@ export function PlayerListTab({
   /**
    * Ids marked for sale, or `null` when the calculator is off.
    *
-   * Non-null puts the list in **calculator mode**: a tap marks a player for
-   * sale instead of opening him, and the lineup rail is gone. Selling and
-   * picking an eleven are different jobs, and a row that did both would make
-   * every tap a question about which one you meant.
+   * Non-null puts the list in **calculator mode**: a row looks exactly as it
+   * always does, rail included, but a tap anywhere on it marks the player for
+   * sale rather than opening him or changing the lineup. One target, one
+   * meaning — a row that kept two live controls would make every tap a
+   * question about which one you meant.
    */
   forSale: ReadonlySet<string> | null
   onToggleForSale: (playerId: string) => void
@@ -399,103 +400,74 @@ function PlayerRow({
 }) {
   const isCalculating = isForSale !== undefined
 
-  return (
-    <li
-      className={cn(
-        'flex items-stretch overflow-hidden rounded-card border bg-surface',
-        isForSale === true ? SELECTED_CLASS : 'border-line',
-      )}
-    >
-      {/* Full-height rail, and the row's lineup control. Always rendered,
-          tinted only when fielded, so rows stay aligned either way. The
-          outline shirt reads as an empty slot inviting a tap, rather than as
-          a disabled version of the filled one.
+  /* The rail is the row's lineup control, and stays **visible in calculator
+     mode** — whether a player is in your eleven is exactly what you weigh up
+     while deciding to sell him, so hiding it took away the fact the mode is
+     for. What changes is only that it stops being a control: in calculator
+     mode it renders as a plain `<span>` with the same classes, because the
+     whole row is one big button then and HTML has no nested buttons. */
+  const railClass = cn(
+    'flex w-7 shrink-0 items-center justify-center self-stretch border-r transition-colors',
+    isFielded
+      ? 'border-accent/30 bg-accent/15 text-accent'
+      : 'border-line bg-surface-2/40 text-faint',
+    !isCalculating && (isFielded ? 'hover:bg-accent/25' : 'hover:bg-surface-2'),
+  )
 
-          Gone in calculator mode: fielding a player you are pricing up for
-          sale is a different job, and leaving the rail there would make every
-          tap on the row's edge a question about which one you meant. */}
-      {!isCalculating && (
-        <button
-          type="button"
-          onClick={() => {
-            onToggle(player)
-          }}
-          aria-pressed={isFielded}
-          title={
-            isFielded
-              ? 'Aus der Aufstellung nehmen'
-              : 'In die Aufstellung setzen'
-          }
-          className={cn(
-            'flex w-7 shrink-0 items-center justify-center self-stretch border-r transition-colors',
-            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
-            isFielded
-              ? 'border-accent/30 bg-accent/15 text-accent hover:bg-accent/25'
-              : 'border-line bg-surface-2/40 text-faint hover:bg-surface-2',
-          )}
-        >
-          <span className="sr-only">
-            {isFielded ? 'Aufgestellt' : 'Nicht aufgestellt'}
-          </span>
-          <Shirt
-            size={15}
-            strokeWidth={isFielded ? 2 : 1.5}
-            className={cn(!isFielded && 'opacity-40')}
-          />
-        </button>
-      )}
-
-      {/* Flush portrait: no padding on any side, so it fills the row's height
-          and butts straight against the rail.
-
-          The Kickbase player images are transparent PNG cutouts, so the opaque
-          tile the avatar used to sit on was the only thing drawing a rectangle
-          here — without it the figure simply stands in the row. What is left
-          is grounded by a wash that fades out before it reaches the top, and
-          the inner edge is masked so the wash and the clipped shoulder
-          dissolve into the row instead of ending on a line. The other three
-          edges are the card's own borders and stay crisp. The fade starts past
-          the head: the source has the figure centred, and cover-cropping a
-          landscape image into this box leaves the face clear of 65%. */}
-      <Avatar
-        src={player.image}
-        name={player.lastName}
-        fill
-        className={cn(
-          'w-14 self-stretch bg-transparent',
-          'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
-          '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
-        )}
+  const rail = (
+    <>
+      <span className="sr-only">
+        {isFielded ? 'Aufgestellt' : 'Nicht aufgestellt'}
+      </span>
+      <Shirt
+        size={15}
+        strokeWidth={isFielded ? 2 : 1.5}
+        className={cn(!isFielded && 'opacity-40')}
       />
+    </>
+  )
 
-      {/* Everything but the rail and the fixture panel is one target: it opens
-          the player, or marks him for sale while the calculator is on.
+  /* Flush portrait: no padding on any side, so it fills the row's height and
+     butts straight against the rail.
 
-          The rail stays a button of its own: it is the lineup control, and
-          wrapping the row in a link would make a mis-tap on it navigate
-          instead of field the player. Splitting the row this way keeps both
-          targets large and keeps this one the part that reads as "this
-          player". */}
-      <BodyShell
-        isCalculating={isCalculating}
-        to={to}
-        isForSale={isForSale === true}
-        onSelect={() => {
-          onToggleForSale(player.id)
-        }}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-ink">
-              {player.lastName}
-            </span>
-            <PlayerStatusBadge
-              status={player.status}
-              reason={statusReason}
-              size={13}
-            />
+     The Kickbase player images are transparent PNG cutouts, so the opaque tile
+     the avatar used to sit on was the only thing drawing a rectangle here —
+     without it the figure simply stands in the row. What is left is grounded
+     by a wash that fades out before it reaches the top, and the inner edge is
+     masked so the wash and the clipped shoulder dissolve into the row instead
+     of ending on a line. The other three edges are the card's own borders and
+     stay crisp. The fade starts past the head: the source has the figure
+     centred, and cover-cropping a landscape image into this box leaves the
+     face clear of 65%. */
+  const portrait = (
+    <Avatar
+      src={player.image}
+      name={player.lastName}
+      fill
+      className={cn(
+        'w-14 self-stretch bg-transparent',
+        'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+        '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+      )}
+    />
+  )
+
+  const bodyClass = 'flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5'
+
+  const details = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-semibold text-ink">
+            {player.lastName}
           </span>
-          {/* The probability sits under the name rather than beside it. Next
+          <PlayerStatusBadge
+            status={player.status}
+            reason={statusReason}
+            size={13}
+          />
+        </span>
+        {/* The probability sits under the name rather than beside it. Next
               to the name it would collide with the availability mark, and the
               two mean different things — "unfit" is a fact, "unlikely to
               start" is someone's estimate.
@@ -509,83 +481,110 @@ function PlayerRow({
               lot of text for something the reader learns to recognise in
               seconds. The legend in the page header explains the scale, and
               each badge keeps its tooltip. */}
-          {startProbability !== undefined && (
-            <span className="mt-0.5 flex items-center">
-              <StartProbabilityBadge tier={startProbability} size={13} />
-            </span>
-          )}
-        </span>
-
-        <span className="shrink-0 text-right">
-          <span className="nums block text-sm font-semibold text-ink">
-            {money(player.marketValue)}
+        {startProbability !== undefined && (
+          <span className="mt-0.5 flex items-center">
+            <StartProbabilityBadge tier={startProbability} size={13} />
           </span>
-          {/* Profit/loss only. The `mvt` trend arrow used to sit in front of
+        )}
+      </span>
+
+      <span className="shrink-0 text-right">
+        <span className="nums block text-sm font-semibold text-ink">
+          {money(player.marketValue)}
+        </span>
+        {/* Profit/loss only. The `mvt` trend arrow used to sit in front of
               it and read as if it belonged to this figure, when the two are
               different signals — a player can be up overall while trending
               down. The signed, coloured amount carries this one on its own. */}
-          <span
-            className={cn(
-              'nums block text-xs',
-              player.profitLoss > 0 && 'text-positive',
-              player.profitLoss < 0 && 'text-negative',
-              player.profitLoss === 0 && 'text-faint',
-            )}
-          >
-            {moneyDelta(player.profitLoss)}
-          </span>
+        <span
+          className={cn(
+            'nums block text-xs',
+            player.profitLoss > 0 && 'text-positive',
+            player.profitLoss < 0 && 'text-negative',
+            player.profitLoss === 0 && 'text-faint',
+          )}
+        >
+          {moneyDelta(player.profitLoss)}
         </span>
-      </BodyShell>
-
-      {/* Full-height fixture panel, matching the swap dialog's treatment. */}
-      <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">
-        <FixtureBadge fixture={fixture} size="lg" layout="stacked" />
       </span>
-    </li>
+    </>
   )
-}
 
-/**
- * The row's main target: a link to the player, or a sale toggle while the
- * calculator is on.
- *
- * Split out only so the row's contents are written once. An element type
- * chosen by a variable would do the same in fewer lines, but a `<Link>` and a
- * `<button>` do not take the same props and the difference matters here — one
- * navigates, the other must announce a pressed state.
- */
-function BodyShell({
-  isCalculating,
-  to,
-  isForSale,
-  onSelect,
-  children,
-}: {
-  isCalculating: boolean
-  to: string
-  isForSale: boolean
-  onSelect: () => void
-  children: ReactNode
-}) {
-  const className =
-    'flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-2/60'
+  /** Full-height fixture panel, matching the swap dialog's treatment. */
+  const fixturePanel = (
+    <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">
+      <FixtureBadge fixture={fixture} size="lg" layout="stacked" />
+    </span>
+  )
 
-  if (!isCalculating) {
+  const shell = cn(
+    'flex items-stretch overflow-hidden rounded-card border bg-surface',
+    isForSale === true ? SELECTED_CLASS : 'border-line',
+  )
+
+  /* Calculator mode: **one target over the whole row**, rail and fixture panel
+     included. Everything looks the way it always does — the point of the mode
+     is judging players on the same information you judge them on normally —
+     but nothing navigates and nothing changes the lineup. A row that kept two
+     live controls would make every tap a question about which one you meant,
+     and a row that hid them would hide the answer. */
+  if (isCalculating) {
     return (
-      <Link to={to} className={className}>
-        {children}
-      </Link>
+      <li className={shell}>
+        <button
+          type="button"
+          aria-pressed={isForSale}
+          onClick={() => {
+            onToggleForSale(player.id)
+          }}
+          className={cn(
+            'flex flex-1 items-stretch text-left transition-colors',
+            'hover:bg-surface-2/40',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+          )}
+        >
+          <span className={railClass}>{rail}</span>
+          {portrait}
+          <span className={bodyClass}>{details}</span>
+          {fixturePanel}
+        </button>
+      </li>
     )
   }
 
   return (
-    <button
-      type="button"
-      aria-pressed={isForSale}
-      onClick={onSelect}
-      className={className}
-    >
-      {children}
-    </button>
+    <li className={shell}>
+      {/* The rail is a button of its own here: wrapping the row in a link
+          would make a mis-tap on it navigate instead of field the player.
+          Splitting the row keeps both targets large and keeps the link's hit
+          area the part that reads as "this player". */}
+      <button
+        type="button"
+        onClick={() => {
+          onToggle(player)
+        }}
+        aria-pressed={isFielded}
+        title={
+          isFielded ? 'Aus der Aufstellung nehmen' : 'In die Aufstellung setzen'
+        }
+        className={cn(
+          railClass,
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+        )}
+      >
+        {rail}
+      </button>
+
+      {portrait}
+
+      <Link
+        to={to}
+        className={cn(bodyClass, 'transition-colors hover:bg-surface-2/60')}
+      >
+        {details}
+      </Link>
+
+      {fixturePanel}
+    </li>
   )
 }

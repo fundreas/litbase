@@ -124,10 +124,15 @@ it stands is gone — it is one tap away, on the chip this bar replaced.
 
 The bar is replaced rather than added to because the rows quietly change
 what they do: a heading still reading *Mannschaft · 20 Spieler* over rows that
-now select instead of navigate would be the wrong kind of quiet. The lineup
-rail goes for the same reason — fielding a player you are pricing up is a
-different job, and leaving the rail would make every tap on the row's edge a
-question about which one you meant.
+now select instead of navigate would be the wrong kind of quiet.
+
+**The rows themselves look exactly as they always do**, lineup rail included —
+whether a player is in your eleven is precisely what you weigh while deciding
+to sell him, so hiding it took away the fact the mode is for. What changes is
+only what a tap *does*: the whole row becomes one target that marks the player,
+and the rail renders as a plain `<span>` with the same classes, because a
+button cannot nest inside a button. One target, one meaning; a row that kept
+two live controls would make every tap a question about which one you meant.
 
 **Nothing here is a transaction.** The figures are arithmetic on the squad's
 own market values and no request is sent. Kickbase's real sale price is

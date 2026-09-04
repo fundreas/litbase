@@ -308,8 +308,11 @@ function SaleCalculator({
     <div
       className={cn(
         // `-mx-3` bleeds to the edges of the content column so it reads as a
-        // second header rather than a card that happens to be pinned.
-        'sticky top-(--header-total) z-20 -mx-3 px-3',
+        // second header rather than a card that happens to be pinned, and
+        // `-mt-4` cancels the well's top padding so the bar starts exactly
+        // where it will pin. Without it the bar sat a gap below the header
+        // until you scrolled and then jumped up to meet it.
+        'sticky top-(--header-total) z-20 -mx-3 -mt-4 px-3',
         'border-b border-accent/30 bg-canvas/95 backdrop-blur-md',
       )}
     >
