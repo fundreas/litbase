@@ -151,7 +151,9 @@ export function PlayerDetailPage() {
         teams={teams.data}
       />
 
-      <div className="flex-1">
+      {/* Claims the leftover height so the bottom bar stays at the bottom on
+          a short tab as well as a long one — see `BottomTabBar`. */}
+      <div className="flex min-h-0 flex-1 flex-col">
         {tab === PLAYER_TABS.details && (
           <PlayerDetailsTab
             player={player.data}

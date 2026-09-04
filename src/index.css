@@ -164,3 +164,18 @@
 @utility pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+
+/**
+ * Cancels an ancestor's `pb-safe`, for an element that owns the bottom edge
+ * itself.
+ *
+ * The content well carries `pb-safe` so ordinary pages clear the notch. A
+ * docked bottom bar carries its own, and would otherwise sit on top of the
+ * well's — harmless while scrolling, because `position: sticky` pins to the
+ * viewport, but at the very end of the scroll the bar settles at its static
+ * position and lifts by that padding. Bleeding through it keeps the bar flush
+ * at both ends of the scroll.
+ */
+@utility bleed-pb-safe {
+  margin-bottom: calc(-1 * max(1rem, env(safe-area-inset-bottom)));
+}

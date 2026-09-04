@@ -49,10 +49,22 @@ This is not a return of the global bottom tab bar that
 duplicated the drawer and cost a row of height on every screen. This one
 switches between two views of the page you are already on, exists only while
 that page is open, and sits where a thumb already is. It is `sticky` rather
-than `fixed`, so at `lg` and up it stays inside the content column instead of
-lying across the sidebar.
+than `fixed`, the mirror of the header's `sticky top-0`, so at `lg` and up it
+stays inside the content column instead of lying across the sidebar.
 
 Each tab is a real `<Link>`, so both views are linkable and middle-clickable.
+
+**The page owes the bar a full-height column.** Sticky only pins an element
+that would otherwise be off-screen, so the content between the heading and the
+bar sits in a `min-h-0 flex-1` box. Without it the bar appeared to *move*
+between the two views: the lineup already grew to fill the well and pinned the
+bar properly, while a short Kader list left it sitting directly under the last
+row, halfway up the screen.
+
+The bar also carries `bleed-pb-safe`, which cancels the content well's own
+`pb-safe`. Both have bottom padding for the notch, and stacked they let the bar
+lift by that padding at the very end of the scroll — the one point where sticky
+hands back to static positioning.
 
 ## Header — Kader only
 

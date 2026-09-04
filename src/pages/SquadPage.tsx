@@ -149,13 +149,21 @@ export function SquadPage() {
         showShirtRail={view === VIEWS.squad}
       />
 
-      <SquadViews
-        squad={squad.data}
-        leagueId={leagueId}
-        competitionId={competitionId}
-        view={view}
-        onShowLegend={showLegend}
-      />
+      {/* The content column claims whatever height is left, which is what
+          keeps the bottom bar *at the bottom* on both views. Sticky only pins
+          something that would otherwise be off-screen: without this the Kader
+          view's short list left the bar sitting directly under it, mid-screen,
+          while the lineup — which already grew to fill — pinned it properly.
+          The bar looked like it moved between the two. */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <SquadViews
+          squad={squad.data}
+          leagueId={leagueId}
+          competitionId={competitionId}
+          view={view}
+          onShowLegend={showLegend}
+        />
+      </div>
 
       <BottomTabBar tabs={tabs} active={view} ariaLabel="Kaderansicht" />
     </div>
