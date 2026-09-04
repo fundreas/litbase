@@ -5,6 +5,7 @@ import type { TeamSummary } from '@/api/hooks/useCompetition'
 import {
   availabilityLabel,
   fixtureState,
+  POSITION_LABEL,
   POSITION_NAME,
   START_PROBABILITY,
   type PlayerDetail,
@@ -42,6 +43,7 @@ export function PlayerHeader({
   currentFixture,
   currentMatch,
   teams,
+  showStartProbability,
 }: {
   player: PlayerDetail
   /**
@@ -57,10 +59,19 @@ export function PlayerHeader({
    */
   currentMatch: PlayerMatch | undefined
   teams: Map<string, TeamSummary> | undefined
+  /**
+   * Whether the lineup-probability chip belongs here. Only the Details tab
+   * asks for it: the chip is a statement about the *next* matchday, and on a
+   * career points history or a market-value chart — both of which are about
+   * what has already happened — it reads as one more number on the page
+   * instead of the thing it is. Its poster dialog is a tap away from Details,
+   * which is where someone goes to ask "does he play?".
+   */
+  showStartProbability: boolean
 }) {
   const isFit = player.status === 0
   const probability =
-    player.startProbability === undefined
+    !showStartProbability || player.startProbability === undefined
       ? undefined
       : START_PROBABILITY[player.startProbability]
 
@@ -90,32 +101,40 @@ export function PlayerHeader({
             )}
           </div>
 
-          {player.firstName !== undefined && (
-            <p className="truncate text-sm text-muted">{player.firstName}</p>
-          )}
-
-          {/* The club, given its own line and a crest big enough to recognise.
-              It used to ride at the end of a 12px meta line next to the
-              position, where the crest was 16px and the name was the same grey
-              as everything else — for a page whose whole subject is one
-              footballer, which club he plays for should not be the quietest
-              thing on it. */}
-          <div className="mt-1.5 flex items-center gap-2">
-            <Avatar
-              src={player.teamImage}
-              name={player.teamName}
-              size={22}
-              square
-              className="bg-transparent"
-            />
-            <span className="min-w-0 truncate text-sm font-semibold text-ink">
-              {player.teamName ?? '–'}
-            </span>
-            <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[0.6875rem] font-medium text-muted">
-              {POSITION_NAME[player.position]}
+          {/* Given name and position on one quiet line. The position is the
+              abbreviation — "MF", not "Mittelfeldspieler" — because it is the
+              form used on every squad row and pitch tile in the app, and the
+              spelled-out name was long enough to push the given name out of a
+              phone-width line. The full word stays as the title, so a hover or
+              a screen reader still gets it. */}
+          <div className="mt-0.5 flex items-baseline gap-2">
+            {player.firstName !== undefined && (
+              <p className="min-w-0 truncate text-sm text-muted">
+                {player.firstName}
+              </p>
+            )}
+            <span
+              title={POSITION_NAME[player.position]}
+              className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[0.6875rem] font-medium text-muted"
+            >
+              {POSITION_LABEL[player.position]}
             </span>
           </div>
         </div>
+
+        {/* The club, as a crest alone at the far right — no name beside it.
+            A Bundesliga crest is the most recognisable thing about a club, and
+            at this size it is read faster than its name; spelling the name out
+            next to it cost a line of a phone-width header to say the same
+            thing twice. The name survives as the image's alt text and as the
+            initials the fallback draws when the crest fails to load. */}
+        <Avatar
+          src={player.teamImage}
+          name={player.teamName}
+          size={56}
+          square
+          className="shrink-0 bg-transparent"
+        />
       </div>
 
       {(!isFit || probability !== undefined) && (

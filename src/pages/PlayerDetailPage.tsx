@@ -149,6 +149,7 @@ export function PlayerDetailPage() {
         currentFixture={currentFixture}
         currentMatch={currentMatch}
         teams={teams.data}
+        showStartProbability={tab === PLAYER_TABS.details}
       />
 
       {/* Claims the leftover height so the bottom bar stays at the bottom on

@@ -74,12 +74,28 @@ makes it the one to probe with.)
 
 Shared by all three tabs, so a market chart is never a chart of nobody.
 
-The **club is a line of its own** — a 22 px crest and the name in `text-ink`
-semibold, with the position as a chip beside it. It used to ride at the end of
-a 12 px meta row in the same grey as everything else, which for a page whose
-whole subject is one footballer made his club the quietest thing on it.
+The **club is a 56 px crest at the far right, with no name beside it**. A
+Bundesliga crest is the most recognisable thing about a club and at that size is
+read faster than its name, so spelling the name out next to it spent a line of a
+phone-width header saying the same thing twice. The name survives as the
+image's `alt` and as the initials the fallback draws when the crest fails to
+load. (It used to ride at the end of a 12 px meta row in the same grey as
+everything else, which for a page whose whole subject is one footballer made his
+club the quietest thing on it; the crest-only treatment is the other end of that
+correction.)
+
+The **position is the abbreviation** — `MF`, not `Mittelfeldspieler` — in a chip
+on the given-name line, `POSITION_LABEL` being the form every squad row and pitch
+tile already uses. The spelled-out name was long enough to push the given name
+off a phone-width line; it stays as the chip's `title`.
 
 ### The lineup poster
+
+The probability chip is rendered **on the Details tab only**. It is a statement
+about the *next* matchday, and above a career points history or a market-value
+chart — both of them about what has already happened — it read as one more
+number on the page rather than the thing it is. Details is where someone goes to
+ask "does he play?", so that is where the poster stays a tap away.
 
 The **probability chip opens Ligainsider's projected starting eleven** for the
 player's club, full screen.
