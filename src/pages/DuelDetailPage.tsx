@@ -1,4 +1,4 @@
-import { ChevronLeft, Info } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import {
   Link,
   useLocation,
@@ -138,17 +138,6 @@ export function DuelDetailPage() {
   const hasStarted = state === 'live' || state === 'finished'
   const leader = hasStarted ? duelLeader(duel) : undefined
 
-  // Squads are only ever served as they stand *now*, so any matchday before
-  // the current one lists today's players rather than the ones actually
-  // fielded then. The manager totals stay correct — they come from the
-  // standings — but the rows below them do not add up to those totals, and
-  // saying so is the only honest option. Measured on a real league: one
-  // manager's current eleven scored 1434 on a matchday they took 824 from.
-  const isHistorical =
-    selectedDay !== undefined &&
-    schedule.data !== undefined &&
-    selectedDay < schedule.data.currentDay
-
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -186,8 +175,6 @@ export function DuelDetailPage() {
         </p>
       </div>
 
-      {isHistorical && <HistoricalNotice />}
-
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value={TABS.lineup}>Aufstellung</TabsTrigger>
@@ -200,6 +187,17 @@ export function DuelDetailPage() {
           </div>
         ) : rosters.isError ? (
           <ErrorState error={rosters.error} onRetry={rosters.refetch} />
+        ) : rosters.isEmpty ? (
+          /* The snapshot endpoint answers 200 with empty lists for a matchday
+             it has nothing for — one before the league existed, most often.
+             That is not an error and not an empty team, so it gets its own
+             message rather than two blank rosters. */
+          <div className="mt-4">
+            <EmptyState
+              title="Keine Aufstellung für diesen Spieltag"
+              description="Kickbase hat für diesen Spieltag keine Kader — vermutlich lag er vor der Gründung der Liga."
+            />
+          </div>
         ) : rosters.data === undefined ? null : (
           <>
             <TabsContent value={TABS.lineup}>
@@ -215,28 +213,14 @@ export function DuelDetailPage() {
   )
 }
 
-/**
- * Why the rows do not add up to the totals on a past matchday.
- *
- * Kickbase serves a manager's squad only as it stands today — there is no
- * matchday parameter — so a past matchday shows the *current* eleven with that
- * matchday's points beside each player. Useful, but not what was fielded, and
- * a reader comparing the column to the total deserves to know which of the two
- * is the real result.
+/*
+ * `HistoricalNotice` used to live here: a banner explaining that a past
+ * matchday showed *today's* eleven with old points beside it, because the API
+ * served squads only as they stood now. That is no longer true —
+ * `users/{uid}/teamcenter?dayNumber=` serves the real snapshot (found
+ * 2026-09-04) — so the rows are the players who were actually fielded and
+ * there is nothing left to apologise for.
  */
-function HistoricalNotice() {
-  return (
-    <p className="flex items-start gap-2 rounded-card border border-line bg-surface-2/50 px-3 py-2.5 text-xs text-muted">
-      <Info size={14} className="mt-px shrink-0 text-faint" />
-      <span>
-        Kickbase liefert Kader nur im aktuellen Stand. Für vergangene Spieltage
-        siehst du die <strong className="font-medium text-ink">heutige</strong>{' '}
-        Aufstellung mit den Punkten von damals — die Summe der Spieler ergibt
-        deshalb nicht das Gesamtergebnis oben.
-      </span>
-    </p>
-  )
-}
 
 /** One half of the header scoreline: name over the manager's matchday total. */
 function Scoreline({

@@ -249,11 +249,11 @@ flag and one number are bent, which is why adding a screen needs no work here.
 - **Auth time.** Session expiry and token refresh keep reading `Date.now()`
   deliberately: a clock a week in the past makes a good token look expired, and
   one in the future fires the refresh timer immediately.
-- **The squad.** `useSquad` serves it only as it stands today, so a simulated
-  matchday shows *today's* eleven with that matchday's points — the gap
-  [duel detail](pages/duel-detail.md#what-a-past-matchday-shows) documents with
-  measurements. Closeable now that the
-  [snapshot endpoint](pages/duel-detail.md#the-snapshot-endpoint) is known.
+- **The squad.** A replayed matchday reports itself *unfinished* — that is what
+  makes it live — so the pages read today's squad rather than the
+  [matchday snapshot](pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded),
+  which is only trustworthy once a matchday is over. Fixtures, points and
+  states are real; the set of players is today's.
 - **Match progress between refetches.** `st` is computed when the fixture list
   is fetched (cached an hour), so a match crosses its final whistle on the next
   refetch rather than to the second. The clock itself always ticks.

@@ -1186,6 +1186,93 @@ export interface FixtureItem {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Team center — one manager's squad on one matchday                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `GET /v4/leagues/{leagueId}/users/{userId}/teamcenter?dayNumber={n}` — the
+ * **matchday snapshot**: a manager's squad and lineup as they stood then.
+ *
+ * The only historical source in the API, and the only way to see *any*
+ * manager's lineup for a matchday other than the current one. See
+ * {@link endpoints.leagues.managerTeamcenter} for the spelling trap that hid
+ * it, and [duel detail](../../docs/pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded)
+ * for what it fixes.
+ *
+ * **`dayNumber` is required.** Omitted, out of range (`0`, `99`), or naming a
+ * matchday from before the league existed, it answers 200 with both player
+ * lists empty rather than erroring — so "empty" has to be read as "nothing to
+ * show", never as "no players".
+ */
+export interface TeamcenterResponse {
+  /** The requested manager's display name. */
+  n?: string
+  /** Fielded players — the eleven that was in the lineup that matchday. */
+  lp?: TeamcenterPlayer[]
+  /** Everyone else in the squad that matchday. */
+  nlp?: TeamcenterPlayer[]
+  /** Every manager in the league, each with their own fielded players. */
+  us?: TeamcenterUser[]
+  /** Count of the current lineup, observed as `11`. */
+  clpc?: number
+  /** Meaning unknown; observed as `0`. */
+  ppc?: number
+}
+
+/** One league member as the team center lists them. */
+export interface TeamcenterUser {
+  /** User id. */
+  i: string
+  /** Display name. */
+  unm: string
+  /** Meaning unconfirmed; observed as `true` for every member. */
+  pa?: boolean
+  /** That manager's fielded players. Observed empty before kick-off. */
+  lp?: TeamcenterPlayer[]
+  /** Player images for {@link lp}. Observed empty before kick-off. */
+  lpi?: string[]
+}
+
+/**
+ * One player in a team-center list.
+ *
+ * Verified on a real response for an upcoming matchday: `i`, `n`, `tid`, `st`,
+ * `mi`, `md`, `mst`, `pim`. Everything below beyond those is marked optional
+ * because a **played** matchday has not been mapped field-by-field yet — the
+ * account available for probing had no played matchday in its league. That is
+ * also why the app does not read points from here: `ph` on the player endpoint
+ * is the proven source, and `p` below is a candidate to switch to once seen.
+ */
+export interface TeamcenterPlayer {
+  /** Player id. */
+  i: string
+  /** Last name. */
+  n: string
+  /** Team id. */
+  tid: string | number
+  /** Availability (`0` fit), as elsewhere. */
+  st?: number
+  /**
+   * Position code, as {@link PLAYER_POSITION}.
+   *
+   * Present on `teamcenter/myeleven`'s `lp` entries, **absent** from the
+   * day-scoped variant's `nlp` entries. Treated as optional and back-filled
+   * from the squad the caller already holds — see `useMatchdaySquad`.
+   */
+  pos?: number
+  /** The player's club fixture that matchday. */
+  mi?: string | number
+  /** Kick-off of that fixture, ISO 8601. */
+  md?: string
+  /** Per-player match status. Observed `0` before kick-off; scale unconfirmed. */
+  mst?: number
+  /** Portrait, CDN-relative. */
+  pim?: string
+  /** Points that matchday — **unconfirmed**, see the note above. */
+  p?: number
+}
+
+/* -------------------------------------------------------------------------- */
 /* User                                                                      */
 /* -------------------------------------------------------------------------- */
 

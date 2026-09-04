@@ -428,7 +428,17 @@ export interface DuelPlayer {
   id: string
   name: string
   teamId: string
-  position: PositionKey
+  /**
+   * `undefined` when nothing on hand knows it.
+   *
+   * Optional since the matchday snapshot became the source of who was in a
+   * squad: that payload does not reliably carry `pos`, and a player
+   * transferred away since is in no current squad either. A row renders `–`
+   * for the label; the pitch cannot place him and says how many it left out,
+   * which is the honest option — `toPosition()`'s midfield default would put
+   * a stranger in the middle of the park and look deliberate.
+   */
+  position?: PositionKey
   /** Lineup slot (0-based), or `undefined` when benched. */
   lineupOrder?: number
   status: DuelPlayerStatus
@@ -452,6 +462,49 @@ export interface DuelPlayer {
    * squad, where every row belongs to the same manager.
    */
   managerId?: string
+}
+
+/** One player in a {@link MatchdaySquad}. */
+export interface MatchdaySquadPlayer {
+  id: string
+  name: string
+  teamId: string
+  /**
+   * `undefined` when neither the snapshot nor the caller's squad knows it —
+   * which in practice means a player transferred away since that matchday.
+   * Deliberately not defaulted: inventing a position would place a stranger
+   * in midfield on the pitch and look like a fact.
+   */
+  position?: PositionKey
+  /** 0 = fit; anything else is injured / suspended / away. */
+  availability: number
+  image?: string
+  /** In the lineup that matchday, as the snapshot's `lp`/`nlp` split says. */
+  wasFielded: boolean
+}
+
+/**
+ * One manager's squad **as it stood on one matchday**.
+ *
+ * The historical truth, from `users/{uid}/teamcenter?dayNumber=` — not today's
+ * squad with an old matchday's points beside it, which is what every view had
+ * to settle for before that endpoint was found.
+ */
+export interface MatchdaySquad {
+  day: number
+  /** The manager's display name, as the snapshot reports it. */
+  managerName?: string
+  /** The eleven that was fielded, in the order the payload lists them. */
+  fielded: MatchdaySquadPlayer[]
+  /** Everyone else in the squad that matchday. */
+  bench: MatchdaySquadPlayer[]
+  /**
+   * The API had nothing for this matchday — out of range, or before the league
+   * existed. **Not** "fielded nobody": it answers 200 with empty lists, so a
+   * caller has to tell the two apart and fall back rather than render a blank
+   * team as fact.
+   */
+  isEmpty: boolean
 }
 
 /**

@@ -1018,7 +1018,7 @@ this *is* today's lineup, being played right now — and summing the rows keeps
 the header consistent with the players underneath it as they fill in, one
 request at a time. A spinner sits beside it while any of them is in flight,
 because a total that is still climbing should not look settled. (The
-[duel page](duel-detail.md#what-a-past-matchday-shows) takes the opposite
+[duel page](duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded) takes the opposite
 decision for the opposite reason: it also renders *past* matchdays, where
 today's squad and that day's points do not add up to the official total.)
 
@@ -1035,7 +1035,7 @@ Kader view uses for list/grid, and the choice is remembered in `localStorage`
 (`litbase.squad.live.view`, default the pitch) through the app's safe wrapper.
 Not in the URL: a layout is a preference, not a place.
 
-### Data, and the one gap
+### Data
 
 | Query | Endpoint | Shared with |
 | ----- | -------- | ----------- |
@@ -1044,6 +1044,23 @@ Not in the URL: a layout is a preference, not a place.
 | `useMatchdayFixtures` | the same cache entry, a third `select` | [Duel detail](duel-detail.md) |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Duel detail](duel-detail.md#points-cost-one-request-per-player) |
 
+**This view reads today's `lineupOrder`, not the matchday snapshot** — and
+that is deliberate, though the snapshot exists and the duel page uses it.
+
+`lp` on the snapshot is **empty until the matchday starts**: measured six hours
+before kick-off it returned no fielded players while the squad plainly had
+eleven with `lo` `0…10`. A live view that read it at 15:45 on a Saturday would
+draw a partial eleven, bench the rest, and show a `−100`-per-slot penalty for
+slots that are not empty. `lo` is the opposite: locked at the first kick-off,
+so during the matchday — the only time this view exists — it is both complete
+and current.
+
+The gap that remains is narrow: a player transferred away mid-matchday drops
+out of the list along with the points he scored for you. Closing it means
+learning whether `lp` fills with all eleven at the matchday's start or only per
+match, which is
+[one probe during a running matchday](duel-detail.md#why-the-source-depends-on-the-matchdays-state).
+
 The points are the expensive part and
 [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) owns the cost
 rules: only players whose match has kicked off are fetched, a settled player is
@@ -1051,21 +1068,6 @@ fetched once, and only players actually on the pitch are polled — one request 
 minute each. It shares the `qk.playerDetail` cache entry with
 [`useStartProbabilities`](#where-it-comes-from-and-what-it-costs), so a manager
 who has been on the Kader view has already paid for most of these.
-
-**The gap — and its fix, not yet wired up.** `useSquad` serves the squad only
-**as it stands now**, so "the players I had this matchday" is really "the
-players I have". For the live matchday that is nearly always the same set,
-which is why this view exists here and not for past matchdays; but a player
-transferred away mid-matchday disappears from the list along with the points he
-scored for you, and one bought after kick-off appears with `–`.
-
-A real snapshot **does** exist:
-`GET /v4/leagues/{leagueId}/users/{userId}/teamcenter?dayNumber={n}` returns the
-squad and lineup as they stood that matchday, for any manager — verified
-2026-09-04, see
-[the snapshot endpoint](duel-detail.md#the-snapshot-endpoint) for why two months
-of notes said otherwise. Moving this view onto it would close the gap here and
-open the same view up for **past** matchdays, which is the larger prize.
 
 ### States
 
@@ -1105,6 +1107,9 @@ open the same view up for **past** matchdays, which is the larger prize.
 - Show goals, assists and minutes on the [live](#live-tab) rows — the player
   detail responses the points come from already carry `g`, `a` and the events,
   so nothing further would be fetched.
-- Compare the live total against Kickbase's own `mdp` from the standings, which
-  would surface a mid-matchday transfer (see [the one gap](#data-and-the-one-gap))
-  as a discrepancy rather than leaving it silent.
+- Compare the live total against Kickbase's own `mdp` from the standings. Now
+  that the rows are the matchday's real squad the two should agree up to the
+  empty-slot penalty, so a mismatch would point at something genuinely wrong.
+- **Offer past matchdays here.** The data layer already takes any `day`; what
+  is missing is a way to choose one, and a decision about whether that belongs
+  on this tab or on a screen of its own.

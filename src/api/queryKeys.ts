@@ -59,6 +59,16 @@ export const qk = {
   managerSquad: (leagueId: string, userId: string) =>
     [...qk.league(leagueId), 'manager', userId, 'squad'] as const,
   /**
+   * One manager's squad **as it stood on one matchday**.
+   *
+   * Keyed by matchday, unlike {@link managerSquad} — this endpoint answers
+   * differently per `dayNumber`, so each day is its own entry. Hung under the
+   * same `manager` prefix, so invalidating a manager drops every matchday of
+   * theirs with it.
+   */
+  matchdaySquad: (leagueId: string, userId: string, day: number) =>
+    [...qk.managerSquad(leagueId, userId), 'day', day] as const,
+  /**
    * One player's detail. **Not scoped to a matchday** — the response carries
    * every matchday's points in `ph`, so one cache entry serves them all.
    */

@@ -28,17 +28,13 @@
  *
  * ## What it costs in honesty
  *
- * `useSquad` serves the squad **as it stands today**, so a simulated matchday
- * shows *today's* eleven with that matchday's points — the same gap the
- * [duel detail page](../../docs/pages/duel-detail.md) documents for past
- * matchdays. Fine for building the UI, misleading if mistaken for a real
- * result, which is why the badge in the header says loudly that the app is
- * simulating.
- *
- * That gap is closeable: `users/{userId}/teamcenter?dayNumber=` does serve a
- * true snapshot (verified 2026-09-04). Once the app reads it, a simulated
- * matchday would show the squad that was actually fielded, and this note can
- * shrink to "the clock is fake".
+ * A replayed matchday deliberately reports itself **unfinished**, which is
+ * what makes it live — and which also means the pages treat it as a matchday
+ * in progress and read *today's* squad rather than the
+ * [matchday snapshot](../api/hooks/useMatchdaySquad.ts). So the fixtures,
+ * the points and the states are real, and the set of players is today's.
+ * Fine for building the UI, misleading if mistaken for a real result, which
+ * is why the badge in the header says loudly that the app is simulating.
  *
  * ## Adding another transform
  *

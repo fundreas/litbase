@@ -50,8 +50,13 @@ export function DuelPlayerRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{player.name}</p>
         <p className="flex items-center gap-1.5 text-xs">
+          {/* `–` rather than a guess: the position is unknown only for a
+              player transferred away since the matchday, whom no current squad
+              can be asked about. */}
           <span className="shrink-0 text-faint">
-            {POSITION_LABEL[player.position]}
+            {player.position === undefined
+              ? '–'
+              : POSITION_LABEL[player.position]}
           </span>
           {player.fixture !== undefined && (
             <span className="truncate text-faint">

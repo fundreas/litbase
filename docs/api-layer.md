@@ -142,7 +142,16 @@ is what makes them safe to call before context has resolved.
 | `useJoinableLeagues(f)` | `/leagues/list` | 2 min |
 | `useCompetitions()` | `/competitions` | 1 hour |
 | `useCurrentMatchday(cid)` | `/competitions/{cid}/matchdays` | 1 hour |
+| `useMatchdaySquad(…)` | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | 5 min |
 | `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 1 min poll while playing |
+
+`useMatchdaySquad` is the API's only **historical** source: a manager's squad
+and lineup as they stood on a given matchday, for any manager in the league.
+It is what makes the duel page honest for past matchdays and what the squad
+page's live view reads — see
+[duel detail](pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded).
+Note its key includes the matchday, unlike `managerSquad`, because the endpoint
+answers differently per `dayNumber`.
 
 `useMatchdayPoints` is the one **fan-out** in the app: there is no bulk source
 of per-player matchday points, so it issues one request per player — but only

@@ -68,7 +68,7 @@ renders an `EmptyState` with a way back, not an error.
 
 | Status | Means | Source |
 | ------ | ----- | ------ |
-| `Bank` | The manager did not field them | `lo` absent on the squad row |
+| `Bank` | The manager did not field them | the snapshot's `nlp` list |
 | `Offen` | Fielded, their club has not kicked off | fixture kick-off in the future |
 | `Läuft` | Fielded, match in progress | kick-off passed, not reported finished |
 | `Beendet` | Fielded, match over | fixture `st === 2` |
@@ -100,53 +100,95 @@ identified during a live matchday. Candidates to check then: `st`/`mst` on
 signed-in user), and `st` on `/v4/competitions/{id}/players`, where a value of
 `5` appears on players who completed a match.
 
-## What a past matchday shows
+## A settled matchday shows what was actually fielded
 
-**This is the page's one real compromise, it is visible in the UI, and as of
-2026-09-04 it is fixable — see [the snapshot endpoint](#the-snapshot-endpoint)
-below.**
+| Matchday | Roster source |
+| -------- | ------------- |
+| **Finished** (every fixture `st === 2`) | the **matchday snapshot**, `users/{uid}/teamcenter?dayNumber=` |
+| **Live or upcoming** | `managers/{uid}/squad` and its `lo`, as before |
 
-`/v4/leagues/{id}/managers/{uid}/squad` serves a squad only **as it stands
-now** — `?dayNumber=` is accepted and ignored. So for any matchday before the
-current one, the page lists *today's* eleven with that matchday's points beside
-each player. The per-player figures are real; the set of players is not the one
-that was fielded.
+The snapshot is the historical source: `lp` is the eleven that was fielded that
+matchday and `nlp` the rest, for **any** manager in the league — so a matchday
+from four weeks ago lists the players who played it, not today's squad. It is
+read through [`useMatchdaySquad`](../../src/api/hooks/useMatchdaySquad.ts).
 
-Measured on a real league, matchday 1: one manager's current eleven scores
-**1434** on a matchday they actually took **824** from — they have rebuilt the
-team since. The other manager, who changed little, came out 32 apart.
+### Why the source depends on the matchday's state
 
-Two things follow:
+**`lp` is empty until the matchday starts.** Measured on a real payload: for a
+matchday six hours from kick-off, `teamcenter?dayNumber=` returned `lp: []` and
+`nlp:` all fifteen players, while `squad` plainly showed eleven of them fielded
+with `lo` `0…10`. So `lp` fills at or after the first kick-off, and a page that
+read it mid-matchday would draw a partial eleven, bench the rest as *Bank*, and
+— on the squad page — invoice the manager 100 points for slots that are not
+empty.
 
-1. **The manager totals come from the standings, not from summing the rows.**
-   `DuelRoster.totalPoints` is Kickbase's own `mdp`, which is correct for every
-   matchday. Summing the rows would produce that 1434.
-2. **The page says so.** Any matchday earlier than the competition's current
-   one renders a notice above the tabs explaining that the lineup is today's
-   and that the rows will not add up to the total.
+`lo` has the opposite profile: it is complete and authoritative while the
+matchday runs (Kickbase locks the lineup at kick-off) and wrong afterwards,
+because the squad keeps changing. Each source is used exactly where it is
+right, and `isSettled` — every fixture reporting `st === 2`, the API's own
+word — is the switch.
 
-The current matchday — the default, and the case the feature exists for — has
-no such gap: the lineup on screen *is* the lineup being played.
+**One probe would collapse the two branches into one.** During a running
+matchday, check whether `lp` holds all eleven or only the players whose match
+has kicked off:
 
-### The snapshot endpoint
+```bash
+KB "/v4/leagues/$L/users/$U/teamcenter?dayNumber=$CURRENT" | jq -c '{lp:(.lp|length), nlp:(.nlp|length)}'
+```
 
-**`GET /v4/leagues/{leagueId}/users/{userId}/teamcenter?dayNumber={n}` returns
-the squad and lineup as they stood on that matchday**, for any manager in the
-league. Verified 2026-09-04 against a league with played matchdays: `dayNumber`
-is honoured, `lp` is the eleven that was fielded and `nlp` the rest.
+`lp: 11` means the snapshot can be the only source everywhere, and `lo` drops
+out of this page entirely. Fewer than eleven means the split above is
+permanent.
 
-This page and the [squad page's live view](squad.md#live-tab) were both built
-on the assumption that no such endpoint existed, and both say so in prose. The
-assumption was wrong, and the reason is worth recording: the earlier probing
-covered `managers/{uid}/squad?dayNumber=` (ignored) and `teamcenter/myeleven`
-(own user only) plus eighteen 404s, but never the spelling that works — which
-differs on *both* segments, `users/…/teamcenter` rather than `managers/…/squad`.
-`users/{uid}/squad` is genuinely a 404, which made the whole `users/…` branch
-look dead.
+### What this replaced, and why it is worth remembering
 
-**Not wired up yet.** What it changes when it is: this page becomes honest for
-every matchday rather than only the current one, the notice above can go, and
-the totals could be summed from the rows as a cross-check.
+Until 2026-09-04 this page had a visible compromise, and the reasoning behind
+it was sound but built on a wrong premise. `managers/{uid}/squad` serves a
+squad only as it stands now (`?dayNumber=` is accepted and ignored), and the
+notes concluded that nothing else existed — so a past matchday listed *today's*
+eleven with that matchday's points beside each player, under a banner
+explaining the mismatch.
+
+It was not a small error. Measured on a real league, matchday 1: one manager's
+current eleven scored **1434** on a matchday they actually took **824** from,
+having rebuilt the team since.
+
+The premise was wrong because the earlier probing missed one spelling. It
+covered `managers/{uid}/squad?dayNumber=` and `teamcenter/myeleven` (own user
+only) plus eighteen 404s — but not `users/{userId}/teamcenter`, which differs
+on *both* segments. `users/{uid}/squad` really is a 404, which made the whole
+`users/…` branch look dead. The lesson generalises: in this API a route's
+spelling is not predictable from its neighbours, so a 404 on one shape says
+nothing about a sibling.
+
+`HistoricalNotice` and the `isHistorical` check are gone from the page — a
+settled matchday now shows the truth rather than an apology. What remains
+true:
+
+1. **The manager totals still come from the standings.**
+   `DuelRoster.totalPoints` is Kickbase's own `mdp`. Now that the rows are the
+   real ones the two *should* agree, up to the 100-point-per-empty-slot
+   penalty — which makes summing the rows a genuine cross-check, and a
+   worthwhile [extension](#possible-extensions).
+2. **Empty is not zero.** The endpoint answers 200 with both lists empty for a
+   matchday it has nothing for — one before the league existed, or out of
+   range. `MatchdaySquad.isEmpty` carries that, and the page renders an
+   `EmptyState` saying so rather than two blank teams.
+
+### Positions come from today's squad
+
+The snapshot does not reliably carry `pos` — it is present on
+`teamcenter/myeleven`'s entries and absent from the day-scoped variant's — so
+`useManagerSquad` is read for that one field and passed to `useMatchdaySquad`
+as a back-fill. It is needed anyway as the live-matchday roster source, so this
+costs no extra request.
+
+A player **transferred away since** that matchday is in the snapshot but in no
+current squad, so his position can be unknown. `DuelPlayer.position` is
+therefore optional: a row renders `–` for the label, and the squad page's live
+pitch says how many players it could not place rather than inventing a
+position. `toPosition()`'s midfield default would have put a stranger in the
+middle of the park and looked deliberate.
 
 ## Points cost: one request per player
 
@@ -185,13 +227,14 @@ too — the rules are the hook's, not this page's.
 | Query | Endpoint | Shared with |
 | ----- | -------- | ----------- |
 | `useDuels` | `/leagues/{id}/ranking?dayNumber=` | [Duels](duels.md) — already warm |
-| `useManagerSquad` ×2 | `/leagues/{id}/managers/{uid}/squad` | — |
+| `useMatchdaySquad` ×2 | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | [Squad — live tab](squad.md#live-tab) |
+| `useManagerSquad` ×2 | `/leagues/{id}/managers/{uid}/squad` | positions only — see [above](#positions-still-come-from-todays-squad) |
 | `useMatchdayFixtures` | `/competitions/{id}/matchdays` | squad page, duel picker |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Squad — live tab](squad.md#live-tab) |
 
 `useManagerSquad` is how the app reads another manager's lineup today. It is
 **not** the only way, though this file said so until 2026-09-04:
-`users/{uid}/teamcenter?dayNumber=` ([above](#the-snapshot-endpoint)) serves any
+`users/{uid}/teamcenter?dayNumber=` ([above](#a-settled-matchday-shows-what-was-actually-fielded)) serves any
 manager's team for any matchday. `teamcenter/myeleven` really is own-user-only —
 `userId`, `uid`, `u` and `dayNumber` are all silently ignored there, and 18
 other path spellings answer 404, which is what the old claim was based on.
@@ -233,16 +276,21 @@ than as zero — not knowing is not the same as nothing.
 | Rosters loading | Tabs render; `SkeletonList` in place of the content |
 | Error | `ErrorState` with retry |
 | Pairing not on this matchday | `EmptyState` with a link back to the list |
-| Past matchday | Notice above the tabs — see [above](#what-a-past-matchday-shows) |
+| Matchday the API has no squads for | `EmptyState` — `isEmpty`, not an error; see [above](#a-settled-matchday-shows-what-was-actually-fielded) |
 
 Points arriving late do **not** block the rows: a player renders with `–` and
 fills in, which is what keeps a live page from flashing a skeleton every minute.
 
 ## Possible extensions
 
-- Sum the fielded rows and show the difference against the official total on
-  the current matchday — a live sanity check that would have caught the
-  historical-lineup gap immediately.
+- Sum the fielded rows and compare against the official `mdp`. Now that the
+  rows are the real ones the two should agree up to the empty-slot penalty, so
+  a mismatch means something is wrong — and this is the check that would have
+  caught the historical-lineup gap years earlier than reading the docs did.
+- **Read points from the snapshot.** A `p` field on its player entries would
+  collapse the per-player fan-out below to one request per manager. Unconfirmed
+  on a played matchday, hence unused — see
+  [`TeamcenterPlayer`](../../src/api/types.ts).
 - Use `stxt` from the player detail (already fetched) to explain an unavailable
   player: "Hip bruise – misses FCA (A)".
 - Goals and assists per player; the player detail carries `g` and `a`.

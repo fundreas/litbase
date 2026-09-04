@@ -51,6 +51,24 @@ const VIEW_STORAGE_KEY = 'litbase.squad.live.view'
  *    can tell a manager, and leaving them out would make the list disagree
  *    with the pitch about who exists.
  *
+ * **Why this view does *not* read the matchday snapshot.** It would be the
+ * obvious source — the duel page uses it for past matchdays, and it is the
+ * only thing that knows a squad as it stood — but it cannot be trusted while a
+ * matchday runs. Measured on a real payload: for a matchday that has not
+ * kicked off, the snapshot's `lp` is **empty** while the squad plainly has
+ * eleven fielded (`lo` `0…10`). So `lp` fills at or after kick-off, and a view
+ * that read it at 15:45 on a Saturday would draw a partial eleven, bench the
+ * rest, and invoice the manager for empty slots that are not empty.
+ *
+ * Today's `lineupOrder` is the right source here precisely because this view
+ * only exists *during* the matchday: Kickbase locks the lineup at the first
+ * kick-off, so `lo` is both complete and current. The gap that remains is
+ * narrow — a player transferred away mid-matchday drops out of the list along
+ * with his points — and closing it means learning whether `lp` fills with all
+ * eleven at the matchday's start or only per match. One probe during a running
+ * matchday settles it; see
+ * [duel detail](../../../docs/pages/duel-detail.md#a-settled-matchday-shows-what-was-actually-fielded).
+ *
  * **Read-only.** Kickbase locks the lineup at the first kick-off, so there is
  * nothing here to edit: no rail, no swap dialog, no save. Tapping a player
  * opens his own page, which is where the per-match detail lives.

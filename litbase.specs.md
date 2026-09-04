@@ -61,8 +61,19 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
     - note the spelling: users/{id}/teamcenter, NOT managers/{id}/squad
       (that one accepts ?dayNumber= and silently ignores it)
     - empty lp+nlp for out-of-range days and for matchdays before the league existed
-    -> not wired up yet: would fix the duel page's past-matchday compromise and
-       let the squad page's Live view work for past matchdays too
+    - CAVEAT (measured): lp is EMPTY until the matchday starts. 6h before kickoff:
+      lp=[] and nlp=all 15, while squad showed 11 fielded with lo 0..10.
+      So the snapshot is only complete once a matchday is finished.
+    -> WIRED UP (useMatchdaySquad) on the duel page: finished matchday = snapshot
+       (real squad+lineup, "historical" notice deleted), live/upcoming = lo as
+       before. The squad Live view deliberately keeps lo: mid-matchday lp would
+       draw a partial eleven and charge a false -100/slot penalty.
+       Positions come from today's squad (snapshot has no reliable `pos`);
+       points still come from ph[day-1].
+    - NEXT PROBE (during a running matchday): does lp hold all 11, or only the
+      players whose match has kicked off?
+        KB "/v4/leagues/$L/users/$U/teamcenter?dayNumber=$CURRENT" | jq -c '{lp:(.lp|length),nlp:(.nlp|length)}'
+      lp=11 -> snapshot can be the single source everywhere and lo drops out.
 
 # Transfermarkt
 
