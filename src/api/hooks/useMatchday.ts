@@ -10,6 +10,7 @@ import type {
   SeasonSchedule,
   TeamFixture,
 } from '@/api/models'
+import { MATCHDAY_STATE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type { FixtureItem, MatchdaysResponse } from '@/api/types'
 import { simulateMatchdays } from '@/dev/simulation'
@@ -26,9 +27,6 @@ export interface CurrentMatchday {
 const FIXTURE_FINISHED = 2
 
 const HOUR = 60 * 60_000
-
-/** How often the fixture list is re-read while a match is being played. */
-const LIVE_POLL_MS = 60_000
 
 /**
  * How soon before a kick-off the list starts watching the clock.
@@ -108,7 +106,7 @@ function useMatchdaysQuery<T>(
      */
     staleTime: (query) => (isMatchdayLive(query.state.data) ? 0 : HOUR),
     refetchInterval: (query) =>
-      isMatchdayLive(query.state.data) ? LIVE_POLL_MS : false,
+      isMatchdayLive(query.state.data) ? MATCHDAY_STATE_POLL_MS : false,
     select,
     queryFn: async () => {
       const data = await get<MatchdaysResponse>(

@@ -3,11 +3,9 @@ import { useQueries } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import { fixtureState, toEventTallies, type LiveMatch } from '@/api/models'
+import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type { MatchDetailsResponse } from '@/api/types'
-
-/** How often a match is re-read while it is being played. */
-const LIVE_POLL_MS = 60_000
 
 /**
  * The **live state of every match of a matchday**: the score, the minute, and
@@ -29,7 +27,7 @@ const LIVE_POLL_MS = 60_000
  *     `staleTime: Infinity`, no poll. Its result cannot change.
  *
  * Only running matches are polled, so a matchday with one late kick-off costs
- * one request a minute rather than nine.
+ * one request a tick rather than nine — at [the live rate](../polling.ts).
  *
  * The events carry the **same `ke` codes** as `k` on the performance endpoint
  * (verified against a finished match: five `1`s and one `2` in a 5:1 game, four

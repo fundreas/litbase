@@ -76,7 +76,13 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
     - points = ~36 requests per match (one per player), and only while the
       Aufstellung/Ranking tabs are open. They poll at 60s while the match runs,
       so points and the Ranking order move live.
-    - LIVE UPDATES: score/minute/events poll at 60s while running. The catch
+    - LIVE UPDATES: score/minute/events poll at 10s while running, and so do
+      the per-player points (per player, only while HIS match is running).
+      One constant: src/api/polling.ts. The season fixture list stays at 60s —
+      it is the whole season fetched for one boolean (`st`).
+      COST: a full fixture is ~36 player requests every 10s while the
+      Aufstellung/Ranking tab is open. Bounded (stops at the final whistle,
+      pauses in an unfocused tab) but it is the app's heaviest traffic. The catch
       that had to be fixed: refetchInterval is re-evaluated only on a refetch
       or an observer re-render, so `false` before kickoff is a DEAD END — a
       page open at 20:29 still said 18:30 at 20:45, and the fixture-list query

@@ -146,9 +146,14 @@ is what makes them safe to call before context has resolved.
 | `useSeasonMatch(cid, mi)` | `/competitions/{cid}/matchdays` | 1 hour — same entry |
 | `useMatchdaySquad(…)` | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | 5 min |
 | `useMatchdayLineups(…)` | same endpoint × one per manager — league-wide ownership | 5 min |
-| `useLiveMatches(…)` | `/matches/{matchId}/details` × N | ∞ once over, 0 + 1 min poll while playing |
+| `useLiveMatches(…)` | `/matches/{matchId}/details` × N | ∞ once over, 0 + 10 s poll while playing |
 | `useMatchDetails(match)` | `/matches/{matchId}/details` | as above, plus 5 min before kick-off |
-| `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 1 min poll while playing |
+
+Every live rate is the one constant in [`polling.ts`](../src/api/polling.ts) —
+**10 s** — gated per running subject (a match, a player) rather than per page.
+The season fixture list is the deliberate exception at 60 s: it is the whole
+season fetched for one boolean, `st`.
+| `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 10 s poll while playing |
 | `useMatchLineup(…)` | `useMatchdayLineups` + `useMatchdayPoints` + `useRanking` | — composes the three |
 
 `useMatchdaySquad` is the API's only **historical** source: a manager's squad

@@ -3,11 +3,11 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import type { Duel, DuelSide, MatchdayDuels } from '@/api/models'
+import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type { RankingResponse, RankingUser } from '@/api/types'
 
 /** How often the standings are re-read while a matchday is being played. */
-const LIVE_POLL_MS = 60_000
 
 /** A settled matchday cannot change, so it is held for a while. */
 const SETTLED_STALE_MS = 5 * 60_000

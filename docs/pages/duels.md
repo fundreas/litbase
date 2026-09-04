@@ -138,7 +138,7 @@ It is a **function, not a stored flag**, deliberately. The matchday list is
 cached for an hour, so a boolean computed at map time would go stale inside its
 own cache window.
 
-While a matchday is `live` the duel query polls once a minute
+While a matchday is `live` the duel query polls at the shared live rate
 (`refetchInterval`), and its `staleTime` drops to zero. A settled matchday
 cannot change and is held for five minutes.
 

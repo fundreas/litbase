@@ -15,6 +15,7 @@ import {
   type MatchTeam,
   type MatchTimelineEvent,
 } from '@/api/models'
+import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import { nowMs } from '@/lib/clock'
 import {
@@ -22,9 +23,6 @@ import {
   type MatchDetailsResponse,
   type MatchLineupPlayer as MatchLineupPlayerDto,
 } from '@/api/types'
-
-/** How often the match is re-read while it is being played. */
-const LIVE_POLL_MS = 60_000
 
 /**
  * How long a match that has not kicked off is held, and how often it is
@@ -38,10 +36,11 @@ const LIVE_POLL_MS = 60_000
 const UPCOMING_POLL_MS = 5 * 60_000
 
 /**
- * How close to kick-off the slow poll speeds up to the live one.
+ * How close to kick-off the slow poll speeds up.
  *
- * So a page already open at 20:29 is polling every minute by 20:30 rather than
- * waiting out the rest of a five-minute tick — see the note on the poll below.
+ * So a page already open at 20:29 is watching the clock closely by 20:30
+ * rather than waiting out the rest of a five-minute tick — see the note on the
+ * poll below.
  */
 const KICKOFF_SOON_MS = 10 * 60_000
 
@@ -61,11 +60,12 @@ const MATCH_FINISHED = 2
  *
  * ## The poll, and why an upcoming match polls at all
  *
- *  - **Running** → stale at once, re-read every minute. This is what makes the
- *    score, the minute and the event feed move.
+ *  - **Running** → stale at once, re-read at
+ *    [the live rate](../polling.ts). This is what makes the score, the minute
+ *    and the event feed move.
  *  - **Finished** → fetched once and held for the session. Nothing can change.
- *  - **Not kicked off** → re-read every {@link UPCOMING_POLL_MS}, or every
- *    minute once kick-off is within {@link KICKOFF_SOON_MS}.
+ *  - **Not kicked off** → re-read every {@link UPCOMING_POLL_MS}, or at the
+ *    live rate once kick-off is within {@link KICKOFF_SOON_MS}.
  *
  * That last rule is not about the team sheets, though it does pick them up. It
  * is the **only thing that gets the page from *upcoming* to *live* on its

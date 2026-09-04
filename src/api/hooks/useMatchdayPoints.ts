@@ -9,11 +9,9 @@ import {
   type MatchdayFixture,
   type PositionKey,
 } from '@/api/models'
+import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type { PlayerDetailResponse } from '@/api/types'
-
-/** How often a player is re-read while their match is actually being played. */
-const LIVE_POLL_MS = 60_000
 
 /** The little a caller has to know about a player to ask for their points. */
 export interface PointsSubject {
@@ -89,9 +87,15 @@ export interface MatchdayPoints {
  *  2. **A settled player is fetched once.** Their match is over, their points
  *     cannot change, so the query never goes stale for the rest of the
  *     session.
- *  3. **Only players actually on the pitch are polled.** The minute-poll is
- *     attached per player, not to the page, so a matchday with one late match
- *     running costs one request a minute rather than twenty-two.
+ *  3. **Only players actually on the pitch are polled**, at
+ *     [the live rate](../polling.ts). The poll is attached per player, not to
+ *     the page, so a matchday with one late match running costs two requests a
+ *     tick rather than twenty-two.
+ *
+ *     It is still the app's heaviest traffic by a distance: a full fixture's
+ *     thirty-six players poll together, so a match page open on the lineup tab
+ *     spends thirty-six requests every tick for as long as the match runs. The
+ *     rate lives in one place so that trade can be re-made in one edit.
  *
  * The cache key is `qk.playerDetail(leagueId, playerId)` with **no matchday**
  * in it: one response carries every matchday's points, so all matchdays share
@@ -154,8 +158,7 @@ export function useMatchdayPoints(
   // each time, so this cannot be memoised on its own input without inventing a
   // surrogate key for it — and a signature-string keyed memo is harder to
   // trust than the thirty map writes it would save. Nothing here is on a hot
-  // path: a page using this re-renders on a once-a-minute poll and on a tab
-  // switch.
+  // path: a page using this re-renders on the live poll and on a tab switch.
   const byPlayerId = new Map<string, number>()
   const positionByPlayerId = new Map<string, PositionKey>()
   const ownerIdByPlayerId = new Map<string, string>()

@@ -89,8 +89,9 @@ played reads as "these three are on" in one look rather than one dot at a time.
 | The live score and minute | `useLiveMatches(matches)` → `/matches/{mi}/details` × N | One request per **started** match; a finished one is fetched once and held, only a running one polls |
 
 So an upcoming matchday costs **zero** requests beyond the cached season list,
-and a matchday with one late kick-off still running costs one request a minute
-rather than nine.
+and a matchday with one late kick-off still running costs one request a tick
+rather than nine. The live rate is **10 s**, one constant in
+[`polling.ts`](../../src/api/polling.ts), gated per running match.
 
 **The list goes live on its own.** The fixture-list query starts polling ten
 minutes before the current matchday's first kick-off rather than only once

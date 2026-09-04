@@ -337,7 +337,7 @@ whole duel is a single fan-out. Three rules keep that affordable:
    matchday therefore issues **zero** player requests.
 2. **A settled player is fetched once.** Their match is over and their points
    cannot change, so `staleTime: Infinity` for the rest of the session.
-3. **Only players on the pitch are polled.** The minute-poll is attached *per
+3. **Only players on the pitch are polled.** The live poll is attached *per
    player*, not to the page, so a matchday with one late kick-off costs one
    request a minute rather than twenty-two.
 
@@ -428,8 +428,8 @@ tooltip and as screen-reader text.
 
 [`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts) →
 `GET /v4/matches/{matchId}/details`, **one request per match** (nine for a
-matchday) rather than per player, polled once a minute only while a match is
-running and fetched once and held for a finished one.
+matchday) rather than per player, polled at the shared live rate only while a
+match is running and fetched once and held for a finished one.
 
 The score used to come from the fixture list, which is the whole season and
 cached for an hour — an hour-old number beside a pulsing "live" dot. The
