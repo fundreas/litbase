@@ -1,17 +1,51 @@
-import type { DuelRoster } from '@/api/models'
-import { DuelPlayerRow } from '@/components/duels/DuelPlayerRow'
+import type { DuelPlayer, DuelRoster, PositionKey } from '@/api/models'
+import { Pitch } from '@/components/squad/Pitch'
+import {
+  fitPitchMetrics,
+  ROW_ORDER,
+  ROW_ORDER_MIRRORED,
+  usePitchBox,
+  type PlayerMetrics,
+} from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
+import { useMemo } from 'react'
 
 /**
- * Both teams, one under the other.
+ * Which half of the pitch a player belongs to, and therefore how they are
+ * drawn. The top side keeps the white ring the squad's own pitches use; the
+ * bottom side takes the accent, so a glance at a portrait says whose it is
+ * without reading anything.
+ */
+type Side = 'top' | 'bottom'
+
+const RING_CLASS: Record<Side, string> = {
+  top: 'ring-white/75',
+  bottom: 'ring-accent/80',
+}
+
+/**
+ * Both elevens on **one pitch, facing each other** — the first manager's
+ * keeper at the top, the second's at the bottom, strikers either side of the
+ * halfway line, exactly as the fixture would be drawn.
  *
- * Side by side was the obvious layout and the wrong one: two elevens in
- * parallel columns on a 360px screen leaves ~170px per player, which is not
- * enough for a name, a fixture and a score. Stacked, each roster gets the full
- * width and the comparison is made by the header figures rather than by the
- * eye travelling sideways.
+ * This replaced two stacked lists of rows. The rows carried more per player (a
+ * fixture, a status word, a position) and still lost the thing a duel is
+ * actually about: the shape of two teams against each other, and where the
+ * points are coming from. A pitch answers "who is carrying this" in one look,
+ * and the [Rangliste](./DuelRankingTab.tsx) is one tap away for the detail.
+ *
+ * **Eight bands, not four.** The top half runs keeper → defence → midfield →
+ * attack downwards ({@link ROW_ORDER_MIRRORED}) and the bottom half runs the
+ * usual way up ({@link ROW_ORDER}), so the two attacks meet in the middle. The
+ * card sizing has to be told there are eight of them, or every portrait is
+ * budgeted twice the height it has.
+ *
+ * **Portraits carry a picture and a points figure, nothing else.** At 22
+ * players on a phone a name under each is unreadable and a fixture badge is
+ * noise; the points are the only number that changes and the only one worth
+ * reading off a pitch.
  */
 export function DuelLineupTab({
   rosters,
@@ -20,76 +54,256 @@ export function DuelLineupTab({
   rosters: [DuelRoster, DuelRoster]
   viewerId?: string
 }) {
+  const [top, bottom] = rosters
+  const { ref, box } = usePitchBox()
+
+  /**
+   * The busiest band across **both** halves — five defenders on either side
+   * constrains the whole pitch, since every card is drawn at one size.
+   */
+  const metrics = useMemo(() => {
+    const bandSizes = [
+      ...ROW_ORDER_MIRRORED.map((position) => countAt(top.lineup, position)),
+      ...ROW_ORDER.map((position) => countAt(bottom.lineup, position)),
+    ]
+    return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
+      rows: ROW_ORDER.length * 2,
+      plate: 'points',
+    })
+  }, [box, top.lineup, bottom.lineup])
+
   return (
-    <div className="flex flex-col gap-4">
-      {rosters.map((roster) => (
-        <RosterCard
-          key={roster.manager.id}
-          roster={roster}
-          isViewer={roster.manager.id === viewerId}
+    /* `min-h-0 flex-1` so the pitch can claim whatever height the page has
+       left after the benches, rather than sitting at its floor on a desktop.
+       The `min-h-[30rem]` floor is what keeps eight bands legible on a phone:
+       below that the page scrolls instead of the cards shrinking further. */
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <Pitch className="min-h-[30rem] flex-1">
+        {/* Name plates in the corners rather than a legend: the header pairs
+            the managers left and right, the pitch stacks them top and bottom,
+            and something has to bridge those two arrangements. */}
+        <SideLabel
+          roster={top}
+          side="top"
+          isViewer={top.manager.id === viewerId}
+        />
+
+        <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
+          {ROW_ORDER_MIRRORED.map((position) => (
+            <PitchBand
+              key={`top-${position}`}
+              players={top.lineup.filter((p) => p.position === position)}
+              metrics={metrics}
+              side="top"
+            />
+          ))}
+          {ROW_ORDER.map((position) => (
+            <PitchBand
+              key={`bottom-${position}`}
+              players={bottom.lineup.filter((p) => p.position === position)}
+              metrics={metrics}
+              side="bottom"
+            />
+          ))}
+        </div>
+
+        <SideLabel
+          roster={bottom}
+          side="bottom"
+          isViewer={bottom.manager.id === viewerId}
+        />
+      </Pitch>
+
+      {/* Two columns, laid out the way the header is: manager one on the
+          left, manager two on the right. The pitch has to stack them top and
+          bottom to make them face each other, so the benches keep the
+          left/right arrangement the scoreline established and the corner
+          labels bridge the two. */}
+      <div className="grid grid-cols-2 gap-2">
+        <BenchColumn roster={top} side="top" />
+        <BenchColumn roster={bottom} side="bottom" />
+      </div>
+    </div>
+  )
+}
+
+function countAt(lineup: DuelPlayer[], position: PositionKey): number {
+  return lineup.filter((player) => player.position === position).length
+}
+
+/** One position's players, side by side. */
+function PitchBand({
+  players,
+  metrics,
+  side,
+}: {
+  players: DuelPlayer[]
+  metrics: PlayerMetrics
+  side: Side
+}) {
+  return (
+    /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
+       documents at length: wrapping turns width pressure into height, which
+       feeds back into the sizing and oscillates. The fit above already
+       guarantees the busiest band fits, so clipping is a backstop. */
+    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
+      {players.map((player) => (
+        <PitchPlayer
+          key={player.id}
+          player={player}
+          metrics={metrics}
+          side={side}
         />
       ))}
     </div>
   )
 }
 
-function RosterCard({
+/**
+ * A portrait and its score.
+ *
+ * The points line is tinted **only while the player's match is running** —
+ * the one state that is going to change, and so the only one worth spotting
+ * across a pitch of 22. `–` rather than `0` while unknown, the rule the whole
+ * page follows.
+ */
+function PitchPlayer({
+  player,
+  metrics,
+  side,
+}: {
+  player: DuelPlayer
+  metrics: PlayerMetrics
+  side: Side
+}) {
+  const isRunning = player.status === 'playing'
+  const hasPoints = player.points !== undefined
+
+  return (
+    <span
+      title={`${player.name}: ${hasPoints ? `${points(player.points)} Punkte` : 'noch keine Punkte'}`}
+      style={{ width: metrics.width }}
+      className="flex shrink-0 flex-col items-center p-1"
+    >
+      <Avatar
+        src={player.image}
+        name={player.name}
+        size={metrics.avatar}
+        className={cn('ring-2', RING_CLASS[side])}
+      />
+      <span
+        style={{
+          width: metrics.plateWidth,
+          marginTop: -metrics.plateOverlap,
+          fontSize: metrics.nameFontSize,
+        }}
+        className={cn(
+          'nums relative truncate rounded bg-black/70 px-1 text-center font-bold',
+          isRunning
+            ? 'text-accent'
+            : hasPoints
+              ? 'text-white'
+              : 'text-white/50',
+        )}
+      >
+        {points(player.points)}
+      </span>
+    </span>
+  )
+}
+
+/**
+ * Whose half this is, in the corner of the pitch.
+ *
+ * Absolutely positioned so it costs the bands no height — the pitch is the
+ * scarcest space on the page and eight bands are already tight.
+ */
+function SideLabel({
   roster,
+  side,
   isViewer,
 }: {
   roster: DuelRoster
+  side: Side
   isViewer: boolean
 }) {
   return (
-    <section
+    <span
       className={cn(
-        'overflow-hidden rounded-card border bg-surface',
-        isViewer ? 'border-accent/50' : 'border-line',
+        'absolute z-10 flex items-center gap-1.5 rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm',
+        side === 'top' ? 'top-1 left-1' : 'bottom-1 left-1',
       )}
     >
-      <header className="flex items-center gap-3 border-b border-line px-3 py-3">
+      <Avatar src={roster.manager.image} name={roster.manager.name} size={16} />
+      <span className="max-w-28 truncate text-[0.625rem] font-semibold text-white">
+        {roster.manager.name}
+        {isViewer && <span className="ml-1 text-accent">du</span>}
+      </span>
+    </span>
+  )
+}
+
+/**
+ * One manager's unfielded players, as a **column** beside the other's.
+ *
+ * They scored what they scored and it did not count — which is exactly why
+ * they are shown: a bench outscoring the eleven is the most interesting thing
+ * a duel can tell you, and the [Rangliste](./DuelRankingTab.tsx) ranks the two
+ * together.
+ *
+ * Stacked rather than a sideways-scrolling strip, because two benches side by
+ * side are meant to be *compared*: rows at matching heights read against each
+ * other, and nothing is hidden off the edge waiting to be swiped into view.
+ * A name fits in a row where it would not fit under a portrait, so unlike the
+ * pitch these carry one.
+ *
+ * Dimmed as a set rather than tagged one by one — the heading says what they
+ * are, and repeating "Bank" down every row is noise.
+ */
+function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-1.5">
+      <h3 className="flex min-w-0 items-center gap-1.5 px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
         <Avatar
           src={roster.manager.image}
           name={roster.manager.name}
-          size={40}
+          size={14}
         />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink">
-            {roster.manager.name}
-            {isViewer && <span className="ml-1.5 text-xs text-accent">du</span>}
-          </p>
-          {/* What is still to come, which is the question a live duel raises:
-              a manager 40 points behind with four matches open is winning. */}
-          <p className="nums truncate text-xs text-muted">
-            {roster.activeMatches} laufend · {roster.openMatches} offen
-          </p>
-        </div>
-        <p className="nums shrink-0 text-lg font-bold text-ink">
-          {points(roster.totalPoints)}
+        <span className="truncate">{roster.manager.name}</span>
+      </h3>
+
+      {roster.bench.length === 0 ? (
+        <p className="rounded-card border border-line bg-surface px-2 py-3 text-center text-[0.6875rem] text-muted">
+          Alle Spieler aufgestellt
         </p>
-      </header>
-
-      <ul className="divide-y divide-line">
-        {roster.lineup.map((player) => (
-          <li key={player.id}>
-            <DuelPlayerRow player={player} />
-          </li>
-        ))}
-      </ul>
-
-      {roster.bench.length > 0 && (
-        <>
-          <h3 className="border-t border-line bg-surface-2/40 px-3 py-1.5 text-[0.6875rem] font-medium tracking-wide text-faint uppercase">
-            Bank
-          </h3>
-          <ul className="divide-y divide-line">
-            {roster.bench.map((player) => (
-              <li key={player.id} className="opacity-60">
-                <DuelPlayerRow player={player} />
-              </li>
-            ))}
-          </ul>
-        </>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {roster.bench.map((player) => (
+            <li
+              key={player.id}
+              title={`${player.name}: ${player.points === undefined ? 'noch keine Punkte' : `${points(player.points)} Punkte`} (Bank)`}
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-1.5 py-1 opacity-75"
+            >
+              <Avatar
+                src={player.image}
+                name={player.name}
+                size={24}
+                className={cn('ring-1', RING_CLASS[side])}
+              />
+              <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-ink">
+                {player.name}
+              </span>
+              <span
+                className={cn(
+                  'nums shrink-0 text-[0.6875rem] font-semibold',
+                  player.points === undefined ? 'text-faint' : 'text-ink',
+                )}
+              >
+                {points(player.points)}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   )

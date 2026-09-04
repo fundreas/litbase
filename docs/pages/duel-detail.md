@@ -10,49 +10,113 @@ player ranking.
 ## Layout
 
 ```
-  ‹ Duelle
   (A) Danger du        :        GOATstaller (A)
       834                              824
-              1. Spieltag · Beendet
+      4 laufend · 2 offen      3 laufend · 1 offen
+  1. Spieltag · Live                      [👕|≡]
 
   ┌──────────────────────────────────────────┐
-  │  Aufstellung  │        Rangliste         │
+  │ (A) Danger du            ← whose half    │
+  │                (Raab)                    │   keeper, top
+  │                  9                       │
+  │      (Anton) (Koch) (Tah) (Kimmich)      │   defence
+  │        158     44    31      88          │
+  │  ⋯                                       │
+  │             (Kane)  (Sané)               │   attack
+  │              215      12                 │
+  │ ─────────────────────────────────────────│   halfway line
+  │           (Guirassy) (Olise)             │   attack, facing back
+  │               76        41               │
+  │  ⋯                                       │
+  │                (Nübel)                   │   keeper, bottom
+  │                  64                      │
+  │ (A) GOATstaller                          │
   └──────────────────────────────────────────┘
 
-  ┌──────────────────────────────────────────┐
-  │ (A) Danger du              834           │
-  │     0 laufend · 0 offen                  │
-  ├──────────────────────────────────────────┤
-  │ (a) Raab      TW  vs SGE  Beendet     9  │
-  │ (a) Anton     ABW vs HSV  Beendet   158  │
-  │ …                                        │
-  ├─ BANK ───────────────────────────────────┤
-  │ (a) Karaman   ANG @ FCA   Bank        –  │
-  └──────────────────────────────────────────┘
+  DANGER DU              GOATSTALLER
+  ┌────────────────┐     ┌────────────────┐
+  │ (a) Karaman  – │     │ (a) Führich 92 │
+  │ (a) Burkardt 4 │     │ (a) Grimaldo – │
+  └────────────────┘     └────────────────┘
 ```
 
-**The two teams are stacked, not side by side.** Parallel columns were the
-obvious layout and the wrong one: two elevens on a 360px screen leaves ~170px
-per player, which does not fit a name, a fixture and a score. Stacked, each
-roster gets the full width, and the comparison is carried by the header figures
-rather than by the eye travelling sideways.
+**One pitch, two elevens facing each other.** The first manager's keeper is at
+the top and the second's at the bottom, so the two attacks meet at the halfway
+line the way a real fixture is drawn. It is **eight bands**, not four: the top
+half runs keeper → defence → midfield → attack downwards (`ROW_ORDER_MIRRORED`)
+and the bottom half runs the usual way up (`ROW_ORDER`). The card sizing in
+[`pitchMetrics`](../../src/components/squad/pitchMetrics.ts) has to be told
+`rows: 8`, or every portrait is budgeted twice the height it has and the lot
+gets clipped.
 
-Each roster header shows the manager's total and, beneath it, **`n laufend ·
-n offen`** — how many of their eleven are playing right now and how many have
-not kicked off. That is the question a live duel actually raises: a manager 40
-points behind with four matches still to come is winning.
+**Portraits carry a picture and a points figure, nothing else.** With 22
+players on a 360px screen a name under each is unreadable and a fixture badge
+is noise. The points are the only number that changes, and the only one worth
+reading off a pitch — tinted accent while that player's match is running, `–`
+rather than `0` while unknown. The plate is sized for one line
+(`plate: 'points'`), which is also what lets the avatar floor drop to 26px on a
+phone.
 
-## The routes are the tabs
+**Telling the sides apart** takes two things: the ring around each portrait
+(white on top, accent below) and a small manager chip in each half's corner.
+The chips exist because the header pairs the managers *left and right* while
+the pitch has to stack them *top and bottom* — something has to bridge those
+two arrangements, and a legend would cost a row of height the pitch cannot
+spare.
+
+### This replaced two stacked lists
+
+The lineup view used to be two `RosterCard`s: a header per manager over eleven
+rows, each with a fixture, a status word and a position. Those rows carried
+more per player and still lost what a duel is about — the shape of two teams
+against each other, and where the points are coming from. The pitch answers
+that in one look, and the [Rangliste](#the-ranking-tab) is one tap away for
+the per-player detail, so nothing is actually gone.
+
+### The bench: two columns, left and right
+
+Below the pitch, one column per manager — **first manager left, second
+right**, matching the header rather than the pitch. Stacked rows rather than a
+sideways-scrolling strip, because two benches side by side are meant to be
+*compared*: rows at matching heights read against each other, and nothing hides
+off the edge waiting to be swiped into view. A row has the width for a name
+where a portrait on the pitch does not, so these carry one.
+
+Bench players are dimmed as a set — the column heading says what they are, and
+repeating "Bank" down every row is noise. A manager with a full eleven and
+nothing spare gets *Alle Spieler aufgestellt* rather than an empty box.
+
+### Header
+
+The scoreline is unchanged except that **`n laufend · n offen` moved into it**,
+under the manager it belongs to. It used to sit inside each roster card, which
+the pitch replaced; it reads better here anyway, since it qualifies the total
+directly above it — 40 points behind with four matches to play is winning. The
+line is simply absent until the rosters land, rather than claiming
+`0 laufend · 0 offen`.
+
+**There is no back link.** It cost a row at the top of a page whose content
+wants to be a pitch, to duplicate what the browser's back gesture and the nav
+drawer already do.
+
+## The routes are the views
 
 ```
-/leagues/:leagueId/duels/:duelId          → Aufstellung
+/leagues/:leagueId/duels/:duelId          → Aufstellung (the pitch)
 /leagues/:leagueId/duels/:duelId/ranking  → Rangliste
 ```
 
-Two routes, one component, tab derived from the segment — the same convention
-as the [squad page](squad.md), for the same reason: each view is linkable and
-survives a refresh. Switching tabs uses `replace`, so back leaves the page
-rather than walking through every tab visit.
+Two routes, one component, the view derived from the segment — the same
+convention as the [squad page](squad.md), for the same reason: each is linkable
+and survives a refresh. Switching uses `replace`, so back leaves the page
+rather than walking through every visit.
+
+**The control is a one-button, two-glyph toggle**, not a tab bar — the same
+control the Kader view uses for list/grid, for the same reasons: two triggers
+take twice the width to say one thing, and a lone glyph cannot answer "is this
+where I am or where I would go?". It sits on the right of the matchday line,
+and it still navigates, which is what keeps the two views linkable. `Tabs` is
+gone from this page.
 
 `duelId` is **both manager ids sorted and joined with `-`** — the same string
 the list page uses as a React key, so the URL needs no lookup table and a link
@@ -77,6 +141,11 @@ renders an `EmptyState` with a way back, not an error.
 Only `Läuft` is coloured loudly (accent). It is the one state that is going to
 change, and the only one worth scanning a live page for; if all five were
 tinted, eleven rows would read as a warning light.
+
+On the **pitch** the status is carried by that tint alone — there is no room
+for a word under a portrait — so a running player's points show in accent and
+everything else in white. The [Rangliste](#the-ranking-tab) spells all five
+out.
 
 **Points render as `–`, never `0`, while unknown.** That distinction is why
 `DuelPlayer.points` is optional: a player whose match has not started has *no*
@@ -273,7 +342,7 @@ than as zero — not knowing is not the same as nothing.
 | State | Rendering |
 | ----- | --------- |
 | Schedule or duel loading | `SkeletonList rows={8}` |
-| Rosters loading | Tabs render; `SkeletonList` in place of the content |
+| Rosters loading | The header and toggle render; `SkeletonList` in place of the pitch |
 | Error | `ErrorState` with retry |
 | Pairing not on this matchday | `EmptyState` with a link back to the list |
 | Matchday the API has no squads for | `EmptyState` — `isEmpty`, not an error; see [above](#a-settled-matchday-shows-what-was-actually-fielded) |

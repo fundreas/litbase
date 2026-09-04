@@ -19,6 +19,16 @@ import type { PositionKey } from '@/api/models'
 export const ROW_ORDER: PositionKey[] = ['fwd', 'mid', 'def', 'gk']
 
 /**
+ * The mirror of {@link ROW_ORDER} — keeper first, attack last.
+ *
+ * For the **top half** of a head-to-head pitch, where that team attacks
+ * downwards towards the centre line. Used with `ROW_ORDER` underneath it, the
+ * two elevens end up facing each other the way a real fixture does: keepers at
+ * the two ends, strikers either side of the halfway line.
+ */
+export const ROW_ORDER_MIRRORED: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
+
+/**
  * Bounds for the on-pitch avatar, which scales with the pitch itself.
  *
  * A fixed 44px looked right on a phone and lost on a 1280px screen, where the
@@ -28,6 +38,16 @@ export const ROW_ORDER: PositionKey[] = ['fwd', 'mid', 'def', 'gk']
  */
 const AVATAR_MIN = 40
 const AVATAR_MAX = 96
+/**
+ * Floor for a **compact** card, which carries no name and no fixture badge.
+ *
+ * Lower than {@link AVATAR_MIN} because that floor exists to keep a name
+ * legible under the portrait. With nothing but a points figure there is less
+ * to protect, and a head-to-head pitch has to fit *eight* bands rather than
+ * four — so on a phone this is the difference between a readable pitch and a
+ * clipped one.
+ */
+const AVATAR_MIN_COMPACT = 26
 /** How much wider than its avatar a player button is (its own padding). */
 const PLAYER_PADDING = 12
 /** The `gap-1` between two players in the same band. */
@@ -67,20 +87,35 @@ function playerMetrics(avatar: number) {
 export type PlayerMetrics = ReturnType<typeof playerMetrics>
 
 /**
+ * What a card's plate holds, which is what decides how tall the card is.
+ *
+ *  - `full` — a name over a fixture badge, as the squad's own pitches draw it.
+ *  - `points` — one line, a points figure and nothing else. The head-to-head
+ *    duel pitch, where 22 portraits have to fit and a name under each would be
+ *    unreadable at that size anyway.
+ */
+export type PlateContent = 'full' | 'points'
+
+/**
  * Total height a card occupies.
  *
  * The plate overlaps the portrait's lower edge, so it costs the card less than
  * its own height — that overlap has to come out of the budget or the sizing
  * search would leave a gap under every player.
  *
- * The second plate line is measured as the **fixture badge**, the taller of
- * the two things that go there: the live view's points line is smaller, so it
+ * A `full` plate is measured with the **fixture badge**, the taller of the two
+ * things on its second line: the live view's points figure is smaller, so it
  * fits inside a budget solved for a badge rather than needing its own.
  */
-function playerHeight(metrics: PlayerMetrics): number {
-  const nameLine = Math.round(metrics.nameFontSize * 1.25)
-  const plate = nameLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
-  return PLAYER_CHROME_HEIGHT + metrics.avatar - metrics.plateOverlap + plate
+function playerHeight(metrics: PlayerMetrics, plate: PlateContent): number {
+  const textLine = Math.round(metrics.nameFontSize * 1.25)
+  const plateHeight =
+    plate === 'points'
+      ? textLine + PLATE_CHROME_HEIGHT
+      : textLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
+  return (
+    PLAYER_CHROME_HEIGHT + metrics.avatar - metrics.plateOverlap + plateHeight
+  )
 }
 
 /**
@@ -96,13 +131,18 @@ function playerHeight(metrics: PlayerMetrics): number {
  * pitch taller, the page gained a scrollbar, the scrollbar narrowed the row,
  * and the size oscillated between two values on every render.
  */
-function fitAvatar(bandHeight: number, maxWidth: number): PlayerMetrics {
+function fitAvatar(
+  bandHeight: number,
+  maxWidth: number,
+  plate: PlateContent,
+): PlayerMetrics {
+  const floor = plate === 'points' ? AVATAR_MIN_COMPACT : AVATAR_MIN
   const ceiling = Math.min(AVATAR_MAX, Math.floor(maxWidth))
-  for (let avatar = ceiling; avatar > AVATAR_MIN; avatar -= 1) {
+  for (let avatar = ceiling; avatar > floor; avatar -= 1) {
     const metrics = playerMetrics(avatar)
-    if (playerHeight(metrics) <= bandHeight) return metrics
+    if (playerHeight(metrics, plate) <= bandHeight) return metrics
   }
-  return playerMetrics(AVATAR_MIN)
+  return playerMetrics(floor)
 }
 
 export interface PitchBox {
@@ -121,12 +161,20 @@ export interface PitchBox {
  * `busiestBand` is the most cards any one band has to hold — on the editor
  * that includes the mandatory placeholders, since an empty slot takes exactly
  * the room a player would.
+ *
+ * `rows` is how many bands the pitch is divided into: four for one eleven,
+ * **eight** for the head-to-head duel pitch, which stacks two of them. Getting
+ * this wrong is not cosmetic — the height budget per band is `height / rows`,
+ * so a pitch that claimed four while drawing eight would size every card at
+ * twice the room it has and clip the lot.
  */
 export function fitPitchMetrics(
   box: PitchBox,
   busiestBand: number,
+  { rows = ROW_ORDER.length, plate = 'full' }: PitchFitOptions = {},
 ): PlayerMetrics {
-  if (box.height === 0) return playerMetrics(AVATAR_MIN)
+  const floor = plate === 'points' ? AVATAR_MIN_COMPACT : AVATAR_MIN
+  if (box.height === 0) return playerMetrics(floor)
 
   const bands = Math.max(1, busiestBand)
 
@@ -138,7 +186,14 @@ export function fitPitchMetrics(
   const usable = box.width - (bands - 1) * PLAYER_GAP
   const byWidth = usable / bands - PLAYER_PADDING
 
-  return fitAvatar(box.height / ROW_ORDER.length, byWidth)
+  return fitAvatar(box.height / Math.max(1, rows), byWidth, plate)
+}
+
+export interface PitchFitOptions {
+  /** Bands the pitch is split into. 4 for one eleven, 8 head-to-head. */
+  rows?: number
+  /** What each card's plate carries — see {@link PlateContent}. */
+  plate?: PlateContent
 }
 
 /**

@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react'
+import { List, Shirt } from 'lucide-react'
 import {
   Link,
   useLocation,
@@ -10,14 +10,18 @@ import {
 import { useDuelRosters } from '@/api/hooks/useDuelRosters'
 import { useDuels } from '@/api/hooks/useDuels'
 import { useSeasonSchedule } from '@/api/hooks/useMatchday'
-import { duelLeader, matchdayState, type DuelSide } from '@/api/models'
+import {
+  duelLeader,
+  matchdayState,
+  type DuelRoster,
+  type DuelSide,
+} from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { DuelLineupTab } from '@/components/duels/DuelLineupTab'
 import { DuelRankingTab } from '@/components/duels/DuelRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
@@ -139,77 +143,113 @@ export function DuelDetailPage() {
   const leader = hasStarted ? duelLeader(duel) : undefined
 
   return (
-    <div className="flex flex-col gap-4">
+    /* No back link. It cost a row of height at the very top of a page whose
+       whole content wants to be a pitch, to duplicate what the browser's back
+       gesture and the drawer already do. */
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div>
-        <Link
-          to={backTo}
-          className="-ml-1 inline-flex h-8 items-center gap-1 text-sm text-muted transition-colors hover:text-ink"
-        >
-          <ChevronLeft size={16} />
-          Duelle
-        </Link>
-
-        <div className="mt-1 flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <Scoreline
             side={duel.sides[0]}
             align="left"
             hasStarted={hasStarted}
             isLeader={leader?.id === duel.sides[0].id}
             isViewer={duel.sides[0].id === user?.id}
+            roster={rosters.data?.[0]}
           />
-          <span className="shrink-0 text-xs font-medium text-faint">:</span>
+          <span className="shrink-0 pt-2 text-xs font-medium text-faint">
+            :
+          </span>
           <Scoreline
             side={duel.sides[1]}
             align="right"
             hasStarted={hasStarted}
             isLeader={leader?.id === duel.sides[1].id}
             isViewer={duel.sides[1].id === user?.id}
+            roster={rosters.data?.[1]}
           />
         </div>
 
-        <p className="mt-1 text-center text-xs text-muted">
-          {String(selectedDay)}. Spieltag
-          {state === 'live' && ' · Live'}
-          {state === 'finished' && ' · Beendet'}
-          {state === 'upcoming' && ' · Noch nicht angepfiffen'}
-        </p>
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <p className="nums truncate text-xs text-muted">
+            {String(selectedDay)}. Spieltag
+            {state === 'live' && ' · Live'}
+            {state === 'finished' && ' · Beendet'}
+            {state === 'upcoming' && ' · Noch nicht angepfiffen'}
+          </p>
+          <ViewToggle tab={tab} onChange={handleTabChange} />
+        </div>
       </div>
 
-      <Tabs value={tab} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value={TABS.lineup}>Aufstellung</TabsTrigger>
-          <TabsTrigger value={TABS.ranking}>Rangliste</TabsTrigger>
-        </TabsList>
-
-        {rosters.isPending ? (
-          <div className="mt-4">
-            <SkeletonList rows={8} />
-          </div>
-        ) : rosters.isError ? (
-          <ErrorState error={rosters.error} onRetry={rosters.refetch} />
-        ) : rosters.isEmpty ? (
-          /* The snapshot endpoint answers 200 with empty lists for a matchday
-             it has nothing for — one before the league existed, most often.
-             That is not an error and not an empty team, so it gets its own
-             message rather than two blank rosters. */
-          <div className="mt-4">
-            <EmptyState
-              title="Keine Aufstellung für diesen Spieltag"
-              description="Kickbase hat für diesen Spieltag keine Kader — vermutlich lag er vor der Gründung der Liga."
-            />
-          </div>
-        ) : rosters.data === undefined ? null : (
-          <>
-            <TabsContent value={TABS.lineup}>
-              <DuelLineupTab rosters={rosters.data} viewerId={user?.id} />
-            </TabsContent>
-            <TabsContent value={TABS.ranking}>
-              <DuelRankingTab rosters={rosters.data} />
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+      {rosters.isPending ? (
+        <SkeletonList rows={8} />
+      ) : rosters.isError ? (
+        <ErrorState error={rosters.error} onRetry={rosters.refetch} />
+      ) : rosters.isEmpty ? (
+        /* The snapshot endpoint answers 200 with empty lists for a matchday it
+           has nothing for — one before the league existed, most often. That is
+           not an error and not an empty team, so it gets its own message
+           rather than two blank rosters. */
+        <EmptyState
+          title="Keine Aufstellung für diesen Spieltag"
+          description="Kickbase hat für diesen Spieltag keine Kader — vermutlich lag er vor der Gründung der Liga."
+        />
+      ) : rosters.data === undefined ? null : tab === TABS.ranking ? (
+        <DuelRankingTab rosters={rosters.data} />
+      ) : (
+        <DuelLineupTab rosters={rosters.data} viewerId={user?.id} />
+      )}
     </div>
+  )
+}
+
+/**
+ * Pitch or ranked list, as **one button carrying both symbols** — the control
+ * the squad page uses for list/grid, for the same reasons: two triggers would
+ * take twice the width to say one thing, and a single glyph cannot answer "is
+ * this where I am or where I would go?". The lit symbol is the current view.
+ *
+ * It still **navigates**, because these two views are routes: `/duels/:id` and
+ * `…/ranking`. That is what keeps each linkable and refresh-safe, and it is
+ * why this replaced a `Tabs` component rather than becoming local state.
+ */
+function ViewToggle({
+  tab,
+  onChange,
+}: {
+  tab: TabValue
+  onChange: (next: string) => void
+}) {
+  const next: TabValue = tab === TABS.lineup ? TABS.ranking : TABS.lineup
+  const label =
+    next === TABS.ranking ? 'Zur Punkte-Rangliste' : 'Zur Aufstellung'
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onChange(next)
+      }}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2',
+        'transition-colors hover:border-accent/40 hover:bg-surface-2',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+      )}
+    >
+      <Shirt
+        size={15}
+        aria-hidden="true"
+        className={tab === TABS.lineup ? 'text-accent' : 'text-faint'}
+      />
+      <span aria-hidden="true" className="h-4 w-px bg-line" />
+      <List
+        size={15}
+        aria-hidden="true"
+        className={tab === TABS.ranking ? 'text-accent' : 'text-faint'}
+      />
+    </button>
   )
 }
 
@@ -222,19 +262,34 @@ export function DuelDetailPage() {
  * there is nothing left to apologise for.
  */
 
-/** One half of the header scoreline: name over the manager's matchday total. */
+/**
+ * One half of the header scoreline: name, the manager's matchday total, and
+ * what they still have to come.
+ *
+ * **`n laufend · n offen` lives here**, under the manager it belongs to. It
+ * used to sit inside each roster card, which the pitch replaced — and it reads
+ * better here anyway: it is the question a live duel raises (40 points behind
+ * with four matches to play is winning), so it belongs next to the number it
+ * qualifies rather than further down the page.
+ *
+ * The counts are `undefined` until the rosters land; the line is simply absent
+ * until then, rather than claiming `0 laufend · 0 offen`.
+ */
 function Scoreline({
   side,
   align,
   hasStarted,
   isLeader,
   isViewer,
+  roster,
 }: {
   side: DuelSide
   align: 'left' | 'right'
   hasStarted: boolean
   isLeader: boolean
   isViewer: boolean
+  /** Absent while the rosters are still loading. */
+  roster?: DuelRoster
 }) {
   const isRight = align === 'right'
 
@@ -253,12 +308,17 @@ function Scoreline({
         </p>
         <p
           className={cn(
-            'nums truncate text-lg font-bold',
+            'nums truncate text-lg leading-tight font-bold',
             isLeader ? 'text-ink' : 'text-muted',
           )}
         >
           {hasStarted ? points(side.matchdayPoints) : '–'}
         </p>
+        {roster !== undefined && (
+          <p className="nums truncate text-[0.6875rem] text-muted">
+            {roster.activeMatches} laufend · {roster.openMatches} offen
+          </p>
+        )}
       </div>
     </div>
   )
