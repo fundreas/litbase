@@ -184,6 +184,13 @@ Portrait, last name, position abbreviation, and the two marks that say whether
 you can count on the player this week — availability top-left, lineup
 probability top-right, as on the pitch portraits.
 
+The portrait is **square**, which is both shorter and better framed than the
+4:5 box it started as. The source images are 1100×800 **landscape** (checked
+across three players), so a portrait box has to scale them by height and throw
+the sides away: 4:5 discarded about 42% of the width, a square discards about
+27%. Shortening the tile therefore costs no crop — it buys some back, and saves
+roughly 30px a row on a phone.
+
 They are **inset rather than straddling the frame**: the pitch's
 `StartProbabilityCorner` hangs slightly outside its circle, which reads well on
 a portrait floating over grass but not here, because the tile clips its

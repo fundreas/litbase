@@ -306,9 +306,14 @@ function PlayerTile({
 }) {
   const body = (
     <>
-      {/* Taller than wide: the Kickbase cutouts are standing figures, and a
-            square crops them at the chest. */}
-      <span className="relative block aspect-4/5 bg-surface-2/60">
+      {/* Square, which is both shorter *and* better framed than the 4:5 box
+            this used to be. The source images are **1100×800 landscape**
+            (checked across three players), so a portrait box has to scale them
+            by height and throw away the sides: 4:5 discarded ~42% of the
+            width, a square discards ~27%. Shortening the tile therefore costs
+            no crop at all — it buys some back, and saves about 30px a row on a
+            phone. */}
+      <span className="relative block aspect-square bg-surface-2/60">
         <Avatar
           src={player.image}
           name={player.lastName}
@@ -332,12 +337,12 @@ function PlayerTile({
         )}
       </span>
 
-      <span className="block px-1.5 py-1.5 text-center">
-        <span className="block truncate text-xs font-semibold text-ink">
+      <span className="block px-1.5 py-1 text-center">
+        <span className="block truncate text-xs leading-tight font-semibold text-ink">
           {player.lastName}
         </span>
         {/* The position, which the grid no longer says with a heading. */}
-        <span className="block text-[0.625rem] tracking-wide text-faint uppercase">
+        <span className="block text-[0.625rem] leading-tight tracking-wide text-faint uppercase">
           {POSITION_LABEL[player.position]}
         </span>
       </span>
