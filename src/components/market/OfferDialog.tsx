@@ -157,12 +157,17 @@ export function OfferDialog({
                     ),
                   )
                 }}
+                /* Direction is carried by the border, not by a fill: six
+                   solid green and red blocks would read as six warnings, and
+                   these are the least consequential controls in the dialog —
+                   nothing is written until *Bieten*. A tinted edge and the
+                   sign are enough to tell the rows apart at a glance. */
                 className={cn(
-                  'nums h-10 rounded-xl border border-line text-sm font-semibold',
-                  'transition-colors hover:border-accent/40',
+                  'nums h-10 rounded-xl border text-sm font-semibold',
+                  'bg-surface transition-colors',
                   sign > 0
-                    ? 'bg-surface-2 text-ink hover:bg-line'
-                    : 'bg-surface text-muted hover:bg-surface-2 hover:text-ink',
+                    ? 'border-positive/40 text-positive hover:border-positive hover:bg-positive/10'
+                    : 'border-negative/40 text-negative hover:border-negative hover:bg-negative/10',
                 )}
               >
                 {stepLabel(step, sign)}
