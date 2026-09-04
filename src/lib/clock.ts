@@ -42,17 +42,22 @@ const UNIT_MS: Record<string, number> = {
  * functions in [`models`](../api/models.ts) that have no business taking a
  * React dependency — and because there is exactly one clock.
  */
-let offsetMs = parseOffset(env.devProfile?.now)
+const configuredOffsetMs = parseOffset(env.devProfile?.now)
+
+let offsetMs = configuredOffsetMs ?? 0
 
 /**
- * `VITE_NOW` as an offset from the real clock.
+ * `VITE_NOW` as an offset from the real clock, or `undefined` when it is not
+ * set (or is not readable).
  *
  * Accepts an absolute instant or a relative offset; anything unparseable is
  * ignored with a warning rather than throwing, because a typo in a dev
- * variable should not take the app down.
+ * variable should not take the app down. The `undefined` matters beyond
+ * "nothing to do": it is what tells {@link isClockPinned} apart from a
+ * deliberate `VITE_NOW=+0h`.
  */
-function parseOffset(value: string | undefined): number {
-  if (value === undefined || value.trim() === '') return 0
+function parseOffset(value: string | undefined): number | undefined {
+  if (value === undefined || value.trim() === '') return undefined
   const raw = value.trim()
 
   const relative = OFFSET_PATTERN.exec(raw)
@@ -70,7 +75,7 @@ function parseOffset(value: string | undefined): number {
   console.warn(
     `[clock] VITE_NOW="${raw}" is neither an instant nor an offset like "+36h" — ignored.`,
   )
-  return 0
+  return undefined
 }
 
 /**
@@ -89,13 +94,28 @@ export function nowMs(): number {
  * Called once by the simulation, from the moment it first sees the fixture
  * list — the anchor it needs (a matchday's first kick-off) lives in that
  * payload, so the offset cannot be known from the env alone.
+ *
+ * **A clock pinned by `VITE_NOW` is not moved.** An explicit instant is a
+ * more specific instruction than "an hour into the matchday", so the two
+ * compose rather than fight: the simulation still makes its matchday live,
+ * and you decide where in it you are standing.
  */
 export function shiftClockTo(timestamp: number): void {
-  if (env.devProfile === undefined) return
+  if (env.devProfile === undefined || isClockPinned()) return
   offsetMs = timestamp - Date.now()
 }
 
 /** True when the app is not living in real time. Drives the dev badge. */
 export function isClockShifted(): boolean {
   return offsetMs !== 0
+}
+
+/**
+ * True when `VITE_NOW` set the clock, rather than the simulation anchoring it.
+ *
+ * The distinction is only about **who wins**: a pinned clock is an instruction
+ * from the person running the app and outranks the simulation's default.
+ */
+export function isClockPinned(): boolean {
+  return configuredOffsetMs !== undefined
 }

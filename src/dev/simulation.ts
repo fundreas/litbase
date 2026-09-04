@@ -44,7 +44,7 @@
  */
 
 import type { MatchdaysResponse } from '@/api/types'
-import { nowMs, shiftClockTo } from '@/lib/clock'
+import { isClockPinned, nowMs, shiftClockTo } from '@/lib/clock'
 import { env } from '@/lib/env'
 
 /** `st` on a fixture: what the server says about a match. */
@@ -67,7 +67,15 @@ const MINUTE_MS = 60_000
 export interface Simulation {
   /** The matchday being replayed. */
   day: number
-  /** Minutes past its first kick-off at the moment the clock was anchored. */
+  /**
+   * Where the clock stands, in minutes past that matchday's first kick-off.
+   *
+   * **Measured, not configured** — so it stays truthful when `VITE_NOW` pinned
+   * the clock somewhere other than `VITE_SIMULATE_MINUTE` would have put it.
+   * Negative means the clock sits *before* the first kick-off, which is a
+   * legitimate thing to want to look at (the matchday then reads `upcoming`,
+   * and the Live tab is correctly absent).
+   */
   minute: number
 }
 
@@ -148,10 +156,16 @@ export function simulateMatchdays(data: MatchdaysResponse): MatchdaysResponse {
   }
 
   if (active === null) {
+    // A no-op when `VITE_NOW` pinned the clock — an explicit instant outranks
+    // this default, and the two compose: the matchday still goes live, the
+    // person running the app still chooses where in it they stand.
     shiftClockTo(firstKickoff + minute * MINUTE_MS)
-    active = { day, minute }
+    active = {
+      day,
+      minute: Math.round((nowMs() - firstKickoff) / MINUTE_MS),
+    }
     console.info(
-      `[simulation] matchday ${String(day)}, ${String(minute)} minutes in — the clock now reads ${new Date(nowMs()).toISOString()}.`,
+      `[simulation] matchday ${String(day)}, minute ${String(active.minute)} — the clock reads ${new Date(nowMs()).toISOString()}${isClockPinned() ? ' (pinned by VITE_NOW)' : ''}.`,
     )
   }
 

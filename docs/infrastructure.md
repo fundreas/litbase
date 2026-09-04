@@ -187,13 +187,31 @@ each of us has to recreate. `loadEnv` still picks up a personal
 | -------- | ------- | ----- |
 | `VITE_SIMULATE_MATCHDAY` | the last played matchday (`day - 1`) | which matchday to replay |
 | `VITE_SIMULATE_MINUTE` | `60` | how far past its first kick-off to start |
-| `VITE_NOW` | — | move the clock and change nothing else: `2026-08-29T15:45:00Z`, `+36h`, `-90m` |
+| `VITE_NOW` | — | put the clock at an exact instant: `2026-08-29T15:45:00Z`, or an offset like `+36h` / `-90m` |
 
 ```bash
 npm run dev:live                                    # last played matchday, an hour in
 VITE_SIMULATE_MATCHDAY=1 VITE_SIMULATE_MINUTE=200 npm run dev:live
-VITE_NOW=+36h npm run dev                           # clock only
+VITE_NOW=2026-08-30T16:20:00Z npm run dev:live      # that matchday, at that moment
+VITE_NOW=+36h npm run dev                           # clock only, no payload rewrite
 ```
+
+**`VITE_NOW` wins.** An exact instant is a more specific instruction than "an
+hour into the matchday", so the two compose rather than fight: the simulation
+still makes its matchday live, and `VITE_NOW` decides where inside it you are
+standing — `VITE_SIMULATE_MINUTE` is then ignored. That is how you reach a
+particular state on purpose:
+
+| `VITE_NOW` | What you get |
+| ---------- | ------------ |
+| 30 min before the first kick-off | the matchday reads `upcoming`, the Live tab is correctly **absent** |
+| an hour after it | early matches *running*, later ones *offen*, points arriving |
+| Sunday afternoon | Friday and Saturday **finished** with real scores, the late match *running* |
+| after the last final whistle | every fixture finished, so the matchday is over and the tab disappears |
+
+The badge and the console line report the **measured** minute relative to the
+first kick-off, not the configured one, so they stay honest when the clock is
+pinned (and go negative before kick-off).
 
 ### How it works, and why it is not just a clock
 

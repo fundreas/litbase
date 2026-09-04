@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { activeSimulation, isSimulationEnabled } from '@/dev/simulation'
 import { cn } from '@/lib/cn'
-import { isClockShifted, nowMs } from '@/lib/clock'
+import { isClockPinned, isClockShifted, nowMs } from '@/lib/clock'
 import { time, weekdayDate } from '@/lib/format'
 
 /** The badge re-reads the clock this often, so it visibly ticks. */
@@ -46,10 +46,17 @@ export function SimulationBadge() {
   const title = [
     simulation === null
       ? 'Die Uhr der App ist verschoben (VITE_NOW).'
-      : `Live-Entwicklungsprofil: Spieltag ${String(simulation.day)} wird als laufend simuliert, gestartet ${String(simulation.minute)} Minuten nach dem ersten Anpfiff.`,
+      : `Live-Entwicklungsprofil: Spieltag ${String(simulation.day)} wird als laufend simuliert, ${
+          simulation.minute < 0
+            ? `${String(-simulation.minute)} Minuten vor dem ersten Anpfiff`
+            : `Minute ${String(simulation.minute)} nach dem ersten Anpfiff`
+        }.`,
     `App-Zeit: ${weekdayDate(at)} · ${time(at)}.`,
+    isClockPinned() ? 'Uhrzeit festgelegt über VITE_NOW.' : '',
     'Punkte und Spiele sind echt, der Zeitpunkt ist es nicht.',
-  ].join(' ')
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <span
