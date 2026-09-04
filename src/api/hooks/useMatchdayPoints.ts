@@ -1,0 +1,124 @@
+import { useQueries } from '@tanstack/react-query'
+
+import { get } from '@/api/client'
+import { endpoints } from '@/api/endpoints'
+import { fixtureState, type MatchdayFixture } from '@/api/models'
+import { qk } from '@/api/queryKeys'
+import type { PlayerDetailResponse } from '@/api/types'
+
+/** How often a player is re-read while their match is actually being played. */
+const LIVE_POLL_MS = 60_000
+
+/** The little a caller has to know about a player to ask for their points. */
+export interface PointsSubject {
+  id: string
+  /** Which club they play for — how their fixture is found. */
+  teamId: string
+}
+
+export interface MatchdayPoints {
+  /**
+   * Points per player id, for the players who have a figure.
+   *
+   * A player missing from the map has **no known score** — the request is
+   * still in flight, their match has not kicked off, or they did not feature
+   * at all. Deliberately not defaulted to `0`, which would claim they played
+   * and scored nothing.
+   */
+  byPlayerId: Map<string, number>
+  /** True while any per-player request is in flight; rows render without them. */
+  isPending: boolean
+}
+
+/**
+ * Every player's points for one matchday, fanned out one request per player.
+ *
+ * This is the most expensive thing the app does, and the reason is that
+ * **there is no bulk source of per-player matchday points**. `ph` on
+ * `/v4/leagues/{id}/players/{pid}` is the only one — `/leagues/{id}/players`,
+ * `?ids=` and every other shape answer 404. Three rules keep that honest:
+ *
+ *  1. **Only players who can have points are fetched.** A player whose club
+ *     has not kicked off yet is skipped entirely — there is nothing to read,
+ *     so an upcoming matchday issues **zero** requests.
+ *  2. **A settled player is fetched once.** Their match is over, their points
+ *     cannot change, so the query never goes stale for the rest of the
+ *     session.
+ *  3. **Only players actually on the pitch are polled.** The minute-poll is
+ *     attached per player, not to the page, so a matchday with one late match
+ *     running costs one request a minute rather than twenty-two.
+ *
+ * The cache key is `qk.playerDetail(leagueId, playerId)` with **no matchday**
+ * in it: one response carries every matchday's points, so all matchdays share
+ * the entry and stepping through a season re-reads nothing. It is the same
+ * entry [`useStartProbabilities`](./useStartProbabilities.ts) reads, so a page
+ * showing both pays for the player once.
+ *
+ * Shared by the [duel detail](./useDuelRosters.ts) page, which asks for both
+ * managers' players at once, and the squad page's live view, which asks for
+ * its own.
+ */
+export function useMatchdayPoints(
+  leagueId: string | undefined,
+  day: number | undefined,
+  players: readonly PointsSubject[],
+  fixtureByTeamId: Map<string, MatchdayFixture> | undefined,
+): MatchdayPoints {
+  // Which players need a request, and which of those are live. Built as one
+  // flat list so the fan-out is a single `useQueries` — one hook call whose
+  // length may change between renders, which is exactly what it exists for.
+  const wanted =
+    fixtureByTeamId === undefined
+      ? []
+      : players.map((player) => {
+          const fixture = fixtureByTeamId.get(player.teamId)
+          const state =
+            fixture === undefined ? undefined : fixtureState(fixture)
+          return {
+            id: player.id,
+            // Nothing to read before kick-off: the matchday has no points yet.
+            needed: state === 'running' || state === 'finished',
+            isLive: state === 'running',
+          }
+        })
+
+  const queries = useQueries({
+    queries: wanted.map(({ id, needed, isLive }) => ({
+      queryKey: qk.playerDetail(leagueId ?? 'none', id),
+      enabled: leagueId !== undefined && needed,
+      // A finished match is final for the session; a running one is polled.
+      staleTime: isLive ? 0 : Infinity,
+      refetchInterval: isLive ? LIVE_POLL_MS : (false as const),
+      queryFn: () =>
+        get<PlayerDetailResponse>(
+          endpoints.leagues.player(leagueId as string, id),
+        ),
+    })),
+  })
+
+  // Built on every render, deliberately. `useQueries` returns a fresh array
+  // each time, so this cannot be memoised on its own input without inventing a
+  // surrogate key for it — and a signature-string keyed memo is harder to
+  // trust than the thirty map writes it would save. Nothing here is on a hot
+  // path: a page using this re-renders on a once-a-minute poll and on a tab
+  // switch.
+  const byPlayerId = new Map<string, number>()
+
+  for (const query of queries) {
+    const detail = query.data
+    if (detail === undefined || day === undefined) continue
+    // `ph` is dense from matchday 1, so the index is the matchday minus one.
+    // A matchday not played yet is simply past the end of the array, and a
+    // player who missed one carries `hp: false` with no `p` — which must stay
+    // absent from the map rather than becoming `0`.
+    const entry = detail.ph?.[day - 1]
+    if (entry?.hp === true && entry.p !== undefined) {
+      byPlayerId.set(detail.i, entry.p)
+    }
+  }
+
+  return {
+    byPlayerId,
+    isPending: queries.some((query) => query.isFetching),
+  }
+}

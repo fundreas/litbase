@@ -27,6 +27,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/dashboard` | [Dashboard](pages/dashboard.md) | Implemented |
 | `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |
 | `/leagues/:leagueId/squad/lineup` | [Squad — lineup tab](pages/squad.md#lineup-tab) | Implemented |
+| `/leagues/:leagueId/squad/live` | [Squad — live tab](pages/squad.md#live-tab) | Implemented — only while a matchday runs |
 | `/leagues/:leagueId/ranking` | [Ranking](pages/ranking.md) | Implemented |
 | `/leagues/:leagueId/duels` | [Duels](pages/duels.md) | Implemented — duel leagues only |
 | `/leagues/:leagueId/duels/:duelId` | [Duel detail](pages/duel-detail.md) | Implemented — duel leagues only |

@@ -134,6 +134,15 @@ is what makes them safe to call before context has resolved.
 | `useJoinableLeagues(f)` | `/leagues/list` | 2 min |
 | `useCompetitions()` | `/competitions` | 1 hour |
 | `useCurrentMatchday(cid)` | `/competitions/{cid}/matchdays` | 1 hour |
+| `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 1 min poll while playing |
+
+`useMatchdayPoints` is the one **fan-out** in the app: there is no bulk source
+of per-player matchday points, so it issues one request per player — but only
+for players whose match has actually kicked off, and it polls only the ones
+still on the pitch. It backs both the [duel detail](pages/duel-detail.md) page
+and the squad page's [live view](pages/squad.md#live-tab), and shares the
+`qk.playerDetail` cache entry with `useStartProbabilities`, so a page showing
+both pays for each player once.
 
 Mutations:
 

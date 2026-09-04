@@ -44,6 +44,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /join                        browse and join leagues
  *   /leagues/:leagueId/<page>    every league-scoped page
  *   /leagues/:leagueId/squad/lineup        the pitch, under the squad
+ *   /leagues/:leagueId/squad/live          the running matchday, while it runs
  *   /leagues/:leagueId/players/:playerId   one player, three tabs
  *
  * The league id lives in the path, not in context alone, so a refresh, a
@@ -88,13 +89,20 @@ export const router = createBrowserRouter(
               children: [
                 { index: true, element: <Navigate to="dashboard" replace /> },
                 { path: 'dashboard', element: <DashboardPage /> },
-                // Two routes, one component: the active view is derived from
+                // Three routes, one component: the active view is derived from
                 // the segment, so each is linkable and refresh-safe. The pitch
                 // is nested **under** the squad rather than a sibling, which is
                 // what it always was conceptually and what keeps the drawer's
                 // prefix match lighting "Mannschaft" for free.
+                //
+                // `squad/live` is registered unconditionally — the table is
+                // built once, before any league or matchday is known — and the
+                // page redirects to the Kader when no matchday is being
+                // played, so the URL is a dead end exactly when its tab is
+                // missing. Same pattern as `duels` in a non-duel league.
                 { path: 'squad', element: <SquadPage /> },
                 { path: 'squad/lineup', element: <SquadPage /> },
+                { path: 'squad/live', element: <SquadPage /> },
                 // `/lineup` was the pitch's own route until it moved under
                 // `/squad`. Kept as a redirect so an old bookmark lands on the
                 // page rather than on the 404.

@@ -1,16 +1,17 @@
 # Squad — "Mannschaft"
 
-[← Back to index](../README.md) · Routes `/leagues/:leagueId/squad` and
-`/leagues/:leagueId/squad/lineup` ·
+[← Back to index](../README.md) · Routes `/leagues/:leagueId/squad`,
+`/leagues/:leagueId/squad/lineup` and `/leagues/:leagueId/squad/live` ·
 [`src/pages/SquadPage.tsx`](../../src/pages/SquadPage.tsx)
 
-The signed-in manager's own players, in two views that are **separate routes**,
+The signed-in manager's own players, in views that are **separate routes**,
 switched by a [bottom tab bar](#the-bottom-bar):
 
 | Route | View | Content |
 | ----- | ---- | ------- |
 | `/squad` | **Kader** | The full squad, as a grouped list or a grid (below) |
 | `/squad/lineup` | **Aufstellung** | The interactive lineup on a pitch ([see below](#lineup-tab)) |
+| `/squad/live` | **Live** | The running matchday, scoring as it happens ([see below](#live-tab)) — **only while one is being played** |
 
 **The pitch is nested under the squad**, not a sibling at `/lineup`. It always
 was the squad seen another way, the URL now says so, and the drawer's prefix
@@ -19,18 +20,20 @@ The old `/lineup` is kept as a redirect — a route `loader` returning
 `redirect()` rather than a relative `<Navigate>`, because how `..` counts a
 pathless layout route is a subtlety that fails silently.
 
-Both routes render the same component; the active view is derived from the last
-path segment rather than held in local state, so each is linkable, survives a
-refresh, and can be opened straight from the nav drawer. The bar navigates with
-`replace`, so flicking between them does not fill the history stack — back
-leaves the page instead of walking through every visit.
+All three routes render the same component; the active view is derived from the
+last path segment rather than held in local state, so each is linkable,
+survives a refresh, and can be opened straight from the nav drawer. The bar
+navigates with `replace`, so flicking between them does not fill the history
+stack — back leaves the page instead of walking through every visit.
 
-Both read the same `useSquad` query, so switching costs no request. The
-list lives in [`PlayerListTab`](../../src/components/squad/PlayerListTab.tsx)
-and the lineup in [`LineupTab`](../../src/components/squad/LineupTab.tsx); the
-page itself only owns loading, error and empty states plus the shell.
+They all read the same `useSquad` query, so switching costs no request. The
+list lives in [`PlayerListTab`](../../src/components/squad/PlayerListTab.tsx),
+the lineup in [`LineupTab`](../../src/components/squad/LineupTab.tsx) and the
+live view in [`LiveTab`](../../src/components/squad/LiveTab.tsx); the page
+itself only owns loading, error and empty states plus the shell.
 
-**Both views edit the same lineup.** The state and every mutation live in
+**The Kader and the pitch edit the same lineup.** The state and every mutation
+live in
 [`useLineupEditor`](../../src/components/squad/useLineupEditor.ts), held by an
 inner `SquadViews` component and passed to both — a hook cannot sit behind the
 page's loading and error returns, and the squad it seeds from only exists after
@@ -38,6 +41,11 @@ them. The swap dialog is rendered once at that level too, since either tab can
 open it. Two copies of this state would let the views disagree; the list
 previously dodged that by reading the server's `lo` instead, which lagged by a
 save round trip.
+
+The **live view is mounted outside `SquadViews`**, next to it, precisely
+because it edits nothing: it has no use for the editor, the swap dialog, or the
+probability and status lookups those two share, and mounting it inside would
+have a read-only screen firing a fan-out of ~25 requests it never renders.
 
 ## The bottom bar
 
@@ -47,12 +55,17 @@ save round trip.
 This is not a return of the global bottom tab bar that
 [Navigation](../routing-and-layout.md#navigation) describes removing — that one
 duplicated the drawer and cost a row of height on every screen. This one
-switches between two views of the page you are already on, exists only while
+switches between views of the page you are already on, exists only while
 that page is open, and sits where a thumb already is. It is `sticky` rather
 than `fixed`, the mirror of the header's `sticky top-0`, so at `lg` and up it
 stays inside the content column instead of lying across the sidebar.
 
-Each tab is a real `<Link>`, so both views are linkable and middle-clickable.
+Each tab is a real `<Link>`, so every view is linkable and middle-clickable.
+
+**The third tab comes and goes.** *Live* is only in the bar while a matchday is
+being played, and it is **appended** rather than inserted between the two
+permanent tabs — a tab that appears is easy to ignore, but two tabs that slide
+sideways under a thumb which had learned where they are is not.
 
 **The page owes the bar a full-height column.** Sticky only pins an element
 that would otherwise be off-screen, so the content between the heading and the
@@ -880,6 +893,175 @@ lineup rejects everything, and the removal candidates are position-relevant.
 The logic is pure and takes no React dependency, so it is ready for real tests
 once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-done).
 
+## Live tab
+
+`/leagues/:leagueId/squad/live` ·
+[`LiveTab`](../../src/components/squad/LiveTab.tsx)
+
+The manager's own team on the **running** matchday, scoring as it happens.
+
+```
+  1.284 Punkte  ⚠ −100                      [👕|≡]
+  3. Spieltag · 4 laufend · 2 offen
+
+  ┌──────────────────────────────────────────┐
+  │              (Kane)  (Sané)              │   plate: name
+  │               215      12                │   plate: points
+  │                                          │
+  │      (Olise) (Kimmich) (Grimaldo) …      │
+  │        88       141        —             │
+  │  ⋯                                       │
+  │                (Nübel)                   │
+  │                  64                      │
+  └──────────────────────────────────────────┘
+```
+
+### When it exists
+
+Only while the competition's current matchday is **between its first kick-off
+and its last final whistle**. That is `liveMatchday()` in
+[`models.ts`](../../src/api/models.ts), which is
+[`matchdayState()`](#the-bottom-bar) reading `live` for the day the competition
+itself calls current:
+
+| Situation | Live tab |
+| --------- | -------- |
+| Before the first kick-off of the matchday | absent |
+| First kick-off passed, some fixture unfinished | **present** |
+| Every fixture reports `st === 2` | absent |
+| Between matchdays | absent — `currentDay` has already moved to the next one |
+
+It reads the season fixture list the page already has (`useSeasonSchedule`, a
+third `select` over the same cache entry as `useCurrentMatchday`), so asking
+the question costs **no request**.
+
+It is a clock comparison against an hour-cached list, so the tab appears on the
+next render after kick-off — a focus refetch, or the live view's own
+minute-poll once open — rather than at the second. That is precise enough for a
+matchday that runs across two days, and cheaper than a timer whose only job is
+to make a tab appear.
+
+**The route is registered unconditionally** and the page redirects to the Kader
+when nothing is live, so a link kept from last Saturday lands on the squad
+rather than on an empty pitch. Same pattern as `duels` in a non-duel league.
+While the schedule is still loading the answer is "not known yet", not "no", so
+that case renders a skeleton instead of redirecting.
+
+### Aufstellung — the pitch
+
+The fielded eleven, each portrait carrying the points it has scored so far:
+**picture, name, points**, in that order down the card.
+
+The points replace the fixture badge that the editor's plate carries, and they
+render as `–` rather than `0` while unknown — the same rule the
+[duel page](duel-detail.md#player-status) states, and the reason the model's
+`points` is optional. On grass that is the difference between *hasn't kicked
+off* and *played and scored nothing*.
+
+**A running match tints the ring and the figure accent-coloured, and nothing
+else does.** It is the one state that is going to change, so it is the one
+worth spotting from across the pitch; if every state were coloured, eleven
+portraits would read as a warning light.
+
+The same four fixed bands and the same card sizing as the editor's pitch —
+both go through [`pitchMetrics`](../../src/components/squad/pitchMetrics.ts),
+which was extracted from `LineupTab` the moment a second pitch existed. Two
+views of the same eleven drawing players at different sizes on the same screen
+would look like a bug, and the measuring, the `fitAvatar` search and the
+oscillation traps documented under [Pitch rendering](#pitch-rendering) are all
+too hard-won to have a second copy of.
+
+**No placeholders for the empty slots.** The editor draws them because they are
+places you can still fill; here the lineup is locked, and a dashed slot reading
+*offen* would invite a tap that cannot do anything. The missing points are
+named once, in the header chip.
+
+### Rangliste — every player, best first
+
+The second view is the whole squad ranked by what it scored **including the
+players who were not fielded**, tagged *Bank*.
+
+That is the point of the view. A bench player scored what they scored, it just
+did not count, and the only way to know whether the lineup was right is to see
+them ranked against the eleven that played. Splitting the list into fielded and
+benched sections would hide exactly that comparison. Players with no score yet
+sort **last**, not as zero.
+
+The rows are literally the duel page's
+[`DuelPlayerRow`](../../src/components/duels/DuelPlayerRow.tsx), and the
+players are its `DuelPlayer` model, because a live squad *is* one side of a
+duel with the opponent left out: same statuses, same points rule, same bench.
+The only field with no meaning here is `managerId` — there is one manager — so
+that field became optional rather than a near-identical second model being
+written. Tapping a row, or a portrait on the pitch, opens the player's own
+page; there is nothing on this view to edit.
+
+### The header
+
+```
+1.284 Punkte  ⚠ −100
+3. Spieltag · 4 laufend · 2 offen
+```
+
+**The figure is the sum of the fielded rows**, not Kickbase's own matchday
+total from the standings. On a live matchday the two describe the same eleven —
+this *is* today's lineup, being played right now — and summing the rows keeps
+the header consistent with the players underneath it as they fill in, one
+request at a time. A spinner sits beside it while any of them is in flight,
+because a total that is still climbing should not look settled. (The
+[duel page](duel-detail.md#what-a-past-matchday-shows) takes the opposite
+decision for the opposite reason: it also renders *past* matchdays, where
+today's squad and that day's points do not add up to the official total.)
+
+`n laufend · n offen` is the question a live view actually raises: 200 points
+behind with four matches still to kick off is not the position 200 points
+behind with none.
+
+The **penalty chip** appears when fewer than eleven are fielded, because that
+is the one way this sum and Kickbase's official total legitimately differ —
+every empty slot costs 100 points, and the standings subtract them.
+
+The two layouts are switched by the same **one-button, two-glyph** toggle the
+Kader view uses for list/grid, and the choice is remembered in `localStorage`
+(`litbase.squad.live.view`, default the pitch) through the app's safe wrapper.
+Not in the URL: a layout is a preference, not a place.
+
+### Data, and the one gap
+
+| Query | Endpoint | Shared with |
+| ----- | -------- | ----------- |
+| `useSquad` | `/leagues/{id}/squad` | the other two views — already warm |
+| `useSeasonSchedule` | `/competitions/{id}/matchdays` | `useCurrentMatchday`, duel picker |
+| `useMatchdayFixtures` | the same cache entry, a third `select` | [Duel detail](duel-detail.md) |
+| `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Duel detail](duel-detail.md#points-cost-one-request-per-player) |
+
+The points are the expensive part and
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) owns the cost
+rules: only players whose match has kicked off are fetched, a settled player is
+fetched once, and only players actually on the pitch are polled — one request a
+minute each. It shares the `qk.playerDetail` cache entry with
+[`useStartProbabilities`](#where-it-comes-from-and-what-it-costs), so a manager
+who has been on the Kader view has already paid for most of these.
+
+**The gap:** Kickbase serves a squad only **as it stands now** — there is no
+`?dayNumber=` — so "the players I had this matchday" is really "the players I
+have". For the live matchday that is nearly always the same set, which is why
+this view exists here and not for past matchdays; but a player transferred
+away mid-matchday disappears from the list along with the points he scored for
+you, and a player bought after kick-off appears with `–`. The same limitation
+is documented at length, with measurements, on the
+[duel detail page](duel-detail.md#what-a-past-matchday-shows).
+
+### States
+
+| State | Rendering |
+| ----- | --------- |
+| Schedule loading, URL says `live` | `SkeletonList rows={8}` — not the Kader, which would flash the wrong view |
+| No matchday running | Redirect to `/squad` |
+| Fixtures failed | `ErrorState` with retry |
+| Points still arriving | Rows render with `–` and fill in; a spinner in the header |
+| Nobody fielded | The pitch says so instead of showing four empty bands |
+
 ## Possible extensions
 
 - Sort or filter by [lineup probability](#lineup-probability-prob) — the tier is
@@ -905,3 +1087,9 @@ once a runner is added — see [Infrastructure](../infrastructure.md#not-yet-don
   bench card carries no status mark at all yet.
 - Warn on save when the lineup contains players at tier `4` or `5`: the badge
   is passive, and an eleven with three excluded players is worth interrupting.
+- Show goals, assists and minutes on the [live](#live-tab) rows — the player
+  detail responses the points come from already carry `g`, `a` and the events,
+  so nothing further would be fetched.
+- Compare the live total against Kickbase's own `mdp` from the standings, which
+  would surface a mid-matchday transfer (see [the one gap](#data-and-the-one-gap))
+  as a discrepancy rather than leaving it silent.

@@ -131,8 +131,9 @@ no such gap: the lineup on screen *is* the lineup being played.
 There is **no bulk source of per-player matchday points**. `ph` on
 `/v4/leagues/{id}/players/{pid}` is the only one — `/leagues/{id}/players`,
 `?ids=` and every other shape answer 404 — so
-[`useDuelRosters`](../../src/api/hooks/useDuelRosters.ts) fans out one request
-per player. Three rules keep that affordable:
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) fans out one
+request per player, and this page hands it **both** squads as one list so the
+whole duel is a single fan-out. Three rules keep that affordable:
 
 1. **Only players who can have points are fetched.** A player whose club has
    not kicked off is skipped entirely; there is nothing to read. An upcoming
@@ -153,6 +154,10 @@ The cache key is `qk.playerDetail(leagueId, playerId)` with **no matchday** in
 it: one response carries every matchday's points, so all matchdays share the
 entry and stepping through a season re-reads nothing.
 
+The hook is shared with the squad page's [live view](squad.md#live-tab), which
+is the same job for one manager instead of two. Everything above holds there
+too — the rules are the hook's, not this page's.
+
 ## Data
 
 | Query | Endpoint | Shared with |
@@ -160,7 +165,7 @@ entry and stepping through a season re-reads nothing.
 | `useDuels` | `/leagues/{id}/ranking?dayNumber=` | [Duels](duels.md) — already warm |
 | `useManagerSquad` ×2 | `/leagues/{id}/managers/{uid}/squad` | — |
 | `useMatchdayFixtures` | `/competitions/{id}/matchdays` | squad page, duel picker |
-| player detail ×N | `/leagues/{id}/players/{pid}` | — |
+| `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Squad — live tab](squad.md#live-tab) |
 
 `useManagerSquad` is the **only** way to see another manager's lineup. There is
 no opponent equivalent of `teamcenter/myeleven`, which serves the signed-in

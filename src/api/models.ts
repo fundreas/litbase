@@ -139,6 +139,30 @@ export function matchdayState(
 }
 
 /**
+ * The competition's current matchday, but **only while it is being played**.
+ *
+ * "Being played" is `matchdayState` reading `live`: the first kick-off has
+ * passed and not every fixture reports finished — which is exactly the window
+ * in which a live view of one's own team has anything to show. Outside it this
+ * returns `undefined`, and the squad page's Live tab does not exist.
+ *
+ * The current day is the competition's own `day`, which becomes the *next*
+ * matchday as soon as the previous one is over. So between matchdays the
+ * upcoming day is what gets tested, it is not live, and there is nothing to
+ * show — correct, and the reason no search over the season is needed here.
+ */
+export function liveMatchday(
+  schedule: SeasonSchedule | undefined,
+  now: number = Date.now(),
+): SeasonMatchday | undefined {
+  const current = schedule?.matchdays.find(
+    (entry) => entry.day === schedule.currentDay,
+  )
+  if (current === undefined) return undefined
+  return matchdayState(current, now) === 'live' ? current : undefined
+}
+
+/**
  * A team's fixture on a specific matchday, with enough state to say whether it
  * is over. {@link TeamFixture} plus the result, for views that care about a
  * past or running matchday rather than the next one.
@@ -359,7 +383,7 @@ export function duelLeader(duel: Duel): DuelSide | undefined {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Duel detail                                                                */
+/* One matchday's rosters — duel detail, and the squad's live view             */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -380,6 +404,18 @@ export const DUEL_PLAYER_STATUS_LABEL: Record<DuelPlayerStatus, string> = {
   finished: 'Beendet',
 }
 
+/**
+ * One player on one matchday: who they are, what their match is doing, what
+ * they scored.
+ *
+ * Named for the duel page it was written for, and **also what the squad
+ * page's live view renders** — a manager's own team on the running matchday is
+ * one side of a duel with the opponent left out, right down to the bench rows
+ * and the unknown-versus-zero distinction on `points`. Rather than a
+ * near-identical second model, that view builds these from its own squad; the
+ * only field it has no use for is `managerId`, which is why that one is
+ * optional.
+ */
 export interface DuelPlayer {
   id: string
   name: string
@@ -401,8 +437,29 @@ export interface DuelPlayer {
   image?: string
   /** The player's club fixture that matchday. */
   fixture?: MatchdayFixture
-  /** Which side of the duel they belong to. */
-  managerId: string
+  /**
+   * Which side of the duel they belong to.
+   *
+   * Absent when there are no sides to tell apart — the live view of one's own
+   * squad, where every row belongs to the same manager.
+   */
+  managerId?: string
+}
+
+/**
+ * Sort comparator: **best first**, and a player with no points yet sorts
+ * **last** rather than as zero — not knowing is not the same as nothing.
+ *
+ * Ties, including the tie between two unknowns, fall back to the name so the
+ * order is stable while points arrive one request at a time.
+ */
+export function byMatchdayPoints(a: DuelPlayer, b: DuelPlayer): number {
+  if (a.points === undefined && b.points === undefined) {
+    return a.name.localeCompare(b.name)
+  }
+  if (a.points === undefined) return 1
+  if (b.points === undefined) return -1
+  return b.points - a.points || a.name.localeCompare(b.name)
 }
 
 /** One manager's team as it stands in a duel. */

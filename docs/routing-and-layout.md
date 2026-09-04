@@ -20,7 +20,9 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          ├─ (index)                 → dashboard
          ├─ dashboard
          ├─ squad     ┐ same component, tab from the segment
-         ├─ lineup    ┘
+         │  ├─ lineup │
+         │  └─ live   ┘ only while a matchday is being played, else → squad
+         ├─ lineup      the pitch's old URL, kept as a redirect
          ├─ market
          ├─ ranking
          ├─ duels      ?day=N — duel leagues only, else → dashboard
@@ -249,9 +251,10 @@ segment exactly *or* as a path prefix, so `/duels/3212306-2857817` and its
 soon as you tap into a row reads as having left the app. The rule is general,
 so any future detail route inherits it without a per-item flag.
 
-**Mannschaft** is the only entry for the team page, even though it has two
-routes: the tabs on that page are the natural way between the squad list and
-the lineup, and a second drawer entry for a sibling tab is noise. It therefore
+**Mannschaft** is the only entry for the team page, even though it has three
+routes: the tabs on that page are the natural way between the squad list, the
+lineup and the [live view](pages/squad.md#live-tab), and a second drawer entry
+for a sibling tab is noise. It therefore
 resolves the active item with `isNavItemActive()` rather than `NavLink`'s own
 matching. That helper also prefix-matches, so a page's detail routes keep its
 entry lit: `/squad/lineup` and `/players/:playerId` both leave **Mannschaft**
@@ -264,8 +267,11 @@ of its own, so **Mannschaft** had to stand in for it).
 
 Two pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
-of the page you are already on — squad ⇄ lineup, and the player page's three
-tabs — rather than between pages, and exists only while that page is open. It
+of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, and the player
+page's three tabs — rather than between pages, and exists only while that page
+is open. The squad page's third tab is itself conditional, appearing only while
+a matchday runs; it is **appended** rather than inserted, so the two permanent
+tabs never move under a thumb that had learned where they are. It
 is `sticky`, not `fixed`, so at `lg` and up it stays inside the content column
 instead of lying across the sidebar.
 

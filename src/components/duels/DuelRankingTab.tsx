@@ -27,7 +27,12 @@ export function DuelRankingTab({
   return (
     <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
       {ranked.map((player, index) => {
-        const manager = managerById.get(player.managerId)
+        // Always set on a duel roster; optional on the model only because the
+        // squad page's live view has no sides to tell apart.
+        const manager =
+          player.managerId === undefined
+            ? undefined
+            : managerById.get(player.managerId)
         return (
           <li key={player.id} className="flex items-center">
             <span className="nums w-8 shrink-0 pl-3 text-right text-xs font-semibold text-faint">

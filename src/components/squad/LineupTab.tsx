@@ -1,5 +1,5 @@
 import { AlertTriangle, Armchair, Info, UserMinus } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import {
@@ -13,6 +13,13 @@ import {
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { FormationsDialog } from '@/components/squad/FormationsDialog'
 import { Pitch } from '@/components/squad/Pitch'
+import {
+  cornerBadgeSize,
+  fitPitchMetrics,
+  ROW_ORDER,
+  usePitchBox,
+  type PlayerMetrics,
+} from '@/components/squad/pitchMetrics'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityCorner } from '@/components/squad/StartProbabilityBadge'
 import {
@@ -32,94 +39,8 @@ import {
   missingAtPosition,
 } from '@/lib/lineup'
 
-/** Rows top-to-bottom on a vertical pitch: attack first, keeper last. */
-const ROW_ORDER: PositionKey[] = ['fwd', 'mid', 'def', 'gk']
-
 /** Bench grouping, and the order player ids are sent to the API in. */
 const BENCH_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
-
-/**
- * Bounds for the on-pitch avatar, which scales with the pitch itself.
- *
- * A fixed 44px looked right on a phone and lost on a 1280px screen, where the
- * pitch is ~480px tall and the players were islands in it. The size is derived
- * from the space each band actually has, so it tracks the window continuously
- * rather than stepping at breakpoints.
- */
-const AVATAR_MIN = 40
-const AVATAR_MAX = 96
-/** How much wider than its avatar a player button is (its own padding). */
-const PLAYER_PADDING = 12
-/** The `gap-1` between two players in the same band. */
-const PLAYER_GAP = 4
-/** Button `p-1`, top and bottom. */
-const PLAYER_CHROME_HEIGHT = 8
-/** The plate's own `py-0.5` and the `gap-0.5` between its two lines. */
-const PLATE_CHROME_HEIGHT = 6
-/** How far the name plate rides up over the portrait, as a share of it. */
-const PLATE_OVERLAP_RATIO = 0.15
-
-/**
- * How large the lineup-probability badge is on a portrait of `avatar` px.
- *
- * Clamped at both ends. Purely proportional gives an illegible dot on a 36px
- * bench card and something the size of a dinner plate on a 96px pitch
- * portrait, so it tracks the avatar only through the middle of the range.
- */
-function cornerBadgeSize(avatar: number): number {
-  return Math.min(24, Math.max(13, Math.round(avatar * 0.32)))
-}
-
-/** Everything in a player card is derived from one number. */
-function playerMetrics(avatar: number) {
-  return {
-    avatar,
-    width: avatar + PLAYER_PADDING,
-    /** The plate spans the portrait exactly, so the card reads as one object. */
-    plateWidth: avatar,
-    plateOverlap: Math.round(avatar * PLATE_OVERLAP_RATIO),
-    nameFontSize: Math.min(16, Math.max(10, Math.round(avatar * 0.2))),
-    badgeCrest: Math.min(26, Math.max(14, Math.round(avatar * 0.3))),
-    removeIcon: Math.round(avatar * 0.36),
-  }
-}
-
-export type PlayerMetrics = ReturnType<typeof playerMetrics>
-
-/**
- * Total height a card occupies.
- *
- * The plate overlaps the portrait's lower edge, so it costs the card less than
- * its own height — that overlap has to come out of the budget or the sizing
- * search would leave a gap under every player.
- */
-function playerHeight(metrics: PlayerMetrics): number {
-  const nameLine = Math.round(metrics.nameFontSize * 1.25)
-  const plate = nameLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
-  return PLAYER_CHROME_HEIGHT + metrics.avatar - metrics.plateOverlap + plate
-}
-
-/**
- * The largest avatar that fits both the band's height and its width.
- *
- * Searched rather than solved because the plate does not scale linearly with
- * the portrait — the font size and crest are both clamped, so the height is
- * piecewise. Stepping down from the width limit until the card fits the band
- * is exact and costs at most a few dozen iterations.
- *
- * Fitting *exactly* matters more than it looks. An earlier version took a
- * fixed 54% of the band, which overshot by ~2px; the card then pushed the
- * pitch taller, the page gained a scrollbar, the scrollbar narrowed the row,
- * and the size oscillated between two values on every render.
- */
-function fitAvatar(bandHeight: number, maxWidth: number): PlayerMetrics {
-  const ceiling = Math.min(AVATAR_MAX, Math.floor(maxWidth))
-  for (let avatar = ceiling; avatar > AVATAR_MIN; avatar -= 1) {
-    const metrics = playerMetrics(avatar)
-    if (playerHeight(metrics) <= bandHeight) return metrics
-  }
-  return playerMetrics(AVATAR_MIN)
-}
 
 /**
  * Interactive lineup, persisted to Kickbase.
@@ -181,32 +102,7 @@ export function LineupTab({
 
   // The pitch is measured rather than guessed at, so the avatars scale with
   // whatever height the flex chain actually hands it.
-  const pitchRef = useRef<HTMLDivElement>(null)
-  const [pitchBox, setPitchBox] = useState({ width: 0, height: 0 })
-
-  useEffect(() => {
-    const element = pitchRef.current
-    if (element === null) return
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect
-      if (!rect) return
-      const next = {
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      }
-      // Rounded, and only when it actually moved: a resize observer that
-      // re-renders on sub-pixel noise is one step from an infinite loop.
-      setPitchBox((current) =>
-        current.width === next.width && current.height === next.height
-          ? current
-          : next,
-      )
-    })
-    observer.observe(element)
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
+  const { ref: pitchRef, box: pitchBox } = usePitchBox()
 
   /**
    * An incomplete lineup is legal and it saves — but every empty slot costs
@@ -233,33 +129,24 @@ export function LineupTab({
   /**
    * How large an avatar can be without crowding its band.
    *
-   * Two limits, whichever bites first: the height a band has left after the
-   * name plate, and the width the *busiest* band can give each player. A row
-   * of five defenders is what constrains a narrow screen; the band height is
-   * what constrains a wide one.
+   * The busiest band counts the **placeholders too** — a mandatory place still
+   * to fill takes exactly the room a player would, so leaving it out of the
+   * count would oversize the cards on a half-built lineup.
    */
-  const metrics = useMemo(() => {
-    if (pitchBox.height === 0) return playerMetrics(AVATAR_MIN)
-
-    const busiestBand = Math.max(
-      1,
-      ...ROW_ORDER.map(
-        (position) =>
-          lineup.filter((player) => player.position === position).length +
-          missingAtPosition(counts, position),
+  const metrics = useMemo(
+    () =>
+      fitPitchMetrics(
+        pitchBox,
+        Math.max(
+          ...ROW_ORDER.map(
+            (position) =>
+              lineup.filter((player) => player.position === position).length +
+              missingAtPosition(counts, position),
+          ),
+        ),
       ),
-    )
-
-    // Solve for the avatar that makes the busiest band exactly fit:
-    //   n * (size + PLAYER_PADDING) + (n - 1) * PLAYER_GAP <= width
-    // Dividing the width by the count alone overshoots, because each button is
-    // wider than its avatar and the gaps still have to go somewhere — which
-    // is what made a row of five defenders wrap on a phone.
-    const usable = pitchBox.width - (busiestBand - 1) * PLAYER_GAP
-    const byWidth = usable / busiestBand - PLAYER_PADDING
-
-    return fitAvatar(pitchBox.height / ROW_ORDER.length, byWidth)
-  }, [pitchBox, lineup, counts])
+    [pitchBox, lineup, counts],
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">

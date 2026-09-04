@@ -1,15 +1,24 @@
-import { Calculator, Info, Shirt, Users, Wallet, X } from 'lucide-react'
+import {
+  Activity,
+  Calculator,
+  Info,
+  Shirt,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
-import { useLocation } from 'react-router'
+import { Navigate, useLocation } from 'react-router'
 
 import { useLeagueManager } from '@/api/hooks/useLeague'
-import { useCurrentMatchday } from '@/api/hooks/useMatchday'
+import { useCurrentMatchday, useSeasonSchedule } from '@/api/hooks/useMatchday'
 import { useSquad } from '@/api/hooks/useSquad'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { useStatusReasons } from '@/api/hooks/useStatusReasons'
-import type { SquadMember } from '@/api/models'
+import { liveMatchday, type SquadMember } from '@/api/models'
 import { PageHeading } from '@/components/PageHeading'
 import { LineupTab } from '@/components/squad/LineupTab'
+import { LiveTab } from '@/components/squad/LiveTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
 import { SquadLegendDialog } from '@/components/squad/SquadLegendDialog'
 import { SwapDialog } from '@/components/squad/SwapDialog'
@@ -22,25 +31,28 @@ import { cn } from '@/lib/cn'
 import { money } from '@/lib/format'
 
 /** View value ⇄ route segment. Deliberately identical strings. */
-const VIEWS = { squad: 'squad', lineup: 'lineup' } as const
+const VIEWS = { squad: 'squad', lineup: 'lineup', live: 'live' } as const
 type ViewValue = (typeof VIEWS)[keyof typeof VIEWS]
 
 /**
- * The manager's own players, in two views that are **separate routes**:
+ * The manager's own players, in views that are **separate routes**:
  *
  *  - `/leagues/:leagueId/squad` — the full squad as a grouped list or grid.
  *  - `/leagues/:leagueId/squad/lineup` — the interactive lineup on a pitch.
+ *  - `/leagues/:leagueId/squad/live` — the running matchday, scoring live.
+ *    **Only while a matchday is actually being played** — see below.
  *
  * The active view is derived from the URL rather than held in local state, so
  * each is linkable, survives a refresh, and can be opened directly from
- * navigation. Both routes render this same component.
+ * navigation. All three routes render this same component.
  *
  * The pitch is **nested under the squad** rather than sitting beside it at
  * `/lineup`. It always was the squad seen another way, the URL now says so, and
  * the drawer's prefix match lights "Mannschaft" for both without a special
  * case. The old `/lineup` stays as a redirect.
  *
- * Both views read the same `useSquad` query, so switching costs no request.
+ * Every view reads the same `useSquad` query, so switching costs no request —
+ * the live view adds only the per-player points on top of it.
  */
 export function SquadPage() {
   const { leagueId, competitionId } = useActiveLeague()
@@ -49,6 +61,23 @@ export function SquadPage() {
   // The budget is the manager's, not the squad's, so it is its own query —
   // a small one the dashboard has usually filled already.
   const manager = useLeagueManager(leagueId)
+  /**
+   * Is a matchday being played right now?
+   *
+   * The season's fixture list, which the squad page already reads through
+   * `useCurrentMatchday` — same cache entry, a third `select` — so asking this
+   * costs no request. `liveMatchday()` answers only for the competition's
+   * *current* matchday, and only between its first kick-off and its last final
+   * whistle. That window is the Live tab's whole existence.
+   *
+   * It is a clock comparison against an hour-cached list, so the tab appears
+   * on the next render after kick-off rather than at the second — a focus
+   * refetch, or the live view's own minute poll once it is open. Precise
+   * enough for a matchday that runs for two days, and cheaper than a timer
+   * whose only job is to make a tab appear.
+   */
+  const schedule = useSeasonSchedule(competitionId)
+  const live = liveMatchday(schedule.data)
   // Above the early returns below, as every hook here has to be.
   const [isLegendOpen, setIsLegendOpen] = useState(false)
   /**
@@ -60,9 +89,11 @@ export function SquadPage() {
    */
   const [forSale, setForSale] = useState<ReadonlySet<string> | null>(null)
 
-  const view: ViewValue = location.pathname.endsWith(`/${VIEWS.lineup}`)
-    ? VIEWS.lineup
-    : VIEWS.squad
+  const view: ViewValue = location.pathname.endsWith(`/${VIEWS.live}`)
+    ? VIEWS.live
+    : location.pathname.endsWith(`/${VIEWS.lineup}`)
+      ? VIEWS.lineup
+      : VIEWS.squad
 
   // The calculator lives on the Kader view: the pitch has no header to show
   // the running total in, and selling from an XI you are picking is two jobs
@@ -80,6 +111,38 @@ export function SquadPage() {
       to: `${base}/${VIEWS.lineup}`,
     },
   ]
+
+  // Appended, never inserted: the tab comes and goes with the matchday, and a
+  // third entry between the two permanent ones would move them under a thumb
+  // that had learned where they are.
+  if (live !== undefined) {
+    tabs.push({
+      value: VIEWS.live,
+      label: 'Live',
+      icon: Activity,
+      to: `${base}/${VIEWS.live}`,
+    })
+  }
+
+  // The live route exists only while a matchday runs, so a link kept from last
+  // Saturday — or one followed after the final whistle — lands on the Kader
+  // rather than on an empty pitch. The schedule has to have loaded first:
+  // until then "not live" is only "not known yet".
+  if (view === VIEWS.live && !schedule.isPending && live === undefined) {
+    return <Navigate to={base} replace />
+  }
+
+  // Asked for Live, and whether it exists is not known yet. A skeleton rather
+  // than the Kader underneath: the URL named a view, and painting a different
+  // one for a moment before switching reads as a bug.
+  if (view === VIEWS.live && live === undefined) {
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeading title="Mannschaft" />
+        <SkeletonList rows={8} />
+      </div>
+    )
+  }
 
   if (squad.isPending) {
     return (
@@ -197,21 +260,35 @@ export function SquadPage() {
       />
 
       {/* The content column claims whatever height is left, which is what
-          keeps the bottom bar *at the bottom* on both views. Sticky only pins
+          keeps the bottom bar *at the bottom* on every view. Sticky only pins
           something that would otherwise be off-screen: without this the Kader
           view's short list left the bar sitting directly under it, mid-screen,
           while the lineup — which already grew to fill — pinned it properly.
           The bar looked like it moved between the two. */}
       <div className="flex min-h-0 flex-1 flex-col">
-        <SquadViews
-          squad={squad.data}
-          leagueId={leagueId}
-          competitionId={competitionId}
-          view={view}
-          onShowLegend={showLegend}
-          forSale={forSale}
-          onToggleForSale={toggleForSale}
-        />
+        {/* The live view sits **outside** `SquadViews` on purpose: it edits
+            nothing, so it has no use for the lineup editor, the swap dialog or
+            the probability and status lookups those views share. Mounting it
+            here keeps a read-only view from firing a fan-out of ~25 requests
+            it would never render. */}
+        {view === VIEWS.live && live !== undefined ? (
+          <LiveTab
+            squad={squad.data}
+            leagueId={leagueId}
+            competitionId={competitionId}
+            day={live.day}
+          />
+        ) : (
+          <SquadViews
+            squad={squad.data}
+            leagueId={leagueId}
+            competitionId={competitionId}
+            view={view}
+            onShowLegend={showLegend}
+            forSale={forSale}
+            onToggleForSale={toggleForSale}
+          />
+        )}
       </div>
 
       <BottomTabBar tabs={tabs} active={view} ariaLabel="Kaderansicht" />
