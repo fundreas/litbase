@@ -623,13 +623,53 @@ export function toOwnerId(oui: string | undefined): string | undefined {
   return oui === undefined || oui === NO_OWNER ? undefined : oui
 }
 
-/** A manager in the viewer's league who owns a player in this match. */
+/**
+ * Where an ownership badge's claim comes from — and therefore what it means.
+ *
+ *  - **`matchdayLineup`** — the manager had this player *in his lineup on this
+ *    matchday*, from the snapshot's league-wide `us`. The historical truth, and
+ *    the only correct answer for a matchday that has been played.
+ *  - **`currentOwner`** — the manager owns him *now*, from `oui` on the player
+ *    detail. Used only when there is no lineup yet, where it is also the right
+ *    answer: nobody has fielded anybody, and today's owner is who will.
+ *
+ * The distinction is not cosmetic. Reading `oui` for a past matchday badges
+ * every player transferred since with his **new** manager, which silently
+ * rewrites who scored those points.
+ */
+export type OwnerSource = 'matchdayLineup' | 'currentOwner'
+
+/** A manager in the viewer's league, against a player in this match. */
 export interface MatchPlayerOwner {
   id: string
   name: string
   image?: string
-  /** True when the signed-in user is the owner. */
+  /** True when the signed-in user is the manager. */
   isViewer: boolean
+  /** What the badge is actually asserting — see {@link OwnerSource}. */
+  source: OwnerSource
+}
+
+/**
+ * Every league member's lineup for one matchday, as one lookup.
+ *
+ * From `us` on the matchday snapshot — see
+ * [`useMatchdayLineups`](./hooks/useMatchdaySquad.ts). Fielded players only:
+ * there is no bench per manager in that field.
+ */
+export interface MatchdayLineups {
+  /** Player id → the manager who fielded him that matchday. */
+  managerIdByPlayerId: Map<string, string>
+  /** Manager id → display name, as the snapshot spells it (`unm`). */
+  nameByManagerId: Map<string, string>
+  /**
+   * No manager has a lineup in the payload at all.
+   *
+   * Before the matchday's first kick-off, or a matchday the API has nothing
+   * for. **Not** "nobody fielded anybody" — the caller has to tell those apart
+   * and fall back rather than drop every badge.
+   */
+  isEmpty: boolean
 }
 
 /**

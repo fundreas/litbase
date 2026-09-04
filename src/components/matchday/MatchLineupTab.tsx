@@ -11,6 +11,7 @@ import {
   type PositionKey,
 } from '@/api/models'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
+import { ownerLabel } from '@/components/matchday/ownerLabel'
 import {
   figureDescription,
   figureLabel,
@@ -75,11 +76,9 @@ function wasTakenOff(player: MatchPlayer): boolean {
 function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
   const parts = [`${player.name}: ${figureDescription(figure)}`]
 
-  if (player.owner !== undefined) {
-    parts.push(
-      player.owner.isViewer ? 'dein Spieler' : `gehört ${player.owner.name}`,
-    )
-  }
+  // The same sentence the badge's own tooltip carries, so the two cannot say
+  // different things about the same player.
+  if (player.owner !== undefined) parts.push(ownerLabel(player.owner))
   for (const event of player.events ?? []) {
     parts.push(
       event.count > 1

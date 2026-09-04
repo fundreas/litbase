@@ -13,8 +13,8 @@ import {
   type TimelineMarker,
 } from '@/api/models'
 import { EventGlyph } from '@/components/player/statGlyphs'
-import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui/States'
+import { cn } from '@/lib/cn'
 import { time } from '@/lib/format'
 
 const MARKER_ICON: Record<TimelineMarker, LucideIcon> = {
@@ -32,12 +32,21 @@ const MARKER_ICON: Record<TimelineMarker, LucideIcon> = {
  * blown, half-time sits between the halves, and the kick-off closes it —
  * [`matchTimeline()`](../../api/models.ts) weaves those three in.
  *
- * **One column, not two.** A centre-line timeline with home events swinging
- * left and away events right is the classic layout and it needs width this app
- * does not have: on a phone each side gets 160px, which is not enough for a
- * name and a mark. So every row reads the same way — minute, club crest, mark,
- * who — and the crest is what says whose event it was. That is one glance
- * rather than two, and it does not degrade on a narrow screen.
+ * **Two sides around a spine.** The home club's events swing left and the away
+ * club's right, mirrored — the glyph nearest the centre line, the names running
+ * outward — with the minute on the spine between them. It is the layout every
+ * match report uses, and the reason it is worth the width is that **the side
+ * replaces the crest**: which club an event belongs to is answered by where the
+ * row sits, in the same left/right arrangement the header above it already
+ * established, so nothing has to be read to know whose goal it was.
+ *
+ * The narrow-screen cost is real and paid deliberately. Each side gets a little
+ * under half of ~350px, so a long name truncates where a single full-width
+ * column would have fitted it. Two lines per event keep that manageable: the
+ * player on the first, what he did on the second.
+ *
+ * An event the feed attributes to **no club** — not observed, but the payload
+ * allows it — spans the whole width rather than being guessed onto a side.
  *
  * The marks are the app's shared [`EventGlyph`](../player/statGlyphs.tsx)s, so
  * a ball here means the same thing as a ball on a player's match row and in his
@@ -70,18 +79,32 @@ export function MatchTimelineTab({
   }
 
   return (
-    <ol className="flex flex-col">
-      {items.map((item) => (
-        <TimelineRow
-          key={item.id}
-          item={item}
-          detail={detail}
-          kickoff={kickoff}
-        />
-      ))}
-    </ol>
+    /* The spine, drawn once behind the rows rather than per row: a segment per
+       row would break at every gap and at the markers, and it has to line up
+       with the minute column in all of them. `left-1/2` is exact because the
+       grid below is `1fr auto 1fr` — the centre column is centred by
+       construction, whatever the minutes are. */
+    <div className="relative">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-line"
+      />
+      <ol className="relative flex flex-col">
+        {items.map((item) => (
+          <TimelineRow
+            key={item.id}
+            item={item}
+            detail={detail}
+            kickoff={kickoff}
+          />
+        ))}
+      </ol>
+    </div>
   )
 }
+
+/** The three columns every row shares: one side, the spine, the other side. */
+const ROW_GRID = 'grid grid-cols-[1fr_auto_1fr] items-start gap-1'
 
 function TimelineRow({
   item,
@@ -97,31 +120,25 @@ function TimelineRow({
   }
 
   const side = eventSide(item.event, detail)
-  const team =
-    side === 'home' ? detail.home : side === 'away' ? detail.away : undefined
+
+  // No club named. Not observed, and not guessable either way — so the row
+  // spans both sides with the minute beside it rather than picking one.
+  if (side === undefined) {
+    return (
+      <li className="flex items-start gap-2.5 py-2">
+        <Minute minute={item.event.minute} />
+        <EventBody event={item.event} align="left" />
+      </li>
+    )
+  }
+
+  const isAway = side === 'away'
 
   return (
-    <li className="flex items-start gap-2.5 py-2">
+    <li className={cn(ROW_GRID, 'py-2')}>
+      {isAway ? <span /> : <EventBody event={item.event} align="right" />}
       <Minute minute={item.event.minute} />
-
-      {/* The crest is what says whose event this is — the one job the missing
-          second column had. `–` keeps the gutter aligned when the feed names
-          no club, which has not been observed but the shape allows. */}
-      <span className="flex w-7 shrink-0 justify-center pt-0.5">
-        {team === undefined ? (
-          <span className="text-xs text-faint">–</span>
-        ) : (
-          <Avatar
-            src={team.image}
-            name={team.symbol}
-            size={22}
-            square
-            className="bg-transparent"
-          />
-        )}
-      </span>
-
-      <EventBody event={item.event} />
+      {isAway ? <EventBody event={item.event} align="left" /> : <span />}
     </li>
   )
 }
@@ -129,12 +146,25 @@ function TimelineRow({
 /**
  * The mark and the words: what happened, to whom, and who else was involved.
  *
+ * **Mirrored by side.** `align="right"` is the home half — the text hugs the
+ * spine's left edge and the glyph sits innermost, next to the minute;
+ * `align="left"` is the away half, the same row read the other way. That is
+ * what makes the two columns face each other rather than look like one list
+ * indented twice.
+ *
  * The second line is the folded-in `rev` player — the assist behind a goal, the
  * player coming off in a swap. It is a **name only** and never a link: that
  * nested entry carries `pi: "0"` even while naming somebody, so there is no id
  * to navigate to.
  */
-function EventBody({ event }: { event: MatchTimelineEvent }) {
+function EventBody({
+  event,
+  align,
+}: {
+  event: MatchTimelineEvent
+  /** `right` for the home half, `left` for the away half. */
+  align: 'left' | 'right'
+}) {
   const isSubstitution = event.kind === 'substitution'
   const label = timelineEventLabel(event.kind)
 
@@ -155,7 +185,15 @@ function EventBody({ event }: { event: MatchTimelineEvent }) {
     .join(' · ')
 
   return (
-    <div className="flex min-w-0 flex-1 items-start gap-2">
+    /* `flex-row-reverse` on the home half is what mirrors the row: the glyph
+       ends up innermost, against the spine, and the text reads outward from
+       it. One declaration rather than two orderings of the same markup. */
+    <div
+      className={cn(
+        'flex min-w-0 items-start gap-2',
+        align === 'right' && 'flex-row-reverse',
+      )}
+    >
       <span className="flex h-5 w-4 shrink-0 items-center justify-center">
         {event.kind === 'substitution' ? (
           <ArrowLeftRight
@@ -168,7 +206,7 @@ function EventBody({ event }: { event: MatchTimelineEvent }) {
         )}
       </span>
 
-      <div className="min-w-0 flex-1">
+      <div className={cn('min-w-0 flex-1', align === 'right' && 'text-right')}>
         <p className="truncate text-sm font-medium text-ink">
           {event.playerName ?? label}
         </p>
@@ -180,10 +218,17 @@ function EventBody({ event }: { event: MatchTimelineEvent }) {
   )
 }
 
-/** `67'`, in a fixed gutter so the column reads straight down. */
+/**
+ * `67'`, on the spine.
+ *
+ * `bg-canvas` is load-bearing: the vertical rule runs the full height of the
+ * list behind the rows, and without an opaque chip it would draw straight
+ * through the digits. The fixed width is what keeps the two sides symmetrical
+ * whether the minute is one character or three.
+ */
 function Minute({ minute }: { minute: number }) {
   return (
-    <span className="nums w-9 shrink-0 pt-0.5 text-right text-xs font-semibold text-faint">
+    <span className="nums w-9 shrink-0 bg-canvas py-0.5 text-center text-xs font-semibold text-faint">
       {minute}&#39;
     </span>
   )

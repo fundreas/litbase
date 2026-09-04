@@ -1,4 +1,5 @@
 import type { MatchPlayerOwner } from '@/api/models'
+import { ownerLabel } from '@/components/matchday/ownerLabel'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
 
@@ -20,7 +21,7 @@ import { cn } from '@/lib/cn'
  *
  * Wordless, therefore labelled: the manager's name rides along as the tooltip
  * and as screen-reader text, since a small circular photograph says nothing to
- * either.
+ * either — see {@link ownerLabel}, which is where the badge's claim is worded.
  */
 export function OwnerBadge({
   owner,
@@ -34,9 +35,7 @@ export function OwnerBadge({
   onImage?: boolean
   className?: string
 }) {
-  const label = owner.isViewer
-    ? `Dein Spieler — ${owner.name}`
-    : `Gehört ${owner.name}`
+  const label = ownerLabel(owner)
 
   return (
     <span

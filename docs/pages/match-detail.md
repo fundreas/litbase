@@ -91,20 +91,37 @@ belongs where the eye lands, not at the bottom of a list that has been growing
 for two hours. So the final whistle heads the list once it has blown and the
 kick-off closes it.
 
-**One column, not two.** A centre-line timeline with home events swinging left
-and away events right is the classic layout and it needs width this app does not
-have — on a phone each side gets about 160px, which is not enough for a name and
-a mark. So every row reads the same way:
+**Two sides around a spine.** The home club's events swing left and the away
+club's right, mirrored, with the minute on the vertical rule between them:
 
 ```
- 67'  [crest]  ⚽  Musiala
-                   Tor · Kimmich
- 63'  [crest]  ⇄   Sané
-                   Wechsel · für Olise
+      Musiala  ⚽ │67'│
+Tor · Kimmich     │   │
+                  │63'│ ⇄  Sané
+                  │   │    Wechsel · für Olise
+        Kimmich  🟨 │58'│
 ```
 
-minute, club crest, mark, who — and the crest is what says whose event it was.
-That is one glance rather than two and it does not degrade on a narrow screen.
+The glyph sits nearest the centre and the names run outward, so the two columns
+face each other rather than reading as one list indented twice — one
+`flex-row-reverse` on the home half, not two orderings of the same markup.
+
+The reason it earns the width is that **the side replaces the crest**. Which
+club an event belongs to is answered by where the row sits, in the same
+left/right arrangement the header above it already established, so nothing has
+to be read to know whose goal it was. The narrow-screen cost is real and paid
+deliberately: each side gets a little under half of ~350px, so a long name
+truncates where a single full-width column would have fitted it. Two lines per
+event keep that manageable — the player on the first, what he did on the second.
+
+The spine is drawn **once behind the whole list**, not per row: a segment per row
+would break at every gap and at every marker, and it has to line up with the
+minute column in all of them. `left-1/2` is exact because the row grid is
+`1fr auto 1fr` — the centre column is centred by construction. The minute sits
+on an opaque `bg-canvas` chip so the rule does not run through the digits.
+
+An event the feed attributes to **no club** — not observed, but the payload
+allows it — spans the whole width rather than being guessed onto a side.
 
 The marks are the app's shared
 [`EventGlyph`](../../src/components/player/statGlyphs.tsx)s, so a ball here
@@ -220,21 +237,62 @@ already how they are identified in the drawer, the standings and every duel. The
 signed-in user's own players take the **accent ring**, so "which of these are
 mine" is answered without reading anything at all.
 
-It comes from **`oui` on the player detail response**, which the points fan-out
-is fetching anyway, resolved to a name and an avatar against
-[`useRanking`](../../src/api/hooks/useRanking.ts). `oui` is the *string* `"0"`
-rather than an absent field when nobody owns the player — a trap that now lives
-in exactly one place, `toOwnerId()`, because read naively it is a truthy id
-matching no manager and every free agent would show as owned.
+### It is the matchday's lineup, not today's squad
+
+The badge asks **who had this player in his lineup on this matchday** — and that
+is a different question from who owns him now.
+
+The source is `us` on the matchday snapshot,
+[`useMatchdayLineups`](../../src/api/hooks/useMatchdaySquad.ts): alongside the
+addressed manager's own `lp`/`nlp`, `GET /leagues/{id}/users/{uid}/teamcenter?dayNumber=`
+carries **every member of the league with the players *they* fielded that
+matchday**. One request answers ownership for all of them. It is the same cache
+entry `useMatchdaySquad` fills, read through a second `select`, and the same
+entry the squad page's live view already holds for the current matchday — so
+that case is free.
+
+The first version of this read **`oui` on the player detail**, which the points
+fan-out is fetching anyway. That was wrong, and quietly: `oui` is who owns the
+player *today*, so a matchday from three weeks ago badged everyone transferred
+since with his **new** manager and reassigned the points they scored. The
+snapshot is the matchday's own record.
+
+`oui` survives as the **fallback for a matchday with no lineups yet** — before
+the first kick-off, where the snapshot is measurably empty and today's owner is
+the right answer in any case, because nobody has fielded anybody. Each badge
+carries which of the two it came from
+([`OwnerSource`](../../src/api/models.ts)) and the wording follows: *In der
+Aufstellung von X an diesem Spieltag* against *Gehört X*. Two different claims
+should not share a sentence.
+
+Two consequences worth knowing:
+
+- **Fielded players only.** `us` has no per-manager bench (`lp` and `lpi`, no
+  `nlp`), so a player somebody owned and left out gets no badge. For a matchday
+  view that is the more useful half — the question is who *played* him — and the
+  alternative is one request per manager in the league.
+- `oui` is the *string* `"0"` rather than an absent field when nobody owns the
+  player, a trap that now lives in exactly one place, `toOwnerId()`: read
+  naively it is a truthy id matching no manager, and every free agent would show
+  as owned.
+
+A manager the standings do not list keeps the snapshot's own `unm` as a name and
+loses only the avatar. A bare id is never rendered — better no badge than an
+unreadable one.
 
 ### What the lineup costs
 
-**Roughly 36 requests** — twenty-two starters plus both benches, one per player,
-via [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts). There is no
-bulk source of per-player matchday points and none of ownership either;
-`/leagues/{id}/players`, `?ids=` and every other shape answer 404. See
+**Roughly 36 requests plus two** — twenty-two starters and both benches, one per
+player, via [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts), on
+top of the matchday snapshot and the standings. There is no bulk source of
+per-player matchday points: `/leagues/{id}/players`, `?ids=` and every other
+shape answer 404. See
 [duel detail](duel-detail.md#points-cost-one-request-per-player), which pays the
 same price for thirty.
+
+Ownership, by contrast, **is** available in bulk, which is the whole reason the
+snapshot won that job — one request rather than a field scavenged from
+thirty-six.
 
 Three things keep it honest:
 
@@ -250,9 +308,10 @@ Three things keep it honest:
    costs nothing to keep open.
 
 The one rule this page **overrides** is "no points yet, so do not ask":
-`needsOwner` fetches a player before his match has kicked off, because the
-ownership badges are the point of the view and they are worth seeing the evening
-before as much as during the match.
+`needsOwner` fetches a player before his match has kicked off. That is now
+purely for the pre-kick-off ownership fallback — the snapshot has no lineups
+that early, and a team sheet with no badges at all on the Friday evening would
+be the view failing at the one thing it is for.
 
 ### Who came off
 

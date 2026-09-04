@@ -57,9 +57,19 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
       /leagues/:leagueId/matchday/:matchId/lineup
     - goals/minute/events all come from GET /v4/matches/{mi}/details, the same
       cache entry useLiveMatches already fills -> opening a match is free.
-    - owner per player = `oui` on the player detail the points fan-out already
-      fetches, resolved against the standings. ~36 requests per match, and only
-      while the Aufstellung tab is open.
+    - owner per player = `us` on the MATCHDAY SNAPSHOT
+      (/v4/leagues/$L/users/$U/teamcenter?dayNumber=$N), which lists EVERY
+      manager in the league with the players they fielded that matchday.
+      League-wide whoever is in the path -> one request, and it is the only
+      bulk source of historical ownership in the API.
+      `oui` on the player detail was the first version and it was WRONG: it is
+      today's owner, so a past matchday credited every transferred player to
+      his new manager. It survives only as the pre-kick-off fallback, where the
+      snapshot is empty and today's owner is the right answer anyway.
+      Caveat: `us` has no per-manager bench (`lp`/`lpi`, no `nlp`), so an owned
+      but benched player gets no badge.
+    - points = ~36 requests per match (one per player), and only while the
+      Aufstellung tab is open.
     - OPEN PROBE: match-level events carry `pi: "0"` and their `ke` codes are
       NOT on the player scale (1=goal, 4=yellow, 8=sub, ...). Unknown, so
       Anpfiff/Halbzeit/Abpfiff are derived from the fixture's own state instead.

@@ -2,7 +2,12 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import { toPosition, type MatchdaySquad, type PositionKey } from '@/api/models'
+import {
+  toPosition,
+  type MatchdayLineups,
+  type MatchdaySquad,
+  type PositionKey,
+} from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { TeamcenterPlayer, TeamcenterResponse } from '@/api/types'
 
@@ -101,13 +106,91 @@ export function useMatchdaySquad(
     // wanted, and the map is rebuilt by its owner on every render anyway.
     select: (data: TeamcenterResponse) =>
       mapMatchdaySquad(data, day as number, positionByPlayerId),
-    queryFn: () =>
-      get<TeamcenterResponse>(
-        endpoints.leagues.managerTeamcenter(
-          leagueId as string,
-          userId as string,
-        ),
-        { params: { dayNumber: day } },
-      ),
+    queryFn: () => fetchTeamcenter(leagueId as string, userId as string, day),
   })
+}
+
+/**
+ * One request, shared by both hooks in this file, so the two `select`s below
+ * cannot drift on the path or the parameter name. `dayNumber` is **required**
+ * here — omitted, the endpoint answers 200 with everything empty.
+ */
+function fetchTeamcenter(
+  leagueId: string,
+  userId: string,
+  day: number | undefined,
+): Promise<TeamcenterResponse> {
+  return get<TeamcenterResponse>(
+    endpoints.leagues.managerTeamcenter(leagueId, userId),
+    { params: { dayNumber: day } },
+  )
+}
+
+/**
+ * **Who fielded whom, across the whole league, on one matchday.**
+ *
+ * The same request as {@link useMatchdaySquad} and the same cache entry — this
+ * reads a different part of the payload. Alongside the addressed manager's own
+ * `lp`/`nlp`, the response carries **`us`: every member of the league with the
+ * players *they* had in their lineup that matchday**. One request answers
+ * ownership for all of them.
+ *
+ * That is the field the [match lineup](../../docs/pages/match-detail.md#ownership-is-the-point)
+ * needs, and it replaced a genuinely wrong answer. Ownership was read from
+ * `oui` on the player detail, which is **who owns him today** — so a past
+ * matchday badged every transferred player with his new manager and quietly
+ * rewrote history. `us` is the matchday's own truth.
+ *
+ * `userId` only addresses the request; `us` is league-wide whoever is named. The
+ * signed-in user is the natural choice, and it is the entry the squad page's
+ * live view already fills for the current matchday, so that case is free.
+ *
+ * **It is fielded players only.** There is no per-manager bench in `us` (`lp`
+ * and `lpi`, no `nlp`), so a player somebody owned and left out gets no badge.
+ * For a matchday view that is the more useful half anyway — the question is who
+ * *played* him — and the alternative is one request per manager in the league.
+ *
+ * **Empty before kick-off**, measured: `lp` fills at or after the first kick-off
+ * of the matchday, so `isEmpty` is the caller's signal to fall back to today's
+ * ownership — which for a match that has not been played is the right answer in
+ * any case.
+ */
+export function useMatchdayLineups(
+  leagueId: string | undefined,
+  userId: string | undefined,
+  day: number | undefined,
+): UseQueryResult<MatchdayLineups> {
+  return useQuery({
+    queryKey: qk.matchdaySquad(leagueId ?? 'none', userId ?? 'none', day ?? 0),
+    enabled:
+      leagueId !== undefined && userId !== undefined && day !== undefined,
+    staleTime: SETTLED_STALE_MS,
+    select: selectMatchdayLineups,
+    queryFn: () => fetchTeamcenter(leagueId as string, userId as string, day),
+  })
+}
+
+/*
+ * A module-level constant, unlike `useMatchdaySquad`'s: nothing is closed over,
+ * so React Query's `select` memo holds and the maps below are rebuilt only when
+ * the payload actually changes.
+ */
+function selectMatchdayLineups(data: TeamcenterResponse): MatchdayLineups {
+  const managerIdByPlayerId = new Map<string, string>()
+  const nameByManagerId = new Map<string, string>()
+
+  for (const manager of data.us ?? []) {
+    nameByManagerId.set(manager.i, manager.unm)
+    for (const player of manager.lp ?? []) {
+      managerIdByPlayerId.set(player.i, manager.i)
+    }
+  }
+
+  return {
+    managerIdByPlayerId,
+    nameByManagerId,
+    // No lineups anywhere: before the first kick-off, or a matchday the API has
+    // nothing for. Not "nobody fielded anybody".
+    isEmpty: managerIdByPlayerId.size === 0,
+  }
 }

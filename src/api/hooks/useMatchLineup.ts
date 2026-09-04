@@ -1,4 +1,5 @@
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
+import { useMatchdayLineups } from '@/api/hooks/useMatchdaySquad'
 import { useRanking } from '@/api/hooks/useRanking'
 import type {
   MatchDetail,
@@ -6,6 +7,7 @@ import type {
   MatchLineup,
   MatchPlayer,
   MatchPlayerOwner,
+  OwnerSource,
 } from '@/api/models'
 
 /** Both team sheets, with everything the league knows layered on. */
@@ -21,27 +23,47 @@ export interface MatchLineupData {
  * on every player**.
  *
  * `/matches/{id}/details` gives the eleven names per side and nothing else —
- * no points, no notion that a Kickbase league exists. Three sources fill that
+ * no points, no notion that a Kickbase league exists. Four sources fill that
  * in, and only one of them is expensive:
  *
+ *  - [`useMatchdayLineups`](./useMatchdaySquad.ts) — **one** request, and the
+ *    source of ownership: `us` on the matchday snapshot lists every manager in
+ *    the league with the players *they* fielded on *that* matchday.
  *  - [`useMatchdayPoints`](./useMatchdayPoints.ts) — one request per player,
- *    which is what carries the points (`ph[day - 1]`), the owner (`oui`) and,
- *    where the match payload omitted it, the position. **Roughly 36 requests**
- *    for a full fixture with both benches, and the one caller that asks before
- *    kick-off: the ownership badges are the point of the view and they are
- *    worth seeing the evening before, so `needsOwner` overrides the
- *    "no points yet, do not ask" rule. Everything else that hook does to keep
- *    the cost down still applies — a settled player is fetched once and held,
- *    only players actually on the pitch are polled — and the entries are the
- *    same `qk.playerDetail` ones every other page fills, so a player already
- *    looked at this session is free.
- *  - [`useRanking`](./useRanking.ts) — one cached request, and where an owner
- *    id becomes a name and an avatar. Managers not in the standings are
- *    dropped rather than badged with a bare id.
+ *    which is what carries the points (`ph[day - 1]`), a fallback owner
+ *    (`oui`) and, where the match payload omitted it, the position. **Roughly
+ *    36 requests** for a full fixture with both benches, and the one caller
+ *    that asks before kick-off: the ownership badges are the point of the view
+ *    and they are worth seeing the evening before, so `needsOwner` overrides
+ *    the "no points yet, do not ask" rule. Everything else that hook does to
+ *    keep the cost down still applies — a settled player is fetched once and
+ *    held, only players actually on the pitch are polled — and the entries are
+ *    the same `qk.playerDetail` ones every other page fills, so a player
+ *    already looked at this session is free.
+ *  - [`useRanking`](./useRanking.ts) — one cached request, and where a manager
+ *    id becomes a name and an avatar.
  *  - The match's own event feed, for who came on and who went off.
  *
- * `viewerId` marks the signed-in manager's own players, which is the first
- * thing anybody looks for on this screen.
+ * ## Ownership is the matchday's, not today's
+ *
+ * The snapshot wins whenever it has lineups, and `oui` is the fallback for the
+ * case where it has none — before the first kick-off, where today's owner is
+ * also the right answer.
+ *
+ * The two are **not interchangeable**, which is why they are ordered rather
+ * than merged. `oui` is who owns the player *now*: on a matchday from three
+ * weeks ago it badges everyone transferred since with his new manager, and
+ * quietly reassigns the points they scored. That was the first version of this
+ * and it was wrong. `us` is the matchday's own record.
+ *
+ * Each badge carries which of the two it came from
+ * ([`OwnerSource`](../models.ts)), because "had him in his lineup that
+ * matchday" and "owns him today" are different claims and the wording has to
+ * differ with them.
+ *
+ * `viewerId` marks the signed-in manager's own players — the first thing
+ * anybody looks for on this screen — and doubles as the address for the
+ * snapshot request, whose `us` is league-wide whoever is named in the path.
  */
 export function useMatchLineup(
   leagueId: string | undefined,
@@ -51,6 +73,7 @@ export function useMatchLineup(
   viewerId: string | undefined,
 ): MatchLineupData | undefined {
   const ranking = useRanking(leagueId)
+  const lineups = useMatchdayLineups(leagueId, viewerId, day)
 
   /*
    * Every player of the fixture as one fan-out, so the whole match is a single
@@ -84,19 +107,30 @@ export function useMatchLineup(
     (ranking.data?.managers ?? []).map((manager) => [manager.id, manager]),
   )
 
+  /** The snapshot has real lineups, so it is the answer for this matchday. */
+  const hasMatchdayLineups = lineups.data !== undefined && !lineups.data.isEmpty
+
   const ownerOf = (playerId: string): MatchPlayerOwner | undefined => {
-    const ownerId = points.ownerIdByPlayerId.get(playerId)
-    if (ownerId === undefined) return undefined
-    const manager = managerById.get(ownerId)
-    // A player owned by somebody the standings do not list — another league's
-    // manager cannot happen, but a response mid-refresh can. Better no badge
-    // than one reading a raw id.
-    if (manager === undefined) return undefined
+    const [managerId, source]: [string | undefined, OwnerSource] =
+      hasMatchdayLineups
+        ? [lineups.data?.managerIdByPlayerId.get(playerId), 'matchdayLineup']
+        : [points.ownerIdByPlayerId.get(playerId), 'currentOwner']
+
+    if (managerId === undefined) return undefined
+
+    // The standings carry the avatar; the snapshot's own `unm` stands in for
+    // the name when the standings have not landed or do not list the manager.
+    // A bare id is never shown — better no badge than an unreadable one.
+    const manager = managerById.get(managerId)
+    const name = manager?.name ?? lineups.data?.nameByManagerId.get(managerId)
+    if (name === undefined) return undefined
+
     return {
-      id: manager.id,
-      name: manager.name,
-      image: manager.image,
-      isViewer: manager.id === viewerId,
+      id: managerId,
+      name,
+      image: manager?.image,
+      isViewer: managerId === viewerId,
+      source,
     }
   }
 
