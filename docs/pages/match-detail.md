@@ -50,17 +50,58 @@ match on the list issues **nothing** — the list already fetched it for the
 score. That is the same treatment the season fixture list gets, for the same
 reason.
 
-The polling rules are the list's plus one it does not need:
+`useLiveMatches` skips an upcoming match entirely, because there is no score in
+it. This page wants it anyway, for the team sheets — Kickbase publishes those
+about an hour before kick-off.
+
+## What actually updates while a match is on
+
+Everything on the page that can change does, once a minute:
+
+| What | Source | Poll while running |
+| ---- | ------ | ------------------ |
+| Score, minute, event feed | `useMatchDetails` → `/matches/{mi}/details` | 60 s |
+| Match state (`st`), the goals fallback | the season fixture list | 60 s |
+| Per-player points | `useMatchdayPoints`, one query per player | 60 s each — ~36 for a fixture |
+| Ownership badges | `useMatchdayLineups` | **never** — Kickbase locks lineups at kick-off, so there is nothing to re-read |
+| Manager names and avatars | `useRanking` | never |
+
+So the Events tab grows a row as each goal lands, the scoreline and the minute
+climb in the header, and every plate on the pitch and every row of the ranking
+re-reads its points. The Ranking tab **re-sorts** as they arrive, which is the
+one place a live update visibly moves the page.
+
+Polling pauses when the tab is not focused (React Query's default) and a return
+to the window refetches at once, so a match watched in a background tab catches
+up rather than accumulating a minute of requests per minute away.
+
+### Getting from *upcoming* to *live* without a reload
+
+This was broken and is the subtlest thing on the page, so it is worth writing
+down. `staleTime` and `refetchInterval` are re-evaluated only when a query
+refetches or when an observer re-renders. A flat `refetchInterval: false` before
+kick-off is therefore a **dead end**: no timer, so nothing re-reads the clock, so
+a page opened at 20:29 was still showing *18:30* at 20:45.
+
+Worse, the two queries that could have rescued each other were deadlocked. The
+fixture list decides its own poll from a clock-based `isMatchdayLive()`,
+re-evaluated on any observer re-render — but with nothing running there was no
+re-render to trigger it, and the match query that would have caused one was
+itself asleep.
+
+Both ends now watch the clock in the ten minutes before a kick-off:
 
 | Match state | `staleTime` | Poll |
 | ----------- | ----------- | ---- |
 | Running | 0 | 60 s |
 | Finished | `Infinity` | — |
-| Not kicked off | 5 min | — |
+| Kick-off within 10 min | 5 min | 60 s |
+| Kick-off further off | 5 min | 5 min |
 
-`useLiveMatches` skips an upcoming match entirely, because there is no score in
-it. This page wants it anyway, for the team sheets — Kickbase publishes those
-about an hour before kick-off, and five minutes is short enough to catch them.
+One request a minute for ten minutes buys a page that goes live on its own, and
+the same change starts the fixture list — which then starts the points fan-out.
+The [matchday list](matchday.md) gets it for free, since it reads the same
+fixture-list query.
 
 **The state comes from the fixture list, not from `mst`.** `st` on the season's
 fixtures is what the whole app treats as the truth about whether a match is on,

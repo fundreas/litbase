@@ -16,6 +16,7 @@ import {
   type MatchTimelineEvent,
 } from '@/api/models'
 import { qk } from '@/api/queryKeys'
+import { nowMs } from '@/lib/clock'
 import {
   MATCH_EVENT,
   type MatchDetailsResponse,
@@ -26,14 +27,23 @@ import {
 const LIVE_POLL_MS = 60_000
 
 /**
- * How long a match that has not kicked off is held.
+ * How long a match that has not kicked off is held, and how often it is
+ * re-read.
  *
  * The team sheets are the only thing that moves in that window, and Kickbase
  * publishes them roughly an hour before kick-off — so a few minutes is short
- * enough to catch them and long enough that flicking between the timeline and
- * the lineup costs nothing.
+ * enough to catch them and long enough that flicking between the tabs costs
+ * nothing.
  */
-const UPCOMING_STALE_MS = 5 * 60_000
+const UPCOMING_POLL_MS = 5 * 60_000
+
+/**
+ * How close to kick-off the slow poll speeds up to the live one.
+ *
+ * So a page already open at 20:29 is polling every minute by 20:30 rather than
+ * waiting out the rest of a five-minute tick — see the note on the poll below.
+ */
+const KICKOFF_SOON_MS = 10 * 60_000
 
 /** `mst` on the match payload: 2 is played to the end, as `st` is elsewhere. */
 const MATCH_FINISHED = 2
@@ -49,15 +59,31 @@ const MATCH_FINISHED = 2
  * `select` rather than in its `queryFn`: two readings of one payload, one
  * network cost, exactly as the season fixture list is treated.
  *
- * The polling rules are the list's, plus one the list does not need:
+ * ## The poll, and why an upcoming match polls at all
  *
- *  - **Running** → stale at once, polled once a minute.
+ *  - **Running** → stale at once, re-read every minute. This is what makes the
+ *    score, the minute and the event feed move.
  *  - **Finished** → fetched once and held for the session. Nothing can change.
- *  - **Not kicked off** → fetched, and held for {@link UPCOMING_STALE_MS}.
- *    `useLiveMatches` skips these entirely because there is no score in them;
- *    this page wants them anyway, for the team sheets.
+ *  - **Not kicked off** → re-read every {@link UPCOMING_POLL_MS}, or every
+ *    minute once kick-off is within {@link KICKOFF_SOON_MS}.
  *
- * `match` rather than a bare id, because everything above is decided by the
+ * That last rule is not about the team sheets, though it does pick them up. It
+ * is the **only thing that gets the page from *upcoming* to *live* on its
+ * own.** `refetchInterval` is re-evaluated when the query refetches or when an
+ * observer re-renders; a flat `false` before kick-off is therefore a dead end —
+ * no timer, so nothing re-evaluates, so a page open at 20:29 was still saying
+ * *18:30* at 20:45. With a slow poll running, each tick re-reads the clock,
+ * notices the match has started and switches to the live interval.
+ *
+ * It unblocks the **fixture list** at the same time, which is the subtler half.
+ * `useMatchdaysQuery` decides its own poll with a clock-based
+ * `hasRunningFixture()`, re-evaluated on any observer re-render — and this
+ * query's fetch *is* such a re-render, since the page reads both. So the first
+ * kick-off of a matchday now starts everything: without it neither query had a
+ * reason to look at the clock again, and the one that would notice was waiting
+ * on the one that could not.
+ *
+ * `match` rather than a bare id, because every rule above is decided by the
  * *fixture list's* state (`st` plus the clock) rather than by `mst` on the
  * response — which is what keeps
  * [the live development profile](../../dev/simulation.ts) in charge of what
@@ -76,14 +102,39 @@ export function useMatchDetails(
       ? 0
       : state === 'finished'
         ? Infinity
-        : UPCOMING_STALE_MS,
-    refetchInterval: isRunning ? LIVE_POLL_MS : false,
+        : UPCOMING_POLL_MS,
+    /*
+     * A **function**, not a number: this is what re-reads the clock. React
+     * Query calls it after each fetch, so the slow pre-kick-off tick is what
+     * discovers that the match has started and hands over to the live rate.
+     */
+    refetchInterval: () => pollInterval(match),
     select: mapMatchDetail,
     queryFn: () =>
       get<MatchDetailsResponse>(
         endpoints.matches.details(match?.matchId as string),
       ),
   })
+}
+
+/** How often to re-read the match, from where it stands right now. */
+function pollInterval(match: MatchdayMatch | undefined): number | false {
+  if (match === undefined) return false
+
+  switch (fixtureState(match)) {
+    case 'finished':
+      return false
+    case 'running':
+      return LIVE_POLL_MS
+    default: {
+      // Close to kick-off, poll as if live: the switch-over should not have to
+      // wait out a five-minute tick, and the team sheets land in this window.
+      const untilKickoff = Date.parse(match.kickoff) - nowMs()
+      return Number.isNaN(untilKickoff) || untilKickoff <= KICKOFF_SOON_MS
+        ? LIVE_POLL_MS
+        : UPCOMING_POLL_MS
+    }
+  }
 }
 
 /*

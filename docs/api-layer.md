@@ -198,8 +198,16 @@ It also fixed a hole. A score used to be read from the *matchdays* payload,
 which is the whole season and cached for an hour — so a live page could put an
 hour-old number next to a pulsing "live" dot. That payload is still the source
 of every match's **state**, and it now goes stale immediately and polls once a
-minute while any match of the current matchday is under way, because `st` is
-what tells the app a matchday is over.
+minute from shortly before the current matchday's first kick-off until its last
+final whistle, because `st` is what tells the app a matchday is over.
+
+The "shortly before" is ten minutes and it is not padding. `staleTime` and
+`refetchInterval` are re-evaluated only on a refetch or an observer re-render,
+so a poll that waits for something to be running never starts: nothing re-reads
+the clock, and the page that would have noticed is asleep too. Watching the
+minutes before a kick-off is what makes every live view in the app
+self-starting — see
+[match detail](pages/match-detail.md#getting-from-upcoming-to-live-without-a-reload).
 
 The event codes (`ke`) turned out to be **the same scale as `k`** on the
 player-performance endpoint, so they go straight through `toEventTallies()` and

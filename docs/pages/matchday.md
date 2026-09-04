@@ -92,6 +92,14 @@ So an upcoming matchday costs **zero** requests beyond the cached season list,
 and a matchday with one late kick-off still running costs one request a minute
 rather than nine.
 
+**The list goes live on its own.** The fixture-list query starts polling ten
+minutes before the current matchday's first kick-off rather than only once
+something is running — without that head start nothing re-read the clock, and a
+page left open since the morning kept showing `–:–` through the whole afternoon.
+The reasoning is on `isMatchdayLive()` in
+[`useMatchday`](../../src/api/hooks/useMatchday.ts) and in more detail under
+[match detail](match-detail.md#getting-from-upcoming-to-live-without-a-reload).
+
 `useLiveMatches` used to take the team-keyed fixture map and now takes any
 sequence of things carrying a match id, a kick-off and a finished flag — which
 is what lets a fixture *list* drive it as naturally as a player's fixtures do.

@@ -74,7 +74,15 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
       `oui` survives as the last resort, for a matchday the snapshot has
       nothing at all for.
     - points = ~36 requests per match (one per player), and only while the
-      Aufstellung tab is open.
+      Aufstellung/Ranking tabs are open. They poll at 60s while the match runs,
+      so points and the Ranking order move live.
+    - LIVE UPDATES: score/minute/events poll at 60s while running. The catch
+      that had to be fixed: refetchInterval is re-evaluated only on a refetch
+      or an observer re-render, so `false` before kickoff is a DEAD END — a
+      page open at 20:29 still said 18:30 at 20:45, and the fixture-list query
+      that decides "is a matchday live" could not wake up either because the
+      match query that would re-render it was asleep too. Both now watch the
+      clock from 10 min before a kickoff, which starts everything.
     - OPEN PROBE: match-level events carry `pi: "0"` and their `ke` codes are
       NOT on the player scale (1=goal, 4=yellow, 8=sub, ...). Unknown, so
       Anpfiff/Halbzeit/Abpfiff are derived from the fixture's own state instead.
