@@ -13,6 +13,14 @@ export default defineConfig(({ mode }) => {
   // set VITE_USE_DEV_PROXY=true and VITE_API_BASE_URL=/kb-api.
   const useDevProxy = env.VITE_USE_DEV_PROXY === 'true'
 
+  // `npm run dev:live` is nothing more than `--mode live`, which the app reads
+  // back as `import.meta.env.MODE` to switch the matchday simulation on — see
+  // `src/dev/simulation.ts`. The mode is carried rather than a variable set so
+  // that the profile needs no `.env` file: every `.env*` here is gitignored as
+  // a secret, and a shared dev profile should not be a file each of us has to
+  // recreate. `loadEnv` above still picks up a personal `.env.live.local` for
+  // anyone who wants to pin a particular matchday.
+
   return {
     plugins: [react(), tailwindcss()],
     resolve: {

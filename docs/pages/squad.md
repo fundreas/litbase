@@ -947,6 +947,15 @@ rather than on an empty pitch. Same pattern as `duels` in a non-duel league.
 While the schedule is still loading the answer is "not known yet", not "no", so
 that case renders a skeleton instead of redirecting.
 
+### Developing against it
+
+A live matchday happens for a few hours a week, so
+`npm run dev:live` replays the most recently played one as if it were running:
+real fixtures, real points, the tab present, matches in every state. See
+[Development profiles](../infrastructure.md#development-profiles) — including
+what it deliberately does not fake, and why a shifted clock alone is not
+enough.
+
 ### Aufstellung — the pitch
 
 The fielded eleven, each portrait carrying the points it has scored so far:

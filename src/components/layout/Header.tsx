@@ -2,6 +2,7 @@ import { Menu } from 'lucide-react'
 
 import { LeagueSwitcher } from '@/components/layout/LeagueSwitcher'
 import { UserMenu } from '@/components/layout/UserMenu'
+import { SimulationBadge } from '@/dev/SimulationBadge'
 
 /**
  * The app bar: hamburger on the left, league context in the middle, account
@@ -33,6 +34,13 @@ export function Header({ onOpenNav }: { onOpenNav: () => void }) {
         <div className="min-w-0 flex-1">
           <LeagueSwitcher />
         </div>
+
+        {/* Dev only. A page showing a simulated matchday as if it were live
+            has to say so somewhere that does not scroll away — and the
+            `import.meta.env.DEV` literal (rather than `env.isDev`) is what
+            lets the bundler drop the badge out of a production build rather
+            than ship it rendering `null`. */}
+        {import.meta.env.DEV && <SimulationBadge />}
 
         <UserMenu />
       </div>

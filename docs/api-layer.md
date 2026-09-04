@@ -114,6 +114,14 @@ are `as const` objects rather than TypeScript `enum`s.
 Mapping happens inside each query hook's `queryFn`, so the cache stores
 already-mapped data and no component ever re-derives it.
 
+That is also the layer the [live development profile](infrastructure.md#development-profiles)
+hooks into: `useMatchdaysQuery` passes the raw `MatchdaysResponse` through
+`simulateMatchdays()` before mapping, so a matchday that has been played can be
+made to report itself as running. One wrapper, at the one place that payload
+enters the app, and it returns its input untouched outside `npm run dev:live`.
+Time itself comes from `nowMs()` in [`clock.ts`](../src/lib/clock.ts) rather
+than `Date.now()` for the same reason.
+
 ## Query hooks
 
 One file per resource in [`api/hooks/`](../src/api/hooks/). Every hook takes a

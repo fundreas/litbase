@@ -147,6 +147,8 @@ chunk split pay off, are in [Building and deploying](deployment.md).
 | ------ | ---- |
 | `npm run dev` | Dev server with HMR |
 | `npm run dev:host` | Same, exposed on the local network |
+| `npm run dev:live` | Same, but **inside a matchday** — see [Development profiles](#development-profiles) |
+| `npm run dev:live:host` | The live profile, exposed on the local network |
 | `npm run build` | Typecheck, then production build to `dist/` |
 | `npm run preview` | Serve the production build |
 | `npm run typecheck` | `tsc -b` only |
@@ -158,6 +160,98 @@ chunk split pay off, are in [Building and deploying](deployment.md).
 
 `@/*` resolves to `src/*`, aliased in both `vite.config.ts` and
 `tsconfig.app.json`.
+
+## Development profiles
+
+Two, and the normal one is unchanged:
+
+| Profile | Command | Time | Data |
+| ------- | ------- | ---- | ---- |
+| **normal** | `npm run dev` | the real clock | exactly what Kickbase returns |
+| **live** | `npm run dev:live` | inside a matchday | Kickbase's, with one flag and one number bent |
+
+The live profile exists because the app's most interesting screens — the squad
+page's [Live tab](pages/squad.md#live-tab), a running
+[duel](pages/duel-detail.md), every *Läuft* / *Offen* state — only appear for a
+few hours a week. It makes the **most recently played matchday** behave as if
+it were being played right now, so those screens can be built on a Tuesday
+morning with real players and real points on them.
+
+`dev:live` is nothing but `vite --mode live`, which the app reads back as
+`import.meta.env.MODE`. No `.env` file is needed or committed — every `.env*`
+is gitignored here as a secret, and a shared dev profile should not be a file
+each of us has to recreate. `loadEnv` still picks up a personal
+`.env.live.local`, and any of these can be set inline:
+
+| Variable | Default | Means |
+| -------- | ------- | ----- |
+| `VITE_SIMULATE_MATCHDAY` | the last played matchday (`day - 1`) | which matchday to replay |
+| `VITE_SIMULATE_MINUTE` | `60` | how far past its first kick-off to start |
+| `VITE_NOW` | — | move the clock and change nothing else: `2026-08-29T15:45:00Z`, `+36h`, `-90m` |
+
+```bash
+npm run dev:live                                    # last played matchday, an hour in
+VITE_SIMULATE_MATCHDAY=1 VITE_SIMULATE_MINUTE=200 npm run dev:live
+VITE_NOW=+36h npm run dev                           # clock only
+```
+
+### How it works, and why it is not just a clock
+
+Two pieces, both dev-gated:
+
+- **[`clock.ts`](../src/lib/clock.ts)** owns *now*. The four predicates that
+  ask what time it is — `matchdayState`, `liveMatchday`, `fixtureState`,
+  `duelPlayerStatus` in [`models.ts`](../src/api/models.ts) — read `nowMs()`
+  instead of `Date.now()`, and each still takes `now` as a parameter. The
+  offset is **added** to the real clock rather than freezing it, so a simulated
+  matchday progresses while you watch it.
+- **[`simulation.ts`](../src/dev/simulation.ts)** owns the payload.
+  `simulateMatchdays()` wraps the response in `useMatchdaysQuery`'s `queryFn` —
+  the single place the fixture list enters the app, before mapping and before
+  the cache, so every consumer sees one consistent answer.
+
+The clock alone is not enough, and it looks like it should be. Whether a
+matchday is over is **not** a comparison against time:
+`SeasonMatchday.isFinished` comes from every fixture reporting `st === 2`, a
+flag the server sets. So shifting the clock *forward* into next week's matchday
+does go live — but `ph` holds no points for a matchday nobody has played, so
+every row reads `–`; and shifting it *back* into a played matchday leaves every
+fixture saying finished, so nothing is live at all, with the real points
+sitting unreachable in `ph`. The profile therefore does both: the clock moves,
+**and** the chosen matchday's fixtures have `st` recomputed from that clock
+(finished once a match would be over at 110 minutes, upcoming otherwise, with
+goals stripped from anything that has not kicked off yet).
+
+Everything downstream is then real: real fixtures, real per-player points from
+`ph[day - 1]`, real standings for that `dayNumber`. Nothing is mocked — one
+flag and one number are bent, which is why adding a screen needs no work here.
+
+### What it does not fake
+
+- **Auth time.** Session expiry and token refresh keep reading `Date.now()`
+  deliberately: a clock a week in the past makes a good token look expired, and
+  one in the future fires the refresh timer immediately.
+- **The squad.** It is served only as it stands today, so a simulated matchday
+  shows *today's* eleven with that matchday's points — the gap
+  [duel detail](pages/duel-detail.md#what-a-past-matchday-shows) documents with
+  measurements.
+- **Match progress between refetches.** `st` is computed when the fixture list
+  is fetched (cached an hour), so a match crosses its final whistle on the next
+  refetch rather than to the second. The clock itself always ticks.
+- **Market countdowns and the player page's fixture list**, which come from
+  their own endpoints with their own server-side notion of now.
+
+A **warning chip in the header** ([`SimulationBadge`](../src/dev/SimulationBadge.tsx))
+shows the simulated matchday and the app's clock, ticking, whenever either is
+faked. The profile is convincing enough to be mistaken for a real result an
+hour later, so the app says so while it is doing it.
+
+**None of `src/dev/` reaches a production build.** Both call sites — the
+`queryFn` and the header — are guarded by the `import.meta.env.DEV` literal
+rather than by `env.isDev`, which is what lets the bundler fold the branch and
+drop the modules instead of shipping them switched off; verified by grepping
+`dist/`. `clock.ts` does ship, because `nowMs()` is what production reads too —
+with the offset nailed to zero, since `env.devProfile` is `undefined` there.
 
 ## Error containment
 

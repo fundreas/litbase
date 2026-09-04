@@ -4,6 +4,13 @@
  * The query hooks map the abbreviated wire DTOs from `types.ts` into these, so
  * components only ever see spelled-out names. When you add an endpoint, add its
  * model here and map it in the hook — don't leak raw keys into the UI.
+ *
+ * The four predicates that ask *what time is it* — {@link matchdayState},
+ * {@link liveMatchday}, {@link fixtureState} and {@link duelPlayerStatus} —
+ * read [`nowMs()`](../lib/clock.ts) rather than `Date.now()`, and each still
+ * takes `now` as a parameter. That is what lets the
+ * [live development profile](../dev/simulation.ts) put the whole app inside a
+ * matchday, and what will let tests pin it there without mocking globals.
  */
 
 import {
@@ -13,6 +20,7 @@ import {
   PLAYER_AVAILABILITY,
   PLAYER_POSITION,
 } from '@/api/types'
+import { nowMs } from '@/lib/clock'
 
 export type MarketValueTrend = 'up' | 'down' | 'flat'
 
@@ -130,7 +138,7 @@ export type MatchdayState = 'upcoming' | 'live' | 'finished'
  */
 export function matchdayState(
   matchday: SeasonMatchday,
-  now: number = Date.now(),
+  now: number = nowMs(),
 ): MatchdayState {
   if (matchday.isFinished) return 'finished'
   const start = Date.parse(matchday.start)
@@ -153,7 +161,7 @@ export function matchdayState(
  */
 export function liveMatchday(
   schedule: SeasonSchedule | undefined,
-  now: number = Date.now(),
+  now: number = nowMs(),
 ): SeasonMatchday | undefined {
   const current = schedule?.matchdays.find(
     (entry) => entry.day === schedule.currentDay,
@@ -189,7 +197,7 @@ export function fixtureState(
   // carries the same two fields and asks the same question — can use it
   // without a near-identical copy of the four lines below.
   fixture: { isFinished: boolean; kickoff: string },
-  now: number = Date.now(),
+  now: number = nowMs(),
 ): FixtureState {
   if (fixture.isFinished) return 'finished'
   const kickoff = Date.parse(fixture.kickoff)
@@ -496,7 +504,7 @@ export interface DuelRoster {
  */
 export function duelPlayerStatus(
   player: { lineupOrder?: number; fixture?: MatchdayFixture },
-  now: number = Date.now(),
+  now: number = nowMs(),
 ): DuelPlayerStatus {
   if (player.lineupOrder === undefined) return 'bench'
   if (player.fixture === undefined) return 'open'

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "dev:host": "vite --host",
+    "dev:live": "vite --mode live",
+    "dev:live:host": "vite --mode live --host",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",

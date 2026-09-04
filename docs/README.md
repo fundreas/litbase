@@ -53,6 +53,9 @@ URL until the screen exists. See
   before anything renders. See [API layer](api-layer.md).
 - **The URL is the source of truth for the active league.** Context is derived
   from it, never the other way round.
+- **Football time comes from `nowMs()`**, not `Date.now()` — the one seam that
+  lets [`npm run dev:live`](infrastructure.md#development-profiles) put the app
+  inside a matchday. Auth time is deliberately exempt.
 - **No global state library.** Server state lives in TanStack Query; the two
   pieces of client state that outlive a route (session, active league) are
   plain React contexts.

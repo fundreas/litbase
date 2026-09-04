@@ -11,6 +11,7 @@ import type {
 } from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { MatchdaysResponse } from '@/api/types'
+import { simulateMatchdays } from '@/dev/simulation'
 
 export interface CurrentMatchday {
   /** Matchday number, as the API reports it. */
@@ -31,6 +32,13 @@ const HOUR = 60 * 60_000
  * `day` naming the current matchday. It is the *whole* season in one payload
  * and only shifts weekly, so it is cached for an hour and both hooks below
  * read the same cache entry through `select` rather than fetching twice.
+ *
+ * **This payload is where "when are we?" comes from** — the current matchday,
+ * every kick-off, and whether each match is over. That makes it the one place
+ * the [live development profile](../../dev/simulation.ts) has to touch to put
+ * the app inside a matchday, so `simulateMatchdays` wraps the response here,
+ * before mapping and before the cache: every consumer then sees one consistent
+ * answer. It returns its input unchanged unless `npm run dev:live` is running.
  */
 function useMatchdaysQuery<T>(
   competitionId: string | undefined,
@@ -41,10 +49,15 @@ function useMatchdaysQuery<T>(
     enabled: competitionId !== undefined,
     staleTime: HOUR,
     select,
-    queryFn: () =>
-      get<MatchdaysResponse>(
+    queryFn: async () => {
+      const data = await get<MatchdaysResponse>(
         endpoints.competitions.matchdays(competitionId as string),
-      ),
+      )
+      // `import.meta.env.DEV` directly, rather than `env.isDev` — a literal is
+      // what lets the bundler fold this branch away and drop the dev module
+      // from the build entirely, instead of shipping it switched off.
+      return import.meta.env.DEV ? simulateMatchdays(data) : data
+    },
   })
 }
 
