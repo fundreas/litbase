@@ -156,7 +156,10 @@ export function MarketPage() {
         <ul className="flex flex-col gap-2">
           {withMilestones(data, now).map((entry) =>
             entry.kind === 'milestone' ? (
-              <Milestone key={entry.label} milestone={entry} />
+              <Milestone
+                key={`${entry.label}-${String(entry.at)}`}
+                milestone={entry}
+              />
             ) : (
               <MarketRow
                 key={entry.listing.id}
@@ -221,15 +224,15 @@ type Entry = Milestone | { kind: 'listing'; listing: MarketListing }
  * a manager's listing outlives all of this.
  */
 function withMilestones(market: Market, now: number): Entry[] {
+  // How far out the rules are worth drawing: the last listing that has an
+  // expiry at all. Beyond it there is nothing left to divide.
+  const horizon = market.listings.reduce(
+    (latest, listing) => Math.max(latest, listing.expiresAt ?? 0),
+    0,
+  )
+
   const pending: Milestone[] = [
-    market.marketValueUpdateAt === undefined
-      ? undefined
-      : {
-          kind: 'milestone' as const,
-          at: market.marketValueUpdateAt,
-          label: 'Neue Marktwerte',
-          icon: RefreshCw,
-        },
+    ...marketValueMilestones(market.marketValueUpdateAt, horizon),
     market.matchdayStartAt === undefined
       ? undefined
       : {
@@ -264,6 +267,55 @@ function withMilestones(market: Market, now: number): Entry[] {
     next = pending.shift()
   }
   return entries
+}
+
+/** The recalculation runs **nightly**; the response names only the next one. */
+const MARKET_VALUE_PERIOD_MS = 24 * 60 * 60_000
+
+/** Enough for any listing the market holds, and a stop against a bad `mvud`. */
+const MAX_MARKET_VALUE_MILESTONES = 7
+
+/**
+ * Every recalculation between now and the last listing's expiry — not just the
+ * one the response names.
+ *
+ * A listing can run two and a half days, which is **three** recalculations, and
+ * a row sitting after the second is worth a different amount of caution than
+ * one sitting after the first. `mvud` gives only the next; the rest follow at a
+ * day's spacing, which is what the field has been observed to do (20:00 UTC,
+ * every night).
+ */
+function marketValueMilestones(
+  first: number | undefined,
+  horizon: number,
+): Milestone[] {
+  if (first === undefined) return []
+
+  const milestones: Milestone[] = []
+  for (
+    let at = first;
+    at <= horizon && milestones.length < MAX_MARKET_VALUE_MILESTONES;
+    at += MARKET_VALUE_PERIOD_MS
+  ) {
+    milestones.push({
+      kind: 'milestone',
+      at,
+      label: 'Neue Marktwerte',
+      icon: RefreshCw,
+    })
+  }
+  // The first one always earns its line, even when every listing settles
+  // before it: "nothing here survives tonight" is worth saying too.
+  return milestones.length > 0
+    ? milestones
+    : [
+        {
+          kind: 'milestone',
+          at: first,
+          label: 'Neue Marktwerte',
+          icon: RefreshCw,
+        },
+      ]
 }
 
 /** The rule itself: a hairline, with the moment named in the gap. */

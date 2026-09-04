@@ -49,6 +49,13 @@ buying him for. Both instants come off the market response itself (`mvud` and
 request. A milestone already past is dropped rather than drawn at the top,
 where it would be a line about nothing.
 
+The recalculation is **drawn every night it happens**, not just the next one:
+`mvud` names only the following run, but listings reach two and a half days out
+— three recalculations — and a row sitting after the second deserves different
+caution than one sitting after the first. The rest follow at a day's spacing,
+which is the cadence the field has been observed to keep (20:00 UTC), and stop
+at the last listing that has an expiry at all.
+
 **The heading counts what you have promised.** Beside the budget, and only when
 at least one bid stands, sits what would be left **if every one of them won**.
 Kickbase checks each offer against the budget on its own, so five live bids can
