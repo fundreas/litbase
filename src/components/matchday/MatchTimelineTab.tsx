@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Flag, PauseCircle, Play } from 'lucide-react'
+import { Flag, PauseCircle, Play } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import {
@@ -12,7 +12,7 @@ import {
   type MatchTimelineItem,
   type TimelineMarker,
 } from '@/api/models'
-import { EventGlyph } from '@/components/player/statGlyphs'
+import { EventGlyph, SwapMark } from '@/components/player/statGlyphs'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { time } from '@/lib/format'
@@ -50,10 +50,11 @@ const MARKER_ICON: Record<TimelineMarker, LucideIcon> = {
  *
  * The marks are the app's shared [`EventGlyph`](../player/statGlyphs.tsx)s, so
  * a ball here means the same thing as a ball on a player's match row and in his
- * season grid. Substitutions get an arrow pair of their own: they are excluded
- * from the glyph scale on purpose, because on a *player* a swap says where he
- * was rather than what he did — but on a match timeline it is one of the events
- * the reader came for.
+ * season grid. Substitutions get the shared
+ * [`SwapMark`](../player/statGlyphs.tsx) instead — green right for coming on,
+ * red left for going off — because they are excluded from the glyph scale on
+ * purpose: on a *player* a swap says where he was rather than what he did, but
+ * on a match timeline it is one of the events the reader came for.
  */
 export function MatchTimelineTab({
   detail,
@@ -196,11 +197,12 @@ function EventBody({
     >
       <span className="flex h-5 w-4 shrink-0 items-center justify-center">
         {event.kind === 'substitution' ? (
-          <ArrowLeftRight
-            size={13}
-            aria-hidden="true"
-            className="text-warning"
-          />
+          /* Directional: green right for the player coming on, red left for
+             the one going off. The feed has only ever carried the incoming
+             code, so this is `in` in practice — but a row that named the
+             direction wrongly would be worse than one that reads it off the
+             data it has. */
+          <SwapMark direction={event.swap === 'off' ? 'out' : 'in'} size={13} />
         ) : (
           <EventGlyph kind={event.kind} size={14} />
         )}

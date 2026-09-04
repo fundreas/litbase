@@ -1,4 +1,4 @@
-import { ListOrdered, Shirt } from 'lucide-react'
+import { ListOrdered, Shirt, Trophy } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router'
 
 import { useMatchDetails } from '@/api/hooks/useMatchDetails'
@@ -7,6 +7,7 @@ import { useMatchLineup } from '@/api/hooks/useMatchLineup'
 import { fixtureState, type MatchDetail } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { MatchLineupTab } from '@/components/matchday/MatchLineupTab'
+import { MatchRankingTab } from '@/components/matchday/MatchRankingTab'
 import { MatchScoreHeader } from '@/components/matchday/MatchScoreHeader'
 import { MatchTimelineTab } from '@/components/matchday/MatchTimelineTab'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
@@ -15,19 +16,29 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 
 /** View value ⇄ route segment, following the squad page's convention. */
-const VIEWS = { timeline: 'timeline', lineup: 'lineup' } as const
+const VIEWS = {
+  events: 'events',
+  lineup: 'lineup',
+  ranking: 'ranking',
+} as const
 type ViewValue = (typeof VIEWS)[keyof typeof VIEWS]
 
 /**
  * One match, in detail:
  *
- *   /leagues/:leagueId/matchday/:matchId          → Verlauf (the timeline)
- *   /leagues/:leagueId/matchday/:matchId/lineup   → Aufstellung
+ *   /leagues/:leagueId/matchday/:matchId           → Events (the timeline)
+ *   /leagues/:leagueId/matchday/:matchId/lineup    → Aufstellung
+ *   /leagues/:leagueId/matchday/:matchId/ranking   → Ranking
  *
- * Two routes, one component — the active view is read out of the segment, so
+ * Three routes, one component — the active view is read out of the segment, so
  * each is linkable and survives a refresh, exactly as on the squad and player
- * pages. The scoreline above them belongs to neither and does not move when the
- * tab changes.
+ * pages. The scoreline above them belongs to none of them and does not move
+ * when the tab changes.
+ *
+ * The three answer three different questions about the same match: *what
+ * happened*, *how were the two teams set up*, and *who actually scored the
+ * points*. The last is the [duel detail](../../docs/pages/duel-detail.md) page's
+ * combined ranking applied to a fixture instead of a pairing.
  *
  * **The URL carries a match id and nothing else.** The matchday is looked up
  * from the season's fixture list ([`useSeasonMatch`](../api/hooks/useMatchday.ts)),
@@ -53,21 +64,30 @@ export function MatchDetailPage() {
 
   const view: ViewValue = location.pathname.endsWith(`/${VIEWS.lineup}`)
     ? VIEWS.lineup
-    : VIEWS.timeline
+    : location.pathname.endsWith(`/${VIEWS.ranking}`)
+      ? VIEWS.ranking
+      : VIEWS.events
 
   const base = `/leagues/${leagueId}/matchday`
+  const matchBase = `${base}/${matchId ?? ''}`
   const tabs: BottomTab[] = [
     {
-      value: VIEWS.timeline,
-      label: 'Verlauf',
+      value: VIEWS.events,
+      label: 'Events',
       icon: ListOrdered,
-      to: `${base}/${matchId ?? ''}`,
+      to: matchBase,
     },
     {
       value: VIEWS.lineup,
       label: 'Aufstellung',
       icon: Shirt,
-      to: `${base}/${matchId ?? ''}/${VIEWS.lineup}`,
+      to: `${matchBase}/${VIEWS.lineup}`,
+    },
+    {
+      value: VIEWS.ranking,
+      label: 'Ranking',
+      icon: Trophy,
+      to: `${matchBase}/${VIEWS.ranking}`,
     },
   ]
 
@@ -128,19 +148,20 @@ export function MatchDetailPage() {
               void detail.refetch()
             }}
           />
-        ) : view === VIEWS.lineup ? (
-          <LineupView
+        ) : view === VIEWS.events ? (
+          <MatchTimelineTab
+            detail={detail.data}
+            state={state}
+            kickoff={match.data.kickoff}
+          />
+        ) : (
+          <SquadsView
+            view={view}
             leagueId={leagueId}
             competitionId={competitionId}
             day={match.data.day}
             detail={detail.data}
             viewerId={user?.id}
-          />
-        ) : (
-          <MatchTimelineTab
-            detail={detail.data}
-            state={state}
-            kickoff={match.data.kickoff}
           />
         )}
       </div>
@@ -151,20 +172,27 @@ export function MatchDetailPage() {
 }
 
 /**
- * The lineup tab and the fan-out behind it, in a component of its own.
+ * The two views that need the **team sheets with points and owners**, and the
+ * fan-out behind them.
  *
- * Split out so the **~36 per-player requests only fire while that tab is open**
- * — mounting the hook in the page would have the timeline pay for a lineup
- * nobody is looking at. The same reason the squad page's live view sits outside
- * its shared views.
+ * Split out from the page for one reason: the fan-out is ~36 per-player
+ * requests plus one per manager, and mounting it in the page would have the
+ * Events tab pay for data nobody is looking at. The same split the squad page
+ * uses to keep its live view's requests off the Kader.
+ *
+ * Both tabs sit **inside** it, so flicking between the pitch and the ranking
+ * costs nothing — they are two readings of one set of queries, exactly as the
+ * duel page's two views are.
  */
-function LineupView({
+function SquadsView({
+  view,
   leagueId,
   competitionId,
   day,
   detail,
   viewerId,
 }: {
+  view: ViewValue
   leagueId: string
   competitionId: string
   day: number
@@ -178,6 +206,16 @@ function LineupView({
   const lineup = useMatchLineup(leagueId, day, detail, fixtures.data, viewerId)
 
   if (lineup === undefined) return <SkeletonList rows={8} />
+
+  if (view === VIEWS.ranking) {
+    return (
+      <MatchRankingTab
+        home={lineup.home}
+        away={lineup.away}
+        leagueId={leagueId}
+      />
+    )
+  }
 
   return (
     <MatchLineupTab

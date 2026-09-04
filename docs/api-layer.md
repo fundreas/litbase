@@ -145,11 +145,11 @@ is what makes them safe to call before context has resolved.
 | `useMatchdayMatches(cid, day)` | `/competitions/{cid}/matchdays` | 1 hour — same entry |
 | `useSeasonMatch(cid, mi)` | `/competitions/{cid}/matchdays` | 1 hour — same entry |
 | `useMatchdaySquad(…)` | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | 5 min |
-| `useMatchdayLineups(…)` | same endpoint, same entry — `us` instead of `lp`/`nlp` | 5 min |
+| `useMatchdayLineups(…)` | same endpoint × one per manager — league-wide ownership | 5 min |
 | `useLiveMatches(…)` | `/matches/{matchId}/details` × N | ∞ once over, 0 + 1 min poll while playing |
 | `useMatchDetails(match)` | `/matches/{matchId}/details` | as above, plus 5 min before kick-off |
 | `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 1 min poll while playing |
-| `useMatchLineup(…)` | `useMatchdayPoints` + `useRanking` | — composes the two |
+| `useMatchLineup(…)` | `useMatchdayLineups` + `useMatchdayPoints` + `useRanking` | — composes the three |
 
 `useMatchdaySquad` is the API's only **historical** source: a manager's squad
 and lineup as they stood on a given matchday, for any manager in the league.
@@ -159,14 +159,18 @@ page's live view reads — see
 Note its key includes the matchday, unlike `managerSquad`, because the endpoint
 answers differently per `dayNumber`.
 
-That payload has a **second, league-wide half**: `us` lists every manager in the
-league with the players *they* fielded that matchday, whoever is named in the
-path. `useMatchdayLineups` is a second `select` over the same cache entry and
-reads it, which makes one request the only bulk source of **historical
-ownership** in the API — and the fix for the
-[match lineup](pages/match-detail.md#it-is-the-matchdays-lineup-not-todays-squad),
-which first used `oui` (today's owner) and so credited every transferred player
-to his new manager on a past matchday.
+`useMatchdayLineups` is the **league-wide** reading of the same endpoint: one
+request per manager, zipped into a player → manager lookup, which is what the
+[match lineup](pages/match-detail.md#it-is-the-matchdays-lineup-not-todays-squad)
+needs for its ownership badges. Every entry is one `useMatchdaySquad` would fill,
+so the two share the cache.
+
+It is a fan-out because the two cheaper answers are both **wrong**, and both look
+right. `oui` on the player detail is who owns the player *today*, so a past
+matchday credits everyone transferred since to his new manager. `us` on this very
+payload lists every manager with the players in their lineup — and **ignores
+`dayNumber`**, reporting the current elevens whatever day is asked for. Only the
+addressed manager's own `lp`/`nlp` honours the parameter.
 
 `useLiveMatches` is where a **running match** comes from: the score, the
 minute (`mt`), and an `events` feed of who did what. One request per match —
@@ -224,8 +228,9 @@ the `qk.playerDetail` cache entry with `useStartProbabilities`, so a page
 showing both pays for each player once, and the key carries no matchday, so
 stepping through a season re-reads nothing.
 
-`useMatchLineup` is the composition on top: `useMatchdayPoints` for points,
-owners and positions, `useRanking` for turning an owner id into a name and an
+`useMatchLineup` is the composition on top: `useMatchdayLineups` for who owned
+whom on the matchday, `useMatchdayPoints` for points and positions (and `oui` as
+a last-resort owner), `useRanking` for turning a manager id into a name and an
 avatar, and the match's own event feed for who came on and who went off.
 
 Mutations:

@@ -48,7 +48,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/squad/lineup        the pitch, under the squad
  *   /leagues/:leagueId/squad/live          the running matchday, while it runs
  *   /leagues/:leagueId/matchday            every fixture of a matchday
- *   /leagues/:leagueId/matchday/:matchId   one match, two tabs
+ *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
  *   /leagues/:leagueId/players/:playerId   one player, three tabs
  *
  * The league id lives in the path, not in context alone, so a refresh, a
@@ -123,7 +123,7 @@ export const router = createBrowserRouter(
                 { path: 'market', element: <MarketPage /> },
                 { path: 'ranking', element: <RankingPage /> },
                 // The competition's own fixtures, and one match in detail.
-                // Two routes for the detail, one component — the tab comes
+                // Three routes for the detail, one component — the tab comes
                 // from the segment, as on the squad and duel-detail pages.
                 //
                 // `:matchId` alone is enough: the matchday is resolved from
@@ -133,6 +133,10 @@ export const router = createBrowserRouter(
                 { path: 'matchday/:matchId', element: <MatchDetailPage /> },
                 {
                   path: 'matchday/:matchId/lineup',
+                  element: <MatchDetailPage />,
+                },
+                {
+                  path: 'matchday/:matchId/ranking',
                   element: <MatchDetailPage />,
                 },
                 // Duel leagues only. The route is registered unconditionally —

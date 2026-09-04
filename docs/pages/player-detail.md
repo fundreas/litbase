@@ -153,7 +153,7 @@ The fixture itself is the profile's `mdsum` entry with `cur: true`.
 | ----- | ---- | ----- |
 | Upcoming | `Sa, 5. Sep. · 18:30` | the matchday number |
 | Running | pulsing dot, *Läuft*, accent-tinted card | points so far |
-| Finished | the role marks (`S11`, ↑, ↓) plus minutes and event badges | points |
+| Finished | the role marks (`S11`, →, ←) plus minutes and event badges | points |
 
 **"Läuft" is inferred from the clock, not reported.** No observed field
 distinguishes a match in progress: fixtures carry `mdst`, and only `0` (not
@@ -309,9 +309,9 @@ On the row those become **marks, not words**:
 | Role | Mark |
 | ---- | ---- |
 | Started | `S11` chip |
-| Started, then taken off | `S11` ↓ |
-| Came on | ↑ |
-| Came on, then taken off | ↑ ↓ |
+| Started, then taken off | `S11` ← (red) |
+| Came on | → (green) |
+| Came on, then taken off | → ← |
 | Did not feature | ✕ |
 | Out injured | *Verletzt* |
 
@@ -319,7 +319,11 @@ The row already holds an opponent, a scoreline, minutes, event badges and a
 points total, and "Startelf" and "Ausgewechselt" — nine and thirteen
 characters — pushed the badges off the end of a phone. The marks also compose,
 which the words do not: a starter taken off keeps the chip *and* gains the
-arrow. Only an injury is still spelled out; it is the one non-appearance with a
+arrow. The pair is **horizontal, green on and red off** — a player walks on from
+the touchline and off to it, so left/right reads as a substitution where up/down
+(what these were first drawn as) reads as promotion and demotion. It is the
+shared `SwapMark`, so the same arrow means the same thing on a
+[match](match-detail.md) timeline and lineup. Only an injury is still spelled out; it is the one non-appearance with a
 cause, and the cause is why the reader is looking. Full wording stays in the
 tooltip and the accessible name throughout.
 

@@ -3,19 +3,25 @@
 [← Back to index](../README.md)
 
 ```
-/leagues/:leagueId/matchday/:matchId          → Verlauf
-/leagues/:leagueId/matchday/:matchId/lineup   → Aufstellung
+/leagues/:leagueId/matchday/:matchId           → Events
+/leagues/:leagueId/matchday/:matchId/lineup    → Aufstellung
+/leagues/:leagueId/matchday/:matchId/ranking   → Ranking
 ```
 
 One match: the scoreline, everything that happened in it, and both team sheets
-with **the league's own managers marked against the players they own**.
+with **the league's own managers marked against the players they had**.
 
-Two routes, one component — the active tab is read out of the segment, so each
+Three routes, one component — the active tab is read out of the segment, so each
 view is linkable and survives a refresh, the same convention the
 [squad](squad.md), [duel detail](duel-detail.md) and
 [player](player-detail.md) pages follow. The tabs are a
 [`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx), which is the app's
 control for switching between views of one page.
+
+The three answer three different questions about the same match — *what
+happened*, *how were the two teams set up*, *who actually scored the points* —
+and the last is the duel page's combined ranking applied to a fixture instead of
+a pairing.
 
 ## The URL carries a match id and nothing else
 
@@ -81,7 +87,7 @@ not shift the page under the reader. The club **names** only exist on the match
 payload (`t1n`/`t2n`), so the header shows the fixture list's three-letter
 symbols for the moment before it lands.
 
-## Verlauf — the timeline
+## Events — the timeline
 
 [`MatchTimelineTab`](../../src/components/matchday/MatchTimelineTab.tsx),
 ordered by [`matchTimeline()`](../../src/api/models.ts).
@@ -126,10 +132,13 @@ allows it — spans the whole width rather than being guessed onto a side.
 The marks are the app's shared
 [`EventGlyph`](../../src/components/player/statGlyphs.tsx)s, so a ball here
 means the same thing as a ball on a player's match row and in his season grid.
-**Substitutions get an arrow pair of their own**: they are excluded from the
-glyph scale on purpose, because on a *player* a swap says where he was rather
-than what he did — but on a match timeline it is one of the events the reader
-came for.
+**Substitutions get the shared `SwapMark`** — green arrow right for the player
+coming on, red arrow left for the one going off. They are excluded from the glyph
+scale on purpose, because on a *player* a swap says where he was rather than what
+he did; on a match timeline it is one of the events the reader came for. The pair
+is horizontal because on and off the pitch is lateral movement, and the same mark
+is used on the lineup's bench rows and pitch corners so the notation is learned
+once.
 
 ### The second name on a row
 
@@ -182,7 +191,7 @@ Each portrait carries three things and no more:
 - the **points** on the plate — `–` rather than `0` while they are unknown,
   because a match that has not kicked off is not a blank performance;
 - the **owning manager**, top-left;
-- a **down arrow**, top-right, once the player has been taken off — the one
+- a **red arrow**, top-right, once the player has been taken off — the one
   thing that changes what his number means, because it is now final.
 
 No names and no event badges. At twenty-two portraits on a phone a name under
@@ -239,60 +248,72 @@ mine" is answered without reading anything at all.
 
 ### It is the matchday's lineup, not today's squad
 
-The badge asks **who had this player in his lineup on this matchday** — and that
-is a different question from who owns him now.
+The badge asks **who had this player on this matchday** — a different question
+from who owns him now, and it took three attempts to answer. Both wrong answers
+are worth keeping, because both looked right:
 
-The source is `us` on the matchday snapshot,
-[`useMatchdayLineups`](../../src/api/hooks/useMatchdaySquad.ts): alongside the
-addressed manager's own `lp`/`nlp`, `GET /leagues/{id}/users/{uid}/teamcenter?dayNumber=`
-carries **every member of the league with the players *they* fielded that
-matchday**. One request answers ownership for all of them. It is the same cache
-entry `useMatchdaySquad` fills, read through a second `select`, and the same
-entry the squad page's live view already holds for the current matchday — so
-that case is free.
+| Source | Why it looked right | Why it was wrong |
+| ------ | ------------------- | ---------------- |
+| `oui` on the player detail | Free — the points fan-out fetches that response anyway | It is who owns him **today**. A matchday from three weeks ago badged everyone transferred since with his *new* manager and reassigned the points they scored. |
+| `us` on the matchday snapshot | One request, and reads as a league-wide gift: every manager with the players in their lineup | It **ignores `dayNumber`** and reports the lineups as they stand *now*. Same class of bug, one layer deeper — and the one that produced "it's still the current lineup". |
+| Each manager's own `lp`/`nlp` under `?dayNumber=` | — | Nothing. It is verified to honour the parameter, and it is what the app uses. |
 
-The first version of this read **`oui` on the player detail**, which the points
-fan-out is fetching anyway. That was wrong, and quietly: `oui` is who owns the
-player *today*, so a matchday from three weeks ago badged everyone transferred
-since with his **new** manager and reassigned the points they scored. The
-snapshot is the matchday's own record.
+So [`useMatchdayLineups`](../../src/api/hooks/useMatchdaySquad.ts) is a **fan-out
+of one request per manager in the league** — ten to twenty — over
+`GET /leagues/{id}/users/{uid}/teamcenter?dayNumber=`. That is what the API
+charges for the truth here. Three things make it acceptable:
 
-`oui` survives as the **fallback for a matchday with no lineups yet** — before
-the first kick-off, where the snapshot is measurably empty and today's owner is
-the right answer in any case, because nobody has fielded anybody. Each badge
-carries which of the two it came from
-([`OwnerSource`](../../src/api/models.ts)) and the wording follows: *In der
-Aufstellung von X an diesem Spieltag* against *Gehört X*. Two different claims
-should not share a sentence.
+- It is the **same cache entry** `useMatchdaySquad` uses,
+  `qk.matchdaySquad(leagueId, managerId, day)`, so a manager already looked at on
+  the duel page this session is free, and so is the signed-in user on the current
+  matchday.
+- A matchday's rosters are **history**: nothing polls, and a settled entry is
+  re-read only on focus after five minutes.
+- The manager list is `useRanking`, already fetched for the names and avatars.
 
-Two consequences worth knowing:
+**`lp` and `nlp` are both read**, so the badge distinguishes a player who was
+*fielded* from one merely *owned and left out* — the second is drawn faded and
+worded differently, because it answers "why did he score me nothing" rather than
+"he played for me". Before kick-off `lp` is empty and `nlp` holds the whole
+squad, so an upcoming matchday still answers ownership correctly.
 
-- **Fielded players only.** `us` has no per-manager bench (`lp` and `lpi`, no
-  `nlp`), so a player somebody owned and left out gets no badge. For a matchday
-  view that is the more useful half — the question is who *played* him — and the
-  alternative is one request per manager in the league.
-- `oui` is the *string* `"0"` rather than an absent field when nobody owns the
-  player, a trap that now lives in exactly one place, `toOwnerId()`: read
-  naively it is a truthy id matching no manager, and every free agent would show
-  as owned.
+`oui` survives as the **last resort**, for a matchday the snapshot has nothing at
+all for (out of range, or before the league existed). `needsOwner` on the points
+fan-out is set *only* in that case, so the thirty-six extra pre-kick-off requests
+happen only when there is no alternative.
 
-A manager the standings do not list keeps the snapshot's own `unm` as a name and
-loses only the avatar. A bare id is never rendered — better no badge than an
-unreadable one.
+Three sources, three sentences — see
+[`ownerLabel`](../../src/components/matchday/ownerLabel.ts) and
+[`OwnerSource`](../../src/api/models.ts):
+
+| Claim | Wording |
+| ----- | ------- |
+| In that manager's eleven that matchday | *In der Aufstellung von X an diesem Spieltag* |
+| Owned by him then, left out | *Im Kader von X, nicht aufgestellt* |
+| His today (fallback only) | *Gehört X* — present tense, because that is all it knows |
+
+One trap worth naming: `oui` is the *string* `"0"` rather than an absent field
+when nobody owns the player. Read naively it is a truthy id matching no manager,
+and every free agent would show as owned; it lives in exactly one place,
+`toOwnerId()`. And a manager the standings do not list gets **no badge** rather
+than one reading a raw id.
 
 ### What the lineup costs
 
-**Roughly 36 requests plus two** — twenty-two starters and both benches, one per
-player, via [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts), on
-top of the matchday snapshot and the standings. There is no bulk source of
-per-player matchday points: `/leagues/{id}/players`, `?ids=` and every other
-shape answer 404. See
-[duel detail](duel-detail.md#points-cost-one-request-per-player), which pays the
-same price for thirty.
+Two fan-outs, both of which the two team-sheet tabs share:
 
-Ownership, by contrast, **is** available in bulk, which is the whole reason the
-snapshot won that job — one request rather than a field scavenged from
-thirty-six.
+| What | Requests |
+| ---- | -------- |
+| Points, per player | ~36 — twenty-two starters plus both benches, via [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) |
+| Ownership, per manager | 10–20 — one matchday snapshot each, via [`useMatchdayLineups`](../../src/api/hooks/useMatchdaySquad.ts) |
+| The standings | 1, cached, shared with the dashboard and the ranking page |
+
+Neither has a bulk alternative that answers the right question.
+`/leagues/{id}/players`, `?ids=` and every other shape answer 404 for points;
+`us` on the snapshot *is* bulk for ownership and reports today's lineups, which
+is why it is not used. See
+[duel detail](duel-detail.md#points-cost-one-request-per-player), which pays the
+same price for thirty players.
 
 Three things keep it honest:
 
@@ -307,11 +328,12 @@ Three things keep it honest:
    the session; the minute-poll is attached per player, so a finished match
    costs nothing to keep open.
 
-The one rule this page **overrides** is "no points yet, so do not ask":
-`needsOwner` fetches a player before his match has kicked off. That is now
-purely for the pre-kick-off ownership fallback — the snapshot has no lineups
-that early, and a team sheet with no badges at all on the Friday evening would
-be the view failing at the one thing it is for.
+The one rule this page can **override** is "no points yet, so do not ask":
+`needsOwner` fetches a player before his match has kicked off. It is set only
+when the matchday snapshot came back with nothing at all — the last-resort
+ownership path — and the standings have to have resolved first, or the empty
+fan-out would look like "the snapshot found nothing" on every first render and
+fire the expensive fallback before withdrawing it.
 
 ### Who came off
 
@@ -344,6 +366,41 @@ response yet — are counted in a line under it. Dropping them silently is how
 sold players once went missing from the duel lineup, and defaulting them into
 midfield would put a stranger in the middle of the park and look deliberate.
 
+## Ranking — who actually scored
+
+[`MatchRankingTab`](../../src/components/matchday/MatchRankingTab.tsx). Every
+player in the match, best first, **both clubs interleaved and both benches
+included**.
+
+It exists for the reason the [duel's ranking](duel-detail.md#the-ranking-tab)
+does: the pitch answers "how are the two teams set up", a ranked list answers
+"who actually scored the points", and those are different questions. Interleaving
+the clubs is the point — a list where one side occupies the top six says
+something two separate columns cannot.
+
+```
+ 1  (portrait)  Musiala          158
+                [crest] ⚽ 🏃      (owner)
+ 2  (portrait)  Kimmich          121
+                [crest] 🏃 🟨     (owner)
+```
+
+A row is a portrait, the name, and a second line carrying the **club crest**
+(which of the two he belongs to — the one thing a combined list takes away and
+has to give back), the **event glyphs**, and an arrow if he was swapped. Then the
+**owning manager** and the score. Unlike the duel's row it needs no scoreline
+beside the crest, because every row in this list is the same match.
+
+The event glyphs live here rather than on the pitch: a row has the width for
+them and a 30px portrait does not.
+
+Players with no points sort **last**, not as zero, and two unknowns fall back to
+the name so the order stays stable while the fan-out lands one player at a time.
+
+**It shares the pitch's queries.** Both tabs are rendered by one `SquadsView`
+inside the page, so flicking between them costs nothing — they are two readings
+of the same set of requests, exactly as the duel page's two views are.
+
 ## States
 
 | State | Rendering |
@@ -353,6 +410,7 @@ midfield would put a stranger in the middle of the park and look deliberate.
 | Match payload loading | Header renders; `SkeletonList` in its place |
 | Match payload error | `ErrorState` with retry |
 | Points still arriving | The pitch renders; a spinner and *Punkte werden geladen …* under it |
+| No team sheets yet, Ranking tab | `EmptyState` — the pitch has its own sentence on the grass |
 
 ## Possible extensions
 

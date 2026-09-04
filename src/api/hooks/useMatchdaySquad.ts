@@ -1,10 +1,15 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import {
+  useQueries,
+  useQuery,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import {
   toPosition,
   type MatchdayLineups,
+  type MatchdayOwnership,
   type MatchdaySquad,
   type PositionKey,
 } from '@/api/models'
@@ -127,70 +132,93 @@ function fetchTeamcenter(
 }
 
 /**
- * **Who fielded whom, across the whole league, on one matchday.**
+ * **Who had whom, across the whole league, on one matchday** — one request per
+ * manager.
  *
- * The same request as {@link useMatchdaySquad} and the same cache entry — this
- * reads a different part of the payload. Alongside the addressed manager's own
- * `lp`/`nlp`, the response carries **`us`: every member of the league with the
- * players *they* had in their lineup that matchday**. One request answers
- * ownership for all of them.
+ * ## Why this is a fan-out and not one request
  *
- * That is the field the [match lineup](../../docs/pages/match-detail.md#ownership-is-the-point)
- * needs, and it replaced a genuinely wrong answer. Ownership was read from
- * `oui` on the player detail, which is **who owns him today** — so a past
- * matchday badged every transferred player with his new manager and quietly
- * rewrote history. `us` is the matchday's own truth.
+ * The same payload carries `us`, which *looks* like the answer for free: every
+ * member of the league with the players in their lineup. It was used for
+ * exactly one round and it is **wrong** — `us` ignores `dayNumber` and reports
+ * the lineups as they stand **now**, so a past matchday showed today's elevens.
+ * That is the same class of mistake as reading `oui` before it: a plausible
+ * field that quietly answers a different question.
  *
- * `userId` only addresses the request; `us` is league-wide whoever is named. The
- * signed-in user is the natural choice, and it is the entry the squad page's
- * live view already fills for the current matchday, so that case is free.
+ * What *is* verified to honour `dayNumber` is the addressed manager's own
+ * `lp`/`nlp` — the pair {@link useMatchdaySquad} maps, checked against a league
+ * with played matchdays. So the only honest way to ownership for a matchday is
+ * to ask that question once per manager.
  *
- * **It is fielded players only.** There is no per-manager bench in `us` (`lp`
- * and `lpi`, no `nlp`), so a player somebody owned and left out gets no badge.
- * For a matchday view that is the more useful half anyway — the question is who
- * *played* him — and the alternative is one request per manager in the league.
+ * ## What it costs
  *
- * **Empty before kick-off**, measured: `lp` fills at or after the first kick-off
- * of the matchday, so `isEmpty` is the caller's signal to fall back to today's
- * ownership — which for a match that has not been played is the right answer in
- * any case.
+ * One request per manager in the league — ten to twenty. Three things make that
+ * acceptable:
+ *
+ *  - It is the **same cache entry** `useMatchdaySquad` uses,
+ *    `qk.matchdaySquad(leagueId, managerId, day)`, so a manager already looked
+ *    at on the duel page this session is free, and so is the signed-in user on
+ *    the current matchday.
+ *  - A matchday's rosters are **history**; nothing polls, and a settled entry
+ *    is re-read only on focus after five minutes.
+ *  - It is mounted by one tab of one page, not by the page.
+ *
+ * ## Fielded and merely owned are both reported
+ *
+ * `lp` is the eleven that was fielded and `nlp` the rest of that matchday's
+ * squad, so both are recorded with a `wasFielded` flag. A player somebody owned
+ * and left out is worth a badge — it answers "why did he score me nothing" —
+ * and it is why this reaches for the pair rather than the lineup alone.
+ *
+ * Before kick-off `lp` is empty and `nlp` holds the whole squad (measured), so
+ * even an upcoming matchday answers ownership correctly; only a matchday the
+ * API has nothing for at all comes back {@link MatchdayLineups.isEmpty}.
  */
 export function useMatchdayLineups(
   leagueId: string | undefined,
-  userId: string | undefined,
   day: number | undefined,
-): UseQueryResult<MatchdayLineups> {
-  return useQuery({
-    queryKey: qk.matchdaySquad(leagueId ?? 'none', userId ?? 'none', day ?? 0),
-    enabled:
-      leagueId !== undefined && userId !== undefined && day !== undefined,
-    staleTime: SETTLED_STALE_MS,
-    select: selectMatchdayLineups,
-    queryFn: () => fetchTeamcenter(leagueId as string, userId as string, day),
+  managerIds: readonly string[],
+): MatchdayLineups {
+  const enabled = leagueId !== undefined && day !== undefined
+
+  // `useQueries` answers in the order it was asked, which is what lets each
+  // result be zipped back to its manager below.
+  const queries = useQueries({
+    queries: managerIds.map((managerId) => ({
+      queryKey: qk.matchdaySquad(leagueId ?? 'none', managerId, day ?? 0),
+      enabled,
+      staleTime: SETTLED_STALE_MS,
+      queryFn: () => fetchTeamcenter(leagueId as string, managerId, day),
+    })),
   })
-}
 
-/*
- * A module-level constant, unlike `useMatchdaySquad`'s: nothing is closed over,
- * so React Query's `select` memo holds and the maps below are rebuilt only when
- * the payload actually changes.
- */
-function selectMatchdayLineups(data: TeamcenterResponse): MatchdayLineups {
-  const managerIdByPlayerId = new Map<string, string>()
-  const nameByManagerId = new Map<string, string>()
+  // Rebuilt per render, as everywhere `useQueries` is used in this codebase: it
+  // hands back a fresh array each time, so a memo would need a surrogate key
+  // harder to trust than the twenty map writes it saves.
+  const byPlayerId = new Map<string, MatchdayOwnership>()
 
-  for (const manager of data.us ?? []) {
-    nameByManagerId.set(manager.i, manager.unm)
-    for (const player of manager.lp ?? []) {
-      managerIdByPlayerId.set(player.i, manager.i)
+  for (const [index, query] of queries.entries()) {
+    const data = query.data
+    const managerId = managerIds[index]
+    if (data === undefined || managerId === undefined) continue
+
+    for (const player of data.lp ?? []) {
+      byPlayerId.set(player.i, { managerId, wasFielded: true })
+    }
+    for (const player of data.nlp ?? []) {
+      // `lp` wins: a player cannot be both, and if the API ever listed one
+      // twice the lineup is the more specific claim.
+      if (!byPlayerId.has(player.i)) {
+        byPlayerId.set(player.i, { managerId, wasFielded: false })
+      }
     }
   }
 
   return {
-    managerIdByPlayerId,
-    nameByManagerId,
-    // No lineups anywhere: before the first kick-off, or a matchday the API has
-    // nothing for. Not "nobody fielded anybody".
-    isEmpty: managerIdByPlayerId.size === 0,
+    byPlayerId,
+    // Not one manager's squad came back with anything: a matchday out of range,
+    // or one from before the league existed. **Not** "nobody owned anybody" —
+    // the caller has to fall back rather than drop every badge.
+    isEmpty: byPlayerId.size === 0,
+    isPending: queries.some((query) => query.isPending),
   }
 }

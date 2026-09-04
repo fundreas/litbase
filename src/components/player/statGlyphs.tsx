@@ -1,6 +1,6 @@
 import {
-  ArrowDown,
-  ArrowUp,
+  ArrowLeft,
+  ArrowRight,
   Footprints,
   Hand,
   ShieldCheck,
@@ -147,8 +147,48 @@ const ROLE_TEXT_CLASS: Partial<Record<PlayerMatchRole, string>> = {
 }
 
 /**
- * Where the player was, in marks rather than words: **`S11` for a start, an up
- * arrow for coming on, a down arrow for going off.**
+ * A substitution, as one arrow: **green pointing right for coming on, red
+ * pointing left for going off.**
+ *
+ * Right-and-left rather than up-and-down, which is what these were first drawn
+ * as. On and off the pitch is lateral movement — a player walks *on* from the
+ * touchline and *off* to it — so a horizontal pair reads as the substitution it
+ * is, where a vertical pair reads as promotion and demotion. The colours do the
+ * rest: green is the arrival, red the departure, and neither needs a word.
+ *
+ * The one mark for every place the app says "swapped": the role column on a
+ * player's match rows, the [match](../matchday/MatchLineupTab.tsx) lineup's
+ * bench and its pitch corners, and the
+ * [timeline](../matchday/MatchTimelineTab.tsx). A reader who learns it once
+ * should not meet a second notation for it.
+ */
+export function SwapMark({
+  direction,
+  size = 12,
+  className,
+}: {
+  direction: 'in' | 'out'
+  size?: number
+  className?: string
+}) {
+  const Icon = direction === 'in' ? ArrowRight : ArrowLeft
+
+  return (
+    <Icon
+      size={size}
+      aria-hidden="true"
+      className={cn(
+        'shrink-0 stroke-[3]',
+        direction === 'in' ? 'text-positive' : 'text-negative',
+        className,
+      )}
+    />
+  )
+}
+
+/**
+ * Where the player was, in marks rather than words: **`S11` for a start, a
+ * green arrow right for coming on, a red arrow left for going off.**
  *
  * The row already holds an opponent, a scoreline, minutes, event badges and a
  * points total. "Startelf" and "Ausgewechselt" are nine and thirteen
@@ -158,7 +198,8 @@ const ROLE_TEXT_CLASS: Partial<Record<PlayerMatchRole, string>> = {
  * they survive at 11px, and they **compose** — a player who came on and went
  * off again gets both, which no single word manages without getting longer
  * still. `S11` is the same trick for the starting eleven: a chip, not prose,
- * and it sits happily beside a down arrow to say "started, then came off".
+ * and it sits happily beside a red arrow to say "started, then came off". See
+ * {@link SwapMark} for why the pair is horizontal rather than vertical.
  *
  * **There is no bench mark, because there is no bench state in the data.**
  * `PLAYER_MATCH_STATUS.DID_NOT_PLAY` covers the unused substitute *and* the
@@ -215,20 +256,8 @@ export function MatchRoleMark({
       {text !== undefined && (
         <span className={ROLE_TEXT_CLASS[role] ?? 'text-faint'}>{text}</span>
       )}
-      {cameOn && (
-        <ArrowUp
-          size={12}
-          aria-hidden="true"
-          className="shrink-0 stroke-[3] text-positive"
-        />
-      )}
-      {cameOff && (
-        <ArrowDown
-          size={12}
-          aria-hidden="true"
-          className="shrink-0 stroke-[3] text-warning"
-        />
-      )}
+      {cameOn && <SwapMark direction="in" size={12} />}
+      {cameOff && <SwapMark direction="out" size={12} />}
       <span className="sr-only">{MATCH_ROLE_LABEL[role]}</span>
     </span>
   )

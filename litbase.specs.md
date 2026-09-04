@@ -52,22 +52,27 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
   - show the lineup with live points and the manager owning a player
     DONE -> Match Day page + Match Details, see docs/pages/matchday.md and
     docs/pages/match-detail.md.
-      /leagues/:leagueId/matchday            ?day=N, all fixtures, live scores
-      /leagues/:leagueId/matchday/:matchId   timeline
-      /leagues/:leagueId/matchday/:matchId/lineup
+      /leagues/:leagueId/matchday                   ?day=N, all fixtures, live
+      /leagues/:leagueId/matchday/:matchId          Events (timeline)
+      /leagues/:leagueId/matchday/:matchId/lineup   Aufstellung (pitch)
+      /leagues/:leagueId/matchday/:matchId/ranking  Ranking (all players)
     - goals/minute/events all come from GET /v4/matches/{mi}/details, the same
       cache entry useLiveMatches already fills -> opening a match is free.
-    - owner per player = `us` on the MATCHDAY SNAPSHOT
-      (/v4/leagues/$L/users/$U/teamcenter?dayNumber=$N), which lists EVERY
-      manager in the league with the players they fielded that matchday.
-      League-wide whoever is in the path -> one request, and it is the only
-      bulk source of historical ownership in the API.
-      `oui` on the player detail was the first version and it was WRONG: it is
-      today's owner, so a past matchday credited every transferred player to
-      his new manager. It survives only as the pre-kick-off fallback, where the
-      snapshot is empty and today's owner is the right answer anyway.
-      Caveat: `us` has no per-manager bench (`lp`/`lpi`, no `nlp`), so an owned
-      but benched player gets no badge.
+    - owner per player = the MATCHDAY SNAPSHOT, ONE REQUEST PER MANAGER:
+        GET /v4/leagues/$L/users/$U/teamcenter?dayNumber=$N   for every $U
+      `lp` = his lineup that matchday, `nlp` = the rest of his squad. Both are
+      read, so the badge distinguishes "aufgestellt" from "im Kader, nicht
+      aufgestellt". 10-20 requests, same cache entry as useMatchdaySquad.
+      TWO CHEAPER ANSWERS WERE BOTH WRONG, both looked right:
+        - `oui` on the player detail = who owns him TODAY. A past matchday
+          credited every transferred player to his new manager.
+        - `us` on this very payload = every manager with the players in their
+          lineup, and it IGNORES dayNumber -> reports the CURRENT elevens
+          whatever day is asked for. This is what produced "it's still the
+          current lineup".
+      Only the addressed manager's own lp/nlp honours dayNumber.
+      `oui` survives as the last resort, for a matchday the snapshot has
+      nothing at all for.
     - points = ~36 requests per match (one per player), and only while the
       Aufstellung tab is open.
     - OPEN PROBE: match-level events carry `pi: "0"` and their `ke` codes are

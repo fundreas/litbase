@@ -1,4 +1,3 @@
-import { ArrowDown } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 
@@ -11,13 +10,14 @@ import {
   type PositionKey,
 } from '@/api/models'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
+import { matchPlayerFigure } from '@/components/matchday/matchPlayerFigure'
 import { ownerLabel } from '@/components/matchday/ownerLabel'
 import {
   figureDescription,
   figureLabel,
   isScore,
 } from '@/components/player/playerFigure'
-import { MatchRoleMark } from '@/components/player/statGlyphs'
+import { MatchRoleMark, SwapMark } from '@/components/player/statGlyphs'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
@@ -42,13 +42,6 @@ type Side = 'home' | 'away'
 const RING_CLASS: Record<Side, string> = {
   home: 'ring-white/75',
   away: 'ring-accent/80',
-}
-
-/** What goes on a portrait's plate: the points, or nothing yet. */
-function figureOf(player: MatchPlayer): PlayerFigure {
-  return player.points === undefined
-    ? { kind: 'unknown' }
-    : { kind: 'points', points: player.points }
 }
 
 /**
@@ -111,7 +104,7 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  *  - the **owning manager**, as an [`OwnerBadge`](./OwnerBadge.tsx) in the
  *    corner — the whole reason this screen exists rather than a link to
  *    kicker.de;
- *  - a **down arrow** in the other corner once he has been taken off, because
+ *  - a **red arrow** in the other corner once he has been taken off, because
  *    that is the one thing which changes what his number means: it is final.
  *
  * No names, and **no event badges**. At twenty-two portraits on a phone a name
@@ -135,7 +128,7 @@ export function MatchLineupTab({
   home: MatchLineup
   away: MatchLineup
   leagueId: string
-  /** Points and owners still arriving; the pitch renders without them. */
+  /** Points or owners still arriving; the pitch renders without them. */
   isPointsPending: boolean
 }) {
   const { ref, box } = usePitchBox()
@@ -283,7 +276,7 @@ function PitchPlayer({
   side: Side
   leagueId: string
 }) {
-  const figure = figureOf(player)
+  const figure = matchPlayerFigure(player)
   const owned = player.owner
   const label = playerLabel(player, figure)
 
@@ -314,15 +307,16 @@ function PitchPlayer({
             has been taken off cannot score again, which is the one thing about
             a portrait on the grass that changes what its number means — and it
             is exactly the state the duel page's `substituted` has never had a
-            source for. */}
+            source for. The mark is the app's shared `SwapMark`, so the red
+            left arrow means the same here as on a bench row. */}
         {wasTakenOff(player) && (
           <span
             aria-hidden="true"
             className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-black/75 p-0.5"
           >
-            <ArrowDown
+            <SwapMark
+              direction="out"
               size={Math.round(cornerBadgeSize(metrics.avatar) * 0.7)}
-              className="stroke-[3] text-warning"
             />
           </span>
         )}
@@ -497,7 +491,7 @@ function BenchRow({
   side: Side
   leagueId: string
 }) {
-  const figure = figureOf(player)
+  const figure = matchPlayerFigure(player)
 
   return (
     <li>

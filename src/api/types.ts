@@ -1389,18 +1389,20 @@ export interface TeamcenterResponse {
   /** Everyone else in the squad that matchday. */
   nlp?: TeamcenterPlayer[]
   /**
-   * **Every manager in the league, each with the players they fielded** that
-   * matchday.
+   * Every manager in the league, each with the players they have fielded.
    *
-   * League-wide whoever is named in the path, which makes it the one bulk
-   * source of *historical* ownership in the API: one request says who had whom
-   * in his lineup on a given matchday. Read by
-   * [`useMatchdayLineups`](./hooks/useMatchdaySquad.ts) for the
+   * **It ignores `dayNumber`.** It looks like the one bulk source of historical
+   * ownership in the API and it is not: whatever matchday is asked for, the
+   * lineups come back as they stand **today**. It was used for the
    * [match lineup](../../docs/pages/match-detail.md#it-is-the-matchdays-lineup-not-todays-squad)'s
-   * badges, which previously used `oui` — today's owner — and so mis-credited
-   * every player transferred since.
+   * ownership badges for exactly one round, and a past matchday duly showed the
+   * current elevens.
    *
-   * Fielded players only: there is no `nlp` per manager here.
+   * Only the addressed manager's own {@link lp}/{@link nlp} honour the
+   * parameter, which is why `useMatchdayLineups` fans out one request per
+   * manager instead of reading this. **Unused.**
+   *
+   * Fielded players only either way: there is no `nlp` per manager here.
    */
   us?: TeamcenterUser[]
   /** Count of the current lineup, observed as `11`. */

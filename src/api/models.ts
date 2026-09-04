@@ -626,16 +626,20 @@ export function toOwnerId(oui: string | undefined): string | undefined {
 /**
  * Where an ownership badge's claim comes from — and therefore what it means.
  *
- *  - **`matchdayLineup`** — the manager had this player *in his lineup on this
- *    matchday*, from the snapshot's league-wide `us`. The historical truth, and
- *    the only correct answer for a matchday that has been played.
+ *  - **`matchdayLineup`** — the manager had this player *on this matchday*, from
+ *    that manager's own snapshot (`lp`/`nlp` under `?dayNumber=`). The
+ *    historical truth, and the only correct answer for a matchday that has been
+ *    played. {@link MatchPlayerOwner.wasFielded} then says whether he was in
+ *    the eleven or only in the squad.
  *  - **`currentOwner`** — the manager owns him *now*, from `oui` on the player
- *    detail. Used only when there is no lineup yet, where it is also the right
- *    answer: nobody has fielded anybody, and today's owner is who will.
+ *    detail. The last-resort fallback, for a matchday the snapshot has nothing
+ *    at all for.
  *
- * The distinction is not cosmetic. Reading `oui` for a past matchday badges
- * every player transferred since with his **new** manager, which silently
- * rewrites who scored those points.
+ * The distinction is not cosmetic, and both wrong answers have been shipped
+ * once. Reading `oui` for a past matchday badges every player transferred since
+ * with his **new** manager. Reading `us` on the snapshot — which looks like a
+ * league-wide gift — reports the lineups as they stand **now**, because it
+ * ignores `dayNumber`. Only the per-manager `lp`/`nlp` honours the parameter.
  */
 export type OwnerSource = 'matchdayLineup' | 'currentOwner'
 
@@ -648,28 +652,45 @@ export interface MatchPlayerOwner {
   isViewer: boolean
   /** What the badge is actually asserting — see {@link OwnerSource}. */
   source: OwnerSource
+  /**
+   * He was in that manager's **lineup**, not merely in his squad.
+   *
+   * Only meaningful for `matchdayLineup`; a `currentOwner` badge says nothing
+   * about any lineup and leaves this `false`. It is the difference between "he
+   * played for me" and "I owned him and left him out", which is exactly the
+   * question a manager brings to a match he lost points on.
+   */
+  wasFielded: boolean
+}
+
+/** One manager's claim on one player, on one matchday. */
+export interface MatchdayOwnership {
+  managerId: string
+  /** In his lineup (`lp`), rather than merely in his squad (`nlp`). */
+  wasFielded: boolean
 }
 
 /**
- * Every league member's lineup for one matchday, as one lookup.
+ * Who had which player, across the whole league, on one matchday.
  *
- * From `us` on the matchday snapshot — see
- * [`useMatchdayLineups`](./hooks/useMatchdaySquad.ts). Fielded players only:
- * there is no bench per manager in that field.
+ * Assembled from each manager's own `lp`/`nlp` — one request per manager, which
+ * is the only shape of this question the API answers honestly. See
+ * [`useMatchdayLineups`](./hooks/useMatchdaySquad.ts) for why `us` on the same
+ * payload is not it.
  */
 export interface MatchdayLineups {
-  /** Player id → the manager who fielded him that matchday. */
-  managerIdByPlayerId: Map<string, string>
-  /** Manager id → display name, as the snapshot spells it (`unm`). */
-  nameByManagerId: Map<string, string>
+  /** Player id → the manager who had him, and whether he was fielded. */
+  byPlayerId: Map<string, MatchdayOwnership>
   /**
-   * No manager has a lineup in the payload at all.
+   * Not one manager's squad came back with anything.
    *
-   * Before the matchday's first kick-off, or a matchday the API has nothing
-   * for. **Not** "nobody fielded anybody" — the caller has to tell those apart
-   * and fall back rather than drop every badge.
+   * A matchday out of range, or one from before the league existed. **Not**
+   * "nobody owned anybody" — the caller has to tell those apart and fall back
+   * rather than drop every badge.
    */
   isEmpty: boolean
+  /** True while any manager's snapshot is still in flight. */
+  isPending: boolean
 }
 
 /**
