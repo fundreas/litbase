@@ -244,27 +244,55 @@ Each portrait carries three things and no more:
 - the **points** on the plate — `–` rather than `0` while they are unknown,
   because a match that has not kicked off is not a blank performance;
 - the **owning manager**, top-left;
-- a **green arrow**, top-right, when the player came on from the bench — his
-  figure was scored in part of a match rather than all of one, and it is still
-  climbing.
+- a **swap arrow**, top-right, when the event feed says he was substituted —
+  green or red, and which one it can be depends on the arrangement below.
 
-**The pitch follows the substitutions.** A player who is taken off drops to the
-bottom of his club's bench; the man who replaced him takes a place in the band
-his position calls for. The eleven on the grass is therefore the eleven
-currently on it — a pitch still showing the man who came off in the 46th, with
-his replacement sitting below scoring the points, describes a match that is not
-being played. The re-sorting happens once, in
+### The pitch follows the substitutions — while the match is running
+
+A player who is taken off drops to the bottom of his club's bench; the man who
+replaced him takes a place in the band his position calls for. The eleven on
+the grass is therefore the eleven currently on it — a pitch still showing the
+man who came off in the 46th, with his replacement sitting below scoring the
+points, describes a match that is not being played. A portrait can then only
+carry a **green** arrow: nobody on that pitch has left it.
+
+Two edges are worth knowing about this arrangement. A substitute is moved onto
+the grass only once **his position is known** — normally immediately, from the
+match payload's `pos`, otherwise when his player detail lands a moment later;
+until then he stays on the bench with his green arrow rather than becoming a
+portrait the pitch has no band for. And the whole thing rests on `role`, so it
+inherits the confidence [`resolveSwaps`](#who-came-off) has: where the outgoing
+player is ambiguous, nobody leaves and that side shows twelve — odd to look at,
+which is the point, and better than benching the wrong man.
+
+### Before and after, it does not
+
+Rearranging a **settled** match is not a fresher answer, it is a wrong one. The
+question "who is out there right now" belongs to a match being played; a match
+that is over is a record, and the eleven the club actually named is the fact a
+reader came for. A pitch drawn the other way shows four players who started on
+the bench in a formation nobody ever picked. Before kick-off the rearrangement
+is a no-op anyway — there are no substitutions yet.
+
+So the grass keeps the **named eleven**, and the bench carries the story
+instead: the substitutes who came on are lifted to the **top of the column, in
+the order they came on**. The head of the bench then reads down the
+afternoon — 46', 63', 78' — and the players with a figure worth reading are the
+ones met first, rather than scattered through fourteen names by whatever order
+the payload chose. Below them the never-used substitutes keep the club's own
+order, because the sort is stable.
+
+Both ends of each substitution stay visible, each in the place it belongs: the
+man who was replaced on the pitch with a **red** arrow beside a figure that
+stopped climbing when he walked, the man who replaced him at the top of the
+bench with a green one.
+
+Which arrangement applies is decided by
+[`fixtureState`](../../src/api/models.ts) on the **fixture**, not on the match
+payload — the fixture list is authoritative for it, and `/matches/{id}/details`
+does not even echo its own id. Either way the arranging happens once, in
 [`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts), so the bench columns
 and the ranking cannot disagree with the pitch.
-
-Two edges are worth knowing. A substitute is moved onto the grass only once
-**his position is known** — normally immediately, from the match payload's
-`pos`, otherwise when his player detail lands a moment later; until then he
-stays on the bench with his green arrow rather than becoming a portrait the
-pitch has no band for. And the whole thing rests on `role`, so it inherits the
-confidence [`resolveSwaps`](#who-came-off) has: where the
-outgoing player is ambiguous, nobody leaves and that side shows twelve — odd to
-look at, which is the point, and better than benching the wrong man.
 
 No names and no event badges. At twenty-two portraits on a phone a name under
 each is unreadable and a row of badges beside a 30px avatar is worse. The
@@ -275,12 +303,13 @@ and the swap — which is the one place the width is free, and it is where
 The **bench** goes underneath as two columns, home left and away right, matching
 the header's arrangement (the pitch has to stack the teams to make them face
 each other; the corner labels bridge the two). Rows rather than portraits, so
-each gets a name. It holds whoever is *not on the pitch right now*: the
-substitutes who never came on, and under them the players who have been taken
-off. Worth the space three times over — a manager's own player among them
-answers "why did he score nothing", a replaced player carries a red arrow beside
-a figure that has stopped moving, and each row shows its **owning manager** as
-its own inline avatar.
+each gets a name. What it holds follows from the two arrangements above: while
+the match runs, whoever is *not on the pitch right now* — the substitutes who
+never came on, and under them the ones taken off; otherwise the club's own bench
+with the arrivals lifted to the top. Worth the space three times over — a
+manager's own player among them answers "why did he score nothing", a row with
+an arrow carries a figure that means something other than a full match, and each
+row shows its **owning manager** as its own inline avatar.
 
 Inline, not as a corner badge — that is the one place the pitch's treatment does
 not transfer. A 26px badge on a 60px portrait is legible; the same badge on a
@@ -420,6 +449,10 @@ name is unique in it**: two starters sharing a surname make the match ambiguous
 and neither gets an arrow, because an arrow on the wrong player is worse than
 none. If Kickbase ever emits the outgoing code, it is honoured directly and the
 name matching never gets the chance to be wrong.
+
+The event's **minute** is kept alongside the role, and only for arrivals — it is
+what the settled bench sorts on. A departure has no place in that order, so it
+carries none.
 
 This is also, incidentally, the first real source for the state
 [duel detail](duel-detail.md#unverified-ausgewechselt) has wanted all along.

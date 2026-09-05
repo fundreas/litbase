@@ -2,6 +2,7 @@ import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
 import { useMatchdayLineups } from '@/api/hooks/useMatchdaySquad'
 import { useRanking } from '@/api/hooks/useRanking'
 import type {
+  FixtureState,
   MatchDetail,
   MatchdayFixture,
   MatchLineup,
@@ -13,9 +14,10 @@ import type {
 /** Both team sheets, with everything the league knows layered on. */
 export interface MatchLineupData {
   /**
-   * The two sheets **as the pitch stands now**, not as the clubs named them:
-   * `starters` is who is on, `substitutes` is who is not. See
-   * {@link applySubstitutions}.
+   * **While the match is running**, the two sheets as the pitch stands *now*:
+   * `starters` is who is on, `substitutes` is who is not — see
+   * {@link followSubstitutions}. Before and after, they are the sheets as the
+   * clubs named them, with the bench re-ordered by {@link benchTheArrivals}.
    */
   home: MatchLineup
   away: MatchLineup
@@ -77,11 +79,23 @@ export interface MatchLineupData {
  *
  * `viewerId` marks the signed-in manager's own players — the first thing
  * anybody looks for on this screen.
+ *
+ * ## Two arrangements, and `state` picks
+ *
+ * A running match wants the pitch to show **who is on it**; a match that is
+ * over or has not started wants the pitch to show **what the clubs named**.
+ * See {@link followSubstitutions} and {@link benchTheArrivals}.
  */
 export function useMatchLineup(
   leagueId: string | undefined,
   day: number | undefined,
   detail: MatchDetail | undefined,
+  /**
+   * Where the match stands, from the **fixture** rather than from `detail` —
+   * the fixture list is the authoritative source for it, and `detail` does not
+   * even carry its own id. Only `'running'` rearranges the pitch.
+   */
+  state: FixtureState,
   fixtureByTeamId: Map<string, MatchdayFixture> | undefined,
   viewerId: string | undefined,
 ): MatchLineupData | undefined {
@@ -181,15 +195,20 @@ export function useMatchLineup(
     points: points.byPlayerId.get(player.id),
     owner: ownerOf(player.id),
     events: detail.eventsByPlayerId.get(player.id),
-    role: swaps.get(player.id),
+    role: swaps.get(player.id)?.role,
   })
 
-  const rebuild = (lineup: MatchLineup): MatchLineup =>
-    applySubstitutions({
+  const rebuild = (lineup: MatchLineup): MatchLineup => {
+    const decorated = {
       ...lineup,
       starters: lineup.starters.map(decorate),
       substitutes: lineup.substitutes.map(decorate),
-    })
+    }
+
+    return state === 'running'
+      ? followSubstitutions(decorated)
+      : benchTheArrivals(decorated, swaps)
+  }
 
   return {
     home: rebuild(detail.home11),
@@ -202,8 +221,8 @@ export function useMatchLineup(
 }
 
 /**
- * Play the substitutions out: **whoever left the pitch joins the bench, and
- * whoever came on takes his place on it.**
+ * **While the match is running:** play the substitutions out — whoever left the
+ * pitch joins the bench, and whoever came on takes his place on it.
  *
  * The payload's two arrays are the team sheet as it was *named*, which is the
  * right answer for an hour before kick-off and the wrong one from the 60th
@@ -211,6 +230,14 @@ export function useMatchLineup(
  * replacement sitting on the bench with the points he is scoring, describes a
  * match that is not being played. So the arrays are re-sorted rather than
  * annotated, and the pitch becomes what its name says: who is on it.
+ *
+ * **Only while it is running.** The question this answers — *who is out there
+ * right now* — is one a live match asks and a settled one does not. On a match
+ * that is over the same rearrangement quietly rewrites history: the eleven the
+ * club actually named is the fact a reader came for, and a pitch showing four
+ * players who started on the bench is a team sheet nobody ever picked. Before
+ * kick-off it is a no-op with a cost — there are no substitutions to play out.
+ * Both of those cases get {@link benchTheArrivals} instead.
  *
  * Three details decide the edges:
  *
@@ -227,7 +254,7 @@ export function useMatchLineup(
  *    ambiguous. A skipped one leaves a side with twelve on the pitch — visibly
  *    odd, which is better than quietly benching the wrong man.
  */
-function applySubstitutions(lineup: MatchLineup): MatchLineup {
+function followSubstitutions(lineup: MatchLineup): MatchLineup {
   const left = (player: MatchPlayer): boolean =>
     player.role === 'substitutedOff' || player.role === 'substitutedInAndOff'
 
@@ -253,6 +280,62 @@ function applySubstitutions(lineup: MatchLineup): MatchLineup {
 }
 
 /**
+ * **Before kick-off and after the whistle:** leave the eleven alone and put the
+ * substitutes who came on **at the top of the bench, in the order they came
+ * on.**
+ *
+ * The pitch here is the team sheet the club named, which is what a settled
+ * match is a record of — see {@link followSubstitutions} for why rearranging it
+ * afterwards is a worse answer rather than a stale one.
+ *
+ * That leaves the bench carrying the whole story of the substitutions, and its
+ * order is what tells it: the men who came on first, earliest first, then
+ * everyone who never left the bench in the order the club listed them. So the
+ * top of the column reads down the match — 46', 63', 78' — and the players with
+ * a figure worth reading are the ones a reader meets first, rather than being
+ * scattered through fourteen names by an order the payload chose for reasons of
+ * its own.
+ *
+ * The starters who were replaced stay **on the grass**, where their club put
+ * them; their red arrow says what happened. Nothing is lost, because a
+ * substitution has two ends and both are now visible in the place each belongs.
+ *
+ * Sorting is stable, so the never-used substitutes keep the payload's own
+ * order — usually the goalkeeper first, then roughly by position.
+ */
+function benchTheArrivals(
+  lineup: MatchLineup,
+  swaps: Map<string, MatchSwap>,
+): MatchLineup {
+  const cameOnAt = (player: MatchPlayer): number | undefined =>
+    swaps.get(player.id)?.onAt
+
+  return {
+    ...lineup,
+    substitutes: [...lineup.substitutes].sort((a, b) => {
+      const left = cameOnAt(a)
+      const right = cameOnAt(b)
+      // Never came on sorts last, and two of those keep their relative order.
+      if (left === undefined) return right === undefined ? 0 : 1
+      if (right === undefined) return -1
+      return left - right
+    }),
+  }
+}
+
+/** What the feed says happened to one player, and when. */
+interface MatchSwap {
+  role: NonNullable<MatchPlayer['role']>
+  /**
+   * The minute he came on, set only when he did.
+   *
+   * Absent for a starter who was taken off — the bench order is built from
+   * arrivals, and a departure has no place in it.
+   */
+  onAt?: number
+}
+
+/**
  * Who came on and who went off, per player id.
  *
  * The feed states the **incoming** player outright: a `substitution` event
@@ -268,19 +351,27 @@ function applySubstitutions(lineup: MatchLineup): MatchLineup {
  * If Kickbase ever does emit the outgoing code, it is honoured directly and the
  * name matching never gets a chance to be wrong.
  */
-function resolveSwaps(
-  detail: MatchDetail,
-): Map<string, NonNullable<MatchPlayer['role']>> {
-  const roles = new Map<string, NonNullable<MatchPlayer['role']>>()
+function resolveSwaps(detail: MatchDetail): Map<string, MatchSwap> {
+  const swaps = new Map<string, MatchSwap>()
 
-  const add = (playerId: string, role: 'substitutedIn' | 'substitutedOff') => {
-    const current = roles.get(playerId)
+  const add = (
+    playerId: string,
+    role: 'substitutedIn' | 'substitutedOff',
+    minute: number,
+  ) => {
+    const current = swaps.get(playerId)
+    // Only an arrival carries a minute, and it is the one the bench sorts on.
+    const onAt = role === 'substitutedIn' ? minute : current?.onAt
+
     if (current === undefined) {
-      roles.set(playerId, role)
+      swaps.set(playerId, { role, onAt })
       return
     }
     // A substitute who came on and was then taken off again.
-    if (current !== role) roles.set(playerId, 'substitutedInAndOff')
+    swaps.set(playerId, {
+      role: current.role === role ? current.role : 'substitutedInAndOff',
+      onAt,
+    })
   }
 
   /** Last name → the one starter with it, or `undefined` when shared. */
@@ -299,6 +390,7 @@ function resolveSwaps(
       add(
         event.playerId,
         event.swap === 'off' ? 'substitutedOff' : 'substitutedIn',
+        event.minute,
       )
     }
 
@@ -311,8 +403,9 @@ function resolveSwaps(
     add(
       counterpart.id,
       event.swap === 'off' ? 'substitutedIn' : 'substitutedOff',
+      event.minute,
     )
   }
 
-  return roles
+  return swaps
 }

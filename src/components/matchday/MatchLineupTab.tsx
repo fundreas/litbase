@@ -45,13 +45,21 @@ const RING_CLASS: Record<Side, string> = {
 }
 
 /**
- * Did the player come on from the bench? Nobody on this pitch has *left* it —
- * `applySubstitutions` in
- * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts) moves those to the
- * bench — so the only swap a portrait can carry is an arrival.
+ * Which arrow a portrait carries, if any — and it is **one or the other,
+ * never both**, because the two arrangements
+ * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts) picks between put
+ * different men on the grass.
+ *
+ * While the match runs the pitch is who is *on* it, so nobody there has left
+ * and the only swap a portrait can show is an arrival. Before and after, the
+ * pitch is the eleven the club *named*, so the arrivals are on the bench and
+ * the only swap a portrait can show is a departure — the starter who was
+ * replaced, standing where his club put him with a red arrow saying when that
+ * ended.
  */
-function cameOnAsSub(player: MatchPlayer): boolean {
-  return player.role === 'substitutedIn'
+function pitchSwap(player: MatchPlayer): 'in' | 'out' | undefined {
+  if (player.role === undefined) return undefined
+  return player.role === 'substitutedIn' ? 'in' : 'out'
 }
 
 /**
@@ -103,14 +111,24 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  *  - the **owning manager**, as an [`OwnerBadge`](./OwnerBadge.tsx) in the
  *    corner — the whole reason this screen exists rather than a link to
  *    kicker.de;
- *  - a **green arrow** in the other corner when he came on from the bench,
- *    because his number was scored in part of a match rather than all of one.
+ *  - a **swap arrow** in the other corner, green or red, when the match's event
+ *    feed says he was substituted — see {@link pitchSwap}.
  *
- * **The pitch follows the substitutions.** A player taken off drops to the
- * bottom of his club's bench and the man who replaced him takes a place in the
- * band his position calls for — so the eleven drawn on the grass is the eleven
- * currently on it, which is the question a lineup is opened to answer. The
- * re-sorting happens once, in
+ * **While the match is running, the pitch follows the substitutions.** A player
+ * taken off drops to the bottom of his club's bench and the man who replaced
+ * him takes a place in the band his position calls for — so the eleven drawn on
+ * the grass is the eleven currently on it, which is the question a live lineup
+ * is opened to answer.
+ *
+ * **Before and after, it does not.** A settled match is a record of the team
+ * sheet the club named, and rearranging that is not a fresher answer but a
+ * wrong one — nobody ever picked the eleven a rearranged pitch would draw. So
+ * the grass keeps the named eleven, the substitutes who came on move to the
+ * **top of the bench in the order they came on**, and the two ends of each
+ * substitution are visible in the place each belongs: the man replaced on the
+ * pitch with a red arrow, the man who replaced him at the head of the column.
+ *
+ * Either way the arranging happens once, in
  * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts), so the bench columns
  * and the [ranking](./MatchRankingTab.tsx) cannot disagree with the pitch.
  *
@@ -286,6 +304,7 @@ function PitchPlayer({
   const figure = matchPlayerFigure(player)
   const owned = player.owner
   const label = playerLabel(player, figure)
+  const swap = pitchSwap(player)
 
   return (
     <Link
@@ -310,18 +329,18 @@ function PitchPlayer({
             className="absolute -top-0.5 -left-0.5"
           />
         )}
-        {/* Top-*right*, the corner the owner badge left free. He is standing
-            here because he came on, not because his club named him — and that
-            changes what his number means: it was scored in part of a match, and
-            it is still climbing. The mark is the app's shared `SwapMark`, so
-            the green right arrow means the same here as on a bench row. */}
-        {cameOnAsSub(player) && (
+        {/* Top-*right*, the corner the owner badge left free. Either way it
+            qualifies his number: green, he came on, so it was scored in part of
+            a match and is still climbing; red, he was taken off, so it stopped
+            climbing when he walked. The mark is the app's shared `SwapMark`, so
+            an arrow means the same here as on a bench row. */}
+        {swap !== undefined && (
           <span
             aria-hidden="true"
             className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-black/75 p-0.5"
           >
             <SwapMark
-              direction="in"
+              direction={swap}
               size={Math.round(cornerBadgeSize(metrics.avatar) * 0.7)}
             />
           </span>
@@ -432,11 +451,16 @@ function teamPoints(lineup: MatchLineup): number | undefined {
  * One club's substitutes, as a **column** beside the other's.
  *
  * The real bench, not a Kickbase one — the players the club named in its squad
- * who are **not on the pitch right now**: the ones who never came on, and, at
- * the bottom, the ones who have been taken off. They are worth the space for
- * two reasons: a manager's own player among them is the answer to "why did he
- * score nothing", and a player who was replaced carries a red arrow beside a
- * figure that has stopped moving.
+ * rather than in its eleven. **What the order says depends on the match.**
+ * While it runs the column is who is *not on the pitch*: the ones who never
+ * came on, and at the bottom the ones who have been taken off. Once it is over
+ * — or before it starts — the column is the club's own bench with the players
+ * who came on lifted to the **top, earliest first**, so it reads down the
+ * afternoon.
+ *
+ * Either way it is worth the space: a manager's own player among these rows is
+ * the answer to "why did he score nothing", and a row with an arrow carries a
+ * figure that means something other than a full match.
  *
  * Rows rather than portraits, so each gets a name — and stacked rather than a
  * sideways-scrolling strip, because two benches side by side are meant to be

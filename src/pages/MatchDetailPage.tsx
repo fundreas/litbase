@@ -4,7 +4,7 @@ import { Link, useLocation, useParams } from 'react-router'
 import { useMatchDetails } from '@/api/hooks/useMatchDetails'
 import { useMatchdayFixtures, useSeasonMatch } from '@/api/hooks/useMatchday'
 import { useMatchLineup } from '@/api/hooks/useMatchLineup'
-import { fixtureState, type MatchDetail } from '@/api/models'
+import { fixtureState, type FixtureState, type MatchDetail } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { MatchLineupTab } from '@/components/matchday/MatchLineupTab'
 import { MatchRankingTab } from '@/components/matchday/MatchRankingTab'
@@ -161,6 +161,7 @@ export function MatchDetailPage() {
             competitionId={competitionId}
             day={match.data.day}
             detail={detail.data}
+            state={state}
             viewerId={user?.id}
           />
         )}
@@ -190,6 +191,7 @@ function SquadsView({
   competitionId,
   day,
   detail,
+  state,
   viewerId,
 }: {
   view: ViewValue
@@ -197,13 +199,22 @@ function SquadsView({
   competitionId: string
   day: number
   detail: MatchDetail
+  /** From the fixture, not from `detail` — see {@link useMatchLineup}. */
+  state: FixtureState
   viewerId?: string
 }) {
   // The matchday's fixtures, which is how the points hook decides whether a
   // player's match can have produced points yet. Same cache entry as the
   // fixture list this page resolved its own match from.
   const fixtures = useMatchdayFixtures(competitionId, day)
-  const lineup = useMatchLineup(leagueId, day, detail, fixtures.data, viewerId)
+  const lineup = useMatchLineup(
+    leagueId,
+    day,
+    detail,
+    state,
+    fixtures.data,
+    viewerId,
+  )
 
   if (lineup === undefined) return <SkeletonList rows={8} />
 
