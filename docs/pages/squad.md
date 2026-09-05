@@ -115,7 +115,7 @@ disappears from the rows, and the bar keeps a running total. An ✕ leaves.
 ┌────────────────────────────────────────┐
 │ ⌂  Mannschaft                    ☰  ⏻ │   the app header
 ├────────────────────────────────────────┤
-│ 🧮  75,5 Mio. €                     ✕ │   pinned at --header-total
+│ 🧮  75,5 Mio. €        [Verkaufen]  ✕ │   pinned at --header-total
 │     3 Spieler · 24,5 Mio. € Erlös      │
 └────────────────────────────────────────┘
 ```
@@ -147,11 +147,79 @@ and the rail renders as a plain `<span>` with the same classes, because a
 button cannot nest inside a button. One target, one meaning; a row that kept
 two live controls would make every tap a question about which one you meant.
 
-**Nothing here is a transaction.** The figures are arithmetic on the squad's
-own market values and no request is sent. Kickbase's real sale price is
-whatever the market pays, which equals the market value only for a sale back to
-the computer — hence *Rechner*, and hence an ✕ to leave rather than anything
-that reads like a confirm button.
+**Nothing on the bar is a transaction.** The figures are arithmetic on the
+squad's own market values and no request is sent by marking anybody. Kickbase's
+real sale price is whatever the market pays, which equals the market value only
+for a sale back to the computer — which is exactly the sale *Verkaufen* makes,
+and why the projected figure is honest for it.
+
+*Verkaufen* appears the moment a player is marked, and does one thing: open the
+[sale dialog](#selling). Nothing sells from the bar itself.
+
+## Selling
+
+[`SellDialog`](../../src/components/squad/SellDialog.tsx). The selection
+**named**, the proceeds stated, and a confirm that has to be *held*.
+
+```
+┌──────────────────────────────────────┐
+│ 3 Spieler verkaufen                  │
+│ Erlös          24.512.000 €          │
+│ Budget danach  75.512.000 €          │
+│ ┌──────────────────────────────────┐ │
+│ │ (o) Uduokhai      ABW    4,9 Mio │ │
+│ │ (o) Bachmann      MF     652 Tsd │ │
+│ │ (o) Tah           ABW   33,0 Mio │ │
+│ └──────────────────────────────────┘ │
+│ ⚠ Verkauf an Kickbase zum Marktwert. │
+│   Nicht rückgängig zu machen.        │
+│ [ Abbrechen ] [ ███▌ Halten 2      ] │
+└──────────────────────────────────────┘
+```
+
+The dialog lists the players **by name** rather than repeating the count. The
+calculator is a mode you drift through, tapping rows and watching a number; the
+tap that opened this dialog is the first one that meant anything, and *3
+Spieler* will not catch the row marked two minutes ago and forgotten.
+
+**The confirm is a three-second hold** —
+[`HoldButton`](../../src/components/ui/HoldButton.tsx), which fills as it is
+held and fires only when full. A dialog asking "are you sure" is answered by the
+same reflex that opened it: two taps in the same place, half a second apart.
+Three seconds of deliberate contact cannot be given by accident, can be
+withdrawn at any point, and the fill says how much time is left to withdraw it.
+Letting go early drains the bar and sends nothing. Keyboard holds work the same
+way, on Enter or Space.
+
+The progress is state, updated per animation frame, **not** a CSS transition
+whose end is inferred from `transitionend` — that is precisely the event that
+does not arrive when a transition is interrupted, which is the one case that
+must never fire the request.
+
+On the way through: one `POST` per player, **sequentially**, then the whole
+league key is invalidated — the squad has lost players, `/me` has a new budget,
+the lineup behind them has changed shape. Then the dialog closes and the
+calculator mode ends. A **partial** failure keeps the dialog open and names who
+did not go; the squad behind it has already dropped whoever did, so the list
+shrinks to exactly what is left to explain.
+
+### The endpoint, and what is not known about it
+
+`POST /v4/leagues/{leagueId}/market/{playerId}/sell`, with **no body**.
+
+The verb is established: `OPTIONS` on that path answers `405` with
+`allow: POST`. That is worth stating because the two public v4 collections
+disagree with each other *and* with the server here — one documents a `DELETE`
+named *Accept Kickbase Offer*, the other a `POST` that lists the player on the
+market. Only `POST` is allowed.
+
+**The body was never confirmed, and deliberately so.** A sale cannot be undone,
+so it was not fired against a player the account owns. What was established
+without selling anything: with no body *and* with `{}`, a player the account
+does not own answers `500 NotFound` — the ownership check, not a validation
+error — so an empty body at least reaches that far. Anything more precise costs
+a real player. If Kickbase turns out to want a price in there, this is the first
+place to look.
 
 Selection is an accent **border and ring**, no fill and no checkbox: the row
 and the tile are already dense, tinting the whole surface would fight

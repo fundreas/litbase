@@ -3,6 +3,7 @@ import {
   Calculator,
   Info,
   Shirt,
+  Tag,
   Users,
   Wallet,
   X,
@@ -21,10 +22,12 @@ import { PageHeading } from '@/components/PageHeading'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { LiveTab } from '@/components/squad/LiveTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
+import { SellDialog } from '@/components/squad/SellDialog'
 import { SquadLegendDialog } from '@/components/squad/SquadLegendDialog'
 import { SwapDialog } from '@/components/squad/SwapDialog'
 import { useLineupEditor } from '@/components/squad/useLineupEditor'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
+import { Button } from '@/components/ui/Button'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
@@ -92,6 +95,8 @@ export function SquadPage() {
    * selection by construction.
    */
   const [forSale, setForSale] = useState<ReadonlySet<string> | null>(null)
+  /** Whether the sale dialog — the one place a sale can actually happen — is up. */
+  const [isSellOpen, setIsSellOpen] = useState(false)
 
   const view: ViewValue = location.pathname.endsWith(`/${VIEWS.live}`)
     ? VIEWS.live
@@ -195,11 +200,16 @@ export function SquadPage() {
     })
   }
 
-  const soldValue = squad.data.reduce(
-    (sum, player) =>
-      forSale?.has(player.id) === true ? sum + player.marketValue : sum,
-    0,
-  )
+  // In the order the list draws them, so the dialog reads as the same
+  // selection rather than a re-shuffled one.
+  const marked = squad.data.filter((player) => forSale?.has(player.id) === true)
+  const soldValue = marked.reduce((sum, player) => sum + player.marketValue, 0)
+
+  // The selection can empty itself under an open dialog — a sale that half
+  // failed still takes the sold players out of the refetched squad. Closing it
+  // here rather than in an effect keeps `isSellOpen` from surviving as a
+  // primed trap that springs on the next player tapped.
+  if (isSellOpen && marked.length === 0) setIsSellOpen(false)
 
   return (
     /* The `min-h-0` on every level of this chain is what lets the lineup view
@@ -216,13 +226,38 @@ export function SquadPage() {
         manager.data !== undefined && (
           <SaleCalculator
             budget={manager.data.budget}
-            soldCount={forSale.size}
+            soldCount={marked.length}
             soldValue={soldValue}
+            onSell={() => {
+              setIsSellOpen(true)
+            }}
             onClose={() => {
               setForSale(null)
             }}
           />
         )}
+
+      {/* Mounted only while it is open, so the mutation it holds is fresh each
+          time — a failed attempt must not leave its error sitting under the
+          next selection. */}
+      {isSellOpen && marked.length > 0 && manager.data !== undefined && (
+        <SellDialog
+          players={marked}
+          budget={manager.data.budget}
+          leagueId={leagueId}
+          onClose={() => {
+            setIsSellOpen(false)
+          }}
+          onSold={() => {
+            // The players are gone: the dialog has nothing left to show and
+            // the mode has nothing left to select. The squad, the budget and
+            // the lineup behind all of it are already being refetched by the
+            // mutation's own invalidation.
+            setIsSellOpen(false)
+            setForSale(null)
+          }}
+        />
+      )}
 
       {view === VIEWS.squad && forSale === null && (
         <PageHeading
@@ -367,21 +402,27 @@ function BudgetChip({
  * it stands was a third column and is gone — it is one tap away, on the chip
  * this bar replaced.
  *
- * Nothing here is a transaction. The figures are arithmetic on the squad's own
- * market values, and no request is sent — Kickbase's real sale price is what
- * the market pays, which is the market value only for a sale back to the
- * computer. The heading says *Rechner* for that reason, and the button that
- * leaves is an ✕ rather than anything that reads like "confirm".
+ * **Selling is one button away, and only one.** *Verkaufen* appears as soon as
+ * a player is marked and opens the [sale dialog](../components/squad/SellDialog.tsx),
+ * which is where the selection is named, the proceeds are stated and the
+ * three-second hold lives. Nothing on this bar is a transaction: it is still
+ * arithmetic on the squad's own market values — Kickbase's real sale price is
+ * what the market pays, which is the market value only for a sale back to the
+ * computer — and the heading still says *Rechner*. The button is the door out
+ * of the arithmetic, not the arithmetic changing its mind.
  */
 function SaleCalculator({
   budget,
   soldCount,
   soldValue,
+  onSell,
   onClose,
 }: {
   budget: number
   soldCount: number
   soldValue: number
+  /** Open the sale dialog. Absent from the bar until something is marked. */
+  onSell: () => void
   onClose: () => void
 }) {
   const projected = budget + soldValue
@@ -425,6 +466,21 @@ function SaleCalculator({
               : `${String(soldCount)} Spieler · ${money(soldValue)} Erlös`}
           </p>
         </div>
+
+        {/* Only once something is marked: a *Verkaufen* button over an empty
+            selection is a button that can do nothing, sitting where the eye
+            lands first in a mode whose whole job is to be safe to poke at. */}
+        {soldCount > 0 && (
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={onSell}
+            leadingIcon={<Tag size={14} aria-hidden="true" />}
+            className="shrink-0"
+          >
+            Verkaufen
+          </Button>
+        )}
 
         <button
           type="button"

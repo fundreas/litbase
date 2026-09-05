@@ -90,6 +90,26 @@ export const endpoints = {
     marketListing: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/market/${playerId}`,
     /**
+     * **Sell one of your players to Kickbase outright**, at his market value —
+     * the "Sofort verkaufen" the [squad](../../docs/pages/squad.md#selling)
+     * calculator fires.
+     *
+     * `POST`, and `POST` only: an `OPTIONS` here answers `405` with
+     * `allow: POST`, which is how the verb was established. The two public v4
+     * collections disagree about this path — one documents a `DELETE` named
+     * *Accept Kickbase Offer*, the other a `POST` that *lists* the player —
+     * and neither matches what the server allows.
+     *
+     * **The request body is not known and is sent empty.** Selling cannot be
+     * undone, so it was never fired against a player the account owns. What
+     * *was* established: with no body and with `{}`, a player the account does
+     * not own answers `500 NotFound` — the ownership check, not a validation
+     * error — so an empty body at least reaches it. Anything more precise
+     * costs a real player.
+     */
+    marketSell: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/market/${playerId}/sell`,
+    /**
      * Offers on one listing. `POST` bids, body `{ price }` — note the *plain*
      * name, where listing a player takes the abbreviated `prc`. It answers
      * `{ ofi }`, the offer id, which for one's own offer is the user id.

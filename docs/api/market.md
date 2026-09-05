@@ -14,6 +14,7 @@ is league-scoped, and the whole write surface was mapped by probing — an
 | `DELETE` | [`/v4/leagues/{leagueId}/market/{playerId}`](#delete-v4leaguesleagueidmarketplayerid) | Bearer | no |
 | `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/offers`](#post-v4leaguesleagueidmarketplayeridoffers) | Bearer | yes |
 | `DELETE` | [`/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}`](#delete-v4leaguesleagueidmarketplayeridoffersofferid) | Bearer | yes |
+| `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/sell`](#post-v4leaguesleagueidmarketplayeridsell) | Bearer | yes |
 
 **Two naming conventions, on adjacent endpoints.** Listing a player takes the
 abbreviated `{ pi, prc }`; bidding on one takes the spelled-out `{ price }`.
@@ -107,7 +108,9 @@ response would be as stale as the response.
 
 ## `POST /v4/leagues/{leagueId}/market`
 
-Put one of your own players up for sale. **Unused** — the app does not sell.
+Put one of your own players up **for auction**, at a price you set. **Unused** —
+the app sells straight back to Kickbase instead, via
+[`/market/{playerId}/sell`](#post-v4leaguesleagueidmarketplayeridsell).
 
 **Auth** Bearer.
 
@@ -241,16 +244,41 @@ bid dialog.
 
 ---
 
-## Selling, which the app does not do
+## `POST /v4/leagues/{leagueId}/market/{playerId}/sell`
 
-Three endpoints complete the market surface and are unbuilt:
+Sell one of your own players **straight back to Kickbase**, at his market
+value. This is what the squad page's [sale calculator](../pages/squad.md#selling)
+fires, one request per player, behind a three-second hold.
+
+**Request body: none.** Empty is what the app sends.
+
+| | |
+| --- | --- |
+| Verb | `POST`, and only `POST`: `OPTIONS` answers `405` with `allow: POST` |
+| Body | unknown, sent empty — see below |
+| Answers | `200` on success; `500 NotFound` for a player the account does not own |
+
+**The body was never confirmed, deliberately.** A sale cannot be undone, so it
+was not fired against a player the account owns. What *was* established without
+selling anything: with no body **and** with `{}`, a player the account does not
+own answers `500 NotFound` — the ownership check, not a validation error — so
+an empty body reaches at least that far. If Kickbase turns out to want a price
+in there, this is the first place to look.
+
+Note that the two public v4 collections disagree with each other and with the
+server on this path: one documents a `DELETE` named *Accept Kickbase Offer*, the
+other a `POST` that *lists* the player on the market. The `Allow` header settles
+it.
+
+---
+
+## Selling, the parts the app does not do
 
 | Path | Purpose |
 | ---- | ------- |
 | `POST /v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/accept` | Accept a bid on your own listing |
 | `POST /v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/decline` | Decline one |
-| `POST /v4/leagues/{leagueId}/market/{playerId}/sell` | Sell straight back to Kickbase |
 
-None has been probed. Note that accepting requires knowing the other manager's
-`uoid`, which `ofs` only supplies for offers this account may see — on your own
-listing, presumably all of them (**?**).
+Neither has been probed. Note that accepting requires knowing the other
+manager's `uoid`, which `ofs` only supplies for offers this account may see — on
+your own listing, presumably all of them (**?**).

@@ -333,10 +333,14 @@ helper for one caller.
 
 ## Not built yet
 
-**Selling.** `POST /market` and `DELETE /market/{playerId}` are probed and in
-[`endpoints.ts`](../../src/api/endpoints.ts), but nothing calls them — listing
-a player belongs on the squad page, next to the player you would be listing,
-not here.
+**Listing a player.** `POST /market` and `DELETE /market/{playerId}` are probed
+and in [`endpoints.ts`](../../src/api/endpoints.ts), but nothing calls them —
+putting a player *up for auction* belongs on the squad page, next to the player
+you would be listing, not here.
+
+Selling **back to Kickbase** at market value is built, and lives there too: the
+squad's [sale calculator](squad.md#selling) marks players and its dialog fires
+`POST /market/{playerId}/sell` per player behind a three-second hold.
 
 **Filters.** Position and price band are the obvious next ones; twenty-odd
 rows do not need them yet.

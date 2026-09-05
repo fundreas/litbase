@@ -22,12 +22,14 @@ export function ConfirmDialog({
   isBusy = false,
   isConfirmDisabled = false,
   error,
+  confirmSlot,
   children,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
   description?: ReactNode
+  /** Ignored when {@link confirmSlot} is given, which brings its own label. */
   confirmLabel: string
   cancelLabel?: string
   onConfirm: () => void
@@ -35,6 +37,15 @@ export function ConfirmDialog({
   /** For dialogs whose confirm needs a selection first. */
   isConfirmDisabled?: boolean
   error?: string | null
+  /**
+   * A confirm control of the caller's own, in place of the plain button.
+   *
+   * One dialog shell rather than two: the sale dialog needs a
+   * [three-second hold](./HoldButton.tsx) where every other dialog needs a tap,
+   * and that is the only thing it needs differently. `onConfirm` is then the
+   * slot's business, not this component's.
+   */
+  confirmSlot?: ReactNode
   /** Extra content between the description and the actions. */
   children?: ReactNode
 }) {
@@ -91,14 +102,16 @@ export function ConfirmDialog({
                 {cancelLabel}
               </Button>
             </Dialog.Close>
-            <Button
-              fullWidth
-              onClick={onConfirm}
-              isLoading={isBusy}
-              disabled={isConfirmDisabled}
-            >
-              {confirmLabel}
-            </Button>
+            {confirmSlot ?? (
+              <Button
+                fullWidth
+                onClick={onConfirm}
+                isLoading={isBusy}
+                disabled={isConfirmDisabled}
+              >
+                {confirmLabel}
+              </Button>
+            )}
           </div>
         </Dialog.Content>
       </Dialog.Portal>
