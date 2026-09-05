@@ -1,19 +1,28 @@
 import { ListOrdered, Shirt, Trophy } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 
 import { useMatchDetails } from '@/api/hooks/useMatchDetails'
 import { useMatchdayFixtures, useSeasonMatch } from '@/api/hooks/useMatchday'
 import { useMatchLineup } from '@/api/hooks/useMatchLineup'
-import { fixtureState, type FixtureState, type MatchDetail } from '@/api/models'
+import {
+  fixtureState,
+  type FixtureState,
+  type MatchDetail,
+  type MatchdayMatch,
+} from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { MatchLineupTab } from '@/components/matchday/MatchLineupTab'
 import { MatchRankingTab } from '@/components/matchday/MatchRankingTab'
 import { MatchScoreHeader } from '@/components/matchday/MatchScoreHeader'
 import { MatchTimelineTab } from '@/components/matchday/MatchTimelineTab'
+import { Avatar } from '@/components/ui/Avatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
+import { cn } from '@/lib/cn'
+import { kickoff as kickoffLabel, minute as minuteLabel } from '@/lib/format'
 
 /** View value ⇄ route segment, following the squad page's convention. */
 const VIEWS = {
@@ -167,6 +176,13 @@ export function MatchDetailPage() {
             detail={detail.data}
             state={state}
             viewerId={user?.id}
+            summary={
+              <MatchSummary
+                match={match.data}
+                detail={detail.data}
+                state={state}
+              />
+            }
           />
         )}
       </div>
@@ -197,6 +213,7 @@ function SquadsView({
   detail,
   state,
   viewerId,
+  summary,
 }: {
   view: ViewValue
   leagueId: string
@@ -206,6 +223,8 @@ function SquadsView({
   /** From the fixture, not from `detail` — see {@link useMatchLineup}. */
   state: FixtureState
   viewerId?: string
+  /** The bar of the pitch's full-screen view — see {@link MatchSummary}. */
+  summary?: ReactNode
 }) {
   // The matchday's fixtures, which is how the points hook decides whether a
   // player's match can have produced points yet. Same cache entry as the
@@ -238,6 +257,99 @@ function SquadsView({
       away={lineup.away}
       leagueId={leagueId}
       isPointsPending={lineup.isPending}
+      summary={summary}
     />
+  )
+}
+
+/**
+ * The fixture in one line, for the bar of the [full-screen
+ * pitch](../components/ui/FullscreenPane.tsx).
+ *
+ * The page's own {@link MatchScoreHeader} does not fit there and should not:
+ * full screen, the whole screen is the pitch, and the bar has a 56px strip to
+ * say who is playing whom and where the match stands. So it keeps the crests,
+ * the symbols and the score, and the second line is the one thing that differs
+ * by state — the kick-off before, the **minute** while it runs, *Beendet*
+ * after. Same sources and same precedence as the header above the pitch, so
+ * the two cannot disagree: the state from the fixture list, the score and the
+ * minute from the match payload.
+ */
+function MatchSummary({
+  match,
+  detail,
+  state,
+}: {
+  match: MatchdayMatch
+  detail?: MatchDetail
+  state: FixtureState
+}) {
+  const home = detail?.home ?? match.home
+  const away = detail?.away ?? match.away
+  const goals =
+    detail !== undefined
+      ? { for: detail.goalsHome, against: detail.goalsAway }
+      : { for: match.goalsHome, against: match.goalsAway }
+
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <Avatar
+          src={home.image}
+          name={home.symbol}
+          size={22}
+          square
+          className="shrink-0 bg-transparent"
+        />
+        <span className="truncate text-xs font-semibold text-ink">
+          {home.symbol}
+        </span>
+
+        <span
+          className={cn(
+            'nums shrink-0 text-sm font-bold',
+            state === 'upcoming'
+              ? 'text-faint'
+              : state === 'running'
+                ? 'text-accent'
+                : 'text-ink',
+          )}
+        >
+          {state === 'upcoming'
+            ? '–:–'
+            : `${String(goals.for ?? '–')}:${String(goals.against ?? '–')}`}
+        </span>
+
+        <span className="truncate text-xs font-semibold text-ink">
+          {away.symbol}
+        </span>
+        <Avatar
+          src={away.image}
+          name={away.symbol}
+          size={22}
+          square
+          className="shrink-0 bg-transparent"
+        />
+      </div>
+
+      <p className="nums flex items-center gap-1.5 truncate text-[0.6875rem] text-muted">
+        {state === 'running' ? (
+          <>
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent"
+            />
+            <span className="font-semibold text-accent">
+              Live
+              {detail === undefined ? '' : ` · ${minuteLabel(detail.minute)}`}
+            </span>
+          </>
+        ) : state === 'finished' ? (
+          <span className="font-semibold">Beendet</span>
+        ) : (
+          <span className="truncate">{kickoffLabel(match.kickoff)}</span>
+        )}
+      </p>
+    </div>
   )
 }

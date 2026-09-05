@@ -86,12 +86,24 @@ match is actually under way.
 ### Used by
 
 [`useMatchDetails`](../../src/api/hooks/useMatchDetails.ts) →
-[Match detail](../pages/match-detail.md), and
+[Match detail](../pages/match-detail.md),
 [`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts) →
-[Matchday](../pages/matchday.md), one request per running match.
+[Matchday](../pages/matchday.md), one request per running match, and
+[`useTeamSheets`](../../src/api/hooks/useTeamSheets.ts) →
+[Duel detail](../pages/duel-detail.md#the-clubs-team-sheet) and the
+[squad's live view](../pages/squad.md#live-tab), one request per match about to
+start.
 
 Polled every **ten seconds**, and only for matches that have kicked off and are
 not over — see [`polling.ts`](../../src/api/polling.ts).
+
+The last two are complementary halves of one cache entry and never overlap:
+`useLiveMatches` takes the matches that **have** kicked off and reads the score,
+the minute and the events, discarding the lineups; `useTeamSheets` takes those
+still **to** kick off — within two hours of it, at a five-minute tick — and
+reads only `t1lp`/`t1nlp`, and only when `il` says the sheets are official.
+That gate is the one uncertain thing about it; see
+[`il` is the gate](../pages/duel-detail.md#il-is-the-gate-and-it-is-the-uncertain-part).
 
 ---
 

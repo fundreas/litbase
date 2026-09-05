@@ -6,6 +6,7 @@ import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
 import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
+import { teamSheetRole, useTeamSheets } from '@/api/hooks/useTeamSheets'
 import {
   areFixturesSettled,
   byMatchdayPoints,
@@ -14,6 +15,7 @@ import {
   duelPlayerStatus,
   fixtureState,
   playerFigure,
+  TEAM_SHEET_ROLE_LABEL,
   type DuelPlayer,
   type MatchdaySquad,
   type MatchdaySquadPlayer,
@@ -25,8 +27,10 @@ import {
   figureLabel,
   isScore,
 } from '@/components/player/playerFigure'
+import { TeamSheetCorner } from '@/components/player/TeamSheetMark'
 import { Pitch } from '@/components/squad/Pitch'
 import {
+  cornerBadgeSize,
   fitPitchMetrics,
   ROW_ORDER,
   usePitchBox,
@@ -169,6 +173,15 @@ export function LiveTab({
   /** Fresh score, minute and events — one request per match, not per player. */
   const liveByMatchId = useLiveMatches(fixtures.data?.values())
 
+  /**
+   * The clubs' own team sheets, for the matches of this matchday that have not
+   * kicked off — see [`useTeamSheets`](../../api/hooks/useTeamSheets.ts). On a
+   * matchday spread over three days that is most of the eleven on a Saturday
+   * evening, and the lineup is already locked, so it is the one thing left to
+   * find out.
+   */
+  const sheetByTeamId = useTeamSheets(fixtures.data?.values())
+
   const matchdayPoints = useMatchdayPoints(
     leagueId,
     day,
@@ -206,6 +219,7 @@ export function LiveTab({
       fixture,
       live,
       events: live?.eventsByPlayerId.get(player.id),
+      sheet: teamSheetRole(sheetByTeamId, player.teamId, player.id),
     }
   }
 
@@ -496,6 +510,11 @@ function LivePitchRow({
  * and nothing else does. It is the one state that is going to change, so it is
  * the one worth spotting from across the pitch; if every state were coloured,
  * eleven portraits would read as a warning light.
+ *
+ * The corner carries the [club's team sheet](../player/TeamSheetMark.tsx) while
+ * one is out and the match has not kicked off, which is the only window in
+ * which it appears at all — the pitch is otherwise free of badges, so it costs
+ * nothing the rest of the time.
  */
 function LivePitchPlayer({
   player,
@@ -516,16 +535,29 @@ function LivePitchPlayer({
       // Spelled out rather than left to the two lines of the plate, which read
       // as "Kane 215" — a number with no unit and no idea whether the match is
       // over.
-      aria-label={`${player.name}: ${figureDescription(figure)}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}`}
+      aria-label={`${player.name}: ${figureDescription(figure)}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}${player.sheet === undefined ? '' : `, ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
       style={{ width: metrics.width }}
       className="flex shrink-0 flex-col items-center rounded-lg p-1 transition-colors hover:bg-black/20"
     >
-      <Avatar
-        src={player.image}
-        name={player.name}
-        size={metrics.avatar}
-        className={cn('ring-2', isRunning ? 'ring-accent' : 'ring-white/70')}
-      />
+      <span className="relative">
+        <Avatar
+          src={player.image}
+          name={player.name}
+          size={metrics.avatar}
+          className={cn('ring-2', isRunning ? 'ring-accent' : 'ring-white/70')}
+        />
+        {/* Sized from the portrait, like every other corner mark in the app, so
+            it stays legible from a 40px phone avatar up to a 96px desktop one.
+            The link already spells the role out, so the badge itself is
+            decorative here. */}
+        {player.sheet !== undefined && (
+          <TeamSheetCorner
+            role={player.sheet}
+            size={cornerBadgeSize(metrics.avatar)}
+            decorative
+          />
+        )}
+      </span>
 
       <span
         aria-hidden="true"

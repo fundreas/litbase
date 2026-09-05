@@ -1060,11 +1060,21 @@ The fielded eleven, each portrait carrying the points it has scored so far:
 
 The points replace the fixture badge that the editor's plate carries, and the
 plate follows the same rule as the duel pitch: the points when they are known,
-the **kick-off time** while the match is still to come, and `–` only when there
-is nothing to say — never `0` for a player who has not scored. See
+the **kick-off** while the match is still to come — the time on the day it is
+played, the weekday (`So`) before that — and `–` only when there is nothing to
+say, never `0` for a player who has not scored. See
 [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets); on
 grass that distinction is the difference between *hasn't kicked off* and
 *played and scored nothing*.
+
+**The corner carries the club's team sheet** while one is out and the match has
+not started, and nothing at all outside that hour: a green check for the
+starting eleven, an armchair for the club's bench, a red cross for a player who
+is not in the squad at all. The lineup is locked by then, so it is not
+actionable for the running matchday — it is how you find out, at 14:30 on a
+Saturday, that the striker you fielded is not going to play. Same mark, same
+rules and the same source as on the duel page:
+[The club's team sheet](duel-detail.md#the-clubs-team-sheet).
 
 **A running match tints the ring and the figure accent-coloured, and nothing
 else does.** It is the one state that is going to change, so it is the one
@@ -1143,6 +1153,7 @@ Not in the URL: a layout is a preference, not a place.
 | `useMatchdayFixtures` | the same cache entry, a third `select` | [Duel detail](duel-detail.md) |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Duel detail](duel-detail.md#points-cost-one-request-per-player) |
 | `useLiveMatches` ×N | `/matches/{matchId}/details` | [Duel detail](duel-detail.md#where-the-live-numbers-come-from) |
+| `useTeamSheets` ×N | the same endpoint, matches yet to start | [Duel detail](duel-detail.md#the-clubs-team-sheet) |
 
 **The squad is the matchday's whenever it can be.**
 [`useMatchdaySquad`](../../src/api/hooks/useMatchdaySquad.ts) reads the

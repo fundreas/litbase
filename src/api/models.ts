@@ -418,6 +418,28 @@ export const DUEL_PLAYER_STATUS_LABEL: Record<DuelPlayerStatus, string> = {
 }
 
 /**
+ * Where the **club** has put a player, once it has named its team.
+ *
+ * A different speaker from {@link DuelPlayerStatus}, and the distinction is the
+ * whole point: `bench` there is the *manager's* decision, made in Kickbase and
+ * known all week, while `bench` here is the *club's*, published about an hour
+ * before kick-off and the single most valuable thing anybody can learn in that
+ * hour. A player can easily be in one and not the other — fielded by his
+ * manager, left out by his club, which is precisely the case worth spotting.
+ *
+ * Only ever set from an **official** sheet — see
+ * [`useTeamSheets`](./hooks/useTeamSheets.ts). A predicted lineup is a
+ * different claim and does not get to wear this.
+ */
+export type TeamSheetRole = 'starting' | 'bench' | 'out'
+
+export const TEAM_SHEET_ROLE_LABEL: Record<TeamSheetRole, string> = {
+  starting: 'Startelf',
+  bench: 'Ersatzbank',
+  out: 'Nicht im Kader',
+}
+
+/**
  * One player on one matchday: who they are, what their match is doing, what
  * they scored.
  *
@@ -470,6 +492,16 @@ export interface DuelPlayer {
   live?: LiveMatch
   /** What this player did in that match, one tally per kind. */
   events?: MatchEventTally[]
+  /**
+   * What his **club** has named him as, when the sheet is out and the match has
+   * not kicked off.
+   *
+   * `undefined` for all but the last hour or so before a kick-off: until the
+   * clubs publish, nobody knows, and once the match is running the points and
+   * the scoreline say more than a team sheet can. See
+   * [`useTeamSheets`](./hooks/useTeamSheets.ts).
+   */
+  sheet?: TeamSheetRole
   /**
    * Which side of the duel they belong to.
    *

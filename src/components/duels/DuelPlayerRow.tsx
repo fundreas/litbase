@@ -9,6 +9,7 @@ import {
   figureLabel,
   isScore,
 } from '@/components/player/playerFigure'
+import { TeamSheetMark } from '@/components/player/TeamSheetMark'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
@@ -28,6 +29,11 @@ import { cn } from '@/lib/cn'
  *
  * The position went with them. It is the least useful thing about a player in
  * a list ranked by points, and it is one tap away on his own page.
+ *
+ * A third mark joins them for the last hour before a kick-off: the
+ * [team sheet](../player/TeamSheetMark.tsx), once the club has named one. A
+ * scoreline of `–:–` says the match has not started; it cannot say that the
+ * striker you fielded is not in the eighteen.
  *
  * The figure on the right is never `0` for a player who has not scored: it is
  * the points when they exist, the **kick-off time** while the match is still
@@ -82,6 +88,12 @@ export function DuelPlayerRow({
             live={player.live}
             teamId={player.teamId}
           />
+          {/* What his **club** named him as, in the hour between the sheet
+              being published and kick-off — the one thing a `–:–` scoreline
+              cannot tell you, and the one that is still worth knowing while
+              the match is open. It sits beside the scoreline because both
+              speak for the match rather than for the manager. */}
+          {player.sheet !== undefined && <TeamSheetMark role={player.sheet} />}
           {/* What he actually did, from the match's own event feed — the same
               glyphs the player page draws, since the codes turned out to be
               the same scale. Goals and cards are the reason a score moved,

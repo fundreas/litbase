@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import {
@@ -29,6 +29,10 @@ import {
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
+import {
+  FullscreenButton,
+  FullscreenPane,
+} from '@/components/ui/FullscreenPane'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
@@ -144,20 +148,30 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  * lives. The players the pitch cannot place — no `pos` on the match payload and
  * no detail response yet — are counted under it rather than dropped silently or
  * defaulted into midfield.
+ *
+ * **The corner opens the pitch [full screen](../ui/FullscreenPane.tsx)**, which
+ * is what twenty-two portraits on a phone have always wanted: the benches, the
+ * scoreline and the tab bar step aside, the pitch measures the whole viewport,
+ * and the sizing search hands every card the room. The `summary` the page
+ * passes becomes the bar, so the score and the minute stay on screen.
  */
 export function MatchLineupTab({
   home,
   away,
   leagueId,
   isPointsPending,
+  summary,
 }: {
   home: MatchLineup
   away: MatchLineup
   leagueId: string
   /** Points or owners still arriving; the pitch renders without them. */
   isPointsPending: boolean
+  /** Drawn in the full-screen bar in place of the app's header. */
+  summary?: ReactNode
 }) {
   const { ref, box } = usePitchBox()
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   /**
    * The busiest band across **both** halves — five defenders on either side
@@ -180,49 +194,89 @@ export function MatchLineupTab({
 
   const hasLineups = home.starters.length > 0 || away.starters.length > 0
 
+  /*
+   * One pitch, drawn in whichever of the two places is showing. Not two
+   * copies — see the duel pitch, which does the same thing for the same
+   * reason: a second one would size its cards from a box nobody is looking at.
+   *
+   * `min-h-[30rem]` is the floor that keeps eight bands legible on a phone
+   * inline. Full screen there is nothing under the pitch to leave room for, so
+   * it comes off and the pitch takes the viewport exactly.
+   */
+  const pitch = (
+    <Pitch className={isFullscreen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}>
+      <SideLabel lineup={home} side="home" />
+
+      {/* The corner the two side labels leave free. Gone once full screen:
+          there is nothing further to expand into, and the bar's ✗ is the way
+          back. */}
+      {!isFullscreen && (
+        <FullscreenButton
+          label="Aufstellung im Vollbild"
+          onClick={() => {
+            setIsFullscreen(true)
+          }}
+        />
+      )}
+
+      <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
+        {hasLineups ? (
+          <>
+            {ROW_ORDER_MIRRORED.map((position) => (
+              <PitchBand
+                key={`home-${position}`}
+                players={home.starters.filter((p) => p.position === position)}
+                metrics={metrics}
+                side="home"
+                leagueId={leagueId}
+              />
+            ))}
+            {ROW_ORDER.map((position) => (
+              <PitchBand
+                key={`away-${position}`}
+                players={away.starters.filter((p) => p.position === position)}
+                metrics={metrics}
+                side="away"
+                leagueId={leagueId}
+              />
+            ))}
+          </>
+        ) : (
+          /* Kickbase publishes the team sheets around an hour before
+             kick-off. Until then the payload's lineup arrays are simply
+             empty — not an error, and not a team of nobody. */
+          <p className="row-span-8 flex items-center justify-center px-6 text-center text-sm font-medium text-white/80">
+            Die Aufstellungen sind noch nicht veröffentlicht.
+          </p>
+        )}
+      </div>
+
+      <SideLabel lineup={away} side="away" />
+    </Pitch>
+  )
+
+  if (isFullscreen) {
+    /* The benches stay behind, as on the duel pitch: they are rows of names,
+       which the page underneath already does well, and this screen exists to
+       make the grass bigger. */
+    return (
+      <FullscreenPane
+        open
+        onOpenChange={setIsFullscreen}
+        title="Aufstellung im Vollbild"
+        summary={summary}
+      >
+        {pitch}
+      </FullscreenPane>
+    )
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/* `min-h-0 flex-1` so the pitch claims whatever height the page has
-          left after the benches rather than sitting at its floor on a desktop.
-          The `min-h-[30rem]` floor is what keeps eight bands legible on a
-          phone: below that the page scrolls instead of the cards shrinking. */}
-      <Pitch className="min-h-[30rem] flex-1">
-        <SideLabel lineup={home} side="home" />
-
-        <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
-          {hasLineups ? (
-            <>
-              {ROW_ORDER_MIRRORED.map((position) => (
-                <PitchBand
-                  key={`home-${position}`}
-                  players={home.starters.filter((p) => p.position === position)}
-                  metrics={metrics}
-                  side="home"
-                  leagueId={leagueId}
-                />
-              ))}
-              {ROW_ORDER.map((position) => (
-                <PitchBand
-                  key={`away-${position}`}
-                  players={away.starters.filter((p) => p.position === position)}
-                  metrics={metrics}
-                  side="away"
-                  leagueId={leagueId}
-                />
-              ))}
-            </>
-          ) : (
-            /* Kickbase publishes the team sheets around an hour before
-               kick-off. Until then the payload's lineup arrays are simply
-               empty — not an error, and not a team of nobody. */
-            <p className="row-span-8 flex items-center justify-center px-6 text-center text-sm font-medium text-white/80">
-              Die Aufstellungen sind noch nicht veröffentlicht.
-            </p>
-          )}
-        </div>
-
-        <SideLabel lineup={away} side="away" />
-      </Pitch>
+          left after the benches rather than sitting at its floor on a
+          desktop. */}
+      {pitch}
 
       {(isPointsPending || unplaced > 0) && (
         <p className="flex items-center gap-2 px-0.5 text-xs text-muted">

@@ -1,5 +1,7 @@
 /** Display formatting. Kickbase is a German product, so de-DE throughout. */
 
+import { nowMs } from '@/lib/clock'
+
 const LOCALE = 'de-DE'
 
 const compactEuro = new Intl.NumberFormat(LOCALE, {
@@ -134,6 +136,61 @@ export function time(iso: string | null | undefined): string {
   if (!iso) return '–'
   const parsed = Date.parse(iso)
   return Number.isNaN(parsed) ? '–' : timeFormatter.format(parsed)
+}
+
+const weekdayFormatter = new Intl.DateTimeFormat(LOCALE, { weekday: 'short' })
+
+/**
+ * A kick-off in the width of a figure slot: **`15:30` today, `So` any other
+ * day.**
+ *
+ * The slot is the one a player's points will land in, so it is about five
+ * characters wide, and both readings have to fit in it. Which one is wanted
+ * depends entirely on the distance:
+ *
+ *  - **Today**, the time is the whole question — 15:30 or 18:30 is the
+ *    difference between "watch this now" and "this evening".
+ *  - **Any other day**, the time is the wrong answer to a question nobody
+ *    asked. A Friday-evening reader looking at a lineup wants to know that half
+ *    of it does not play until Sunday; `15:30` on eleven portraits says they
+ *    all kick off at once, which is exactly the impression a matchday spread
+ *    over three days should not give.
+ *
+ * The weekday is abbreviated (`Fr`, `Sa`, `So`) — the same form
+ * {@link weekdayDate} uses — because the slot cannot hold *Sonntag* and does
+ * not need to: a matchday spans one weekend, so two letters are unambiguous.
+ * The full kick-off rides along as the tooltip and the screen-reader text
+ * wherever this is drawn.
+ *
+ * Read against {@link nowMs}, not `Date.now()`, so the
+ * [live development profile](../dev/simulation.ts) sees the same "today"
+ * everything else does.
+ */
+export function kickoffShort(
+  iso: string | null | undefined,
+  now: number = nowMs(),
+): string {
+  if (!iso) return '–'
+  const parsed = Date.parse(iso)
+  if (Number.isNaN(parsed)) return '–'
+  return isSameDay(parsed, now)
+    ? timeFormatter.format(parsed)
+    : weekdayFormatter.format(parsed)
+}
+
+/**
+ * The same calendar day **in the reader's own timezone**, which is the only
+ * sense of "today" a person means. Not a 24-hour window: a Sunday 15:30
+ * kick-off is *tomorrow* from Saturday evening, and eighteen hours away.
+ */
+function isSameDay(a: number, b: number): boolean {
+  const left = new Date(a)
+  const right = new Date(b)
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
 }
 
 /**

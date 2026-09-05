@@ -331,6 +331,9 @@ ranking's per-club headings.
 It answers the question the score cannot: *where in this fixture were the
 points*. Nothing else on the screen adds up the two teams.
 
+The **third** corner — top-right, the one the two labels leave free — is the
+way into [full screen](#full-screen).
+
 The corner used to carry the **formation** (`ts1`/`ts2`, e.g. `4-2-3-1`) and
 that is gone: a dashed run of digits at 10px reads as a date, and the shape of
 the bands underneath is already a rough answer to the same question. The wire
@@ -466,13 +469,43 @@ payload's lineup arrays are simply empty. That is not an error and not a team of
 nobody, so the pitch says so in a sentence rather than drawing two empty
 halves. `il` on the payload claims the sheets are *official* rather than
 predicted, but it reads `false` on matches played weeks ago — closer to a flag
-set around kick-off than a durable fact — so it is mapped and not yet trusted
-with anything.
+set around kick-off than a durable fact. This tab does not act on it: it draws
+whatever sheets it is given, and qualifying them would be a claim about the
+flag. The one place that *does* act on it is
+[the team-sheet mark](duel-detail.md#il-is-the-gate-and-it-is-the-uncertain-part)
+on the duel and live pages, where a predicted lineup shown as a fact would be a
+real error — and there it is gated so that an `il` that never turns true simply
+shows nothing.
 
 Players the pitch **cannot place** — no `pos` on the match payload and no detail
 response yet — are counted in a line under it. Dropping them silently is how
 sold players once went missing from the duel lineup, and defaulting them into
 midfield would put a stranger in the middle of the park and look deliberate.
+
+### Full screen
+
+The control in the pitch's top-right corner gives it the whole window
+([`FullscreenPane`](../../src/components/ui/FullscreenPane.tsx), shared with
+[duel detail](duel-detail.md#full-screen)). Twenty-two portraits on a phone are
+as small as this app ever draws a player, and everything around them — the
+scoreline, the benches, the tab bar, the app's own header — is what they are
+small *for*. Full screen those step aside, the pitch measures the viewport, and
+the same sizing search hands every card the extra room.
+
+The bar that replaces the app header carries the **two clubs, the score, and
+the one line that differs by state**: the full kick-off before, a pulsing *Live
+· 67'* while it runs, *Beendet* after. Same sources and same precedence as
+[the header](#the-header) above the pitch — the state from the fixture list, the
+score and the minute from the match payload — so the two cannot disagree.
+
+The ✗ is the only control, and Escape and the back gesture do the same thing. It
+is a dialog rather than a route on purpose: full screen is a way of *looking* at
+what is already on the page, so closing it has to land you exactly where you
+were, mid-tab and mid-scroll, without spending an entry in the history stack.
+
+The benches stay behind. They are rows of names, which the page underneath
+already does well, and eight bands plus two columns would put us back where we
+started.
 
 ## Ranking — who actually scored
 

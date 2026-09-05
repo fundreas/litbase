@@ -100,6 +100,32 @@ line is simply absent until the rosters land, rather than claiming
 wants to be a pitch, to duplicate what the browser's back gesture and the nav
 drawer already do.
 
+### Full screen
+
+The control in the pitch's top-right corner — the one the two name plates leave
+free — gives it the whole window
+([`FullscreenPane`](../../src/components/ui/FullscreenPane.tsx), shared with
+[match detail](match-detail.md#full-screen)). Twenty-two portraits on a phone
+are as small as this app ever draws a player, and the header, the benches and
+the app's own bar are what they are small *for*. Full screen those step aside,
+the pitch measures the viewport, and the sizing search hands every card the
+extra room.
+
+The bar that replaces the app header carries the **two managers and their two
+totals** — the reason to be looking at all — and drops the placement, the leader
+emphasis and `n laufend · n offen`, which are one tap back. The totals are
+Kickbase's own for the matchday, the same figure the page shows, so the number
+does not change when the pitch grows.
+
+The ✗ is the only control, and Escape and the back gesture do the same thing. It
+is a dialog rather than a route on purpose: full screen is a way of *looking* at
+what is already on the page, so closing it lands you exactly where you were,
+mid-tab and mid-scroll, without spending an entry in the history stack.
+
+The benches stay behind: they are rows of names, which the page underneath
+already does well, and eight bands plus two columns would put us back where we
+started.
+
 ## The routes are the views
 
 ```
@@ -185,7 +211,7 @@ this order:
 | ----- | ---- | -------------- |
 | **Points** | they are known | The most informative thing available, benched players included — a bench that outscored the eleven is why benches are on screen at all |
 | **The armchair** ([`BenchMark`](../../src/components/player/BenchMark.tsx)) | benched, no points | A kick-off time would mislead: his match starting changes nothing, because his points will never count |
-| **Kick-off** (`20:30`) | fielded, match still to come | Answers the question the dash left hanging. On a Friday evening most of a lineup has not kicked off |
+| **Kick-off** (`20:30` today, `So` before that) | fielded, match still to come | Answers the question the dash left hanging. On a Friday evening most of a lineup has not kicked off |
 | **`–`** | nothing to say | No fixture that matchday, or a match under way whose points have not arrived |
 
 **Points are never `0` for a player who has not scored.** That distinction is
@@ -194,11 +220,20 @@ failed to score. A player who genuinely did not feature carries `hp: false` in
 the API and also stays `undefined` — and `0` really does render as `0`, for
 someone who played and scored nothing.
 
-The kick-off is the **time alone**, in the reader's own timezone. A matchday
-page covers one weekend and the row or plate already says which fixture it is;
-on a pitch plate the width is the portrait's, which is about five characters on
-a phone. A Sunday match seen on Friday therefore reads `17:30` with no day
-attached, which is the one thing this trades away.
+The kick-off is **the time on the day it is played, and the weekday before
+that** — `17:30` today, `So` for a match still two nights away
+([`kickoffShort()`](../../src/lib/format.ts)), in the reader's own timezone and
+never the date. The slot is about five characters wide on a phone plate, so it
+holds one of the two, and which one is wanted depends entirely on the distance:
+today, the time is the whole question; on any other day it is the wrong answer
+to a question nobody asked. Eleven portraits reading `17:30` on a Friday
+evening say the lineup all kicks off at once, which is exactly the impression a
+matchday spread over three days must not give. The full kick-off rides along as
+the tooltip and the screen-reader text.
+
+"Today" is read against the app's own clock (`nowMs()`), so the
+[live development profile](../../src/dev/simulation.ts) sees the same one
+everything else does.
 
 **The bench is a mark, not a word.** The armchair — the same glyph the squad
 page's bench section is headed with — replaces *Bank* wherever a player is
@@ -212,6 +247,71 @@ number and the mark is what says it did not count.
 
 A real score is drawn at full contrast and a placeholder stays quiet, so the
 eye finds the numbers first.
+
+## The club's team sheet
+
+For roughly the last hour before a kick-off there is one fact nobody's points
+and no scoreline can carry: **whether the club has actually named the player.**
+[`TeamSheetMark`](../../src/components/player/TeamSheetMark.tsx) draws it, on
+this page and on the [squad page's live view](squad.md#live-tab).
+
+| Mark | Means | Where it is drawn |
+| ---- | ----- | ----------------- |
+| ✓ green | In the starting eleven | Corner of the portrait on both pitches; inline on a row |
+| 🪑 grey | On the club's bench | as above |
+| ✗ red | Not in the matchday squad at all | as above |
+| *nothing* | The club has not named a team yet, or the match has kicked off | — |
+
+**It appears for the starters too**, and that is deliberate: eleven quiet
+checks are what make one cross mean something. A mark that only ever showed bad
+news would leave its absence ambiguous — nothing to report, or nothing known
+yet? — and an hour before kick-off those are very different answers.
+
+**It is a filled disc; the manager's bench mark is a bare glyph.** Both can
+appear on one row and both can be an armchair, but they are said by different
+people: [`BenchMark`](../../src/components/player/BenchMark.tsx) is *your*
+manager leaving a player out of *your* eleven, this is *his club* leaving him
+out of *theirs*. Weight says who is speaking; the tooltip says the rest
+("Vereinsaufstellung: Ersatzbank").
+
+### Where it comes from
+
+[`useTeamSheets`](../../src/api/hooks/useTeamSheets.ts) →
+`GET /v4/matches/{matchId}/details`, the **same payload and the same cache
+entry** [`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts) fills. The two
+are complementary halves of one request:
+
+- `useLiveMatches` takes every match that **has** kicked off, and reads the
+  score, the minute and the events — throwing the lineups away.
+- `useTeamSheets` takes every match still **to** kick off, and reads only the
+  lineups.
+
+The windows are disjoint by construction, so no match is ever asked for twice.
+
+Only matches within **two hours** of kick-off are fetched, at a five-minute
+tick — the sheets appear about an hour out, and polling all nine matches of a
+matchday from Friday morning would be two days of requests to learn nothing.
+Because a window decided from the clock has to be told when the clock moves —
+the dead end [`useMatchDetails`](../../src/api/hooks/useMatchDetails.ts)
+documents at length, and there is no other poll running on these pages before
+the matchday's first kick-off — a request-free heartbeat re-reads the clock
+every five minutes while a match is still waiting outside the window.
+
+### `il` is the gate, and it is the uncertain part
+
+A sheet is used **only when the payload says it is official** (`il`). That
+field is marked **?** in [the API notes](../api/matches.md): it reads `false` on
+a match played weeks ago, so it behaves like a flag raised around kick-off
+rather than a durable fact. Raised around kick-off is exactly what this needs,
+but it has **not been watched live** — one look at a real Saturday, an hour
+before the 15:30 block, settles it.
+
+The failure mode was picked accordingly. If `il` never turns true, no marks
+appear and the pages read as they did before: the app says nothing rather than
+something wrong. Gating on "the lineup arrays are populated" instead would fail
+the other way — if Kickbase serves a *predicted* lineup ahead of the official
+one, every prediction would be drawn as a fact. `hasOfficialSheets()` is the
+one place that decision is made.
 
 ## The squad it shows is the matchday's
 
@@ -381,6 +481,8 @@ too — the rules are the hook's, not this page's.
 | `useManagerSquad` ×2 | `/leagues/{id}/managers/{uid}/squad` | positions only — see [above](#positions-still-come-from-todays-squad) |
 | `useMatchdayFixtures` | `/competitions/{id}/matchdays` | squad page, duel picker |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Squad — live tab](squad.md#live-tab) |
+| `useLiveMatches` ×N | `/matches/{mid}/details` | every started match — [Matchday](matchday.md) |
+| `useTeamSheets` ×N | `/matches/{mid}/details` | every match about to start — [above](#the-clubs-team-sheet) |
 
 `useManagerSquad` is how the app reads another manager's lineup today. It is
 **not** the only way, though this file said so until 2026-09-04:
@@ -427,6 +529,9 @@ and the opponent's three-letter symbol, plus a status word. It now carries
   ([`MatchStateBadge`](../../src/components/player/MatchStateBadge.tsx)):
   a faint `–:–` before kick-off, a **pulsing dot** with the running score and
   the **minute** while it is on, the final score once it is over, and
+- his **club's team sheet**, in the hour it exists and the match has not
+  started ([`TeamSheetMark`](../../src/components/player/TeamSheetMark.tsx)) —
+  see [The club's team sheet](#the-clubs-team-sheet), and
 - what the player **did** — goals, own goals, assists, cards — as the same
   glyphs the [player page](player-detail.md) draws, from the match's own event
   feed.

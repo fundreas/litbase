@@ -197,7 +197,11 @@ export function DuelDetailPage() {
       ) : rosters.data === undefined ? null : tab === TABS.ranking ? (
         <DuelRankingTab rosters={rosters.data} />
       ) : (
-        <DuelLineupTab rosters={rosters.data} viewerId={user?.id} />
+        <DuelLineupTab
+          rosters={rosters.data}
+          viewerId={user?.id}
+          summary={<DuelSummary sides={duel.sides} hasStarted={hasStarted} />}
+        />
       )}
     </div>
   )
@@ -250,6 +254,54 @@ function ViewToggle({
         className={tab === TABS.ranking ? 'text-accent' : 'text-faint'}
       />
     </button>
+  )
+}
+
+/**
+ * The duel in one line, for the bar of the [full-screen
+ * pitch](../components/ui/FullscreenPane.tsx).
+ *
+ * The page's own {@link Scoreline} does not fit there and should not: full
+ * screen, the whole screen is the pitch, and the bar has one row of a 56px
+ * strip to say who is playing whom and who is winning. So it keeps the three
+ * things the header above the pitch is read for — the two managers and the two
+ * totals — and drops the placement, the leader emphasis and the
+ * `n laufend · n offen`, all of which are one tap back.
+ *
+ * The totals are Kickbase's own for the matchday, the same figure the page
+ * shows, so the number does not change when the pitch grows.
+ */
+function DuelSummary({
+  sides,
+  hasStarted,
+}: {
+  sides: [DuelSide, DuelSide]
+  hasStarted: boolean
+}) {
+  const [left, right] = sides
+
+  return (
+    <div className="flex items-center gap-2">
+      <Avatar src={left.image} name={left.name} size={26} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[0.6875rem] text-muted">{left.name}</p>
+        <p className="nums truncate text-sm leading-tight font-bold text-ink">
+          {hasStarted ? points(left.matchdayPoints) : '–'}
+        </p>
+      </div>
+
+      <span aria-hidden="true" className="shrink-0 text-xs text-faint">
+        :
+      </span>
+
+      <div className="min-w-0 flex-1 text-right">
+        <p className="truncate text-[0.6875rem] text-muted">{right.name}</p>
+        <p className="nums truncate text-sm leading-tight font-bold text-ink">
+          {hasStarted ? points(right.matchdayPoints) : '–'}
+        </p>
+      </div>
+      <Avatar src={right.image} name={right.name} size={26} />
+    </div>
   )
 }
 

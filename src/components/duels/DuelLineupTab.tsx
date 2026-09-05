@@ -1,5 +1,6 @@
 import {
   playerFigure,
+  TEAM_SHEET_ROLE_LABEL,
   type DuelPlayer,
   type DuelRoster,
   type PositionKey,
@@ -10,8 +11,13 @@ import {
   figureLabel,
   isScore,
 } from '@/components/player/playerFigure'
+import {
+  TeamSheetCorner,
+  TeamSheetMark,
+} from '@/components/player/TeamSheetMark'
 import { Pitch } from '@/components/squad/Pitch'
 import {
+  cornerBadgeSize,
   fitPitchMetrics,
   ROW_ORDER,
   ROW_ORDER_MIRRORED,
@@ -19,8 +25,12 @@ import {
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
+import {
+  FullscreenButton,
+  FullscreenPane,
+} from '@/components/ui/FullscreenPane'
 import { cn } from '@/lib/cn'
-import { useMemo } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 /**
  * Which half of the pitch a player belongs to, and therefore how they are
@@ -56,16 +66,28 @@ const RING_CLASS: Record<Side, string> = {
  * players on a phone a name under each is unreadable and a fixture badge is
  * noise; the points are the only number that changes and the only one worth
  * reading off a pitch.
+ *
+ * **And there is a way to make them bigger.** The corner opens the pitch
+ * [full screen](../ui/FullscreenPane.tsx), which is the answer to the one
+ * complaint 22 portraits on a phone will always have: the benches and the page
+ * header step aside, the pitch measures the whole viewport, and the same
+ * sizing search hands every card the extra room. The `summary` the page passes
+ * becomes the bar at the top, so the two totals stay on screen — they are the
+ * reason to be looking at all.
  */
 export function DuelLineupTab({
   rosters,
   viewerId,
+  summary,
 }: {
   rosters: [DuelRoster, DuelRoster]
   viewerId?: string
+  /** Drawn in the full-screen bar in place of the app's header. */
+  summary?: ReactNode
 }) {
   const [top, bottom] = rosters
   const { ref, box } = usePitchBox()
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   /**
    * The busiest band across **both** halves — five defenders on either side
@@ -82,47 +104,89 @@ export function DuelLineupTab({
     })
   }, [box, top.lineup, bottom.lineup])
 
+  /*
+   * One pitch, drawn in whichever of the two places is showing — inline under
+   * the page header, or alone on the screen. Deliberately **not** two copies:
+   * a second one would measure a box nobody is looking at and size its cards
+   * from it, and the whole point of the full-screen view is that the measuring
+   * follows the space the pitch actually has.
+   *
+   * `min-h-[30rem]` is the floor that keeps eight bands legible on a phone
+   * inline — below it the page scrolls instead of the cards shrinking further.
+   * Full screen there is no page to scroll and nothing under the pitch to make
+   * room for, so the floor comes off and the pitch takes the viewport exactly.
+   */
+  const pitch = (
+    <Pitch className={isFullscreen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}>
+      {/* Name plates in the corners rather than a legend: the header pairs
+          the managers left and right, the pitch stacks them top and bottom,
+          and something has to bridge those two arrangements. */}
+      <SideLabel
+        roster={top}
+        side="top"
+        isViewer={top.manager.id === viewerId}
+      />
+
+      {/* The one corner the two name plates leave free. Gone once the pitch is
+          full screen: there is nothing further to expand into, and the bar's ✗
+          is the way back. */}
+      {!isFullscreen && (
+        <FullscreenButton
+          label="Aufstellung im Vollbild"
+          onClick={() => {
+            setIsFullscreen(true)
+          }}
+        />
+      )}
+
+      <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
+        {ROW_ORDER_MIRRORED.map((position) => (
+          <PitchBand
+            key={`top-${position}`}
+            players={top.lineup.filter((p) => p.position === position)}
+            metrics={metrics}
+            side="top"
+          />
+        ))}
+        {ROW_ORDER.map((position) => (
+          <PitchBand
+            key={`bottom-${position}`}
+            players={bottom.lineup.filter((p) => p.position === position)}
+            metrics={metrics}
+            side="bottom"
+          />
+        ))}
+      </div>
+
+      <SideLabel
+        roster={bottom}
+        side="bottom"
+        isViewer={bottom.manager.id === viewerId}
+      />
+    </Pitch>
+  )
+
+  if (isFullscreen) {
+    /* The benches stay behind. They are rows of names, which is what the page
+       underneath is for; this screen exists to make the *grass* bigger, and
+       eight bands plus two columns would put us back where we started. */
+    return (
+      <FullscreenPane
+        open
+        onOpenChange={setIsFullscreen}
+        title="Aufstellung im Vollbild"
+        summary={summary}
+      >
+        {pitch}
+      </FullscreenPane>
+    )
+  }
+
   return (
     /* `min-h-0 flex-1` so the pitch can claim whatever height the page has
-       left after the benches, rather than sitting at its floor on a desktop.
-       The `min-h-[30rem]` floor is what keeps eight bands legible on a phone:
-       below that the page scrolls instead of the cards shrinking further. */
+       left after the benches, rather than sitting at its floor on a desktop. */
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <Pitch className="min-h-[30rem] flex-1">
-        {/* Name plates in the corners rather than a legend: the header pairs
-            the managers left and right, the pitch stacks them top and bottom,
-            and something has to bridge those two arrangements. */}
-        <SideLabel
-          roster={top}
-          side="top"
-          isViewer={top.manager.id === viewerId}
-        />
-
-        <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
-          {ROW_ORDER_MIRRORED.map((position) => (
-            <PitchBand
-              key={`top-${position}`}
-              players={top.lineup.filter((p) => p.position === position)}
-              metrics={metrics}
-              side="top"
-            />
-          ))}
-          {ROW_ORDER.map((position) => (
-            <PitchBand
-              key={`bottom-${position}`}
-              players={bottom.lineup.filter((p) => p.position === position)}
-              metrics={metrics}
-              side="bottom"
-            />
-          ))}
-        </div>
-
-        <SideLabel
-          roster={bottom}
-          side="bottom"
-          isViewer={bottom.manager.id === viewerId}
-        />
-      </Pitch>
+      {pitch}
 
       {/* Two columns, laid out the way the header is: manager one on the
           left, manager two on the right. The pitch has to stack them top and
@@ -177,7 +241,14 @@ function PitchBand({
  * The figure is tinted **only while the player's match is running** — the one
  * state that is going to change, and so the only one worth spotting across a
  * pitch of 22. A real score is drawn at full contrast and a placeholder (a
- * kick-off time, a dash) stays quiet, so the eye finds the numbers first.
+ * kick-off day or time, a dash) stays quiet, so the eye finds the numbers
+ * first.
+ *
+ * The corner carries the [club's team sheet](../player/TeamSheetMark.tsx) in
+ * the hour a sheet exists and the match has not started, and nothing at all
+ * outside it. That is the one time a duel of two unstarted elevens has anything
+ * to separate its 22 identical `Sa` plates — and on this pitch, unlike the
+ * squad editor's, no other badge is competing for the corner.
  */
 function PitchPlayer({
   player,
@@ -197,12 +268,20 @@ function PitchPlayer({
       style={{ width: metrics.width }}
       className="flex shrink-0 flex-col items-center p-1"
     >
-      <Avatar
-        src={player.image}
-        name={player.name}
-        size={metrics.avatar}
-        className={cn('ring-2', RING_CLASS[side])}
-      />
+      <span className="relative">
+        <Avatar
+          src={player.image}
+          name={player.name}
+          size={metrics.avatar}
+          className={cn('ring-2', RING_CLASS[side])}
+        />
+        {player.sheet !== undefined && (
+          <TeamSheetCorner
+            role={player.sheet}
+            size={cornerBadgeSize(metrics.avatar)}
+          />
+        )}
+      </span>
       <span
         style={{
           width: metrics.plateWidth,
@@ -299,7 +378,7 @@ function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
             return (
               <li
                 key={player.id}
-                title={`${player.name}: ${figureDescription(figure)}`}
+                title={`${player.name}: ${figureDescription(figure)}${player.sheet === undefined ? '' : ` · ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
                 className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-1.5 py-1 opacity-75"
               >
                 <Avatar
@@ -311,6 +390,13 @@ function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
                 <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-ink">
                   {player.name}
                 </span>
+                {/* Inline rather than in the corner of a 24px portrait, where
+                    a badge would cover a third of the face. A bench player's
+                    club sheet still matters: he is who you would have fielded
+                    instead, and next week you might. */}
+                {player.sheet !== undefined && (
+                  <TeamSheetMark role={player.sheet} size={12} />
+                )}
                 {figure.kind === 'bench' ? (
                   <BenchMark size={12} className="text-faint" />
                 ) : (

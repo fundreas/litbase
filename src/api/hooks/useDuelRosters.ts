@@ -7,6 +7,7 @@ import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
 import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
+import { teamSheetRole, useTeamSheets } from '@/api/hooks/useTeamSheets'
 import {
   areFixturesSettled,
   byMatchdayPoints,
@@ -115,6 +116,13 @@ export function useDuelRosters(
   const liveByMatchId = useLiveMatches(fixtures.data?.values())
 
   /**
+   * The clubs' own team sheets for the matches still to kick off — the other
+   * half of the same payload, for the hour in which it is news. See
+   * [`useTeamSheets`](./useTeamSheets.ts).
+   */
+  const sheetByTeamId = useTeamSheets(fixtures.data?.values())
+
+  /**
    * The roster to render, from whichever source can be believed.
    *
    * The snapshot wins whenever its lineup looks complete — see
@@ -210,6 +218,7 @@ export function useDuelRosters(
           fixture,
           live,
           events: live?.eventsByPlayerId.get(player.id),
+          sheet: teamSheetRole(sheetByTeamId, player.teamId, player.id),
           managerId: side.id,
         }
       }
