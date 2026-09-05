@@ -22,6 +22,7 @@ import {
 } from '@/api/models'
 import { Avatar } from '@/components/ui/Avatar'
 import { Card, CardHeader, StatTile } from '@/components/ui/Card'
+import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
 import {
   delta,
@@ -57,13 +58,16 @@ const WINDOW = 5
  *     is mostly about who they play next.
  *  4. **Season facts** the table cannot show: the home/away split, the current
  *     run, clean sheets, the biggest win.
- *  5. **Who is producing the points**, which is where a scouting trail starts.
+ *  5. **Who is producing the points** — the one card that costs something, and
+ *     where a scouting trail starts.
  */
 export function TeamOverviewTab({
   standing,
   table,
   fixtures,
   players,
+  totalByPlayerId,
+  isPointsPending,
   teams,
   leagueId,
 }: {
@@ -74,6 +78,10 @@ export function TeamOverviewTab({
   fixtures: TeamSeasonFixture[]
   /** The club's squad, from its profile. Empty until that request lands. */
   players: TeamSquadPlayer[]
+  /** Player id → season total, from the per-player fan-out. */
+  totalByPlayerId: Map<string, number>
+  /** That fan-out is still arriving; the scorer card says so. */
+  isPointsPending: boolean
   teams: Map<string, TeamSummary> | undefined
   leagueId: string
 }) {
@@ -109,7 +117,12 @@ export function TeamOverviewTab({
 
       <FactsCard fixtures={fixtures} teams={teams} />
 
-      <ScorersCard players={players} leagueId={leagueId} />
+      <ScorersCard
+        players={players}
+        totalByPlayerId={totalByPlayerId}
+        isPointsPending={isPointsPending}
+        leagueId={leagueId}
+      />
     </div>
   )
 }
@@ -549,33 +562,48 @@ function biggestWin(
 /* -------------------------------------------------------------------------- */
 
 /**
- * The club's five most productive players, by **points per appearance**.
+ * The club's five biggest scorers this season, with the average underneath.
  *
- * `ap` rather than a season total, and not only because the total is not on
- * this payload: the total rewards whoever has been fit longest. A substitute
- * averaging 80 and a starter averaging 78 are the same player for the purpose
- * of buying one, and in a season column they look nothing alike — while the
- * cheaper of the two is the one nobody has noticed yet, which is the whole
- * point of a scouting list.
+ * **Total is the headline, average the qualifier.** The total is what a season
+ * actually produced and the number a reader arrives with; the average is what
+ * makes it comparable — a substitute on 480 from six appearances and a starter
+ * on 520 from twelve are very different propositions, and the second line is
+ * where that shows.
  *
- * The market value rides alongside, because on a club page the two are read
- * together: a high average on a low value is the row worth tapping, and the
- * [Kader](./TeamSquadTab.tsx) is one tab away for the rest of the squad.
+ * The total costs a request per player (`tp`), which `teamprofile` does not
+ * carry — see [`useTeamPoints`](../../api/hooks/useTeam.ts). The average comes
+ * free with the profile, so the rows have something to say from the first
+ * paint and gain their headline figure as the fan-out lands.
  *
- * Free — the same `teamprofile` response the Kader is built on.
+ * **A player with no total yet sorts last, not as zero.** Absent means either
+ * "has not featured" or "his request has not landed", and neither is a
+ * performance — ranking them level with a genuine nought would put whoever the
+ * network was slowest about at the bottom of a list about merit. The same rule
+ * the duel and match rankings hold.
  */
 function ScorersCard({
   players,
+  totalByPlayerId,
+  isPointsPending,
   leagueId,
 }: {
   players: TeamSquadPlayer[]
+  totalByPlayerId: Map<string, number>
+  isPointsPending: boolean
   leagueId: string
 }) {
+  /*
+   * Rebuilt every render: the totals map is a fresh object on each pass of the
+   * fan-out, so a memo keyed on it would miss on exactly the renders that
+   * matter. Thirty comparisons.
+   */
   const top = [...players]
-    .filter((player) => player.averagePoints > 0)
+    .map((player) => ({ player, total: totalByPlayerId.get(player.id) }))
+    .filter((row) => row.total !== undefined || row.player.averagePoints > 0)
     .sort(
       (a, b) =>
-        b.averagePoints - a.averagePoints || b.marketValue - a.marketValue,
+        (b.total ?? -1) - (a.total ?? -1) ||
+        b.player.averagePoints - a.player.averagePoints,
     )
     .slice(0, WINDOW)
 
@@ -584,17 +612,22 @@ function ScorersCard({
       <CardHeader
         title="Punktesammler"
         action={
-          <span className="text-[0.6875rem] text-faint">Ø pro Einsatz</span>
+          <span className="flex items-center gap-2 text-[0.6875rem] text-faint">
+            {isPointsPending && <Spinner size={11} />}
+            <span>Saison gesamt</span>
+          </span>
         }
       />
 
       {top.length === 0 ? (
         <p className="px-4 py-5 text-center text-sm text-muted">
-          Noch hat kein Spieler dieses Klubs gepunktet.
+          {isPointsPending
+            ? 'Punkte werden geladen …'
+            : 'Noch hat kein Spieler dieses Klubs gepunktet.'}
         </p>
       ) : (
         <ol className="divide-y divide-line">
-          {top.map((player, index) => (
+          {top.map(({ player, total }, index) => (
             <li key={player.id}>
               <Link
                 to={`/leagues/${leagueId}/players/${player.id}`}
@@ -619,9 +652,16 @@ function ScorersCard({
                     {money(player.marketValue)}
                   </p>
                 </div>
-                <span className="nums shrink-0 text-sm font-semibold text-ink">
-                  {points(player.averagePoints)}
-                </span>
+                <div className="shrink-0 text-right">
+                  {/* A dash while the request is out — a `0` would read as a
+                      season of nothing rather than as a pending answer. */}
+                  <p className="nums text-sm font-semibold text-ink">
+                    {total === undefined ? '–' : points(total)}
+                  </p>
+                  <p className="nums text-[0.625rem] text-faint">
+                    Ø {points(player.averagePoints)}
+                  </p>
+                </div>
               </Link>
             </li>
           ))}

@@ -8,7 +8,7 @@ import {
 } from '@/api/hooks/useCompetition'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useSeasonSchedule, useTeamSeason } from '@/api/hooks/useMatchday'
-import { useTeamMatchdayPoints, useTeamProfile } from '@/api/hooks/useTeam'
+import { useTeamPoints, useTeamProfile } from '@/api/hooks/useTeam'
 import {
   fixtureState,
   teamCurrentFixture,
@@ -54,10 +54,13 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  *    season's fixture list are hour-long entries the squad and matchday pages
  *    have usually already filled, and the club's own `teamprofile` is one
  *    request that carries the entire squad. Übersicht and Kader are both
- *    arithmetic over those.
- *  - **Spiele — one request per player**, twenty-five to thirty, and *only* on
- *    that tab: `ph` is the one source of a per-matchday score and has no bulk
- *    spelling. See [`useTeamMatchdayPoints`](../api/hooks/useTeam.ts).
+ *    arithmetic over those, apart from the scorer card's totals.
+ *  - **Übersicht and Spiele — one request per player**, twenty-five to thirty,
+ *    and **one fan-out between them**: the Spiele column reads `ph`, the
+ *    Übersicht's scorer card reads `tp`, and both ride the same response. `ph`
+ *    is the one source of a per-matchday score and `teamprofile` carries no
+ *    season total, so neither has a cheaper answer. See
+ *    [`useTeamPoints`](../api/hooks/useTeam.ts).
  *  - **Live — the match lineup's fan-out**, ~36 players polling at the live
  *    rate, and the same cache entries the match page fills.
  *
@@ -131,11 +134,15 @@ export function TeamDetailPage() {
    */
   const live = useLiveMatches(current === undefined ? undefined : [current])
 
-  // The Spiele tab's points column, and nothing else — see the cost note above.
-  const matchdayPoints = useTeamMatchdayPoints(
+  /*
+   * The per-player fan-out, for the two tabs that read it: the Spiele column
+   * and the Übersicht's scorer card. They share the cache entries, so between
+   * them it is one fan-out; the Kader and the Live tab stay off it.
+   */
+  const teamPoints = useTeamPoints(
     leagueId,
     players,
-    tab === TEAM_TABS.matches,
+    tab === TEAM_TABS.matches || tab === TEAM_TABS.overview,
   )
 
   const tabs: BottomTab[] = [
@@ -237,6 +244,8 @@ export function TeamDetailPage() {
             table={table.data}
             fixtures={fixtures}
             players={players}
+            totalByPlayerId={teamPoints.totalByPlayerId}
+            isPointsPending={teamPoints.isPending}
             teams={teams.data}
             leagueId={leagueId}
           />
@@ -259,8 +268,8 @@ export function TeamDetailPage() {
         {tab === TEAM_TABS.matches && (
           <TeamMatchesTab
             fixtures={fixtures}
-            pointsByDay={matchdayPoints.byDay}
-            isPointsPending={matchdayPoints.isPending}
+            pointsByDay={teamPoints.byDay}
+            isPointsPending={teamPoints.isPending}
             teams={teams.data}
             currentDay={schedule.data?.currentDay}
             leagueId={leagueId}

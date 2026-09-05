@@ -206,11 +206,11 @@ function toOwner(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Points per matchday                                                        */
+/* Season points                                                              */
 /* -------------------------------------------------------------------------- */
 
-/** What a club's players scored, per matchday. */
-export interface TeamMatchdayPoints {
+/** What a club's players have scored — by matchday, and per player. */
+export interface TeamPoints {
   /**
    * Matchday → the club's total.
    *
@@ -218,22 +218,41 @@ export interface TeamMatchdayPoints {
    * kicks off it has not scored nothing, it has not played.
    */
   byDay: Map<number, number>
+  /**
+   * Player id → his season total (`tp`).
+   *
+   * Absent for a player who has not featured, because the payload omits `tp`
+   * entirely for one — the API's habit of dropping zeroed counters rather than
+   * sending them. A consumer ranking on this must therefore treat missing as
+   * "no total yet" rather than as nought, or a player whose response has simply
+   * not landed sorts level with one who has never played.
+   */
+  totalByPlayerId: Map<string, number>
   isPending: boolean
 }
 
 /**
- * **What the club's players scored on each matchday of the season.**
+ * **What the club's players have scored** — per matchday across the season, and
+ * per player in total.
  *
  * The one thing on the club page that still costs a request per player, and the
- * only way to get it: `ph` on `/v4/leagues/{id}/players/{pid}` is the sole
- * source of a per-player, per-matchday score, and there is no bulk spelling of
- * it — see [`useMatchdayPoints`](./useMatchdayPoints.ts), which pays the same
- * toll for a single matchday.
+ * only way to get either figure: `ph` on `/v4/leagues/{id}/players/{pid}` is the
+ * sole source of a per-player, per-matchday score, and there is no bulk spelling
+ * of it — see [`useMatchdayPoints`](./useMatchdayPoints.ts), which pays the same
+ * toll for a single matchday. The season total (`tp`) rides along on the very
+ * same response, which is why the two live in one hook rather than two.
  *
  * What makes it worth paying *once* is that each response is a whole season:
- * twenty-six requests yield the club's total for all 34 matchdays rather than
- * for one. It is the [Spiele](../../components/team/TeamMatchesTab.tsx) tab's
- * right-hand column, and `enabled` keeps every other tab off it.
+ * twenty-six requests yield the club's total for all 34 matchdays **and** every
+ * player's season figure. Two tabs read it — the
+ * [Spiele](../../components/team/TeamMatchesTab.tsx) column and the Übersicht's
+ * scorer card — and they share the cache entries, so between them it is one
+ * fan-out. `enabled` keeps the Kader and the Live tab off it entirely.
+ *
+ * **`teamprofile` cannot answer this.** It carries `ap`, the average per
+ * appearance, and no total and no appearance count — so there is no arithmetic
+ * that recovers one from the other, and a scorer card ranked by season output
+ * has to pay for the fan-out or rank on something else.
  *
  * Nothing polls. A settled matchday's points cannot change, and the running
  * one belongs to the [Live tab](../../components/team/TeamLiveTab.tsx), which
@@ -242,11 +261,11 @@ export interface TeamMatchdayPoints {
  * The cache entries are the usual `qk.playerDetail` ones, so a club whose
  * players have been opened this session is already part-fetched.
  */
-export function useTeamMatchdayPoints(
+export function useTeamPoints(
   leagueId: string | undefined,
   players: readonly TeamSquadPlayer[] | undefined,
   enabled: boolean,
-): TeamMatchdayPoints {
+): TeamPoints {
   const roster = players ?? []
 
   const queries = useQueries({
@@ -268,12 +287,19 @@ export function useTeamMatchdayPoints(
    * is used in this codebase.
    */
   const byDay = new Map<number, number>()
+  const totalByPlayerId = new Map<string, number>()
   for (const query of queries) {
-    if (query.data !== undefined) addSeasonPoints(byDay, query.data)
+    const detail = query.data
+    if (detail === undefined) continue
+    addSeasonPoints(byDay, detail)
+    // Omitted rather than `0` for a player who has not featured, so the map
+    // stays honest about the difference between "none" and "not yet".
+    if (detail.tp !== undefined) totalByPlayerId.set(detail.i, detail.tp)
   }
 
   return {
     byDay,
+    totalByPlayerId,
     isPending: enabled && queries.some((query) => query.isPending),
   }
 }

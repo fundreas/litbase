@@ -7,15 +7,17 @@ One Bundesliga club, in four views:
 
 | Route | View | Costs |
 | ----- | ---- | ----- |
-| `/leagues/:leagueId/teams/:teamId` | Übersicht | — |
+| `/leagues/:leagueId/teams/:teamId` | Übersicht | one request per player (~25–30) |
 | `…/squad` | Kader | — |
-| `…/matches` | Spiele | one request per player (~25–30) |
+| `…/matches` | Spiele | the same fan-out, shared with Übersicht |
 | `…/live` | Live | the match lineup's ~36 players, polling |
 
 The page itself is **three requests**: the league table and the season's fixture
 list, both shared hour-long caches the squad and matchday pages have usually
 filled already, plus the club's own `teamprofile` — one response carrying the
-entire squad. Übersicht and Kader are arithmetic over those.
+entire squad. The Kader is arithmetic over those alone; the Übersicht adds the
+per-player fan-out for its [scorer card](#punktesammler)'s season totals, which
+the Spiele tab then reads for free.
 
 Four routes, one component, the tab read out of the segment — the arrangement
 [Squad](squad.md), [Player detail](player-detail.md), [Duel detail](duel-detail.md)
@@ -103,10 +105,11 @@ back to linking at the match.
 
 ## Übersicht
 
-Everything here is arithmetic over `/competitions/{id}/table`,
-`/competitions/{id}/matchdays` and the club's `teamprofile`. The first two are
+Four of the five cards are arithmetic over `/competitions/{id}/table`,
+`/competitions/{id}/matchdays` and the club's `teamprofile` — the first two
 hour-long caches shared with the squad, matchday and market pages, so in
-practice **opening a club costs one request**.
+practice one request. The fifth, [Punktesammler](#punktesammler), needs a season
+total per player and there is no bulk source of one.
 
 ### Kickbase-Punkte vs. Tabellenplatz
 
@@ -160,14 +163,33 @@ proposition next Saturday, and that is exactly the sort of thing being priced.
 
 ### Punktesammler
 
-The five most productive players by **points per appearance** (`ap`), with the
-market value beside each. An average rather than a season total, and not only
-because the total is not on the payload: the total rewards whoever has been fit
-longest, while a substitute averaging 80 and a starter averaging 78 are the same
-player for the purpose of buying one — and the cheaper of them is the one nobody
-has noticed yet.
+The five biggest scorers of the season, ranked by **total**, with the average
+per appearance underneath and the market value beside the name.
 
-Free, from the same `teamprofile` the Kader is built on.
+**Total is the headline, average the qualifier.** The total is what a season
+actually produced and the figure a reader arrives with; the average is what
+makes it comparable — a substitute on 480 from six appearances and a starter on
+520 from twelve are very different propositions, and the second line is where
+that shows.
+
+**This is the one card on the Übersicht that costs anything.** `teamprofile`
+carries `ap` and no total, and no appearance count either, so there is no
+arithmetic that recovers one from the other: a season figure means `tp` off each
+player's own detail, one request each. It rides the same fan-out the
+[Spiele](#spiele) column pays for `ph`, so the two tabs share it and visiting
+both costs one — but opening a club now issues that fan-out on the landing tab
+rather than only on Spiele. See [`useTeamPoints`](../../src/api/hooks/useTeam.ts).
+
+The rows have something to say from the first paint: the name, position, value
+and average all come free with the profile, and the headline total fills in as
+the responses land. A total that has not arrived is `–`, never `0` — a zero
+would read as a season of nothing.
+
+**A player with no total sorts last, not as zero.** Absent means either "has not
+featured" or "his request has not landed", and neither is a performance;
+ranking them level with a genuine nought would put whoever the network was
+slowest about at the bottom of a list about merit. The same rule the duel and
+match rankings hold.
 
 ## Kader
 
@@ -327,11 +349,12 @@ they are the weeks a manager wants to know about.
 
 Nothing else in the API answers "where were this club's points" — there is no
 bulk per-matchday source, per
-[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts). **This is the
-one tab that still pays a request per player**, and it is worth paying once
-because `ph` on each response is that player's whole season: twenty-six requests
-yield the club's total for all 34 matchdays rather than for one. `enabled` keeps
-every other tab off it.
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts). It is worth
+paying once because `ph` on each response is that player's whole season:
+twenty-six requests yield the club's total for all 34 matchdays rather than for
+one, **and** every player's season figure for the
+[scorer card](#punktesammler). The two tabs share the cache entries, so between
+them it is one fan-out; `enabled` keeps the Kader and the Live tab off it.
 
 The days are read through the **exported** `matchdayEntry()` rather than by
 indexing `ph` directly. That array is newest-first and indexed off the
@@ -460,7 +483,7 @@ cache entries the match page fills, so arriving from there pays nothing.
 | [`useCompetitionTable`](../../src/api/hooks/useCompetition.ts) | same cache entry | competition, 10 min | header, Übersicht, ticker grading |
 | [`useTeamSeason`](../../src/api/hooks/useMatchday.ts) | `/competitions/{id}/matchdays` | competition, 1 h | everything derived about the club |
 | [`useTeamProfile`](../../src/api/hooks/useTeam.ts) | `/leagues/{id}/teams/{tid}/teamprofile` | league, 30 min | Kader, Punktesammler, the club's name |
-| [`useTeamMatchdayPoints`](../../src/api/hooks/useTeam.ts) | `/leagues/{id}/players/{pid}` ×N | league, 30 min | Spiele only |
+| [`useTeamPoints`](../../src/api/hooks/useTeam.ts) | `/leagues/{id}/players/{pid}` ×N | league, 30 min | Übersicht's scorer card, Spiele |
 | [`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts) | several | league | Live |
 | [`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts) | `/matches/{id}/details` | competition | the header's live score |
 
