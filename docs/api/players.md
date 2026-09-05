@@ -2,7 +2,7 @@
 
 [← API index](README.md)
 
-One player, four endpoints, all league-scoped. Three of the four have an
+One player, five endpoints, all league-scoped. Four of the five have an
 identical competition-scoped twin under `/v4/competitions/{competitionId}/…`;
 the league-scoped spelling is used throughout so the whole detail page caches
 under one league key — and because only the league-scoped detail carries `oui`,
@@ -11,9 +11,15 @@ the owning manager.
 | Method | Path | Auth | Used |
 | ------ | ---- | ---- | ---- |
 | `GET` | [`/v4/leagues/{leagueId}/players/{playerId}`](#get-v4leaguesleagueidplayersplayerid) | Bearer | yes |
+| `GET` | [`/v4/leagues/{leagueId}/playercenter/{playerId}`](#get-v4leaguesleagueidplayercenterplayerid) | Bearer | yes |
 | `GET` | [`/v4/leagues/{leagueId}/players/{playerId}/performance`](#get-v4leaguesleagueidplayersplayeridperformance) | Bearer | yes |
 | `GET` | [`/v4/leagues/{leagueId}/players/{playerId}/marketvalue/{timeframe}`](#get-v4leaguesleagueidplayersplayeridmarketvaluetimeframe) | Bearer | yes |
 | `GET` | [`/v4/leagues/{leagueId}/players/{playerId}/transferHistory`](#get-v4leaguesleagueidplayersplayeridtransferhistory) | Bearer | yes |
+
+> **Note the spelling of the live one**: `playercenter/{playerId}`, with the
+> player id *after* a singular segment — not `players/{playerId}/center`. It is
+> the same shape as `teamcenter`, and it is the only source of a score while a
+> match is being played.
 
 ---
 
@@ -94,15 +100,15 @@ is therefore optional and every consumer defaults it.
 
 #### `ph` — points per matchday
 
-The **only** source of a per-player, per-matchday score. There is no bulk
+The source of a **settled** per-player, per-matchday score. There is no bulk
 equivalent: `/leagues/{id}/players` and `?ids=` are both 404, which is why
-[Duel detail](../pages/duel-detail.md#points-cost-one-request-per-player) fans
+[Duel detail](../pages/duel-detail.md#where-the-points-come-from) fans
 out one request per player.
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `hp` | boolean | Whether the player featured. `false` means `p` is **absent, not zero** |
-| `p` | number | Points scored — only present when `hp` is true |
+| `hp` | boolean | **?** Read as "has points" rather than "has played" — see below |
+| `p` | number | Points scored. Absent, **not zero**, when there are none |
 
 **Newest first.** `ph[0]` is `day`, the matchday this response is current for,
 and the index counts back from there. It is also **dense**: one entry per
@@ -114,6 +120,25 @@ matchday from the moment it becomes current.
 > This was documented as oldest-first until 2026-09-05 and is not. See
 > [`matchdayEntry`](../../src/api/hooks/useMatchdayPoints.ts) for the
 > measurement and the index that follows from it.
+
+> ### **`ph` is empty for the whole duration of a match.**
+>
+> Probed live on 2026-09-05 during matchday 2, on players who were on the pitch
+> at the time: `ph[0]` — the current matchday's own entry — reads
+> `{"hp": false}` with **no `p` key at all**, unchanged across reads minutes
+> apart, while the same player's score was climbing 23 → 105 → 110 on
+> [the player centre](#get-v4leaguesleagueidplayercenterplayerid). `tp` does not
+> move either. So `hp` is closer to "has points" than "has played": a player
+> currently playing has `hp: false`.
+>
+> This is the single fact that had every live page in the app showing `–`. Use
+> the player centre while a matchday is being played, and `ph` once it is over.
+>
+> The two **agree once a matchday is fully settled** — matchday 1 returned `50`
+> from both — but *not* at the end of an individual match: a player whose fixture
+> had finished while the matchday ran read `-8` on the player centre against
+> `-14` here. Which of those to show is not a free choice; see
+> [Which one wins](#which-one-wins).
 
 #### `mdsum` — fixtures around the current matchday
 
@@ -148,6 +173,98 @@ of `tfhmvt`, `prob`, `stxt` and `ph` — by four fan-out hooks:
 [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts). All four share
 one cache entry per player, so a manager arriving from their own squad pays for
 the overlap once.
+
+---
+
+## `GET /v4/leagues/{leagueId}/playercenter/{playerId}`
+
+One player in **one matchday's match** — and the **only live source of a
+score**. Everything else in this API reports a player's matchday points only
+after the fact.
+
+Probed live on 2026-09-05 during matchday 2's 15:30 block. The
+competition-scoped twin `/v4/competitions/{competitionId}/playercenter/{playerId}`
+returns the same payload.
+
+**Auth** Bearer.
+
+### Query parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `dayNumber` | number | The matchday. **Honoured** — verified: `?dayNumber=1` during matchday 2 returned matchday 1's fixture and its score. Omitted, the current matchday is served |
+
+### Response `200`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `i` · `n` · `tid` | string | Player id, last name, club id |
+| `mi` | number | **The fixture this response is about** — a number here, a string on a fixture list. Worth checking against the match you asked about, since `dayNumber` is the only thing that selected it |
+| `md` | string | Kick-off, ISO 8601 |
+| `mst` | number | Match status — `0` not started, `2` played to the end, and **in-play values between**: `8` throughout a running match, `1` and `4` also observed. Do not read it as a two-value scale |
+| `st` | number | The player's involvement — see [Codes](codes.md#match-involvement-st-on-a-performance-entry) |
+| `p` | number | **His points as they stand.** Absent — not `0` — for a player who has accrued nothing, including one on his club's bench in a match under way |
+| `mt` · `mtd` | number · string | The minute, and its display string |
+| `t1` · `t2` · `t1g` · `t2g` · `t1im` · `t2im` | | The fixture: clubs, goals, crests |
+| `k` | number[] | Event codes on the small `ke` scale, as on a performance entry |
+| `events` | array | **The score, broken down per scoring action** |
+
+#### `events[]` — one line of the breakdown
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `eti` | number | Event **type** id, on the big [`/v4/live/eventtypes`](matches.md#get-v4liveeventtypes) scale — *not* the `ke` scale. This is the join that catalogue exists for |
+| `p` | number | Points this action was worth |
+| `ke` | number | The small-scale kind, for the kinds that have one |
+| `mt` | number | The minute |
+| `ddp` | object | Template data for the sub-line, e.g. `{ "goalBy": "Schick" }` |
+| `ddi` | string | Which template — the key into `dds` on `/v4/live/eventtypes` |
+
+**Any player, owned or not.** The match's scorer, whom nobody in the probed
+league owned, answered `p: 180` with 45 breakdown entries. That is what makes it
+usable for the [match lineup](../pages/match-detail.md), where most of the
+twenty-two belong to nobody.
+
+### Which one wins
+
+`p` here is a **running tally, and it is never reconciled to the settled
+score.** A player whose fixture had already finished read `-8` here against
+`-14` in `ph`, `tp` and `/performance` alike.
+
+Three sources against one looks decisive and is not, because **Kickbase is
+still counting the `-8`**: the manager totals in the standings sum these
+tallies exactly — 291 against a published `mdp` of 291, and again 430 against
+430 twenty minutes later. So during a matchday this *is* the official number,
+and a page showing the settled score instead disagrees with the app it is
+mirroring.
+
+The rule that follows, and what
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) implements:
+
+| Matchday | Source | Why |
+| -------- | ------ | --- |
+| Any fixture still to come or in play | **this endpoint** | it is what the standings are summing |
+| Every fixture finished | **`ph`** | the reconciled score, and the two agree by then — matchday 1 returned `50` from both |
+
+The switch is by **matchday**, not by match: a fixture that finishes early still
+contributes its running tally to a total that is still moving.
+
+`p` also moves in **both directions** while a match runs — 48 → 51 → 49 over six
+minutes — so nothing may assume it only climbs.
+
+### Used by
+
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) → the
+[squad's live view](../pages/squad.md#live-tab),
+[Duel detail](../pages/duel-detail.md) and
+[Match detail](../pages/match-detail.md), polled every **ten seconds** for
+players whose own match is under way.
+
+The two squad-shaped pages mostly do **not** reach it: the same running tally
+arrives per-squad on
+[`teamcenter`](squad-and-lineup.md#get-v4leaguesleagueidusersuseridteamcenter),
+which they fetch anyway, so they spend one request per manager where this would
+be one per player. The match lineup has no such shortcut and uses this directly.
 
 ---
 

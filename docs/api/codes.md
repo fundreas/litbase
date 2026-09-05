@@ -127,16 +127,30 @@ render as a neutral "Wechsel" rather than be guessed at.
 
 ## Match status (`st` on a fixture, `mst` on a match)
 
-| Value | Meaning |
-| ----- | ------- |
-| `0` | Not played |
-| `2` | Finished |
+| Value | Meaning | Seen on |
+| ----- | ------- | ------- |
+| `0` | Not played | both |
+| `1` | **In progress** | `st` on a fixture; `mst` on a player/team centre |
+| `2` | Finished | both |
+| `4` | **In progress**, some other phase (**?**) | `mst` |
+| `8` | **In progress** — the value seen for most of a match | `mst` |
 
-Other values presumably exist for "in progress" (**?**); none has been
-captured, which is why the app decides "is this match running" from kick-off
-time and the final-whistle flag rather than from a status code.
+Captured live on 2026-09-05: the five running fixtures of matchday 2 all read
+`st: 1` in `/competitions/{id}/matchdays` while the finished ones read `2` and
+the evening's read `0`. On the *match* payload the same match read `mst: 8`, and
+two others in the same slot read `1` and `4` minutes apart — so **`mst` is a
+richer scale than `st` and its in-play values are not a single code.**
 
-`mdst` on a fixture summary uses the same two values.
+The safe test either way is `=== 2` for finished and `=== 0` for not started,
+never "not 0 means running".
+
+**The app still decides "is this match running" from the clock**, not from
+`st: 1` — deliberately. `st` is what
+[the live development profile](../../src/dev/simulation.ts) rewrites to replay a
+played matchday, and a clock reading is what lets it; a page that trusted `st: 1`
+would be untestable outside the few hours a week a real match is on.
+
+`mdst` on a fixture summary uses the same scale.
 
 ## Game modes (`gpm`)
 

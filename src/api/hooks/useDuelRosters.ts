@@ -103,10 +103,22 @@ export function useDuelRosters(
   const positionsA = usePositions(squadA.data)
   const positionsB = usePositions(squadB.data)
 
-  const snapshotA = useMatchdaySquad(leagueId, sides?.[0].id, day, positionsA)
-  const snapshotB = useMatchdaySquad(leagueId, sides?.[1].id, day, positionsB)
-
   const isSettled = areFixturesSettled(fixtures.data)
+  /**
+   * Is any match of this matchday actually being played? That is what puts the
+   * two snapshots on the live poll — they carry the running per-player scores,
+   * so this page's points cost **two requests a tick, not thirty**.
+   */
+  const isLive = [...(fixtures.data?.values() ?? [])].some(
+    (fixture) => fixtureState(fixture) === 'running',
+  )
+
+  const snapshotA = useMatchdaySquad(leagueId, sides?.[0].id, day, positionsA, {
+    isLive,
+  })
+  const snapshotB = useMatchdaySquad(leagueId, sides?.[1].id, day, positionsB, {
+    isLive,
+  })
 
   /**
    * The live state of each match: the fresh score, the minute, the events.
@@ -167,6 +179,11 @@ export function useDuelRosters(
       // sold since the matchday went missing from the lineup view while
       // appearing correctly in the ranking.
       needsPosition: player.position === undefined,
+      // The running score, already in hand from the snapshot above. Handing it
+      // over switches this player's per-player poll off — the whole reason a
+      // live duel costs two requests a tick rather than thirty — and it is
+      // still outranked by the settled score once the match is over.
+      livePoints: player.livePoints,
     })),
   )
 

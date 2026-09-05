@@ -214,7 +214,7 @@ a mistake in the published collection; it is a **user** id.
 | `md` | string | Kick-off of that fixture, ISO 8601 |
 | `mst` | number | **?** Per-player match status. Observed `0` before kick-off; scale unconfirmed |
 | `pim` | string | Portrait, CDN-relative |
-| `p` | number | **?** Points that matchday. Unconfirmed — the account available for probing had no played matchday, so the app reads points from `ph` on the [player endpoint](players.md) instead. A candidate to switch to once seen |
+| `p` | number | **The live score for that matchday** — see below. Absent, not `0`, for a player accruing nothing |
 | `ictp` | boolean | **✗** `false` on everything observed |
 | `ot` | object | **?** The opponent club — `{ i, tim }` |
 
@@ -229,11 +229,42 @@ a mistake in the published collection; it is a **user** id.
 | `lpi` | array | Portraits for `lp` — `{ i, pim, ictp }`. Declared as `string[]` in [`types.ts`](../../src/api/types.ts), which the spec's example contradicts; **unresolved**, and unused either way |
 | `pa` | boolean | **✗** `true` for every member observed |
 
+### `p` is the live score, and it is the cheap one
+
+Confirmed on 2026-09-05 during matchday 2, having been marked **?** here since
+it was first seen:
+
+- It **moves while a match runs**, in both directions — one player went
+  48 → 51 → 49 over six minutes — and it is the same figure
+  [`/playercenter/{playerId}`](players.md#get-v4leaguesleagueidplayercenterplayerid)
+  serves for that player.
+- The fielded eleven's values **sum exactly to that manager's `mdp`** in the
+  same payload: 291 against 291, and 430 against 430 twenty minutes later.
+- It is **frozen at the final whistle and never reconciled**: a player whose
+  fixture had finished read `-8` here against `-14` from `ph`, `tp` and
+  `/performance`.
+
+That makes this the **cheap live source**: one request carries a whole squad's
+running scores, where the player endpoints charge one request each. It is what
+the [squad's live view](../pages/squad.md#live-tab) and
+[Duel detail](../pages/duel-detail.md) read, and why a live duel costs two
+requests a tick rather than thirty.
+
+The freezing is not a reason to distrust it, only to rank it — see
+[Which one wins](players.md#which-one-wins) for the handover to `ph` once a
+matchday is fully played.
+
+`mst` on these entries is the **match** status on the richer scale
+(`0` upcoming, `2` finished, `8` and others in play), not a per-player one.
+
 ### Used by
 
 [`useMatchdaySquad`](../../src/api/hooks/useMatchdaySquad.ts) →
-[Duel detail](../pages/duel-detail.md) and
-[Match detail](../pages/match-detail.md), one request per manager.
+[Duel detail](../pages/duel-detail.md), the
+[squad's live view](../pages/squad.md#live-tab) and
+[Match detail](../pages/match-detail.md), one request per manager — polled at
+the live rate while a match is running, since that is where the scores come
+from.
 
 ---
 

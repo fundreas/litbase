@@ -118,20 +118,38 @@ export function LiveTab({
     [squad],
   )
 
-  const snapshot = useMatchdaySquad(leagueId, userId, day, positions)
+  /**
+   * Is a match actually being played right now? This tab only exists on a live
+   * matchday, but "live matchday" spans a Friday evening to a Sunday night and
+   * most of that is between matches. The poll follows the matches, not the
+   * matchday — and it is the snapshot's own per-player scores it is refreshing,
+   * which is what makes this page's points **one request a tick** rather than
+   * one per player.
+   */
+  const isLive = [...(fixtures.data?.values() ?? [])].some(
+    (fixture) => fixtureState(fixture) === 'running',
+  )
+
+  const snapshot = useMatchdaySquad(leagueId, userId, day, positions, {
+    isLive,
+  })
 
   /** Today's squad in the snapshot's shape, as the fallback source. */
   const today = useMemo(() => {
-    const players = squad.map((player) => ({
-      id: player.id,
-      name: player.lastName,
-      teamId: player.teamId,
-      position: player.position,
-      availability: player.status,
-      image: player.image,
-      wasFielded: player.lineupOrder !== undefined,
-      lineupOrder: player.lineupOrder,
-    }))
+    const players: (MatchdaySquadPlayer & { lineupOrder?: number })[] =
+      squad.map((player) => ({
+        id: player.id,
+        name: player.lastName,
+        teamId: player.teamId,
+        position: player.position,
+        availability: player.status,
+        image: player.image,
+        wasFielded: player.lineupOrder !== undefined,
+        lineupOrder: player.lineupOrder,
+        // Today's squad has no notion of a matchday, so no running score either.
+        // The per-player fan-out covers whoever ends up here.
+        livePoints: undefined,
+      }))
     return {
       // `lo` is 0-based and `0` is the goalkeeper, so membership is tested
       // against `undefined` — `lineupOrder > 0` would silently bench the
@@ -169,6 +187,10 @@ export function LiveTab({
     // detail is the only source of a position — and without one the pitch
     // cannot place him and would drop him silently.
     needsPosition: player.position === undefined,
+    // The running score, already in hand from the snapshot. Handing it over
+    // switches this player's per-player poll off, and it is still outranked by
+    // the settled score once his match is over.
+    livePoints: player.livePoints,
   }))
   /** Fresh score, minute and events — one request per match, not per player. */
   const liveByMatchId = useLiveMatches(fixtures.data?.values())

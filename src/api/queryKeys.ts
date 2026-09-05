@@ -88,6 +88,15 @@ export const qk = {
     [...qk.playerDetail(leagueId, playerId), 'marketValue'] as const,
   playerTransfers: (leagueId: string, playerId: string) =>
     [...qk.playerDetail(leagueId, playerId), 'transfers'] as const,
+  /**
+   * One player in **one matchday's** match — the live score and its breakdown.
+   *
+   * Keyed by the matchday, unlike {@link playerDetail}: this response describes
+   * a single fixture and `?dayNumber=` chooses which, so the entries cannot be
+   * shared across days.
+   */
+  playerCenter: (leagueId: string, playerId: string, day: number) =>
+    [...qk.playerDetail(leagueId, playerId), 'center', day] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
   /**
    * One club's squad, in the context of a league.

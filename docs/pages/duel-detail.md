@@ -423,23 +423,59 @@ renders `–` for the label and the pitch leaves the player out rather than
 guessing. `toPosition()`'s midfield default would have put a stranger in the
 middle of the park and looked deliberate.
 
-## Points cost: one request per player
+## Where the points come from
 
-There is **no bulk source of per-player matchday points**. `ph` on
-`/v4/leagues/{id}/players/{pid}` is the only one — `/leagues/{id}/players`,
-`?ids=` and every other shape answer 404 — so
-[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) fans out one
-request per player, and this page hands it **both** squads as one list so the
-whole duel is a single fan-out. Three rules keep that affordable:
+There are **two** per-player scores in this API and they answer at different
+times. Getting that wrong is what had every live page in the app showing `–`
+through a whole matchday.
 
-1. **Only players who can have points are fetched.** A player whose club has
-   not kicked off is skipped entirely; there is nothing to read. An upcoming
-   matchday therefore issues **zero** player requests.
-2. **A settled player is fetched once.** Their match is over and their points
-   cannot change, so `staleTime: Infinity` for the rest of the session.
-3. **Only players on the pitch are polled.** The live poll is attached *per
-   player*, not to the page, so a matchday with one late kick-off costs one
-   request a minute rather than twenty-two.
+| | `ph` on `/players/{pid}` | `p` on `/playercenter/{pid}` and on the squad snapshot |
+| --- | --- | --- |
+| While the match runs | **nothing** — `{hp: false}`, no `p` at all | the running tally |
+| Once it is over | the settled score | frozen, and **never reconciled** |
+
+Measured live on 2026-09-05 during matchday 2: a player on the pitch had his
+score climb 23 → 105 → 110 on the player centre while `ph[0]` stayed
+`{hp: false}` throughout. A player whose fixture had already finished read `-8`
+on the running tally against `-14` from `ph`, `tp` and `/performance` alike.
+
+**The running tally wins while the matchday is unsettled**, and `ph` takes over
+once every fixture is finished. Three sources agreeing on `-14` sounds decisive,
+but Kickbase is still counting the `-8`: the manager totals it publishes sum the
+running tallies exactly — 430 against a published `mdp` of 430, checked
+mid-matchday against this very page's header. Showing the settled score early
+would make the rows stop adding up to the total above them and disagree with the
+official app about a number both are showing. The two converge anyway once a
+matchday is played out.
+
+The switch is by **matchday, not by match**: a fixture that finishes on Friday
+still contributes its running tally to a total that moves until Sunday night.
+
+### What it costs
+
+**Nothing extra, on this page.** The running tally arrives per *squad* on the
+[matchday snapshot](#the-squad-it-shows-is-the-matchdays) this page already
+fetches for both managers, so a live duel spends **two requests a tick** on
+points rather than thirty — the snapshots are simply polled at the live rate,
+and the rows are then guaranteed to agree with the header, since both come from
+the one payload. `livePoints` on a points subject is how a caller says so;
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) skips the
+per-player request for anyone it covers.
+
+The per-player fan-out is what is left over, and its rules still hold:
+
+1. **A player whose club has not kicked off is not fetched.** There is nothing
+   to read, so an upcoming matchday issues **zero** player requests.
+2. **A settled player is fetched once**, `staleTime: Infinity` for the session.
+3. **Only players on the pitch are polled**, per player rather than per page, so
+   a matchday with one late kick-off costs one request a tick rather than
+   twenty-two.
+
+[Match detail](match-detail.md) has no per-squad shortcut — most of a fixture's
+twenty-two belong to nobody — so it pays the per-player rate against
+`/playercenter/{playerId}`, which answers for any player, owned or not.
+
+### Indexing `ph`
 
 **`ph` is newest first**, and `ph[0]` is the matchday the response is current
 for — `day` on the payload itself. The index therefore counts *back* from there

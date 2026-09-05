@@ -13,6 +13,7 @@ import {
   type MatchdaySquad,
   type PositionKey,
 } from '@/api/models'
+import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type { TeamcenterPlayer, TeamcenterResponse } from '@/api/types'
 
@@ -28,6 +29,10 @@ function mapPlayer(
     id: player.i,
     name: player.n,
     teamId: String(player.tid),
+    // The running tally, and **absent rather than `0`** for a player accruing
+    // nothing — including one on his club's bench in a match under way. See
+    // {@link MatchdaySquadPlayer.livePoints} for what it is and is not.
+    livePoints: player.p,
     // `pos` is present on some team-center payloads and absent from others, so
     // the squad the caller already holds is the fallback. Neither may know a
     // player who has since been transferred away — hence optional, rather than
@@ -81,15 +86,31 @@ export function mapMatchdaySquad(
  * [duel detail](../../docs/pages/duel-detail.md#the-squad-it-shows-is-the-matchdays) for how
  * this was found and what it replaced.
  *
- * **Points do not come from here.** They stay with
- * [`useMatchdayPoints`](./useMatchdayPoints.ts) and its `ph` lookup.
+ * **`p` on these entries is the live score**, and it is why this hook polls.
+ * One response carries the running tally for a whole squad, so a live page
+ * spends one request per manager on points rather than one per player — and the
+ * figures sum exactly to that manager's published matchday total (291 against
+ * an `mdp` of 291, measured mid-matchday on 2026-09-05).
  *
- * A `p` field on these entries *does* arrive once the player's match is over —
- * measured 2026-09-05, and it would collapse the per-player fan-out to a single
- * request. It is still not used, because it **disagrees**: the same player on
- * the same matchday read `p: -8` here against `-14` from both `ph` and
- * `/performance`, which agree with each other and with what Kickbase shows.
- * Until that gap is explained, the cheap field is the wrong one.
+ * It is **not** the settled score: it freezes at the final whistle and is never
+ * reconciled — a finished match read `-8` here against `-14` from `ph`, `tp`
+ * and `/performance`. That is not a reason to distrust it, it is a reason to
+ * rank it, which [`useMatchdayPoints`](./useMatchdayPoints.ts) does: the
+ * settled score first, this second, nothing third.
+ *
+ * The note that stood here until 2026-09-05 had it backwards — it called the
+ * disagreement a reason not to use the field, when the field is the only thing
+ * in the API that answers during a match. `ph` carries **nothing at all** while
+ * one is being played.
+ *
+ * ## The poll
+ *
+ * `isLive` is the caller saying the matchday is being played. It puts this
+ * query on [the live rate](../polling.ts), which is what makes the numbers
+ * move; without it the snapshot is history and is left alone for five minutes.
+ * The [ownership fan-out](#useMatchdayLineups) below shares these cache entries
+ * and never asks for the poll, so a match page reading twenty managers' squads
+ * for badges does not inherit twenty polls.
  *
  * `positionByPlayerId` back-fills the one field the payload does not reliably
  * carry. Pass the squad you already hold (the signed-in manager's `useSquad`,
@@ -102,12 +123,15 @@ export function useMatchdaySquad(
   userId: string | undefined,
   day: number | undefined,
   positionByPlayerId: Map<string, PositionKey>,
+  /** The matchday is being played, so the scores in it are moving. */
+  { isLive = false }: { isLive?: boolean } = {},
 ): UseQueryResult<MatchdaySquad> {
   return useQuery({
     queryKey: qk.matchdaySquad(leagueId ?? 'none', userId ?? 'none', day ?? 0),
     enabled:
       leagueId !== undefined && userId !== undefined && day !== undefined,
-    staleTime: SETTLED_STALE_MS,
+    staleTime: isLive ? 0 : SETTLED_STALE_MS,
+    refetchInterval: isLive ? LIVE_POLL_MS : (false as const),
     // Positions are a render-time back-fill, not part of what is cached: they
     // arrive from a different query and must not re-key this one. `select`
     // re-runs when either input changes, which is exactly the behaviour

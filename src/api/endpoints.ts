@@ -126,11 +126,10 @@ export const endpoints = {
      *
      *  - **`ph`, points per matchday.** Dense but **newest first**: `ph[0]` is
      *    the payload's own `day`, and the index counts back from there — see
-     *    [`matchdayEntry`](./hooks/useMatchdayPoints.ts). This is the *only*
-     *    source of a per-player, per-matchday score; there is no bulk equivalent
-     *    (`/leagues/{id}/players`, `?ids=` → 404), which is why
-     *    [Duel detail](../../docs/pages/duel-detail.md#points-cost-one-request-per-player)
-     *    fans out one request per player.
+     *    [`matchdayEntry`](./hooks/useMatchdayPoints.ts). It is the source of a
+     *    **settled** per-matchday score and carries nothing at all while a
+     *    match is being played — `{hp: false}`, no `p`, for a player on the
+     *    pitch — which is what {@link playerCenter} is for.
      *  - **`prob`, the lineup-probability tier** (1..5, lower is likelier),
      *    plus `stxt` for the reason behind an injury. Rendered on both squad
      *    tabs. Note `plpim` alongside it is the *team's* poster, not a
@@ -139,6 +138,37 @@ export const endpoints = {
      */
     player: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/players/${playerId}`,
+    /**
+     * One player in **one matchday's match** — and the only source of a score
+     * **while that match is being played**.
+     *
+     * `?dayNumber=` selects the matchday and the response describes that one
+     * fixture: `mi` names it, `mst` says where it stands, `st` is the player's
+     * involvement, and `p` is his points **as they stand right now**. `events`
+     * breaks that figure down per scoring action (`eti` on the
+     * `/v4/live/eventtypes` scale, with the points each was worth).
+     *
+     * Probed live 2026-09-05, matchday 2, during the 15:30 block:
+     *
+     *  - Quansah, on the pitch: `p` climbed 23 → 105 → 110 across three reads
+     *    minutes apart, while his `ph[0]` for the same matchday stayed
+     *    `{hp: false}` with no `p` at all.
+     *  - Reachable for **any** player, owned or not — the scorer of the match
+     *    (nobody's player in this league) answered `p: 180`.
+     *  - `?dayNumber=1`, a settled matchday: `p: 50`, agreeing exactly with
+     *    that matchday's entry in `ph`.
+     *
+     * **It is a running tally, not the settled score.** A player whose match had
+     * already finished read `-8` here and `-14` in `ph`, `tp` and
+     * `/performance` — so this is the right source *during* a match and the
+     * wrong one after it. The precedence that follows from that lives in
+     * [`useMatchdayPoints`](./hooks/useMatchdayPoints.ts).
+     *
+     * `p` is **absent, not `0`**, for a player who has not accrued anything —
+     * including one sitting on his club's bench in a match that is under way.
+     */
+    playerCenter: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/playercenter/${playerId}`,
     /**
      * Every season the player has appeared in, each with **one entry per
      * fixture of their club's season** — played or not.

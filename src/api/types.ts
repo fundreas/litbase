@@ -843,6 +843,88 @@ export interface PlayerMatchdayPoints {
   p?: number
 }
 
+/**
+ * `GET /v4/leagues/{leagueId}/playercenter/{playerId}?dayNumber={n}` — one
+ * player in one matchday's match, and **the only live source of his score.**
+ *
+ * The competition-scoped twin
+ * (`/v4/competitions/{cid}/playercenter/{pid}`) returns the same payload; the
+ * league-scoped spelling is used because every caller holds a league id.
+ */
+export interface PlayerCenterResponse {
+  /** Player id. */
+  i: string
+  /** Last name. */
+  n?: string
+  /** Club id. */
+  tid?: string
+  /**
+   * The fixture this response is about — **a number here**, as on a match's
+   * lineup entries, and a string on a fixture list. Checked against the match
+   * the caller asked about before its `p` is believed.
+   */
+  mi?: string | number
+  /** Kick-off of that fixture, ISO 8601. */
+  md?: string
+  /**
+   * Match status. `0` not started and `2` played to the end, as `st` is on a
+   * fixture — but with **in-play values between them**: `8` was observed
+   * throughout a running match and `1` and `4` during it, so anything reading
+   * this must test for `0` and `2` rather than assume a two-value scale.
+   */
+  mst?: number
+  /** The player's involvement — see {@link PLAYER_MATCH_STATUS}. */
+  st?: number
+  /**
+   * Points in that match **as they stand**. Absent — not `0` — for a player
+   * who has accrued nothing, including one on his club's bench.
+   *
+   * It moves in **both directions** while a match runs (48 → 51 → 49 observed
+   * over six minutes), so nothing may assume it only climbs.
+   */
+  p?: number
+  /** The minute, and its display string. */
+  mt?: number
+  mtd?: string
+  /** Home and away club ids, goals and crests for the fixture. */
+  t1?: string | number
+  t2?: string | number
+  t1g?: number
+  t2g?: number
+  t1im?: string
+  t2im?: string
+  /** Portrait, CDN-relative. */
+  pim?: string
+  /** Event codes on the {@link MATCH_EVENT} scale, as `k` on a performance entry. */
+  k?: number[]
+  /** The score broken down per scoring action. */
+  events?: PlayerCenterEvent[]
+}
+
+/**
+ * One line of a player's points breakdown.
+ *
+ * **`eti` is on the big `/v4/live/eventtypes` scale**, not the `ke` scale a
+ * match's event feed uses — see [Codes](../../docs/api/codes.md). `ke`, when
+ * present, is on the small one.
+ */
+export interface PlayerCenterEvent {
+  /** Event id. */
+  ei?: string
+  /** Event **type** id, on the `/v4/live/eventtypes` scale. */
+  eti?: number
+  /** Points this action was worth. */
+  p?: number
+  /** Event kind on the small `ke` scale, for the kinds that have one. */
+  ke?: number
+  /** The minute. */
+  mt?: number
+  /** Template data for the sub-line, e.g. `{ goalBy: "Schick" }`. */
+  ddp?: Record<string, string>
+  /** Which template — the key into `dds` on `/v4/live/eventtypes`. */
+  ddi?: string
+}
+
 /** One fixture in {@link PlayerDetailResponse.mdsum}. */
 export interface PlayerFixtureSummary {
   /** Matchday number. */

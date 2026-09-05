@@ -425,7 +425,7 @@ Components should never see `mvt` or `spl`.
 - **No bulk player detail.** `/v4/leagues/{id}/players`,
   `/leagues/{id}/players?ids=` and `/competitions/{id}/players?ids=` are 404 or
   ignore the filter, so per-player matchday points are one request each. See
-  [Duel detail](pages/duel-detail.md#points-cost-one-request-per-player).
+  [Duel detail](pages/duel-detail.md#where-the-points-come-from).
 - `/v4/matches/{matchId}` — 200, and the only source of goal-by-goal highlights
   (`hl`) and the match clock (`mt`, `mph`). Nothing uses it yet.
 - `/v4/leagues/{id}/managers/{uid}/dashboard` and `/performance` — both 200.

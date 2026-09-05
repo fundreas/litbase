@@ -978,6 +978,24 @@ export interface MatchdaySquadPlayer {
   image?: string
   /** In the lineup that matchday, as the snapshot's `lp`/`nlp` split says. */
   wasFielded: boolean
+  /**
+   * The **running** tally for that matchday, straight out of the snapshot.
+   *
+   * The one live source of a per-player score that is not a request per player:
+   * one team-centre response carries it for a whole squad, and the figures sum
+   * exactly to the manager's own matchday total in the standings — verified on
+   * 2026-09-05 mid-matchday, 291 against a published `mdp` of 291.
+   *
+   * **It is not the settled score.** It is frozen when the match ends and never
+   * reconciled: a finished match read `-8` here against `-14` from `ph`,
+   * `tp` and `/performance` alike. So it is handed to
+   * [`useMatchdayPoints`](../hooks/useMatchdayPoints.ts) as
+   * `livePoints`, which ranks it *below* the settled score and above nothing —
+   * exactly where it belongs.
+   *
+   * Absent rather than `0` for a player accruing nothing, as everywhere else.
+   */
+  livePoints?: number
 }
 
 /**

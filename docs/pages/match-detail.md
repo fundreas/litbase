@@ -29,7 +29,7 @@ The matchday is looked up from the season's fixture list —
 `useSeasonMatch(cid, matchId)`, one more `select` on the payload that is already
 cached — and everything matchday-scoped on the page hangs off that answer: the
 fixtures the points hook measures against, and the matchday its `ph` lookup is
-for — see [duel detail](duel-detail.md#points-cost-one-request-per-player) for
+for — see [duel detail](duel-detail.md#where-the-points-come-from) for
 how that array is indexed.
 
 A link to a match therefore needs no `?day=` and **cannot carry a wrong one**. A
@@ -65,7 +65,7 @@ rate in [`polling.ts`](../../src/api/polling.ts):
 | ---- | ------ | ------------------ |
 | Score, minute, event feed | `useMatchDetails` → `/matches/{mi}/details` | 10 s |
 | Match state (`st`), the goals fallback | the season fixture list | 60 s — the whole season, fetched for one boolean |
-| Per-player points | `useMatchdayPoints`, one query per player | 10 s each — **~36 requests a tick** |
+| Per-player points | `useMatchdayPoints` → `/playercenter/{pid}`, one query per player | 10 s each — **~36 requests a tick** |
 | Ownership badges | `useMatchdayLineups` | **never** — Kickbase locks lineups at kick-off, so there is nothing to re-read |
 | Manager names and avatars | `useRanking` | never |
 
@@ -418,9 +418,16 @@ Two fan-outs, both of which the two team-sheet tabs share:
 Neither has a bulk alternative that answers the right question.
 `/leagues/{id}/players`, `?ids=` and every other shape answer 404 for points;
 `us` on the snapshot *is* bulk for ownership and reports today's lineups, which
-is why it is not used. See
-[duel detail](duel-detail.md#points-cost-one-request-per-player), which pays the
-same price for thirty players.
+is why it is not used.
+
+**This page cannot take the shortcut the squad-shaped pages do.** Their live
+points ride along on a matchday snapshot they fetch anyway — one request per
+manager for a whole squad — but a fixture's twenty-two players mostly belong to
+nobody, so there is no squad to read them out of. `/playercenter/{playerId}`
+answers for **any** player, owned or not, which is what makes this page possible
+at the per-player rate. See
+[duel detail](duel-detail.md#where-the-points-come-from) for the two sources and
+which one wins when.
 
 Three things keep it honest:
 

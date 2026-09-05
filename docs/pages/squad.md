@@ -1151,7 +1151,8 @@ Not in the URL: a layout is a preference, not a place.
 | `useSquad` | `/leagues/{id}/squad` | the other two views — already warm |
 | `useSeasonSchedule` | `/competitions/{id}/matchdays` | `useCurrentMatchday`, duel picker |
 | `useMatchdayFixtures` | the same cache entry, a third `select` | [Duel detail](duel-detail.md) |
-| `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Duel detail](duel-detail.md#points-cost-one-request-per-player) |
+| `useMatchdaySquad` | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | [Duel detail](duel-detail.md) — **and the live points**, polled at 10 s |
+| `useMatchdayPoints` ×N | `/playercenter/{pid}` live, `/players/{pid}` settled | [Duel detail](duel-detail.md#where-the-points-come-from) |
 | `useLiveMatches` ×N | `/matches/{matchId}/details` | [Duel detail](duel-detail.md#where-the-live-numbers-come-from) |
 | `useTeamSheets` ×N | the same endpoint, matches yet to start | [Duel detail](duel-detail.md#the-clubs-team-sheet) |
 
@@ -1178,11 +1179,22 @@ match, nine for a matchday, polled only while a match is running. Before it,
 scores came from the hour-cached fixture list and the minute had no source at
 all.
 
-The points are the expensive part and
-[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) owns the cost
-rules: only players whose match has kicked off are fetched, a settled player is
-fetched once, and only players actually on the pitch are polled — one request a
-minute each. It shares the `qk.playerDetail` cache entry with
+**The live points come from the snapshot itself.** Its `p` per player is the
+running tally Kickbase's own standings sum, so one polled request carries the
+whole squad's scores — and the header total is then guaranteed to agree with the
+rows under it, since both come from the one payload. That is why this query
+polls at the live rate while a match is running and is left alone otherwise.
+
+`ph` on the player endpoint carries **nothing at all** while a match is being
+played, which is what had this view showing `–` through a whole matchday; see
+[Where the points come from](duel-detail.md#where-the-points-come-from) for the
+two sources and which wins when.
+
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) still owns the
+per-player fallback and its cost rules: a player whose match has not kicked off
+is not fetched, a settled one is fetched once, and only players on the pitch are
+polled. On this view it is nearly idle — the snapshot has already answered for
+everyone in it. It shares the `qk.playerDetail` cache entry with
 [`useStartProbabilities`](#where-it-comes-from-and-what-it-costs), so a manager
 who has been on the Kader view has already paid for most of these.
 

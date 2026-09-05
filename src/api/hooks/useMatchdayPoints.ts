@@ -3,6 +3,7 @@ import { useQueries } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import {
+  areFixturesSettled,
   fixtureState,
   toOwnerId,
   toPosition,
@@ -11,7 +12,11 @@ import {
 } from '@/api/models'
 import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
-import type { PlayerDetailResponse, PlayerMatchdayPoints } from '@/api/types'
+import type {
+  PlayerCenterResponse,
+  PlayerDetailResponse,
+  PlayerMatchdayPoints,
+} from '@/api/types'
 
 /**
  * One matchday's entry out of a player's points history.
@@ -105,6 +110,22 @@ export interface PointsSubject {
    * needs it — a squad's players are owned by definition.
    */
   needsOwner?: boolean
+  /**
+   * A **live tally the caller already holds**, which switches this player's
+   * per-player poll off entirely.
+   *
+   * The squad's live view and the duel page both read a matchday snapshot that
+   * carries `p` per player — the same running figure
+   * `/playercenter/{pid}` serves, out of a payload they fetch anyway. Passing
+   * it here is worth more than the one map write it saves: it means those pages
+   * spend **one request per manager** on live points instead of one per player,
+   * and their rows add up to the manager total Kickbase publishes, because both
+   * come from the same payload.
+   *
+   * It is still outranked by the settled `ph` score, which is the point of
+   * merging it here rather than at the call site.
+   */
+  livePoints?: number
 }
 
 export interface MatchdayPoints {
@@ -142,31 +163,80 @@ export interface MatchdayPoints {
  * Every player's points for one matchday, fanned out one request per player.
  *
  * This is the most expensive thing the app does, and the reason is that
- * **there is no bulk source of per-player matchday points**. `ph` on
- * `/v4/leagues/{id}/players/{pid}` is the only one — `/leagues/{id}/players`,
- * `?ids=` and every other shape answer 404. Three rules keep that honest:
+ * **there is no bulk source of per-player matchday points** —
+ * `/leagues/{id}/players`, `?ids=` and every other shape answer 404. What there
+ * is, is *two* per-player sources that answer at different times, and the whole
+ * design of this hook is which one to ask and when.
  *
- *  1. **Only players who can have points are fetched.** A player whose club
- *     has not kicked off yet is skipped entirely — there is nothing to read,
- *     so an upcoming matchday issues **zero** requests.
- *  2. **A settled player is fetched once.** Their match is over, their points
- *     cannot change, so the query never goes stale for the rest of the
- *     session.
+ * ## The settled score and the running one
+ *
+ * | | `ph` on `/players/{pid}` | `p` on `/playercenter/{pid}` |
+ * | --- | --- | --- |
+ * | While the match runs | **nothing** — `{hp: false}`, no `p` | the live tally |
+ * | Once it is over | the settled score | a frozen tally, **not reconciled** |
+ *
+ * Both halves were measured on 2026-09-05 during matchday 2, and both matter:
+ *
+ *  - A player on the pitch, three reads minutes apart: `p` climbed 23 → 105 →
+ *    110 on the player centre while `ph[0]` stayed `{hp: false}` throughout.
+ *    **`ph` is empty for the whole duration of the match**, which is why every
+ *    live page in this app read `–` until this was found — the bug was never in
+ *    the index, it was in asking the only endpoint that had nothing to say.
+ *  - A player whose match had already finished read `-8` on the player centre
+ *    against `-14` in `ph`, `tp` *and* `/performance`. The running tally is not
+ *    corrected at the final whistle.
+ *
+ * ## Which one wins, and why it depends on the matchday
+ *
+ * Three sources agreeing on `-14` looks like a settled argument, and it is not
+ * — because **Kickbase itself is still counting the `-8`**. The manager totals
+ * it publishes in the standings sum the running tallies exactly: 291 against a
+ * published `mdp` of 291, measured mid-matchday. Show the settled score for
+ * that player and the rows on a live page stop adding up to the total above
+ * them, and the app disagrees with the official one about a number both are
+ * showing.
+ *
+ * So the precedence follows the **matchday**, not the match:
+ *
+ *  - **While the matchday is unsettled** — any fixture still to come or in play
+ *    — the running tally wins. That is what Kickbase is summing, so the page is
+ *    internally consistent and agrees with the official app.
+ *  - **Once every fixture is finished**, `ph` wins. The two converge by then:
+ *    on matchday 1, fully played, the player centre and `ph` returned the same
+ *    `50`. So this is less a correction than a handover to the source that
+ *    stays right for the rest of the season.
+ *
+ * A row can therefore change by a few points at the end of a matchday. That is
+ * Kickbase reconciling, and following it is the point.
+ *
+ * The fetching follows the same split, so nothing is asked for twice: an
+ * unsettled matchday asks only the player centre, a settled one asks only
+ * `ph` — and falls back to the centre for a player `ph` has nothing for, which
+ * is why the two fan-outs are built in sequence rather than side by side.
+ *
+ * ## What keeps the cost down
+ *
+ *  1. **A player whose club has not kicked off is not asked at all.** There is
+ *     nothing to read, so an upcoming matchday issues **zero** requests.
+ *  2. **A settled player is fetched once** and held for the session.
  *  3. **Only players actually on the pitch are polled**, at
- *     [the live rate](../polling.ts). The poll is attached per player, not to
- *     the page, so a matchday with one late match running costs two requests a
- *     tick rather than twenty-two.
+ *     [the live rate](../polling.ts) — per player, not per page, so a matchday
+ *     with one late kick-off costs two requests a tick rather than twenty-two.
  *
  *     It is still the app's heaviest traffic by a distance: a full fixture's
- *     thirty-six players poll together, so a match page open on the lineup tab
- *     spends thirty-six requests every tick for as long as the match runs. The
- *     rate lives in one place so that trade can be re-made in one edit.
+ *     thirty-six players poll together. The rate lives in one place so that
+ *     trade can be re-made in one edit — and callers that hold a **cheaper live
+ *     source** can switch the poll off per player, which is what
+ *     {@link PointsSubject.livePoints} is for.
  *
- * The cache key is `qk.playerDetail(leagueId, playerId)` with **no matchday**
- * in it: one response carries every matchday's points, so all matchdays share
- * the entry and stepping through a season re-reads nothing. It is the same
- * entry [`useStartProbabilities`](./useStartProbabilities.ts) reads, so a page
- * showing both pays for the player once.
+ * ## The cache keys
+ *
+ * `qk.playerDetail(leagueId, playerId)` carries no matchday — one response
+ * holds every matchday's `ph` — and is the same entry
+ * [`useStartProbabilities`](./useStartProbabilities.ts) reads, so a page
+ * showing both pays for the player once. `qk.playerCenter` **is** keyed by the
+ * matchday, because that response describes one fixture and `?dayNumber=`
+ * chooses which.
  *
  * Shared by the [duel detail](./useDuelRosters.ts) page, which asks for both
  * managers' players at once, the squad page's live view, which asks for its
@@ -180,55 +250,63 @@ export function useMatchdayPoints(
   players: readonly PointsSubject[],
   fixtureByTeamId: Map<string, MatchdayFixture> | undefined,
 ): MatchdayPoints {
-  // Which players need a request, and which of those are live. Built as one
-  // flat list so the fan-out is a single `useQueries` — one hook call whose
-  // length may change between renders, which is exactly what it exists for.
-  const wanted =
-    fixtureByTeamId === undefined
-      ? []
-      : players.map((player) => {
-          const fixture = fixtureByTeamId.get(player.teamId)
-          const state =
-            fixture === undefined ? undefined : fixtureState(fixture)
-          const canHavePoints = state === 'running' || state === 'finished'
-          return {
-            id: player.id,
-            // Nothing to read before kick-off: the matchday has no points yet.
-            // The exceptions are the two other things this response carries —
-            // a position and an owner — neither of which depends on any match
-            // having started.
-            needed:
-              canHavePoints ||
-              player.needsPosition === true ||
-              player.needsOwner === true,
-            isLive: state === 'running',
-          }
-        })
+  /**
+   * Has every fixture of this matchday been played to the end? That is what
+   * decides which of the two scores is the one to show — see the note above.
+   */
+  const isSettled = areFixturesSettled(fixtureByTeamId)
 
-  const queries = useQueries({
-    queries: wanted.map(({ id, needed, isLive }) => ({
-      queryKey: qk.playerDetail(leagueId ?? 'none', id),
-      enabled: leagueId !== undefined && needed,
-      // A finished match is final for the session; a running one is polled.
-      staleTime: isLive ? 0 : Infinity,
-      refetchInterval: isLive ? LIVE_POLL_MS : (false as const),
+  // What each subject's own match is doing, which decides both fan-outs. Built
+  // flat so each is a single `useQueries` — one hook call whose length may
+  // change between renders, which is exactly what it exists for.
+  const wanted = players.map((player) => {
+    const fixture = fixtureByTeamId?.get(player.teamId)
+    const state = fixture === undefined ? undefined : fixtureState(fixture)
+    return {
+      subject: player,
+      matchId: fixture?.matchId,
+      isRunning: state === 'running',
+      hasStarted: state === 'running' || state === 'finished',
+    }
+  })
+
+  const detailQueries = useQueries({
+    queries: wanted.map(({ subject }) => ({
+      queryKey: qk.playerDetail(leagueId ?? 'none', subject.id),
+      /*
+       * **Only once the whole matchday is over.** Before that `ph` holds
+       * nothing for it — asking during a match was thirty-six requests a tick
+       * to read `{hp: false}` thirty-six times — and even for a fixture that
+       * has finished early, the running tally is the figure the standings are
+       * still counting. The two by-products are the exceptions: a position and
+       * an owner do not depend on any match having been played.
+       */
+      enabled:
+        leagueId !== undefined &&
+        (isSettled ||
+          subject.needsPosition === true ||
+          subject.needsOwner === true),
+      // Nothing in this response moves for the rest of the session: the
+      // matchday is over, or what was wanted from it was never about a match.
+      staleTime: Infinity,
       queryFn: () =>
         get<PlayerDetailResponse>(
-          endpoints.leagues.player(leagueId as string, id),
+          endpoints.leagues.player(leagueId as string, subject.id),
         ),
     })),
   })
 
-  // Built on every render, deliberately. `useQueries` returns a fresh array
-  // each time, so this cannot be memoised on its own input without inventing a
-  // surrogate key for it — and a signature-string keyed memo is harder to
-  // trust than the thirty map writes it would save. Nothing here is on a hot
-  // path: a page using this re-renders on the live poll and on a tab switch.
-  const byPlayerId = new Map<string, number>()
+  // All three maps are built on every render, deliberately. `useQueries`
+  // returns a fresh array each time, so none can be memoised on its own input
+  // without inventing a surrogate key — and a signature-string keyed memo is
+  // harder to trust than the thirty map writes it would save. Nothing here is
+  // on a hot path: a page using this re-renders on the live poll and on a tab
+  // switch.
+  const settledPoints = new Map<string, number>()
   const positionByPlayerId = new Map<string, PositionKey>()
   const ownerIdByPlayerId = new Map<string, string>()
 
-  for (const query of queries) {
+  for (const query of detailQueries) {
     const detail = query.data
     if (detail === undefined) continue
     if (detail.pos !== undefined) {
@@ -242,24 +320,92 @@ export function useMatchdayPoints(
      * the matchday carries `hp: false` with no `p` at all, so the presence of
      * `p` already answers the question `hp` was being tested for — and it
      * answers it about the field actually being read.
-     *
-     * `hp` is "has played", which is a claim about a *finished* match. Nothing
-     * says it is raised for a player who is on the pitch right now, and if it
-     * is not, requiring it means every live score is discarded on the one
-     * afternoon the number matters most. Requiring both was strictly the
-     * narrower test with nothing to show for it.
-     *
-     * A missing `p` stays out of the map rather than becoming `0`, which would
-     * claim the player featured and scored nothing.
      */
     const entry = matchdayEntry(detail, day)
-    if (entry?.p !== undefined) byPlayerId.set(detail.i, entry.p)
+    if (entry?.p !== undefined) settledPoints.set(detail.i, entry.p)
   }
+
+  /*
+   * The running tally. Built from the results above rather than beside them,
+   * so a settled matchday — where `ph` has answered for everyone — asks for
+   * nothing here at all.
+   */
+  const centerQueries = useQueries({
+    queries: wanted.map(({ subject, isRunning, hasStarted }) => ({
+      queryKey: qk.playerCenter(leagueId ?? 'none', subject.id, day ?? 0),
+      enabled:
+        leagueId !== undefined &&
+        day !== undefined &&
+        hasStarted &&
+        // A caller holding a cheaper live source of its own says so, and this
+        // player then costs nothing — see `livePoints`.
+        subject.livePoints === undefined &&
+        // On a settled matchday this is only the fallback for a player `ph`
+        // has nothing for; before that it is the source.
+        (!isSettled || !settledPoints.has(subject.id)),
+      // Only a running match can change. A finished one is frozen — the tally
+      // is never revised — so one read is enough.
+      staleTime: isRunning ? 0 : Infinity,
+      refetchInterval: isRunning ? LIVE_POLL_MS : (false as const),
+      queryFn: () =>
+        get<PlayerCenterResponse>(
+          endpoints.leagues.playerCenter(leagueId as string, subject.id),
+          { params: { dayNumber: day } },
+        ),
+    })),
+  })
+
+  const livePoints = new Map<string, number>()
+
+  for (const [index, query] of centerQueries.entries()) {
+    const entry = wanted[index]
+    const center = query.data
+    if (entry === undefined || center === undefined) continue
+    /*
+     * **The response has to be about the match this page is showing.** It is
+     * `?dayNumber=` that selects it, and a silently ignored parameter is a
+     * failure mode this API has form for — `dayNumber` on
+     * `/managers/{uid}/squad` and on `us` are both ignored. `mi` is the
+     * response naming the fixture it answered about, so it is checked rather
+     * than trusted; it arrives as a number here and a string on a fixture.
+     */
+    if (
+      entry.matchId !== undefined &&
+      center.mi !== undefined &&
+      String(center.mi) !== entry.matchId
+    ) {
+      continue
+    }
+    if (center.p !== undefined) livePoints.set(entry.subject.id, center.p)
+  }
+
+  // What the caller already knew is the same running tally, read from a
+  // payload it was holding anyway, so it belongs in the same map.
+  for (const { subject } of wanted) {
+    if (subject.livePoints !== undefined) {
+      livePoints.set(subject.id, subject.livePoints)
+    }
+  }
+
+  /*
+   * The one decision this hook exists to make. **Settled matchday: `ph`
+   * first.** **Unsettled: the running tally first** — it is what Kickbase's own
+   * standings are summing, so a live page whose rows disagree with the total
+   * above them is the app being wrong, not Kickbase.
+   *
+   * Each is the other's fallback, so a gap in either is covered.
+   */
+  const [first, second] = isSettled
+    ? [settledPoints, livePoints]
+    : [livePoints, settledPoints]
+  const byPlayerId = new Map([...second, ...first])
 
   return {
     byPlayerId,
     positionByPlayerId,
     ownerIdByPlayerId,
-    isPending: queries.some((query) => query.isFetching),
+    isPending: [...detailQueries, ...centerQueries].some(
+      (query) => query.isFetching,
+    ),
   }
 }
