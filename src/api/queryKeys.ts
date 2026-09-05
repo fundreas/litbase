@@ -89,6 +89,16 @@ export const qk = {
   playerTransfers: (leagueId: string, playerId: string) =>
     [...qk.playerDetail(leagueId, playerId), 'transfers'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
+  /**
+   * One club's squad, in the context of a league.
+   *
+   * League-scoped rather than competition-scoped because the response carries
+   * `oui` — who owns each player *here* — so two leagues watching the same club
+   * must not share it. The competition-scoped twin exists and is deliberately
+   * not used; see {@link endpoints.leagues.teamProfile}.
+   */
+  teamProfile: (leagueId: string, teamId: string) =>
+    [...qk.league(leagueId), 'team', teamId] as const,
 
   /**
    * One match's live detail. **Not league-scoped** — a match belongs to the

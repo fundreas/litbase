@@ -175,6 +175,28 @@ export const endpoints = {
     playerTransfers: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/players/${playerId}/transferHistory`,
     /**
+     * **One club, and every player it has** — market values, lineup
+     * probabilities, and who in this league owns each of them.
+     *
+     * The only bulk source of a club's squad, found 2026-09-05 after the club
+     * page's Kader rendered empty for seventeen clubs out of eighteen. What it
+     * replaced was a fan-out of one request per player; what had been used
+     * before that, `/v4/competitions/{id}/players`, **is not a competition's
+     * players at all** — see {@link TeamProfileResponse}.
+     *
+     * **Note the scope.** The competition-scoped twin,
+     * `/v4/competitions/{competitionId}/teams/{teamId}/teamprofile`, answers
+     * the same body minus `oui`, `onm`, `lo` and a real `mvgl` — so this
+     * spelling is the one to use whenever ownership matters, exactly as with
+     * {@link player}.
+     *
+     * Neighbouring spellings all 404: `/teams`, `/teams/{tid}`,
+     * `/teams/{tid}/players`, `/teams/{tid}/squad`. Only `teamprofile`
+     * resolves.
+     */
+    teamProfile: (leagueId: string, teamId: string) =>
+      `/v4/leagues/${leagueId}/teams/${teamId}/teamprofile`,
+    /**
      * The manager's lineup. `GET` reads it, `POST` replaces it wholesale
      * (`PUT` answers 405). The POST body is `{ type, players }` — see
      * `SaveLineupRequest`.

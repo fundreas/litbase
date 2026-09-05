@@ -1,4 +1,5 @@
 import { House, PlaneTakeoff } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
@@ -8,10 +9,12 @@ import {
   teamResult,
   TEAM_RESULT_LABEL,
   type LiveMatch,
+  type TeamPoster,
   type TeamRecord,
   type TeamSeasonFixture,
   type TeamStanding,
 } from '@/api/models'
+import { LineupPosterDialog } from '@/components/player/LineupPosterDialog'
 import { Avatar } from '@/components/ui/Avatar'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { cn } from '@/lib/cn'
@@ -43,6 +46,7 @@ export function TeamHeader({
   live,
   opponent,
   teamId,
+  poster,
   leagueId,
 }: {
   /** Name and crest, from the table-backed directory. */
@@ -59,6 +63,8 @@ export function TeamHeader({
   opponent: TeamSummary | undefined
   /** This club's id — a fixture names only its opponent. See {@link FixtureStrip}. */
   teamId: string
+  /** The projected XI, which an upcoming fixture's strip opens. */
+  poster: TeamPoster | undefined
   leagueId: string
 }) {
   const row = standing?.row
@@ -122,6 +128,8 @@ export function TeamHeader({
           live={live}
           opponent={opponent}
           teamId={teamId}
+          teamName={name}
+          poster={poster}
           leagueId={leagueId}
         />
       )}
@@ -154,6 +162,8 @@ function FixtureStrip({
   live,
   opponent,
   teamId,
+  teamName,
+  poster,
   leagueId,
 }: {
   fixture: TeamSeasonFixture
@@ -169,12 +179,28 @@ function FixtureStrip({
    * would look right in exactly the games that finish level.
    */
   teamId: string
+  teamName: string
+  poster: TeamPoster | undefined
   leagueId: string
 }) {
+  const [isPosterOpen, setIsPosterOpen] = useState(false)
+
   const state = fixtureState(fixture)
   const isRunning = state === 'running'
   const Venue = fixture.isHome ? House : PlaneTakeoff
   const result = teamResult(fixture)
+
+  /*
+   * A projected eleven is an answer about a match that has not been played. So
+   * the strip opens the poster only while the fixture is still ahead of us;
+   * once the whistle goes the real team sheet exists and the match page is
+   * where it lives, which is where the strip goes instead.
+   *
+   * The two destinations therefore never compete: at any moment exactly one of
+   * them is the better answer to "what about this match", and which one it is
+   * is a fact about the clock rather than a preference.
+   */
+  const opensPoster = state === 'upcoming' && poster !== undefined
 
   /*
    * While the match runs the score has to be read from *this* club's side —
@@ -186,16 +212,16 @@ function FixtureStrip({
   const goalsFor = liveScore?.for ?? fixture.goalsFor
   const goalsAgainst = liveScore?.against ?? fixture.goalsAgainst
 
-  return (
-    <Link
-      to={`/leagues/${leagueId}/matchday/${fixture.matchId}`}
-      className={cn(
-        'flex items-center gap-3 rounded-card border px-3 py-2.5 transition-colors',
-        isRunning
-          ? 'border-accent/40 bg-accent/10 hover:bg-accent/15'
-          : 'border-line bg-surface hover:bg-surface-2',
-      )}
-    >
+  const shell = cn(
+    'flex w-full items-center gap-3 rounded-card border px-3 py-2.5 text-left transition-colors',
+    'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+    isRunning
+      ? 'border-accent/40 bg-accent/10 hover:bg-accent/15'
+      : 'border-line bg-surface hover:bg-surface-2',
+  )
+
+  const body = (
+    <>
       <span className="flex w-5 shrink-0 justify-center">
         <Venue
           size={14}
@@ -259,6 +285,42 @@ function FixtureStrip({
           )}
         </span>
       )}
-    </Link>
+    </>
+  )
+
+  if (!opensPoster) {
+    return (
+      <Link
+        to={`/leagues/${leagueId}/matchday/${fixture.matchId}`}
+        className={shell}
+      >
+        {body}
+      </Link>
+    )
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setIsPosterOpen(true)
+        }}
+        aria-haspopup="dialog"
+        title="Voraussichtliche Aufstellung ansehen"
+        className={shell}
+      >
+        {body}
+      </button>
+
+      <LineupPosterDialog
+        open={isPosterOpen}
+        onOpenChange={setIsPosterOpen}
+        poster={poster.image}
+        teamName={teamName}
+        sourceLogo={poster.sourceLogo}
+        updatedAt={poster.updatedAt}
+      />
+    </>
   )
 }

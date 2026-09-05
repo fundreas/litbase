@@ -15,7 +15,23 @@ import type {
 
 const HOUR = 60 * 60_000
 
-/** Every player in the competition. A large payload — cached for an hour. */
+/**
+ * **One fixture's players — not the competition's**, whatever the path says.
+ *
+ * Probed live 2026-09-05 against Bundesliga matchday 2: 25 rows across exactly
+ * two clubs, every one carrying the same `mi`. The published documentation
+ * calls it "every player in a competition" and this comment did too, which is
+ * how the [club page](../../../docs/pages/team.md) came to build a squad by
+ * filtering it on `tid` — and got nothing at all for seventeen clubs out of
+ * eighteen.
+ *
+ * **For a club's squad use [`useTeamProfile`](./useTeam.ts)**, which serves the
+ * whole thing in one request. There is currently no known endpoint that lists a
+ * competition's players; `/players/search` answers 200 and is unprobed.
+ *
+ * Left in place for the [All players](../../../docs/pages/players.md) stub,
+ * which is the only consumer and now knows what it is holding.
+ */
 export function useCompetitionPlayers(
   competitionId: string | undefined,
 ): UseQueryResult<CompetitionPlayerSummary[]> {

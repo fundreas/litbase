@@ -1,22 +1,17 @@
-import { ChevronRight, TrendingDown, TrendingUp } from 'lucide-react'
-import { useState } from 'react'
+import { TrendingDown, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router'
 
-import type { TeamRoster } from '@/api/hooks/useTeam'
 import {
   POSITION_LABEL,
   POSITION_NAME,
-  teamSquadTotals,
   type PositionKey,
+  type TeamProfile,
   type TeamSquadPlayer,
 } from '@/api/models'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
-import { LineupPosterDialog } from '@/components/player/LineupPosterDialog'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Avatar } from '@/components/ui/Avatar'
-import { StatTile } from '@/components/ui/Card'
-import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { money, moneyDelta } from '@/lib/format'
@@ -51,40 +46,40 @@ const POSITION_ORDER: Record<PositionKey, number> = {
  * order of the list, and a player is found where his name puts him rather than
  * where this week's form does.
  *
- * **It costs one request per player** — twenty-five to thirty — because the
- * competition's free player list carries performance and nothing else: no
- * market value, no probability, no owner. All of them come off the same
- * league-scoped player response, which is why they arrive together rather than
- * one column at a time. The full reasoning, and why the Übersicht deliberately
- * does not pay it, is on [`useTeamRoster`](../../api/hooks/useTeam.ts).
+ * **The whole thing is one request.** `teamprofile` carries every player with
+ * his value, his weekly change, his probability, his availability and his
+ * owner — see [`useTeamProfile`](../../api/hooks/useTeam.ts), which also
+ * records what this replaced and why the list it used to build on was empty for
+ * seventeen clubs out of eighteen.
  *
- * Rows render immediately from the free half — name and position — and fill in
- * as the fan-out lands, so the tab is never a spinner over an empty screen.
+ * The market-value column is the **seven-day** change, because that is what the
+ * payload serves. The 24-hour figure (`tfhmvt`) exists only per player, and one
+ * column is not worth twenty-six requests — so the label says *7 Tage* rather
+ * than quietly showing a week's movement under a day's heading.
+ *
+ * **Nothing sits above the list but one line of type.** The club's value and
+ * its squad size used to be two `StatTile`s, and the projected eleven a third
+ * card below them — three panels a reader scrolled past to reach the thing they
+ * came for. The value and the count are one caption now, and the projected
+ * eleven moved to the [header's fixture strip](./TeamHeader.tsx), where a
+ * question about the next match already has somewhere to be asked.
  */
 export function TeamSquadTab({
-  roster,
-  teamName,
+  profile,
   leagueId,
 }: {
-  roster: TeamRoster
-  /** For the poster dialog, which names the club it is showing. */
-  teamName: string | undefined
+  profile: TeamProfile
   leagueId: string
 }) {
-  const [isPosterOpen, setIsPosterOpen] = useState(false)
-
-  const totals = teamSquadTotals(roster.players)
-
   /*
-   * Not memoised: the roster is rebuilt by `useTeamRoster` on every render as
-   * the fan-out lands, so a memo keyed on it would never hit — the same
-   * trade-off the duel rosters and the match ranking document, over thirty
-   * comparisons.
+   * Not memoised: `select` rebuilds the profile whenever the standings resolve
+   * behind it, so a memo keyed on the array would miss on exactly the render
+   * that matters — and thirty comparisons is not a cost worth a surrogate key.
    *
    * `localeCompare` rather than `<`, because the names are German and a plain
    * comparison sorts every umlaut after Z: Özcan would land under Zirkzee.
    */
-  const players = [...roster.players].sort(
+  const players = [...profile.players].sort(
     (a, b) =>
       POSITION_ORDER[a.position] - POSITION_ORDER[b.position] ||
       a.name.localeCompare(b.name, 'de'),
@@ -92,83 +87,38 @@ export function TeamSquadTab({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2">
-        <StatTile
-          label="Kaderwert"
-          value={money(totals.marketValue)}
-          hint={
-            roster.isPending ? (
-              <span className="flex items-center gap-1.5">
-                <Spinner size={11} />
-                {totals.players} Spieler
-              </span>
-            ) : (
-              `${String(totals.players)} Spieler`
-            )
-          }
-        />
-        <StatTile
-          label="In deiner Liga"
-          value={`${String(totals.owned)} / ${String(totals.players)}`}
-          hint={
-            totals.ownedByViewer === 0
-              ? 'keiner davon deiner'
-              : totals.ownedByViewer === 1
-                ? '1 davon deiner'
-                : `${String(totals.ownedByViewer)} davon deine`
-          }
-          tone={totals.ownedByViewer > 0 ? 'positive' : 'neutral'}
-        />
-      </div>
-
-      {roster.lineupPoster !== undefined && (
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              setIsPosterOpen(true)
-            }}
-            aria-haspopup="dialog"
-            className={cn(
-              'flex items-center gap-2 rounded-card border border-line bg-surface px-3 py-2.5',
-              'text-sm font-medium text-muted transition-colors',
-              'hover:border-accent/40 hover:bg-surface-2 hover:text-ink',
-              'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-            )}
-          >
-            <StartProbabilityBadge tier={1} size={14} decorative />
-            <span className="min-w-0 flex-1 text-left">
-              Voraussichtliche Aufstellung
-            </span>
-            <ChevronRight size={15} aria-hidden="true" className="shrink-0" />
-          </button>
-
-          <LineupPosterDialog
-            open={isPosterOpen}
-            onOpenChange={setIsPosterOpen}
-            poster={roster.lineupPoster}
-            teamName={teamName}
-          />
-        </>
-      )}
-
       {players.length === 0 ? (
         <EmptyState
           title="Kein Kader geladen"
-          description={
-            roster.isPending
-              ? 'Die Kaderdaten werden noch geladen.'
-              : 'Kickbase führt für diesen Klub gerade keine Spieler.'
-          }
+          description="Kickbase führt für diesen Klub gerade keine Spieler."
         />
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
-          {players.map((player) => (
-            <li key={player.id}>
-              <PlayerRow player={player} leagueId={leagueId} />
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* One line doing two jobs, which is why it is a line and not a pair
+              of tiles: the club's size and worth on the left, and on the right
+              the word the column below it needs. A bare signed figure under a
+              market value reads as "since yesterday" — that is what it is on
+              every other screen in this app — and this one is a week, so it is
+              said once here rather than thirty times in the rows. */}
+          <p className="flex items-baseline justify-between gap-3 px-0.5 text-[0.6875rem]">
+            <span className="nums truncate text-muted">
+              <span className="font-semibold text-ink">
+                {money(profile.teamValue)}
+              </span>{' '}
+              Kaderwert · {players.length} Spieler
+            </span>
+            <span className="shrink-0 text-[0.625rem] tracking-wide text-faint uppercase">
+              Marktwert · 7 Tage
+            </span>
+          </p>
+          <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+            {players.map((player) => (
+              <li key={player.id}>
+                <PlayerRow player={player} leagueId={leagueId} />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )
@@ -206,9 +156,9 @@ function PlayerRow({
   player: TeamSquadPlayer
   leagueId: string
 }) {
-  const changeDay = player.marketValueChangeDay
+  const change = player.marketValueChangeWeek
   const ChangeIcon =
-    changeDay !== undefined && changeDay < 0 ? TrendingDown : TrendingUp
+    change !== undefined && change < 0 ? TrendingDown : TrendingUp
 
   return (
     <Link
@@ -228,13 +178,10 @@ function PlayerRow({
           <span className="min-w-0 truncate text-sm font-medium text-ink">
             {player.name}
           </span>
-          {player.availability !== undefined && (
-            <PlayerStatusBadge
-              status={player.availability}
-              reason={player.availabilityText}
-              size={13}
-            />
-          )}
+          {/* No `stxt` on this payload, so no Kickbase-worded reason — the
+              badge falls back to its code's own label, which is what that
+              parameter is optional for. */}
+          <PlayerStatusBadge status={player.availability} size={13} />
         </span>
 
         <span className="mt-0.5 flex items-center gap-1.5">
@@ -254,31 +201,37 @@ function PlayerRow({
         <OwnerBadge owner={player.owner} size={22} />
       )}
 
-      <div className="w-20 shrink-0 text-right">
-        {/* A dash, not `0 €`: the value has not arrived, and a zero would read
-            as a worthless player rather than as a pending request. */}
+      <div className="w-24 shrink-0 text-right">
         <span className="nums block text-sm font-semibold text-ink">
-          {player.marketValue === undefined ? '–' : money(player.marketValue)}
+          {money(player.marketValue)}
         </span>
 
-        {/* The **last 24 hours**, drawn exactly as the squad list draws it —
-            the arrow is the same signal as the amount, its direction, so the
-            two cannot contradict each other, and it is omitted on a flat day
-            rather than pointing nowhere. */}
+        {/* The **last seven days** — `sdmvt`, which is what this payload
+            serves; `tfhmvt`'s 24 hours would cost one request per player. The
+            arrow is drawn as the squad list draws it: the same signal as the
+            amount, its direction, so the two cannot contradict each other, and
+            omitted on a flat week rather than pointing nowhere. */}
         <span
-          title="Marktwertänderung in den letzten 24 Stunden"
+          title={
+            change === undefined
+              ? 'Vor einer Woche noch ohne Marktwert — keine Veränderung berechenbar'
+              : 'Marktwertänderung in den letzten 7 Tagen'
+          }
           className={cn(
             'nums flex items-center justify-end gap-0.5 text-xs',
-            changeDay !== undefined && changeDay > 0 && 'text-positive',
-            changeDay !== undefined && changeDay < 0 && 'text-negative',
-            (changeDay === undefined || changeDay === 0) && 'text-faint',
+            change !== undefined && change > 0 && 'text-positive',
+            change !== undefined && change < 0 && 'text-negative',
+            (change === undefined || change === 0) && 'text-faint',
           )}
         >
-          {changeDay !== undefined && changeDay !== 0 && (
+          {change !== undefined && change !== 0 && (
             <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
           )}
-          {moneyDelta(changeDay)}
-          <span className="sr-only"> in den letzten 24 Stunden</span>
+          {/* A dash for a player Kickbase only started pricing this week: his
+              `sdmvt` is his whole value, and printing it would read as the
+              biggest riser at the club. */}
+          {change === undefined ? '–' : moneyDelta(change)}
+          <span className="sr-only"> in den letzten 7 Tagen</span>
         </span>
       </div>
     </Link>

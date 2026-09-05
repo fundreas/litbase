@@ -1603,41 +1603,53 @@ export function teamStanding(
 /**
  * One player of a club, with everything the league knows about him.
  *
- * Assembled from two sources of very different cost — see
- * [`useTeamRoster`](./hooks/useTeam.ts). The first six fields are the free
- * half, out of the competition's player list; the rest arrives one request per
- * player and every one of them is optional because of it.
+ * **All of it arrives in one response** — `teamprofile`, see
+ * [`useTeamProfile`](./hooks/useTeam.ts) — which is why almost nothing here is
+ * optional. It was very nearly all optional, back when this was assembled from
+ * the competition's player list plus a request per player; that arrangement was
+ * both twenty-six times more expensive and, as it turned out, broken, because
+ * the list it started from is one fixture's players rather than a competition's.
  */
 export interface TeamSquadPlayer {
   id: string
   name: string
   position: PositionKey
   image?: string
-  /** Season points, from the competition list. */
-  points: number
-  /** Minutes played this season. */
-  minutesPlayed: number
-  goals: number
-  assists: number
-
-  /* --- From the per-player fan-out, all absent until it lands ------------- */
-
-  /** Market value in €. **Not** on the competition list — only league-scoped. */
-  marketValue?: number
-  marketValueTrend?: MarketValueTrend
+  /** Market value, in €. */
+  marketValue: number
+  marketValueTrend: MarketValueTrend
   /**
-   * Change over the **last 24 hours**, in €, signed (`tfhmvt`).
+   * Change over the **last seven days**, in €, signed (`sdmvt`).
    *
-   * The figure a scouting list is read for, and the reason `marketValueTrend`
-   * is not enough on its own: `mvt` is a direction, this is the amount, and a
-   * club page is being scanned for who moved overnight. `undefined` until the
-   * fan-out lands — never defaulted to `0`, which would claim a flat day.
+   * Seven and not twenty-four hours, and the distinction is not academic: the
+   * one-day figure is `tfhmvt`, it is **not on this payload**, and fetching it
+   * would cost one request per player for a single column. Measured on the same
+   * player the same afternoon, the week read `+349.459` and the day `+6.799` —
+   * so a column labelled for the wrong window would be wrong by fifty times.
+   * The label says *7 Tage*.
+   *
+   * **`undefined` for a player who had no value a week ago.** Kickbase prices a
+   * new arrival from zero, so `sdmvt` comes back as his *entire* market value —
+   * El Aynaoui, two days at Leipzig, read `+14.999.789` on a value of exactly
+   * that. Eleven players across the league carried it the day it was checked,
+   * so it is a normal state and not an edge case: transfer deadlines produce a
+   * batch of them. The test is exact rather than a heuristic — a week-ago value
+   * of zero is the only way the change can equal the value — and the row draws
+   * a dash, because "no comparable value" is not the same claim as "+15 Mio.
+   * this week". The same trap `mapMarketValue` filters out of the chart.
    */
-  marketValueChangeDay?: number
-  /** Availability code (`st`); `0` is fit. */
-  availability?: number
-  /** Why he is unavailable, in Kickbase's own German. */
-  availabilityText?: string
+  marketValueChangeWeek?: number
+  /** Average points per appearance. `0` for a player who has not featured. */
+  averagePoints: number
+  /** Availability code (`st`); `0` is fit. See {@link availabilityLabel}. */
+  availability: number
+  /**
+   * Lineup-probability tier, or `undefined` when nobody has assessed him.
+   *
+   * The one genuinely optional field, and it is optional for a reason that has
+   * nothing to do with loading: no Membership, the off-season, and an
+   * unassessed player are indistinguishable on the wire and all normal.
+   */
   startProbability?: StartProbability
   /** The manager in the viewer's league who owns him **today**. */
   owner?: TeamSquadOwner
@@ -1660,38 +1672,46 @@ export interface TeamSquadPlayer {
 export type TeamSquadOwner = MatchPlayerOwner
 
 /**
- * What a club's roster adds up to for the viewer's league.
+ * A club and its whole squad, from one `teamprofile` response.
  *
- * The number a manager actually came for: not "Bayern are worth 600 million"
- * but "eleven of these twenty-six are already gone, and three of them are
- * mine". `marketValue` is a sum over the players whose value has arrived, so it
- * climbs as the fan-out lands rather than jumping from nothing.
+ * The club half is not redundant with {@link TableRow}: `teamValue` exists
+ * nowhere else, and having the placement and the record on the same response as
+ * the players means the Kader can stand on its own if the table is slow.
  */
-export interface TeamSquadTotals {
-  players: number
-  marketValue: number
-  owned: number
-  ownedByViewer: number
+export interface TeamProfile {
+  teamId: string
+  teamName: string
+  teamImage?: string
+  /** Placement in the real table. */
+  placement?: number
+  /** The club's total market value, in € — `tv`, served, not summed. */
+  teamValue: number
+  wins: number
+  draws: number
+  losses: number
+  /** Every player, in the order the payload lists them. */
+  players: TeamSquadPlayer[]
+  /** The projected starting eleven, when anybody has assessed one. */
+  poster?: TeamPoster
 }
 
-export function teamSquadTotals(
-  players: readonly TeamSquadPlayer[],
-): TeamSquadTotals {
-  const totals: TeamSquadTotals = {
-    players: players.length,
-    marketValue: 0,
-    owned: 0,
-    ownedByViewer: 0,
-  }
-
-  for (const player of players) {
-    totals.marketValue += player.marketValue ?? 0
-    if (player.owner === undefined) continue
-    totals.owned += 1
-    if (player.owner.isViewer) totals.ownedByViewer += 1
-  }
-
-  return totals
+/**
+ * The club's projected starting eleven, as one poster.
+ *
+ * A shape of its own rather than three loose fields, because the three only
+ * ever travel together and are all present or all absent: Ligainsider supplies
+ * them as one assessment, and without Membership, in the off-season, or for a
+ * club nobody has looked at, none of them arrives. Modelling it as an optional
+ * object means a consumer tests once rather than three times and cannot end up
+ * with a source logo and no picture.
+ */
+export interface TeamPoster {
+  /** `plpim` — the poster itself, CDN-relative. */
+  image: string
+  /** `plpurl` — the source's logo, CDN-relative. */
+  sourceLogo?: string
+  /** `ts` — when the assessment was last revised, ISO 8601. */
+  updatedAt?: string
 }
 
 /* -------------------------------------------------------------------------- */

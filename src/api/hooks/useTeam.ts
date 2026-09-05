@@ -1,126 +1,256 @@
-import { useQueries } from '@tanstack/react-query'
+import {
+  useQueries,
+  useQuery,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import { matchdayEntry } from '@/api/hooks/useMatchdayPoints'
 import { useRanking } from '@/api/hooks/useRanking'
 import {
-  toOwnerId,
+  toPosition,
   toStartProbability,
   toTrend,
-  type CompetitionPlayerSummary,
+  type TeamProfile,
   type TeamSquadOwner,
   type TeamSquadPlayer,
 } from '@/api/models'
 import { qk } from '@/api/queryKeys'
-import type { PlayerDetailResponse } from '@/api/types'
+import type {
+  PlayerDetailResponse,
+  TeamProfilePlayer,
+  TeamProfileResponse,
+} from '@/api/types'
 
 /**
- * Ligainsider revises the lineup probability a few times a week and a market
- * value moves once a night, so half an hour is fresher than anything on this
- * response. The same figure `usePlayerDetail` and `useStartProbabilities` use,
- * and the same cache entry — so a club whose players have been looked at this
- * session is already half fetched.
+ * Market values move once a night and Ligainsider revises a lineup probability
+ * a few times a week, so half an hour is fresher than anything on the payload —
+ * the same figure the squad page and the player detail use.
  */
 const STALE_MS = 30 * 60_000
 
-/** A club's roster, once the league-scoped half has been layered on. */
-export interface TeamRoster {
-  /** Every player of the club, best first within each position group. */
-  players: TeamSquadPlayer[]
+/**
+ * **A club's entire squad, in one request.**
+ *
+ * `GET /v4/leagues/{leagueId}/teams/{teamId}/teamprofile` carries every player
+ * with his market value, his seven-day change, his lineup-probability tier, his
+ * availability, and — because the spelling is league-scoped — **the manager who
+ * owns him**. Plus the club's own placement, record and total market value, and
+ * the projected-XI poster.
+ *
+ * ## What this replaced, and why
+ *
+ * Until 2026-09-05 the club page built its roster from
+ * `/v4/competitions/{id}/players`, filtered by `tid`, and then fanned out one
+ * request per player for the market value and the owner. Both halves were
+ * wrong:
+ *
+ *  - **The filter matched nothing for seventeen clubs out of eighteen.** That
+ *    endpoint is not "every player in a competition" despite its name and its
+ *    published documentation. Probed live, it returned **25 players across
+ *    exactly two clubs, all sharing one `mi`** — it is *one fixture's* players.
+ *    So the Kader rendered empty for every club not in that fixture, which is
+ *    how it was found.
+ *  - **The fan-out was twenty-six requests for what one answers.** Nothing but
+ *    the 24-hour change (`tfhmvt`) still needs a per-player response, and that
+ *    one column is not worth twenty-six requests — the profile's seven-day
+ *    `sdmvt` is served here, and the
+ *    [Kader](../../components/team/TeamSquadTab.tsx) labels it as the week it
+ *    is.
+ *
+ * The neighbouring spellings all 404 (`/teams`, `/teams/{tid}`,
+ * `/teams/{tid}/players`, `/teams/{tid}/squad`), which is why an earlier round
+ * of probing concluded no per-club endpoint existed. Only `teamprofile`
+ * resolves — see {@link endpoints.leagues.teamProfile}.
+ *
+ * ## Names and faces for the owners
+ *
+ * The payload names the owning manager (`onm`) but carries no avatar, so the
+ * standings supply the picture. That is one cached request the ranking page has
+ * usually made already, and it is the same source every other ownership badge
+ * in the app resolves a face from — so a manager looks the same here as on a
+ * match lineup.
+ *
+ * A manager the standings do not list still gets a badge, using `onm` for the
+ * name and falling back to initials. The profile is the authority on *who owns
+ * whom*; the standings are only a face lookup, and a slow one must not make a
+ * player look unowned.
+ */
+export function useTeamProfile(
+  leagueId: string | undefined,
+  teamId: string | undefined,
+  /** The signed-in manager, whose own players are marked. */
+  viewerId: string | undefined,
+): UseQueryResult<TeamProfile> {
+  const ranking = useRanking(leagueId)
+
+  const managerById = new Map(
+    (ranking.data?.managers ?? []).map((manager) => [manager.id, manager]),
+  )
+
+  return useQuery({
+    queryKey: qk.teamProfile(leagueId ?? 'none', teamId ?? 'none'),
+    enabled: leagueId !== undefined && teamId !== undefined,
+    staleTime: STALE_MS,
+    /*
+     * `select` rather than mapping in `queryFn`, so the cache holds the wire
+     * DTO — the rule the competition table had to learn the hard way, see
+     * [API layer](../../../docs/api-layer.md#query-keys). It is load-bearing
+     * here for a second reason too: the mapping closes over the standings and
+     * the viewer, and both arrive *after* this response does. Mapping in
+     * `queryFn` would freeze the owners' faces as whatever was known at fetch
+     * time, and a page opened cold would show nameless badges for ever.
+     */
+    select: (data: TeamProfileResponse): TeamProfile => ({
+      teamId: data.tid,
+      teamName: data.tn,
+      teamImage: data.tim,
+      placement: data.pl,
+      teamValue: data.tv ?? 0,
+      wins: data.tw ?? 0,
+      draws: data.td ?? 0,
+      losses: data.tl ?? 0,
+      players: (data.it ?? []).map((player) =>
+        toSquadPlayer(player, managerById, viewerId),
+      ),
+      poster:
+        data.plpim === undefined
+          ? undefined
+          : {
+              image: data.plpim,
+              sourceLogo: data.plpurl,
+              updatedAt: data.ts,
+            },
+    }),
+    queryFn: () =>
+      get<TeamProfileResponse>(
+        endpoints.leagues.teamProfile(leagueId as string, teamId as string),
+      ),
+  })
+}
+
+function toSquadPlayer(
+  player: TeamProfilePlayer,
+  managerById: Map<string, { id: string; name: string; image?: string }>,
+  viewerId: string | undefined,
+): TeamSquadPlayer {
+  return {
+    id: player.i,
+    name: player.n,
+    position: toPosition(player.pos),
+    image: player.pim,
+    marketValue: player.mv ?? 0,
+    marketValueTrend: toTrend(player.mvt),
+    marketValueChangeWeek: weekChange(player),
+    averagePoints: player.ap ?? 0,
+    availability: player.st,
+    startProbability: toStartProbability(player.prob),
+    owner: toOwner(player, managerById, viewerId),
+  }
+}
+
+/**
+ * The seven-day change, unless the player had no value a week ago.
+ *
+ * Kickbase prices a new arrival up from zero, so `sdmvt` for one is his whole
+ * market value rather than a week's movement — and a row reading `+15,0 Mio.`
+ * beside a `15,0 Mio.` valuation is not a hot player, it is a player who did
+ * not exist here on Monday. The equality is exact, not a heuristic: the change
+ * can only equal the value when the value seven days ago was zero.
+ *
+ * `mv > 0` guards the other direction, where both are zero and nothing has
+ * happened at all.
+ */
+function weekChange(player: TeamProfilePlayer): number | undefined {
+  const value = player.mv ?? 0
+  const change = player.sdmvt ?? 0
+  if (value > 0 && change === value) return undefined
+  return change
+}
+
+/**
+ * The owning manager, or `undefined` for a free agent.
+ *
+ * **`oui` is a number here and absent when nobody owns the player** — two
+ * differences from the player-detail payload, where it is a string and the
+ * *string* `"0"` stands in for "unowned". So this deliberately does not go
+ * through `toOwnerId`: that function exists to strip the `"0"` placeholder, and
+ * applied to a number it would either reject every owner or let a `0` through
+ * as a real id. Absence is the whole test here.
+ */
+function toOwner(
+  player: TeamProfilePlayer,
+  managerById: Map<string, { id: string; name: string; image?: string }>,
+  viewerId: string | undefined,
+): TeamSquadOwner | undefined {
+  if (player.oui === undefined) return undefined
+
+  const id = String(player.oui)
+  const manager = managerById.get(id)
+
+  return {
+    id,
+    // The payload's own name first — it is on the same response as the
+    // ownership itself, so it can never disagree with it. The standings are
+    // consulted for the face, and for the name only if `onm` is missing.
+    name: player.onm ?? manager?.name ?? 'Unbekannt',
+    image: manager?.image,
+    isViewer: id === viewerId,
+    // Always `currentOwner`: a roster reads who owns the player *today* and
+    // asserts nothing about any matchday's lineup. `ownerLabel` words exactly
+    // this claim as "Gehört X".
+    source: 'currentOwner',
+    wasFielded: false,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Points per matchday                                                        */
+/* -------------------------------------------------------------------------- */
+
+/** What a club's players scored, per matchday. */
+export interface TeamMatchdayPoints {
   /**
-   * **What the club's players scored, per matchday**, summed across the whole
-   * roster.
-   *
-   * The by-product that justifies the fan-out twice over: `ph` on each response
-   * is the player's *entire* season, so twenty-six requests yield the club's
-   * points for every matchday played rather than for one. Nothing else in the
-   * API answers "where were this club's points" at all — there is no bulk
-   * per-matchday source, per
-   * [`useMatchdayPoints`](./useMatchdayPoints.ts).
+   * Matchday → the club's total.
    *
    * A matchday nobody scored in is **absent** rather than `0`: before a club
    * kicks off it has not scored nothing, it has not played.
    */
-  pointsByDay: Map<number, number>
-  /**
-   * The club's projected starting eleven as one poster (`plpim`).
-   *
-   * Taken from the first player who carries one, because it is a fact about the
-   * *club* — every player at it carries the identical hash, which is what made
-   * it useless on a player page and makes it exactly right here. Absent without
-   * Membership, in the off-season, and for a club nobody has assessed.
-   */
-  lineupPoster?: string
-  /** True while any per-player request is in flight; rows render without them. */
+  byDay: Map<number, number>
   isPending: boolean
 }
 
 /**
- * A club's roster, with **market value, lineup probability, availability and
- * the owning manager** on every player.
+ * **What the club's players scored on each matchday of the season.**
  *
- * ## One fan-out, four answers
+ * The one thing on the club page that still costs a request per player, and the
+ * only way to get it: `ph` on `/v4/leagues/{id}/players/{pid}` is the sole
+ * source of a per-player, per-matchday score, and there is no bulk spelling of
+ * it — see [`useMatchdayPoints`](./useMatchdayPoints.ts), which pays the same
+ * toll for a single matchday.
  *
- * The competition's player list is free — it is cached for an hour and every
- * page that annotates a player has already fetched it — but it carries only
- * performance: points, minutes, goals, assists. It has **no market value**, no
- * lineup probability, no notion that a Kickbase league exists.
+ * What makes it worth paying *once* is that each response is a whole season:
+ * twenty-six requests yield the club's total for all 34 matchdays rather than
+ * for one. It is the [Spiele](../../components/team/TeamMatchesTab.tsx) tab's
+ * right-hand column, and `enabled` keeps every other tab off it.
  *
- * All four of those live on `/v4/leagues/{id}/players/{pid}`, and there is no
- * bulk spelling of it (`/leagues/{id}/players` and `?ids=` both 404). So this
- * is one request per player — **twenty-five to thirty for a Bundesliga club** —
- * and the reason to pay it once is that a single response answers everything
- * the [Kader](../../components/team/TeamSquadTab.tsx) and
- * [Spiele](../../components/team/TeamMatchesTab.tsx) tabs need:
+ * Nothing polls. A settled matchday's points cannot change, and the running
+ * one belongs to the [Live tab](../../components/team/TeamLiveTab.tsx), which
+ * goes through the match lineup like every other live view in the app.
  *
- *  - `mv`/`mvt`/`tfhmvt` — the value, which way it is moving, and by how much
- *    it moved overnight.
- *  - `prob` — the lineup-probability tier, the same one the squad page badges.
- *  - `st`/`stxt` — injured, suspended, and Kickbase's own words for why.
- *  - `oui` — the manager in *this* league who owns him.
- *  - `ph` — his points for **every matchday of the season**, which is what
- *    {@link TeamRoster.pointsByDay} adds up per club.
- *
- * `oui` is the right owner here and the wrong one on a match page: it is who
- * owns the player **today**, which is the question a club's roster asks and the
- * opposite of what a played matchday wants — see
- * [`useMatchLineup`](./useMatchLineup.ts), where reading it cost two rounds of
- * wrong badges.
- *
- * ## The cost, and where it is paid
- *
- * `enabled` is the whole gate, and the caller sets it from the tab on screen:
- * the club's Übersicht renders entirely out of cached competition payloads and
- * must not pay for this, while Kader and Spiele both need it and, sharing these
- * cache entries, pay for it once between them. The same split
- * [`MatchDetailPage`](../../pages/MatchDetailPage.tsx) uses to keep its
- * timeline off the lineup's fan-out.
- *
- * Nothing here polls. A market value moves once a night and a lineup
- * probability a few times a week; live points are the
- * [Live tab](../../components/team/TeamLiveTab.tsx)'s business, and it goes
- * through the match lineup like every other live view in the app.
+ * The cache entries are the usual `qk.playerDetail` ones, so a club whose
+ * players have been opened this session is already part-fetched.
  */
-export function useTeamRoster(
+export function useTeamMatchdayPoints(
   leagueId: string | undefined,
-  /** The club's players, from the competition list. The free half. */
-  base: readonly CompetitionPlayerSummary[] | undefined,
-  /** The signed-in manager, whose own players are marked. */
-  viewerId: string | undefined,
+  players: readonly TeamSquadPlayer[] | undefined,
   enabled: boolean,
-): TeamRoster {
-  /*
-   * Names and avatars for the ownership badges. One cached request the ranking
-   * page has usually made already — and it is the only place a manager id
-   * becomes a person, exactly as on the match lineup.
-   */
-  const ranking = useRanking(enabled ? leagueId : undefined)
-
-  const players = base ?? []
+): TeamMatchdayPoints {
+  const roster = players ?? []
 
   const queries = useQueries({
-    queries: players.map((player) => ({
+    queries: roster.map((player) => ({
       queryKey: qk.playerDetail(leagueId ?? 'none', player.id),
       enabled: enabled && leagueId !== undefined,
       staleTime: STALE_MS,
@@ -132,77 +262,19 @@ export function useTeamRoster(
   })
 
   /*
-   * Rebuilt per render rather than memoised — `useQueries` hands back a fresh
+   * Rebuilt per render rather than memoised: `useQueries` hands back a fresh
    * array every time, so a memo would need a surrogate key harder to trust than
-   * the thirty map writes it saves. The same trade-off, and the same reasoning,
-   * as `useStartProbabilities` and `useDuelRosters`.
+   * the arithmetic it saves. The same trade-off as everywhere else `useQueries`
+   * is used in this codebase.
    */
-  const managerById = new Map(
-    (ranking.data?.managers ?? []).map((manager) => [manager.id, manager]),
-  )
-
-  const ownerOf = (ownerId: string | undefined): TeamSquadOwner | undefined => {
-    if (ownerId === undefined) return undefined
-    // A manager the standings do not list gets no badge rather than one
-    // reading a raw id — the same rule the match lineup's badges follow.
-    const manager = managerById.get(ownerId)
-    if (manager === undefined) return undefined
-    return {
-      id: manager.id,
-      name: manager.name,
-      image: manager.image,
-      isViewer: manager.id === viewerId,
-      // Always `currentOwner`, and therefore never fielded: a roster reads
-      // `oui`, which is who owns the player **today** and says nothing about
-      // any matchday's lineup. See `OwnerSource` and `ownerLabel`, which word
-      // exactly this claim as "Gehört X".
-      source: 'currentOwner',
-      wasFielded: false,
-    }
+  const byDay = new Map<number, number>()
+  for (const query of queries) {
+    if (query.data !== undefined) addSeasonPoints(byDay, query.data)
   }
 
-  const pointsByDay = new Map<number, number>()
-  let lineupPoster: string | undefined
-
-  const enriched = players.map((player, index): TeamSquadPlayer => {
-    const detail = queries[index]?.data
-
-    if (detail !== undefined) {
-      lineupPoster ??= detail.plpim
-      addSeasonPoints(pointsByDay, detail)
-    }
-
-    return {
-      id: player.id,
-      name: player.lastName,
-      position: player.position,
-      image: player.image,
-      points: player.points,
-      minutesPlayed: player.minutesPlayed,
-      goals: player.goals,
-      assists: player.assists,
-
-      marketValue: detail?.mv,
-      marketValueTrend: detail === undefined ? undefined : toTrend(detail.mvt),
-      marketValueChangeDay: detail?.tfhmvt,
-      // `st` is omitted for a fit player on some payloads and sent as `0` on
-      // others, so an arrived response means fit unless it says otherwise —
-      // `undefined` here has to keep meaning "not fetched yet".
-      availability: detail === undefined ? undefined : (detail.st ?? 0),
-      availabilityText:
-        detail?.stxt?.trim() === '' ? undefined : detail?.stxt?.trim(),
-      startProbability: toStartProbability(detail?.prob),
-      owner: ownerOf(toOwnerId(detail?.oui)),
-    }
-  })
-
   return {
-    players: enriched,
-    pointsByDay,
-    lineupPoster,
-    isPending:
-      enabled &&
-      (ranking.isPending || queries.some((query) => query.isPending)),
+    byDay,
+    isPending: enabled && queries.some((query) => query.isPending),
   }
 }
 
@@ -216,8 +288,7 @@ export function useTeamRoster(
  * matchday would still have a plausible total, just the wrong one.
  *
  * A matchday a player missed carries `hp: false` and no `p`, and contributes
- * nothing rather than a zero — so a day on which the club did not play stays
- * out of the map entirely.
+ * nothing rather than a zero.
  */
 function addSeasonPoints(
   totals: Map<number, number>,

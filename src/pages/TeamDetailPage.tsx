@@ -3,13 +3,12 @@ import { useMemo } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
 
 import {
-  useCompetitionPlayers,
   useTeamDirectory,
   useCompetitionTable,
 } from '@/api/hooks/useCompetition'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useSeasonSchedule, useTeamSeason } from '@/api/hooks/useMatchday'
-import { useTeamRoster } from '@/api/hooks/useTeam'
+import { useTeamMatchdayPoints, useTeamProfile } from '@/api/hooks/useTeam'
 import {
   fixtureState,
   teamCurrentFixture,
@@ -51,21 +50,25 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  * The split is the point of the page's structure, so it is worth stating
  * plainly:
  *
- *  - **Übersicht — free.** The league table, the season's fixture list and the
- *    competition's player list are three shared, hour-long cache entries that
- *    the squad and matchday pages have usually already filled. Everything the
- *    tab shows is arithmetic over them.
- *  - **Kader and Spiele — one request per player**, twenty-five to thirty, and
- *    **one fan-out between them**: the market values, probabilities and owners
- *    the Kader draws come off the same responses whose `ph` the Spiele tab adds
- *    up per matchday. Flicking between the two costs nothing. See
- *    [`useTeamRoster`](../api/hooks/useTeam.ts).
+ *  - **The page — three requests**, all of them shared: the league table and the
+ *    season's fixture list are hour-long entries the squad and matchday pages
+ *    have usually already filled, and the club's own `teamprofile` is one
+ *    request that carries the entire squad. Übersicht and Kader are both
+ *    arithmetic over those.
+ *  - **Spiele — one request per player**, twenty-five to thirty, and *only* on
+ *    that tab: `ph` is the one source of a per-matchday score and has no bulk
+ *    spelling. See [`useTeamMatchdayPoints`](../api/hooks/useTeam.ts).
  *  - **Live — the match lineup's fan-out**, ~36 players polling at the live
  *    rate, and the same cache entries the match page fills.
  *
- * The gate is `enabled` on the roster hook, driven by the tab on screen — the
+ * The gate is `enabled` on the points hook, driven by the tab on screen — the
  * same split [`MatchDetailPage`](./MatchDetailPage.tsx) uses to keep its
  * timeline off the lineup's cost.
+ *
+ * **The squad does not come from `/v4/competitions/{id}/players`.** That
+ * endpoint returns one *fixture's* players despite its name, so filtering it by
+ * club found nothing for seventeen clubs out of eighteen — the bug that sent
+ * this page looking for `teamprofile` in the first place.
  *
  * ## The Live tab only exists while the club is playing
  *
@@ -93,17 +96,16 @@ export function TeamDetailPage() {
   const table = useCompetitionTable(competitionId)
   const season = useTeamSeason(competitionId, teamId)
   const schedule = useSeasonSchedule(competitionId)
-  const competitionPlayers = useCompetitionPlayers(competitionId)
+  /*
+   * The club's whole squad in one request — values, probabilities and owners
+   * included. Fetched for every tab rather than gated: it is one request, the
+   * Übersicht's scorer card needs it, and the header's fixture strip opens the
+   * projected eleven it carries.
+   */
+  const profile = useTeamProfile(leagueId, teamId, user?.id)
 
   const fixtures = useMemo(() => season.data ?? [], [season.data])
-
-  const players = useMemo(
-    () =>
-      (competitionPlayers.data ?? []).filter(
-        (player) => player.teamId === teamId,
-      ),
-    [competitionPlayers.data, teamId],
-  )
+  const players = profile.data?.players ?? []
 
   const standing = useMemo(
     () => teamStanding(table.data, teamId),
@@ -129,12 +131,11 @@ export function TeamDetailPage() {
    */
   const live = useLiveMatches(current === undefined ? undefined : [current])
 
-  // Kader and Spiele; the Übersicht and the Live tab pay for neither.
-  const roster = useTeamRoster(
+  // The Spiele tab's points column, and nothing else — see the cost note above.
+  const matchdayPoints = useTeamMatchdayPoints(
     leagueId,
     players,
-    user?.id,
-    tab === TEAM_TABS.squad || tab === TEAM_TABS.matches,
+    tab === TEAM_TABS.matches,
   )
 
   const tabs: BottomTab[] = [
@@ -225,6 +226,7 @@ export function TeamDetailPage() {
             : teams.data?.get(current.opponentId)
         }
         teamId={teamId ?? ''}
+        poster={profile.data?.poster}
         leagueId={leagueId}
       />
 
@@ -240,19 +242,25 @@ export function TeamDetailPage() {
           />
         )}
 
-        {tab === TEAM_TABS.squad && (
-          <TeamSquadTab
-            roster={roster}
-            teamName={standing?.row.teamName}
-            leagueId={leagueId}
-          />
-        )}
+        {tab === TEAM_TABS.squad &&
+          (profile.isPending ? (
+            <SkeletonList rows={8} />
+          ) : profile.isError ? (
+            <ErrorState
+              error={profile.error}
+              onRetry={() => {
+                void profile.refetch()
+              }}
+            />
+          ) : (
+            <TeamSquadTab profile={profile.data} leagueId={leagueId} />
+          ))}
 
         {tab === TEAM_TABS.matches && (
           <TeamMatchesTab
             fixtures={fixtures}
-            pointsByDay={roster.pointsByDay}
-            isPointsPending={roster.isPending}
+            pointsByDay={matchdayPoints.byDay}
+            isPointsPending={matchdayPoints.isPending}
             teams={teams.data}
             currentDay={schedule.data?.currentDay}
             leagueId={leagueId}
@@ -263,7 +271,7 @@ export function TeamDetailPage() {
           <TeamLiveTab
             matchId={running.matchId}
             teamId={teamId ?? ''}
-            teamName={standing?.row.teamName}
+            teamName={profile.data?.teamName ?? standing?.row.teamName}
             leagueId={leagueId}
             competitionId={competitionId}
             viewerId={user?.id}

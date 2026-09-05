@@ -1,4 +1,4 @@
-import { House, PlaneTakeoff, Sparkles } from 'lucide-react'
+import { House, PlaneTakeoff } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 
@@ -12,18 +12,25 @@ import {
   teamStreak,
   TEAM_RESULT_LABEL,
   TEAM_RESULT_LETTER,
-  type CompetitionPlayerSummary,
   type FixtureDifficulty,
   type TableRow,
   type TeamRecord,
   type TeamResult,
   type TeamSeasonFixture,
+  type TeamSquadPlayer,
   type TeamStanding,
 } from '@/api/models'
 import { Avatar } from '@/components/ui/Avatar'
 import { Card, CardHeader, StatTile } from '@/components/ui/Card'
 import { cn } from '@/lib/cn'
-import { delta, placement, points, time, weekdayDate } from '@/lib/format'
+import {
+  delta,
+  money,
+  placement,
+  points,
+  time,
+  weekdayDate,
+} from '@/lib/format'
 
 /** How many results the form strip shows, and how many fixtures the ticker does. */
 const WINDOW = 5
@@ -65,8 +72,8 @@ export function TeamOverviewTab({
   table: TableRow[] | undefined
   /** The club's season, ascending. */
   fixtures: TeamSeasonFixture[]
-  /** The club's players, from the competition list. */
-  players: CompetitionPlayerSummary[]
+  /** The club's squad, from its profile. Empty until that request lands. */
+  players: TeamSquadPlayer[]
   teams: Map<string, TeamSummary> | undefined
   leagueId: string
 }) {
@@ -542,28 +549,34 @@ function biggestWin(
 /* -------------------------------------------------------------------------- */
 
 /**
- * The club's five biggest point-scorers, with what a minute of them is worth.
+ * The club's five most productive players, by **points per appearance**.
  *
- * **Points per 90 minutes beside the total**, because the total alone rewards
- * whoever has been fit longest. A substitute on 40 points from 200 minutes and
- * a starter on 90 from 540 look nothing alike in a season column and are the
- * same player for the purpose of buying one — and the cheaper of the two is
- * the one nobody has noticed yet, which is the whole point of a scouting list.
+ * `ap` rather than a season total, and not only because the total is not on
+ * this payload: the total rewards whoever has been fit longest. A substitute
+ * averaging 80 and a starter averaging 78 are the same player for the purpose
+ * of buying one, and in a season column they look nothing alike — while the
+ * cheaper of the two is the one nobody has noticed yet, which is the whole
+ * point of a scouting list.
  *
- * Free: the competition's player list is cached for an hour and every page that
- * annotates a player has already fetched it. The market value that would make
- * these rows a shopping list is *not* on it — that is the
- * [Kader](./TeamSquadTab.tsx) tab, and what it costs is documented there.
+ * The market value rides alongside, because on a club page the two are read
+ * together: a high average on a low value is the row worth tapping, and the
+ * [Kader](./TeamSquadTab.tsx) is one tab away for the rest of the squad.
+ *
+ * Free — the same `teamprofile` response the Kader is built on.
  */
 function ScorersCard({
   players,
   leagueId,
 }: {
-  players: CompetitionPlayerSummary[]
+  players: TeamSquadPlayer[]
   leagueId: string
 }) {
   const top = [...players]
-    .sort((a, b) => b.points - a.points || b.minutesPlayed - a.minutesPlayed)
+    .filter((player) => player.averagePoints > 0)
+    .sort(
+      (a, b) =>
+        b.averagePoints - a.averagePoints || b.marketValue - a.marketValue,
+    )
     .slice(0, WINDOW)
 
   return (
@@ -571,13 +584,13 @@ function ScorersCard({
       <CardHeader
         title="Punktesammler"
         action={
-          <Sparkles size={14} aria-hidden="true" className="text-faint" />
+          <span className="text-[0.6875rem] text-faint">Ø pro Einsatz</span>
         }
       />
 
       {top.length === 0 ? (
         <p className="px-4 py-5 text-center text-sm text-muted">
-          Für diesen Klub sind keine Spieler geladen.
+          Noch hat kein Spieler dieses Klubs gepunktet.
         </p>
       ) : (
         <ol className="divide-y divide-line">
@@ -592,28 +605,23 @@ function ScorersCard({
                 </span>
                 <Avatar
                   src={player.image}
-                  name={player.lastName}
+                  name={player.name}
                   size={32}
                   square
                   className="shrink-0 bg-surface-2"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink">
-                    {player.lastName}
+                    {player.name}
                   </p>
                   <p className="nums truncate text-[0.6875rem] text-faint">
-                    {POSITION_LABEL[player.position]} · {player.goals} Tore ·{' '}
-                    {player.assists} Vorlagen
+                    {POSITION_LABEL[player.position]} ·{' '}
+                    {money(player.marketValue)}
                   </p>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="nums text-sm font-semibold text-ink">
-                    {points(player.points)}
-                  </p>
-                  <p className="nums text-[0.625rem] text-faint">
-                    {perNinety(player)}
-                  </p>
-                </div>
+                <span className="nums shrink-0 text-sm font-semibold text-ink">
+                  {points(player.averagePoints)}
+                </span>
               </Link>
             </li>
           ))}
@@ -621,18 +629,4 @@ function ScorersCard({
       )}
     </Card>
   )
-}
-
-/**
- * `12,4 / 90′` — the rate, or a dash for a player who has not been on the
- * pitch.
- *
- * Never `0`: a player with no minutes has not scored nothing per ninety, he has
- * no rate at all, and printing a zero would rank him below a substitute who has
- * actually played badly.
- */
-function perNinety(player: CompetitionPlayerSummary): string {
-  if (player.minutesPlayed <= 0) return '–'
-  const rate = (player.points / player.minutesPlayed) * 90
-  return `${rate.toFixed(1).replace('.', ',')} / 90′`
 }

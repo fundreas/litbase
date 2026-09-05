@@ -18,7 +18,7 @@ instance, the query hooks, the domain models — is
 | [Squad and lineup](squad-and-lineup.md) | 9 | Who you own, who you field, historical snapshots |
 | [Transfer market](market.md) | 5 | Listings, bids, withdrawals |
 | [Players](players.md) | 4 | One player: detail, history, market value, owners |
-| [Competitions](competitions.md) | 4 | Bundesliga & co: players, table, fixtures |
+| [Competitions](competitions.md) | 5 | Bundesliga & co: table, fixtures, one club's whole squad |
 | [Matches](matches.md) | 2 | One match live, and the scoring-event catalogue |
 | [Codes and enums](codes.md) | — | Every numeric code the payloads use, in one place |
 
@@ -61,6 +61,7 @@ the two marked *none*.
 | `GET` | `/v4/competitions` | ✔ | [Competitions](competitions.md#get-v4competitions) |
 | `GET` | `/v4/competitions/{competitionId}/players` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidplayers) |
 | `GET` | `/v4/competitions/{competitionId}/table` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidtable) |
+| `GET` | `/v4/leagues/{leagueId}/teams/{teamId}/teamprofile` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidteamsteamidteamprofile) |
 | `GET` | `/v4/competitions/{competitionId}/matchdays` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidmatchdays) |
 | `GET` | `/v4/matches/{matchId}/details` | ✔ | [Matches](matches.md#get-v4matchesmatchiddetails) |
 | `GET` | `/v4/live/eventtypes` | | [Matches](matches.md#get-v4liveeventtypes) |

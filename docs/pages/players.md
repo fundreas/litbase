@@ -8,10 +8,30 @@
 Every player in the competition — the scouting view, as opposed to
 [Squad](squad.md) (yours) or [Market](market.md) (for sale).
 
+## ⚠ The endpoint is not what this page assumed
+
+**`/v4/competitions/{competitionId}/players` returns one _fixture's_ players,
+not a competition's.** Probed 2026-09-05: 25 rows across exactly two clubs, all
+sharing one `mi`. See
+[the warning on the endpoint](../api/competitions.md#get-v4competitionscompetitionidplayers).
+
+That invalidates most of what follows. "Expect several hundred" was a guess
+that nobody checked, and the row count this stub prints — 25 — looks perfectly
+reasonable until you ask *which* clubs are in it. The size problem this page was
+designed around therefore does not exist yet, and neither does the page's own
+premise: there is currently **no known endpoint that lists a competition's
+players**. `/v4/competitions/{id}/players/search` answers 200 and is unprobed;
+that is where to look first.
+
+What *is* now available is a club's whole squad in one request —
+[`teamprofile`](../api/competitions.md#get-v4competitionscompetitionidteamsteamidteamprofile),
+which the [club page](team.md) is built on. Eighteen of those would be a real
+all-players list, at eighteen requests.
+
 ## What it does today
 
 Renders [`PagePlaceholder`](../../src/components/PagePlaceholder.tsx) with the
-row count from the live query. Expect several hundred.
+row count from the live query.
 
 ## Scope: competition, not league
 

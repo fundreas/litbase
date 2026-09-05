@@ -1248,6 +1248,143 @@ export interface CompetitionTableRow {
 }
 
 /* -------------------------------------------------------------------------- */
+/* One club's profile — the whole squad in one response                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `GET /v4/leagues/{leagueId}/teams/{teamId}/teamprofile` — a club, its
+ * standing, and **every player it has**, with market values, lineup
+ * probabilities and who owns them.
+ *
+ * Probed live 2026-09-05 across all 18 Bundesliga clubs (23–29 players each).
+ * It is the only bulk source of a club's squad, and it replaces a fan-out of
+ * one request per player that the [club page](../../docs/pages/team.md) paid
+ * until it was found.
+ *
+ * **`/v4/competitions/{competitionId}/players` is not that source**, whatever
+ * its name and its published documentation say. It returns **one fixture's**
+ * players — 25 rows across exactly two clubs, all sharing a single `mi` — so
+ * every club not playing in it resolves to nothing at all. That is what made
+ * the club page's Kader render empty for seventeen clubs out of eighteen.
+ *
+ * ## Two spellings, and only one of them knows your league
+ *
+ * The competition-scoped `/v4/competitions/{competitionId}/teams/{teamId}/teamprofile`
+ * answers 200 with a **byte-identical body minus four fields**. The
+ * league-scoped spelling above is the one to use whenever ownership matters:
+ * verified by diffing the two responses for the same club, it alone adds
+ * {@link TeamProfilePlayer.oui}, {@link TeamProfilePlayer.onm},
+ * {@link TeamProfilePlayer.lo} and a real {@link TeamProfilePlayer.mvgl}, and
+ * fills in `iotm`/`ofc` rather than sending them zeroed.
+ *
+ * Neither `/v4/competitions/{id}/teams` nor `…/teams/{tid}` nor
+ * `…/teams/{tid}/players` exists — all 404. Only the `teamprofile` suffix
+ * resolves, which is why an earlier round of probing concluded there was no
+ * per-club endpoint at all.
+ */
+export interface TeamProfileResponse {
+  /** Team id. */
+  tid: string
+  /** Club name, spelled out. */
+  tn: string
+  /** Crest, CDN-relative (an SVG). */
+  tim?: string
+  /** Current placement in the real table. */
+  pl?: number
+  /** **The club's total market value**, in €. */
+  tv?: number
+  /** Wins, draws, losses this season. */
+  tw?: number
+  td?: number
+  tl?: number
+  /** The squad. */
+  it?: TeamProfilePlayer[]
+  /** How many players are in `it` — it has always matched `it.length`. */
+  npt?: number
+  /**
+   * The club's projected starting eleven as one poster, CDN-relative.
+   *
+   * The same image `plpim` on a player detail carries, and the reason that
+   * field is useless per player: it is a fact about the **club**. Here it is
+   * served once, where it belongs.
+   */
+  plpim?: string
+  /** The assessment source's logo (Ligainsider), CDN-relative. */
+  plpurl?: string
+  /** ✗ A second logo. Unidentified; not rendered. */
+  pclpurl?: string
+  /** ✗ `true` on every club probed. Presumably "a projected lineup exists". */
+  avpcl?: boolean
+  /** When the lineup assessment was last revised, ISO 8601. */
+  ts?: string
+}
+
+/**
+ * One player in a club's profile.
+ *
+ * **Zeroed counters are omitted**, as everywhere in this API: `ap` is absent
+ * for a player who has not featured, and `oui`/`onm` are absent — not `"0"` —
+ * for a player nobody owns. That last difference matters, because `oui` on a
+ * [player detail](#PlayerDetailResponse) *is* the string `"0"` when unowned;
+ * here absence is the signal and there is no placeholder to filter out.
+ */
+export interface TeamProfilePlayer {
+  /** Player id. Spelled `i`, as on the squad payload. */
+  i: string
+  /** Last name. No first name is served here. */
+  n: string
+  /** Team id — the club whose profile this is, repeated on every row. */
+  tid?: string
+  /** Position, see {@link PLAYER_POSITION}. */
+  pos: number
+  /** Availability, see {@link PLAYER_AVAILABILITY}. `0` is fit. */
+  st: number
+  /** Portrait, CDN-relative. */
+  pim?: string
+  /** Market value, in €. */
+  mv?: number
+  /** Market-value trend, see {@link MARKET_VALUE_TREND}. */
+  mvt?: number
+  /**
+   * Change over the **last seven days**, in €, signed.
+   *
+   * Confirmed arithmetically 2026-09-05 against `/marketvalue/365`: for a
+   * player on `mv: 34781516`, `sdmvt` was `349459` and the daily series read
+   * `34432057` exactly seven points earlier. The **24-hour** figure is
+   * `tfhmvt`, and it is **not on this payload** — 6799 for the same player —
+   * so a one-day change still costs one request per player.
+   */
+  sdmvt?: number
+  /**
+   * Profit or loss against what the owner paid, in €.
+   *
+   * Only meaningful on the league-scoped spelling; the competition-scoped one
+   * sends `0` for everybody.
+   */
+  mvgl?: number
+  /** Average points per appearance. Absent for a player who has not featured. */
+  ap?: number
+  /** Lineup-probability tier, 1..5. See {@link PlayerDetailResponse.prob}. */
+  prob?: number
+  /**
+   * Owning manager's user id — **a number here**, where every other payload
+   * spells an id as a string, and **absent** rather than `"0"` when nobody
+   * owns the player.
+   */
+  oui?: number
+  /** The owning manager's display name. Absent with `oui`. */
+  onm?: string
+  /** That manager's lineup slot for the player (`lo` elsewhere), if fielded. */
+  lo?: number
+  /** The player is listed on the transfer market. */
+  iotm?: boolean
+  /** Offers standing on him. */
+  ofc?: number
+  /** ✗ `1` on every player probed. Unidentified. */
+  lst?: number
+}
+
+/* -------------------------------------------------------------------------- */
 /* Matchdays and fixtures                                                     */
 /* -------------------------------------------------------------------------- */
 

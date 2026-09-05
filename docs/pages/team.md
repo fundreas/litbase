@@ -7,10 +7,15 @@ One Bundesliga club, in four views:
 
 | Route | View | Costs |
 | ----- | ---- | ----- |
-| `/leagues/:leagueId/teams/:teamId` | Übersicht | **nothing** — three shared caches |
-| `…/squad` | Kader | one request per player (~25–30) |
-| `…/matches` | Spiele | the same fan-out, shared with Kader |
+| `/leagues/:leagueId/teams/:teamId` | Übersicht | — |
+| `…/squad` | Kader | — |
+| `…/matches` | Spiele | one request per player (~25–30) |
 | `…/live` | Live | the match lineup's ~36 players, polling |
+
+The page itself is **three requests**: the league table and the season's fixture
+list, both shared hour-long caches the squad and matchday pages have usually
+filled already, plus the club's own `teamprofile` — one response carrying the
+entire squad. Übersicht and Kader are arithmetic over those.
 
 Four routes, one component, the tab read out of the segment — the arrangement
 [Squad](squad.md), [Player detail](player-detail.md), [Duel detail](duel-detail.md)
@@ -56,8 +61,7 @@ Above all four tabs, so switching never moves it:
 - the season record spelled out, `4S · 1U · 2N · 14:11 Tore`, because the
   table's goal *difference* hides it: a 14:11 club and a 5:2 club share a `+3`;
 - a **fixture strip** carrying the club's most immediate match — running if one
-  is, else the next, else the last played — which links through to the match
-  page.
+  is, else the next, else the last played.
 
 The strip's three states are one shape, so it never changes height under a
 reader watching it tick over. While a match runs it shows the **live score and
@@ -71,14 +75,38 @@ or the strip lies about who is winning — which is why the club's own id is a
 prop rather than derived from the fixture, since a
 [`TeamSeasonFixture`](../../src/api/models.ts) names only the opponent.
 
+### Tapping the strip: the projected eleven, or the match
+
+The strip has **two destinations, and the clock picks between them**:
+
+| Fixture state | Tapping it opens |
+| ------------- | ---------------- |
+| Not kicked off | the **projected starting eleven** — Ligainsider's poster, full screen |
+| Running or over | the [match page](match-detail.md) |
+
+They never compete, because at any moment exactly one of them is the better
+answer to "what about this match". A projected eleven is a claim about a game
+that has not been played; the moment the whistle goes the real team sheet
+exists, and the match page is where it lives. Which one applies is a fact about
+the clock rather than a preference, so the strip needs no second control.
+
+The poster is `plpim` — a 1280×1809 image of **the whole projected XI**, the
+same hash every player at the club carries, which is what made it useless as a
+per-player badge. It arrives on the club's own `teamprofile`, so opening it
+costs nothing, and it renders in the existing
+[`LineupPosterDialog`](../../src/components/player/LineupPosterDialog.tsx) —
+fit to screen first, tap to zoom.
+
+It is absent without Membership, in the off-season, and for a club nobody has
+assessed. All three are normal rather than errors, so the strip simply falls
+back to linking at the match.
+
 ## Übersicht
 
-Everything here is arithmetic over three payloads the app already holds:
-`/competitions/{id}/table`, `/competitions/{id}/matchdays` and
-`/competitions/{id}/players`. All three are cached for an hour and shared with
-the squad, matchday and market pages, so **opening a club costs no request**.
-That is a design constraint rather than a happy accident: the expensive
-per-player fan-out is deferred to the tabs that genuinely need it.
+Everything here is arithmetic over `/competitions/{id}/table`,
+`/competitions/{id}/matchdays` and the club's `teamprofile`. The first two are
+hour-long caches shared with the squad, matchday and market pages, so in
+practice **opening a club costs one request**.
 
 ### Kickbase-Punkte vs. Tabellenplatz
 
@@ -132,18 +160,18 @@ proposition next Saturday, and that is exactly the sort of thing being priced.
 
 ### Punktesammler
 
-The five biggest scorers, with **points per 90 minutes** beside the total. The
-total alone rewards whoever has been fit longest; a substitute on 40 from 200
-minutes and a starter on 90 from 540 look nothing alike in a season column and
-are the same player for the purpose of buying one — and the cheaper of the two
-is the one nobody has noticed.
+The five most productive players by **points per appearance** (`ap`), with the
+market value beside each. An average rather than a season total, and not only
+because the total is not on the payload: the total rewards whoever has been fit
+longest, while a substitute averaging 80 and a starter averaging 78 are the same
+player for the purpose of buying one — and the cheaper of them is the one nobody
+has noticed yet.
 
-A rate is `–` for a player with no minutes, never `0`: he has no rate, and a
-zero would rank him below someone who has actually played badly.
+Free, from the same `teamprofile` the Kader is built on.
 
 ## Kader
 
-The tab the page is worth building for, and the one that costs something.
+The tab the page is worth building for — and, since 2026-09-05, one request.
 
 **Every player, always, in one flat list.** No filters and no sections: a club
 has twenty-five to thirty players, which is a single screenful of scrolling,
@@ -156,16 +184,16 @@ without which every umlaut lands after Z and Özcan turns up under Zirkzee.
 Each row is a link to the [player's own page](player-detail.md), where the
 season history, the market-value chart and the ownership detail live.
 
-Rows carry the free half immediately — name and position, from the competition
-list — and fill in with the things that only exist league-scoped:
+Everything on a row comes off one response:
 
-| On the row | Wire field | Source |
-| ---------- | ---------- | ------ |
-| **Marktwert** | `mv` | `/v4/leagues/{id}/players/{pid}` |
-| **Änderung 24 h**, with its arrow | `tfhmvt` | same response |
-| **Startelf-Wahrscheinlichkeit** | `prob` | same response |
-| **Besitzer**, as the manager's photo | `oui` | same response |
-| Verletzt / gesperrt, and why | `st`, `stxt` | same response |
+| On the row | Wire field |
+| ---------- | ---------- |
+| **Marktwert** | `mv` |
+| **Änderung 7 Tage**, with its arrow | `sdmvt` |
+| **Startelf-Wahrscheinlichkeit** | `prob` |
+| **Besitzer**, as the manager's photo | `oui` + `onm` |
+| Verletzt / gesperrt | `st` |
+| Name, Position | `n`, `pos` |
 
 The probability sits on the second line **beside the position**, not next to
 the name — beside the name it would collide with the availability mark, and the
@@ -177,26 +205,69 @@ is for. A `prob` tier does not imply it — an injured player often carries no
 assessment at all — so dropping it would lose the one signal a scouting list
 must not be wrong about.
 
-The 24-hour change is drawn exactly as the squad list draws it: the arrow is
-the *same* signal as the amount, its direction, so the two cannot contradict
-each other, and it is omitted on a flat day rather than pointing nowhere. A
-value that has not arrived is `–`, never `0 €` — a zero would read as a
-worthless player rather than as a pending request.
+The change is drawn exactly as the squad list draws it: the arrow is the *same*
+signal as the amount, its direction, so the two cannot contradict each other,
+and it is omitted on a flat week rather than pointing nowhere.
 
-### One fan-out, four answers, and a fifth for free
+### One request, not twenty-six
 
-There is **no bulk spelling** of that endpoint — `/leagues/{id}/players` and
-`?ids=` both 404 — so this is one request per player, twenty-five to thirty for
-a Bundesliga club. It is worth paying once because a single response answers
-every column *and* carries `ph`, the player's points for every matchday of
-the season, which is what the [Spiele](#spiele) tab adds up per club.
+The whole tab comes from
+[`GET /v4/leagues/{leagueId}/teams/{teamId}/teamprofile`](../api/competitions.md#get-v4competitionscompetitionidteamsteamidteamprofile),
+found on 2026-09-05 after this tab shipped rendering **nothing at all** for
+seventeen clubs out of eighteen.
 
-The cache key is `qk.playerDetail`, the same entry the squad page's probability
-badges, the player detail page and every points fan-out fill — so a club whose
-players have been looked at this session is already half fetched, and nothing
-polls: a market value moves once a night.
+What it was doing before: filtering `/v4/competitions/{id}/players` by `tid` for
+the roster, then fanning out one request per player for the values and owners.
+Both halves were wrong.
 
-See [`useTeamRoster`](../../src/api/hooks/useTeam.ts).
+**The list it filtered is not a competition's players.** Probed live, that
+endpoint returns **25 rows across exactly two clubs, all sharing one `mi`** — it
+is *one fixture's* players. Its published documentation says otherwise, this
+project's own API notes said otherwise, and nothing caught it because the only
+consumer was a stub that printed a row count. Open Leipzig on a matchday
+Stuttgart are playing and the filter matches zero rows. See
+[the warning](../api/competitions.md#get-v4competitionscompetitionidplayers).
+
+**And the fan-out was twenty-six requests for what one answers.** `teamprofile`
+carries the market value, the seven-day change, the probability tier, the
+availability, the average points *and* the owner, plus the club's placement,
+record, total market value and projected-XI poster.
+
+Two spellings exist and only the **league-scoped** one knows your league. The
+competition-scoped twin returns a byte-identical body minus `oui`, `onm`, `lo`
+and a real `mvgl` — established by diffing them for the same club.
+
+Neighbouring spellings all 404: `/teams`, `/teams/{tid}`, `/teams/{tid}/players`,
+`/teams/{tid}/squad`. Only the `teamprofile` suffix resolves, which is why an
+earlier round of probing concluded no per-club endpoint existed at all.
+
+### Seven days, not twenty-four
+
+The market-value column shows `sdmvt`, the **seven-day** change, and the caption
+above the list says so. The 24-hour figure is `tfhmvt` and lives only on a
+player's own detail — one request each, twenty-six for a single column, which is
+not a trade worth making when everything else on the row is already free.
+
+The two are not interchangeable: measured on the same player the same afternoon,
+the week read `+349.459` and the day `+6.799`. A column labelled for the wrong
+window would be wrong by fifty times.
+
+**A player who had no value a week ago shows `–`.** Kickbase prices a new
+arrival up from zero, so his `sdmvt` is his *entire* valuation — El Aynaoui, two
+days at Leipzig, read `+14.999.789` on a value of exactly that, and would have
+led the club as its biggest riser. Eleven players league-wide carried it the day
+it was checked; a transfer deadline produces a batch of them. The test is exact
+rather than a heuristic — the change can only equal the value when the value
+seven days ago was zero — and a dash says "not computable" where a number would
+have made a claim.
+
+### No `stxt`
+
+The payload carries `st` but no reason text, so the availability badge falls back
+to its own code's label (*Verletzt*, *Angeschlagen*, *Gesperrt*) rather than
+Kickbase's German sentence. That is what the badge's `reason` parameter is
+optional for, and it is the one thing the old per-player fan-out had that this
+does not.
 
 ### `oui` is the right owner *here*
 
@@ -206,29 +277,42 @@ page credited every transferred player to his new manager, twice, before
 [`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts) settled on the
 per-manager snapshot instead.
 
+On this payload `oui` is a **number**, and **absent** rather than the string
+`"0"` when nobody owns the player — two differences from the player detail, and
+the reason the mapping deliberately does not run it through `toOwnerId`. That
+helper exists to strip the `"0"` placeholder; applied to a number it would
+either reject every owner or let a real `0` through as an id.
+
+The payload also names the manager (`onm`) but carries no avatar, so the
+standings supply the face. The name comes from `onm` first — it is on the same
+response as the ownership itself and so cannot disagree with it — and a manager
+the standings do not list still gets a badge, drawn from initials.
+
 Because the claim is always "owns him now", the roster reuses the match
 lineup's own [`OwnerBadge`](../../src/components/matchday/OwnerBadge.tsx) and
 [`ownerLabel`](../../src/components/matchday/ownerLabel.ts) verbatim:
 `TeamSquadOwner` **is** `MatchPlayerOwner` with `source: 'currentOwner'`, and
 that source's wording — *Gehört X* / *Dein Spieler* — is already right.
 
-### The lineup poster finally has a home
+### One line above the list
 
-`plpim` is a 1280×1809 Ligainsider graphic of the whole projected XI, **the same
-hash for every player at a club** — which is what made it useless as a corner
-badge on a portrait and makes it exactly right on a club page. It is taken from
-the first player who carries one and opens in the existing
-[`LineupPosterDialog`](../../src/components/player/LineupPosterDialog.tsx).
+The club's value and its squad size, left; the column caption *Marktwert ·
+7 Tage*, right. One line of type, where there used to be two `StatTile`s and a
+third card for the projected eleven — three panels a reader scrolled past to
+reach the thing they came for.
 
-Absent without Membership, in the off-season, and for a club nobody has
-assessed — all normal, none an error, so the button simply does not appear.
+**Kaderwert is `tv` off the payload**, Kickbase's own figure rather than a sum
+over the rows that could quietly drift from it.
 
-### The summary
+The caption exists for one word. A bare signed figure under a market value reads
+as "since yesterday" — that is what it is on every other screen in this app —
+and this one is a week, so it is said once here rather than thirty times in the
+rows.
 
-Two tiles above the list: the **Kaderwert** (a sum over the values that have
-arrived, so it climbs rather than jumping from nothing) and **In deiner Liga**,
-`14 / 27` with how many of them are yours. Not "Bayern are worth 600 million"
-but "eleven of these are already gone, and three of them are mine".
+The **projected eleven** moved to the header's fixture strip, where a question
+about the next match already has somewhere to be asked. The count of players
+owned in your league, which used to be the second tile, is gone with it; the
+owner column on the rows still answers it one row at a time.
 
 ## Spiele
 
@@ -243,11 +327,11 @@ they are the weeks a manager wants to know about.
 
 Nothing else in the API answers "where were this club's points" — there is no
 bulk per-matchday source, per
-[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts). It comes out
-of the Kader's fan-out: `ph` on each response is that player's whole season, so
-the same twenty-six requests yield the club's total for all 34 matchdays.
-Flicking between the two tabs therefore costs nothing; the Übersicht, needing
-neither, pays for neither.
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts). **This is the
+one tab that still pays a request per player**, and it is worth paying once
+because `ph` on each response is that player's whole season: twenty-six requests
+yield the club's total for all 34 matchdays rather than for one. `enabled` keeps
+every other tab off it.
 
 The days are read through the **exported** `matchdayEntry()` rather than by
 indexing `ph` directly. That array is newest-first and indexed off the
@@ -323,8 +407,8 @@ cache entries the match page fills, so arriving from there pays nothing.
 | [`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) | `/competitions/{id}/table` | competition, 1 h | header, every opponent name |
 | [`useCompetitionTable`](../../src/api/hooks/useCompetition.ts) | same cache entry | competition, 10 min | header, Übersicht, ticker grading |
 | [`useTeamSeason`](../../src/api/hooks/useMatchday.ts) | `/competitions/{id}/matchdays` | competition, 1 h | everything derived about the club |
-| [`useCompetitionPlayers`](../../src/api/hooks/useCompetition.ts) | `/competitions/{id}/players` | competition, 1 h | Punktesammler, the Kader's free half |
-| [`useTeamRoster`](../../src/api/hooks/useTeam.ts) | `/leagues/{id}/players/{pid}` ×N | league, 30 min | Kader, Spiele |
+| [`useTeamProfile`](../../src/api/hooks/useTeam.ts) | `/leagues/{id}/teams/{tid}/teamprofile` | league, 30 min | Kader, Punktesammler, the club's name |
+| [`useTeamMatchdayPoints`](../../src/api/hooks/useTeam.ts) | `/leagues/{id}/players/{pid}` ×N | league, 30 min | Spiele only |
 | [`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts) | several | league | Live |
 | [`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts) | `/matches/{id}/details` | competition | the header's live score |
 
@@ -336,16 +420,12 @@ downstream may assume `fixtures[n].day === n + 1`.
 
 ## Things worth knowing
 
-**The competition player list has no market values.** It carries performance
-only, which is the single fact that decides the cost structure of this whole
-page — see [All players](players.md#note-on-market-value), which hit the same
-wall.
-
-**`st` is omitted for a fit player on some payloads and sent as `0` on others.**
-So an *arrived* response means fit unless it says otherwise, and `undefined`
-has to keep meaning "not fetched yet" — which is what lets a row draw no
-availability mark while the fan-out is still in flight, rather than asserting
-that a player nobody has heard back about is healthy.
+**An endpoint's name is not evidence.** `/v4/competitions/{id}/players` cost
+this page a shipped-broken tab: it was documented as "every player in a
+competition" by Kickbase's own spec and by this project's notes, and it returns
+one fixture's. The row count its only consumer printed — 25 — looked entirely
+reasonable. Counting *which clubs* were in it took one `jq` and would have
+caught it before it was built on.
 
 **The club's side of a match is resolved by id**, never from `isHome` on some
 fixture. That would be a second source of the same fact, free to disagree with
@@ -361,6 +441,8 @@ the first.
 - **A composite club rating.** Every figure on this page is either the API's or
   arithmetic anyone can check.
 - **`GET /v4/base/predictions/teams/{competitionId}`** — the bulk source of the
-  posters keyed by `tid` ([API index](../api/README.md)). It would give the
-  Kader its poster without waiting on the fan-out, which is the one thing on
-  the page that currently depends on a request it does not otherwise need.
+  posters keyed by `tid` ([API index](../api/README.md)). No longer needed here:
+  `teamprofile` serves this club's poster on the response the tab already makes.
+- **`GET /v4/competitions/{id}/players/search`** — answers 200, unprobed. The
+  most likely candidate for a real all-players list, which
+  [All players](players.md) now has no source for.

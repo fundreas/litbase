@@ -13,6 +13,7 @@ the answer, and the app's query keys reflect that.
 | `GET` | [`/v4/competitions/{competitionId}/players`](#get-v4competitionscompetitionidplayers) | Bearer | yes |
 | `GET` | [`/v4/competitions/{competitionId}/table`](#get-v4competitionscompetitionidtable) | Bearer | yes |
 | `GET` | [`/v4/competitions/{competitionId}/matchdays`](#get-v4competitionscompetitionidmatchdays) | Bearer | yes |
+| `GET` | [`/v4/competitions/{competitionId}/teams/{teamId}/teamprofile`](#get-v4competitionscompetitionidteamsteamidteamprofile) | Bearer | see note |
 
 Competition ids seen so far: `1` Bundesliga · `2` 2. Bundesliga · `3` La Liga ·
 `4` GP Frauen-Bundesliga · `6` DFB-Pokal · `9` MLS. The list is not stable —
@@ -48,8 +49,31 @@ chips on [Join a league](../pages/join-league.md).
 
 ## `GET /v4/competitions/{competitionId}/players`
 
-Every player in a competition. This is the one endpoint whose published
-documentation the project was originally seeded from.
+> ### ⚠ Not what its name says
+>
+> **This returns one _fixture's_ players, not a competition's.** Probed live on
+> 2026-09-05 against Bundesliga matchday 2: **25 rows, across exactly two clubs
+> (Stuttgart and Köln), every one of them carrying the same `mi`.** The other
+> sixteen clubs appear nowhere in it.
+>
+> The published documentation calls it "every player in a competition", this
+> page said so too, and the [All players](../pages/players.md) stub was written
+> around "expect several hundred". All three were wrong, and nothing caught it
+> because the only consumer was a stub that printed a row count — 25 looks like
+> a perfectly plausible number until you ask which clubs are in it.
+>
+> It was found when the [club page](../pages/team.md) filtered this list by
+> `tid` to build a squad and got an empty Kader for seventeen clubs out of
+> eighteen. **For a club's players use
+> [`teamprofile`](#get-v4competitionscompetitionidteamsteamidteamprofile)**,
+> which serves the whole squad in one response.
+>
+> Which fixture it picks is **✗** — presumably the current or next one, but a
+> single observation cannot separate "the current match" from "the match this
+> account last looked at". Whatever the rule, it is not a competition-wide list.
+
+This is the one endpoint whose published documentation the project was
+originally seeded from.
 
 **Auth** Bearer.
 
@@ -108,7 +132,100 @@ individually.
 ### Used by
 
 [`useCompetitionPlayers`](../../src/api/hooks/useCompetition.ts) → the
-[All players](../pages/players.md) stub.
+[All players](../pages/players.md) stub, which is the only thing that can
+honestly be built on it until the scoping rule above is understood.
+
+---
+
+## `GET /v4/competitions/{competitionId}/teams/{teamId}/teamprofile`
+
+**A club, and every player it has.** The only bulk source of a squad, and the
+answer to the question the endpoint above only looks like it answers.
+
+Probed live 2026-09-05 across all 18 Bundesliga clubs — 23–29 players each,
+with `i`, `n`, `pos`, `st`, `mv` and `prob` present on every single row.
+
+**Auth** Bearer.
+
+### Path parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `competitionId` | string | Competition id |
+| `teamId` | string | Club id, as `tid` on the [table](#get-v4competitionscompetitionidtable) |
+
+### ⚠ Use the league-scoped spelling when ownership matters
+
+`GET /v4/leagues/{leagueId}/teams/{teamId}/teamprofile` answers the **same body
+plus four fields**, established by diffing the two responses for one club:
+
+| Extra field | Meaning |
+| ----------- | ------- |
+| `oui` | Owning manager's user id — **a number**, and **absent** when unowned |
+| `onm` | That manager's display name |
+| `lo` | His lineup slot for the player, if fielded |
+| `mvgl` | Profit/loss against what was paid — `0` for everybody on the competition-scoped one |
+
+`iotm` and `ofc` are also filled in rather than sent zeroed. The app uses the
+league-scoped spelling exclusively; see
+[Squad and lineup](squad-and-lineup.md) and
+[`useTeamProfile`](../../src/api/hooks/useTeam.ts).
+
+### Response `200`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `tid` · `tn` · `tim` | string | Club id, name, crest (an SVG) |
+| `pl` | number | Placement in the real table |
+| `tv` | number | **The club's total market value**, in € |
+| `tw` · `td` · `tl` | number | Wins, draws, losses |
+| `it` | array | The squad |
+| `npt` | number | Player count — has matched `it.length` on every club probed |
+| `plpim` | string | The club's projected XI **as one poster**, CDN-relative. The same image `plpim` carries on a player detail, served once where it belongs |
+| `plpurl` | string | The assessment source's logo (Ligainsider) |
+| `pclpurl` | string | **✗** A second logo. Unidentified |
+| `avpcl` | boolean | **✗** `true` on every club probed |
+| `ts` | string | When the lineup assessment was last revised, ISO 8601 |
+
+#### `it[]`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `i` | string | Player id — spelled `i`, as on the squad payload |
+| `n` | string | Last name. **No first name is served here** |
+| `tid` | string | Club id, repeated on every row |
+| `pos` | number | Position — see [Codes](codes.md#position-pos) |
+| `st` | number | Availability — see [Codes](codes.md#availability-st-and-the-entries-of-stl). **No `stxt`**, so no German reason text |
+| `pim` | string | Portrait, CDN-relative |
+| `mv` · `mvt` | number | Market value in €, and its trend |
+| `sdmvt` | number | Change over the **last seven days**, signed — see the caveat below |
+| `ap` | number | Average points per appearance. Omitted for a player who has not featured |
+| `prob` | number | Lineup-probability tier, 1..5 — see [Codes](codes.md#lineup-probability-prob) |
+| `lst` | number | **✗** `1` on every player probed |
+
+**`sdmvt` is seven days, not twenty-four.** Confirmed arithmetically against
+`/marketvalue/365`: for a player on `mv: 34781516` it read `349459`, and the
+daily series showed `34432057` exactly seven points earlier. The 24-hour figure
+is `tfhmvt` on the [player detail](players.md), which for the same player the
+same afternoon was `6799` — **fifty times smaller**. A column labelled for the
+wrong window is not slightly wrong.
+
+**`sdmvt` equals `mv` for a player who had no value a week ago.** Kickbase
+prices a new arrival up from zero, so his "change" is his entire valuation —
+eleven players league-wide carried it on the day this was probed, which is what
+a transfer deadline does. The equality is an exact test rather than a
+heuristic, since the change can only equal the value when the value seven days
+ago was zero. Treat it as "not computable", not as a rise.
+
+### Used by
+
+[`useTeamProfile`](../../src/api/hooks/useTeam.ts) → the whole Kader tab and the
+scorer card on the [club page](../pages/team.md).
+
+Neighbouring spellings that **404**: `/teams`, `/teams/{tid}`,
+`/teams/{tid}/players`, `/teams/{tid}/squad`, and `/leagues/{id}/teams/{tid}`
+without the suffix. Only `teamprofile` resolves, which is why an earlier round
+of probing concluded there was no per-club endpoint at all.
 
 ---
 
