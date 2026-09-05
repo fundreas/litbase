@@ -4,37 +4,36 @@ import { Link } from 'react-router'
 
 import type { TeamRoster } from '@/api/hooks/useTeam'
 import {
+  POSITION_LABEL,
   POSITION_NAME,
   teamSquadTotals,
   type PositionKey,
   type TeamSquadPlayer,
 } from '@/api/models'
-import { PLAYER_AVAILABILITY } from '@/api/types'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { LineupPosterDialog } from '@/components/player/LineupPosterDialog'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { StatTile } from '@/components/ui/Card'
-import { FilterChip, FilterChipRow } from '@/components/ui/FilterChip'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { money, points } from '@/lib/format'
+import { money, moneyDelta } from '@/lib/format'
 
-/** The four groups, in the order a team sheet is always written. */
-const GROUPS: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
-
-/** Which slice of the roster is on screen. */
-type Filter = 'all' | 'fit' | 'out' | 'free' | 'mine'
-
-const FILTERS: Array<{ key: Filter; label: string }> = [
-  { key: 'all', label: 'Alle' },
-  { key: 'fit', label: 'Fit' },
-  { key: 'out', label: 'Nicht fit' },
-  { key: 'free', label: 'Frei' },
-  { key: 'mine', label: 'Meine' },
-]
+/**
+ * Sort weight per position — the order a team sheet is always written in.
+ *
+ * The list is flat rather than sectioned, so this is an index rather than a
+ * set of headings: every row carries its own position, which is what a heading
+ * would otherwise have said once for the group.
+ */
+const POSITION_ORDER: Record<PositionKey, number> = {
+  gk: 0,
+  def: 1,
+  mid: 2,
+  fwd: 3,
+}
 
 /**
  * The club's whole roster, with **what each player costs, how likely he is to
@@ -45,23 +44,22 @@ const FILTERS: Array<{ key: Filter; label: string }> = [
  * the join that only a Kickbase client can make, and it turns a club page into
  * the answer to "is there anything here worth buying".
  *
+ * **Every player, always, in one list.** No filters and no sections: a club has
+ * twenty-five to thirty players, which is a single screenful of scrolling, and
+ * a filter over a list that short mostly hides the comparison the reader came
+ * to make. Sorted by position, then by name — so the shape of the squad is the
+ * order of the list, and a player is found where his name puts him rather than
+ * where this week's form does.
+ *
  * **It costs one request per player** — twenty-five to thirty — because the
  * competition's free player list carries performance and nothing else: no
- * market value, no probability, no owner. All four come off the same
+ * market value, no probability, no owner. All of them come off the same
  * league-scoped player response, which is why they arrive together rather than
- * one card at a time. The full reasoning, and why the Übersicht deliberately
+ * one column at a time. The full reasoning, and why the Übersicht deliberately
  * does not pay it, is on [`useTeamRoster`](../../api/hooks/useTeam.ts).
  *
- * Rows render immediately from the free half and fill in as the fan-out lands,
- * so the tab is never a spinner over an empty screen — only the three columns
- * on the right arrive late, and the summary above says so while they do.
- *
- * ## The filters are the scouting tool
- *
- * *Frei* is the one that earns its place: it is every player at this club that
- * nobody in the league owns, which is the shortest useful list on the page and
- * has no equivalent anywhere in the official app. *Meine* is its mirror, and
- * *Nicht fit* is the one to check before a matchday.
+ * Rows render immediately from the free half — name and position — and fill in
+ * as the fan-out lands, so the tab is never a spinner over an empty screen.
  */
 export function TeamSquadTab({
   roster,
@@ -73,11 +71,24 @@ export function TeamSquadTab({
   teamName: string | undefined
   leagueId: string
 }) {
-  const [filter, setFilter] = useState<Filter>('all')
   const [isPosterOpen, setIsPosterOpen] = useState(false)
 
   const totals = teamSquadTotals(roster.players)
-  const visible = roster.players.filter((player) => matches(player, filter))
+
+  /*
+   * Not memoised: the roster is rebuilt by `useTeamRoster` on every render as
+   * the fan-out lands, so a memo keyed on it would never hit — the same
+   * trade-off the duel rosters and the match ranking document, over thirty
+   * comparisons.
+   *
+   * `localeCompare` rather than `<`, because the names are German and a plain
+   * comparison sorts every umlaut after Z: Özcan would land under Zirkzee.
+   */
+  const players = [...roster.players].sort(
+    (a, b) =>
+      POSITION_ORDER[a.position] - POSITION_ORDER[b.position] ||
+      a.name.localeCompare(b.name, 'de'),
+  )
 
   return (
     <div className="flex flex-col gap-3">
@@ -141,100 +152,52 @@ export function TeamSquadTab({
         </>
       )}
 
-      <FilterChipRow label="Filter">
-        {FILTERS.map(({ key, label }) => (
-          <FilterChip
-            key={key}
-            isActive={filter === key}
-            onClick={() => {
-              setFilter(key)
-            }}
-          >
-            {label}
-          </FilterChip>
-        ))}
-      </FilterChipRow>
-
-      {visible.length === 0 ? (
+      {players.length === 0 ? (
         <EmptyState
-          title="Kein Spieler passt"
+          title="Kein Kader geladen"
           description={
             roster.isPending
               ? 'Die Kaderdaten werden noch geladen.'
-              : 'Für diesen Filter hat der Klub gerade niemanden.'
+              : 'Kickbase führt für diesen Klub gerade keine Spieler.'
           }
         />
       ) : (
-        GROUPS.map((position) => {
-          const group = visible
-            .filter((player) => player.position === position)
-            .sort((a, b) => b.points - a.points)
-          if (group.length === 0) return null
-
-          return (
-            <section key={position} className="flex flex-col gap-1.5">
-              <h2 className="px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
-                {POSITION_NAME[position]}
-                <span className="nums ml-1.5 font-normal">{group.length}</span>
-              </h2>
-              <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
-                {group.map((player) => (
-                  <li key={player.id}>
-                    <PlayerRow player={player} leagueId={leagueId} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )
-        })
+        <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+          {players.map((player) => (
+            <li key={player.id}>
+              <PlayerRow player={player} leagueId={leagueId} />
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
 }
 
 /**
- * Whether a player belongs in the current slice.
+ * One player: portrait, name over position and probability, the owning
+ * manager, and the money.
  *
- * **A player whose detail has not arrived stays visible under every filter.**
- * `availability` and `owner` are both `undefined` until the fan-out lands, and
- * treating that as "fit" or "free" would make rows appear and disappear as the
- * requests resolve one at a time — which reads as a list that cannot make up
- * its mind. Unknown is not a state to filter on; it is a state to wait out.
- */
-function matches(player: TeamSquadPlayer, filter: Filter): boolean {
-  switch (filter) {
-    case 'all':
-      return true
-    case 'fit':
-      return (
-        player.availability === undefined ||
-        player.availability === PLAYER_AVAILABILITY.FIT
-      )
-    case 'out':
-      return (
-        player.availability !== undefined &&
-        player.availability !== PLAYER_AVAILABILITY.FIT
-      )
-    case 'free':
-      return player.owner === undefined
-    case 'mine':
-      return player.owner?.isViewer === true
-  }
-}
-
-/**
- * One player: portrait, name over his season line, then value and points.
+ * The **probability sits on the second line beside the position**, not next to
+ * the name. Beside the name it would collide with the availability mark, and
+ * the two mean different things — "verletzt" is a fact, "unlikely to start" is
+ * somebody's estimate — which is the same separation the
+ * [squad list](../squad/PlayerListTab.tsx) makes. Glyph only, no label: five
+ * tier names repeated down thirty rows is a lot of text for a mark the reader
+ * learns to recognise in seconds, and each badge keeps its tooltip.
  *
- * The marks ride **beside the name** rather than on the portrait. A corner
- * badge is right on a pitch, where there is no room for anything else, and
- * wrong on a list row, where 13px of it against a photograph is the mush that
- * got the probability icon pulled off the squad pitch — a row has the width for
- * a real mark and a real tooltip.
+ * The **availability mark stays** beside the name even though it is not one of
+ * the columns this list is for. A `prob` tier does not imply it — an injured
+ * player often carries no assessment at all — so dropping it would lose the one
+ * signal a scouting list must not be wrong about.
  *
- * The **owner** sits on the right, next to the numbers, because that is what
- * the eye is scanning this list for: a column of manager avatars down the right
- * edge answers "what is left here" in one sweep, where the same badges
- * scattered beside the names would have to be hunted.
+ * The **owner** sits between the name and the numbers, because that is what the
+ * eye is scanning for: a column of manager avatars down the right-hand side
+ * answers "what is still free here" in one sweep, where the same badges beside
+ * the names would have to be hunted for.
+ *
+ * The whole row is a link to the player's own page, where the season history,
+ * the market-value chart and the ownership detail live.
  */
 function PlayerRow({
   player,
@@ -243,12 +206,9 @@ function PlayerRow({
   player: TeamSquadPlayer
   leagueId: string
 }) {
-  const Trend =
-    player.marketValueTrend === 'up'
-      ? TrendingUp
-      : player.marketValueTrend === 'down'
-        ? TrendingDown
-        : undefined
+  const changeDay = player.marketValueChangeDay
+  const ChangeIcon =
+    changeDay !== undefined && changeDay < 0 ? TrendingDown : TrendingUp
 
   return (
     <Link
@@ -275,41 +235,51 @@ function PlayerRow({
               size={13}
             />
           )}
+        </span>
+
+        <span className="mt-0.5 flex items-center gap-1.5">
+          <span
+            title={POSITION_NAME[player.position]}
+            className="text-[0.625rem] tracking-wide text-faint uppercase"
+          >
+            {POSITION_LABEL[player.position]}
+          </span>
           {player.startProbability !== undefined && (
             <StartProbabilityBadge tier={player.startProbability} size={13} />
           )}
         </span>
-        <p className="nums truncate text-[0.6875rem] text-faint">
-          {player.minutesPlayed}′ · {player.goals} Tore · {player.assists}{' '}
-          Vorlagen
-        </p>
       </div>
 
       {player.owner !== undefined && (
-        <OwnerBadge owner={player.owner} size={20} />
+        <OwnerBadge owner={player.owner} size={22} />
       )}
 
       <div className="w-20 shrink-0 text-right">
-        <p className="nums flex items-center justify-end gap-1 text-sm font-semibold text-ink">
-          {Trend !== undefined && (
-            <Trend
-              size={12}
-              aria-hidden="true"
-              className={cn(
-                'shrink-0',
-                player.marketValueTrend === 'up'
-                  ? 'text-positive'
-                  : 'text-negative',
-              )}
-            />
-          )}
-          {/* A dash, not `0 €`: the value has not arrived, and a zero would
-              read as a worthless player rather than as a pending request. */}
+        {/* A dash, not `0 €`: the value has not arrived, and a zero would read
+            as a worthless player rather than as a pending request. */}
+        <span className="nums block text-sm font-semibold text-ink">
           {player.marketValue === undefined ? '–' : money(player.marketValue)}
-        </p>
-        <p className="nums text-[0.625rem] text-faint">
-          {points(player.points)} Pkt
-        </p>
+        </span>
+
+        {/* The **last 24 hours**, drawn exactly as the squad list draws it —
+            the arrow is the same signal as the amount, its direction, so the
+            two cannot contradict each other, and it is omitted on a flat day
+            rather than pointing nowhere. */}
+        <span
+          title="Marktwertänderung in den letzten 24 Stunden"
+          className={cn(
+            'nums flex items-center justify-end gap-0.5 text-xs',
+            changeDay !== undefined && changeDay > 0 && 'text-positive',
+            changeDay !== undefined && changeDay < 0 && 'text-negative',
+            (changeDay === undefined || changeDay === 0) && 'text-faint',
+          )}
+        >
+          {changeDay !== undefined && changeDay !== 0 && (
+            <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
+          )}
+          {moneyDelta(changeDay)}
+          <span className="sr-only"> in den letzten 24 Stunden</span>
+        </span>
       </div>
     </Link>
   )

@@ -74,7 +74,8 @@ export interface TeamRoster {
  * the [Kader](../../components/team/TeamSquadTab.tsx) and
  * [Spiele](../../components/team/TeamMatchesTab.tsx) tabs need:
  *
- *  - `mv`/`mvt` — the value, and which way it is moving.
+ *  - `mv`/`mvt`/`tfhmvt` — the value, which way it is moving, and by how much
+ *    it moved overnight.
  *  - `prob` — the lineup-probability tier, the same one the squad page badges.
  *  - `st`/`stxt` — injured, suspended, and Kickbase's own words for why.
  *  - `oui` — the manager in *this* league who owns him.
@@ -183,6 +184,7 @@ export function useTeamRoster(
 
       marketValue: detail?.mv,
       marketValueTrend: detail === undefined ? undefined : toTrend(detail.mvt),
+      marketValueChangeDay: detail?.tfhmvt,
       // `st` is omitted for a fit player on some payloads and sent as `0` on
       // others, so an arrived response means fit unless it says otherwise —
       // `undefined` here has to keep meaning "not fetched yet".

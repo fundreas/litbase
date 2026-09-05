@@ -1625,6 +1625,15 @@ export interface TeamSquadPlayer {
   /** Market value in €. **Not** on the competition list — only league-scoped. */
   marketValue?: number
   marketValueTrend?: MarketValueTrend
+  /**
+   * Change over the **last 24 hours**, in €, signed (`tfhmvt`).
+   *
+   * The figure a scouting list is read for, and the reason `marketValueTrend`
+   * is not enough on its own: `mvt` is a direction, this is the amount, and a
+   * club page is being scanned for who moved overnight. `undefined` until the
+   * fan-out lands — never defaulted to `0`, which would claim a flat day.
+   */
+  marketValueChangeDay?: number
   /** Availability code (`st`); `0` is fit. */
   availability?: number
   /** Why he is unavailable, in Kickbase's own German. */

@@ -145,23 +145,50 @@ zero would rank him below someone who has actually played badly.
 
 The tab the page is worth building for, and the one that costs something.
 
-Rows carry the free half immediately — name, position, minutes, goals, assists,
-season points, all from the competition list — and fill in with the four things
-that only exist league-scoped:
+**Every player, always, in one flat list.** No filters and no sections: a club
+has twenty-five to thirty players, which is a single screenful of scrolling,
+and a filter over a list that short mostly hides the comparison the reader came
+to make. Sorted by **position, then name** — so the shape of the squad is the
+order of the list, and a player is found where his name puts him rather than
+where this week's form does. Names sort through `localeCompare(…, 'de')`,
+without which every umlaut lands after Z and Özcan turns up under Zirkzee.
 
-| Column | Wire field | Source |
-| ------ | ---------- | ------ |
-| Marktwert, and its trend | `mv`, `mvt` | `/v4/leagues/{id}/players/{pid}` |
-| Startelf-Wahrscheinlichkeit | `prob` | same response |
+Each row is a link to the [player's own page](player-detail.md), where the
+season history, the market-value chart and the ownership detail live.
+
+Rows carry the free half immediately — name and position, from the competition
+list — and fill in with the things that only exist league-scoped:
+
+| On the row | Wire field | Source |
+| ---------- | ---------- | ------ |
+| **Marktwert** | `mv` | `/v4/leagues/{id}/players/{pid}` |
+| **Änderung 24 h**, with its arrow | `tfhmvt` | same response |
+| **Startelf-Wahrscheinlichkeit** | `prob` | same response |
+| **Besitzer**, as the manager's photo | `oui` | same response |
 | Verletzt / gesperrt, and why | `st`, `stxt` | same response |
-| **Besitzer** | `oui` | same response |
+
+The probability sits on the second line **beside the position**, not next to
+the name — beside the name it would collide with the availability mark, and the
+two mean different things: *verletzt* is a fact, *unwahrscheinlich* is
+somebody's estimate. Same separation the [squad list](squad.md) makes.
+
+The availability mark stays even though it is not one of the columns this list
+is for. A `prob` tier does not imply it — an injured player often carries no
+assessment at all — so dropping it would lose the one signal a scouting list
+must not be wrong about.
+
+The 24-hour change is drawn exactly as the squad list draws it: the arrow is
+the *same* signal as the amount, its direction, so the two cannot contradict
+each other, and it is omitted on a flat day rather than pointing nowhere. A
+value that has not arrived is `–`, never `0 €` — a zero would read as a
+worthless player rather than as a pending request.
 
 ### One fan-out, four answers, and a fifth for free
 
 There is **no bulk spelling** of that endpoint — `/leagues/{id}/players` and
 `?ids=` both 404 — so this is one request per player, twenty-five to thirty for
 a Bundesliga club. It is worth paying once because a single response answers
-all four columns *and* carries `ph`, the player's points for every matchday of
+every column *and* carries `ph`, the player's points for every matchday of
 the season, which is what the [Spiele](#spiele) tab adds up per club.
 
 The cache key is `qk.playerDetail`, the same entry the squad page's probability
@@ -184,20 +211,6 @@ lineup's own [`OwnerBadge`](../../src/components/matchday/OwnerBadge.tsx) and
 [`ownerLabel`](../../src/components/matchday/ownerLabel.ts) verbatim:
 `TeamSquadOwner` **is** `MatchPlayerOwner` with `source: 'currentOwner'`, and
 that source's wording — *Gehört X* / *Dein Spieler* — is already right.
-
-### The filters are the scouting tool
-
-*Alle · Fit · Nicht fit · **Frei** · Meine.*
-
-**Frei** is the one that earns its place: every player at this club that nobody
-in the league owns. It is the shortest useful list on the page and has no
-equivalent in the official app.
-
-A player whose detail has not arrived stays visible under **every** filter.
-`availability` and `owner` are both `undefined` until the fan-out lands, and
-treating that as "fit" or "free" would make rows appear and disappear as the
-requests resolve one at a time — which reads as a list that cannot make up its
-mind. Unknown is not a state to filter on.
 
 ### The lineup poster finally has a home
 
@@ -330,7 +343,9 @@ wall.
 
 **`st` is omitted for a fit player on some payloads and sent as `0` on others.**
 So an *arrived* response means fit unless it says otherwise, and `undefined`
-has to keep meaning "not fetched yet" — which is what the filters lean on.
+has to keep meaning "not fetched yet" — which is what lets a row draw no
+availability mark while the fan-out is still in flight, rather than asserting
+that a player nobody has heard back about is healthy.
 
 **The club's side of a match is resolved by id**, never from `isHome` on some
 fixture. That would be a second source of the same fact, free to disagree with
