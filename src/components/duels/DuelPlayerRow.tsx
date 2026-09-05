@@ -68,9 +68,9 @@ export function DuelPlayerRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{player.name}</p>
         {/* The fixture as **pictures and a scoreline**, not "MF @ ELF".
-            `FixtureBadge` is the app's wordless fixture — a house or an
-            aeroplane plus the opponent's crest, which is recognised faster
-            than a three-letter symbol — and `MatchStateBadge` says where that
+            `FixtureBadge` is the app's wordless fixture — the opponent's
+            crest, recognised faster than a three-letter symbol, wearing a
+            house or an aeroplane in its corner — and `MatchStateBadge` says where that
             match stands: a faint `–:–` before kick-off, a pulsing dot and the
             running score while it is on, the final score once it is over.
             Between them they answer "who against, home or away, and how is it

@@ -139,7 +139,6 @@ export function SwapDialog({
                     <FixtureBadge
                       fixture={fixtureByTeamId?.get(player.teamId)}
                       size="lg"
-                      layout="stacked"
                     />
                   </span>
                 </button>

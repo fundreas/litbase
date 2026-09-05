@@ -804,19 +804,37 @@ from its own perspective, so `isHome` and the opponent are already resolved
 before rendering.
 
 [`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx) is
-**wordless** — a **house** for home or an **aeroplane** for away, plus the
-opponent's crest. It used to print the short symbol (`FCB`) too, but that ate
-the width that makes the crest legible, and a crest is recognised faster than
-three letters. Because nothing is spelled out visually, the whole badge is a
-labelled `role="img"`, so assistive tech still gets "Heimspiel gegen FCB".
+**wordless** — the opponent's crest, wearing a **house** for home or an
+**aeroplane** for away as a chip in its bottom-right corner. It used to print
+the short symbol (`FCB`) too, but that ate the width that makes the crest
+legible, and a crest is recognised faster than three letters. Because nothing
+is spelled out visually, the whole badge is a labelled `role="img"`, so
+assistive tech still gets "Heimspiel gegen FCB".
 
-Three variants, by `size` and `layout`:
+**The crest is the badge.** House and crest used to sit side by side at
+comparable sizes, which gave the venue the same weight as the club — but the
+opponent is the fact being read and home-or-away is a qualifier on it. So the
+crest takes the whole slot and the glyph shrinks onto it, the way a flag sits
+on a badge: the club at a glance, the venue on the second glance.
+
+```
+┌────────┐
+│  crest │
+│      ⌂ │   ← the chip, inside the crest's own box
+└────────┘
+```
+
+The chip sits **inside** that box rather than overhanging it, so the badge's
+footprint is exactly `crest × crest`. That is not fussiness: the pitch card's
+height is computed from the crest size, and a couple of overhanging pixels
+would push every band on the pitch.
 
 | Where | Variant | Notes |
 | ----- | ------- | ----- |
-| Pitch plate | `sm`, inline, `onPitch` tone | Second line under the name, light colours for legibility over grass |
-| Bench card | `md`, inline | **Replaces** the average-points line — only one secondary fact fits, and the opponent is the one that decides whether to field a player |
-| Squad list, swap dialog | `lg`, stacked | Full-height panel on the right, icon above crest |
+| Pitch plate | `metrics.badgeCrest`, `onPitch` tone | Second line under the name; the chip takes the black wash the pitch's other corner marks use |
+| Bench card | `md` | **Replaces** the average-points line — only one secondary fact fits, and the opponent is the one that decides whether to field a player |
+| Squad list, swap dialog | `lg` | Full-height panel on the right |
+| Duel rows | `sm` | Beside the scoreline |
 
 A team with no fixture that matchday renders `–` rather than breaking.
 

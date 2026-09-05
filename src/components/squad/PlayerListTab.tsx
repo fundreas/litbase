@@ -534,7 +534,7 @@ function PlayerRow({
   /** Full-height fixture panel, matching the swap dialog's treatment. */
   const fixturePanel = (
     <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">
-      <FixtureBadge fixture={fixture} size="lg" layout="stacked" />
+      <FixtureBadge fixture={fixture} size="lg" />
     </span>
   )
 

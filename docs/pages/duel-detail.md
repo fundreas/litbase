@@ -420,7 +420,7 @@ and in the squad page's live list, since they are all
 The second line **used to be `ABW @ ELF`**: a position abbreviation, a `vs`/`@`
 and the opponent's three-letter symbol, plus a status word. It now carries
 
-- the opponent's **crest**, with a house or an aeroplane beside it
+- the opponent's **crest**, wearing a house or an aeroplane in its corner
   ([`FixtureBadge`](../../src/components/squad/FixtureBadge.tsx), the app's
   wordless fixture — a crest is recognised faster than three letters), and
 - the match's own **scoreline**

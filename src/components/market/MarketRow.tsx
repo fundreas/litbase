@@ -163,7 +163,7 @@ export function MarketRow({
         </span>
 
         <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">
-          <FixtureBadge fixture={fixture} size="md" layout="stacked" />
+          <FixtureBadge fixture={fixture} size="md" />
         </span>
 
         <Countdown expiresAt={listing.expiresAt} now={now} />
