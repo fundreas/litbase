@@ -1367,6 +1367,116 @@ export interface TableRow {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The whole table, in either currency                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Which points the [Teams page](../../docs/pages/teams.md) is ranking by.
+ *
+ * `league` is the real Bundesliga table — three for a win. `kickbase` reorders
+ * the same eighteen clubs by what their players have scored in the game, which
+ * is a genuinely different table: a side that grinds out 1:0s sits high in one
+ * and low in the other.
+ */
+export type StandingsMode = 'league' | 'kickbase'
+
+/**
+ * One club's row, in whichever currency the page is showing.
+ *
+ * {@link TableRow} plus the two things the API's table cannot answer — the
+ * goals **split** and a Kickbase-points rank — so a row carries everything
+ * either mode needs and the component picks columns rather than data.
+ */
+export interface ClubStanding {
+  teamId: string
+  teamName: string
+  teamImage?: string
+  /** Rank in the **active** mode. See {@link clubStandings}. */
+  rank: number
+  /** Places gained since the previous matchday. `league` mode only — see below. */
+  movement?: number
+  matchesPlayed: number
+  /**
+   * Goals scored and conceded, derived from the fixture list.
+   *
+   * `undefined` while that query is still in flight — deliberately not `0:0`,
+   * which is a scoreline rather than an absence, and would be indistinguishable
+   * from a club that has genuinely played out goalless draws.
+   */
+  goalsFor?: number
+  goalsAgainst?: number
+  goalDifference: number
+  points: number
+  kickbasePoints: number
+}
+
+/**
+ * The table, ranked by one currency or the other.
+ *
+ * **League mode does not compute a rank — it uses the API's own `cpl`.**
+ * Re-deriving it would mean reimplementing the Bundesliga's tiebreakers (goal
+ * difference, then goals scored, then the head-to-head record), and getting
+ * that subtly wrong would show a table that disagrees with every other place
+ * the reader has seen it. The server has already decided; this sorts by its
+ * answer.
+ *
+ * **Kickbase mode has to compute one**, because no field carries it. Clubs
+ * level on Kickbase points *share* a rank — the count of clubs strictly ahead,
+ * plus one — rather than being split by whatever order the payload happened to
+ * arrive in. Same rule as {@link teamStanding}, which ranks a single club the
+ * same way, so the two can never contradict each other.
+ *
+ * `movement` is only meaningful in league mode: `pcpl` is the club's previous
+ * *league* placement, and hanging it off a row that is currently ranked by
+ * Kickbase points would draw a green arrow for movement in a different table.
+ *
+ * Returns `[]` for a missing table rather than throwing — the page renders its
+ * pending state off the query, not off this.
+ */
+export function clubStandings(
+  table: readonly TableRow[] | undefined,
+  /** Per-club records off the fixture list; absent until that query resolves. */
+  recordsByTeam: ReadonlyMap<string, TeamRecord> | undefined,
+  mode: StandingsMode,
+): ClubStanding[] {
+  if (table === undefined) return []
+
+  const rows = table.map((row) => {
+    const record = recordsByTeam?.get(row.teamId)
+
+    return {
+      teamId: row.teamId,
+      teamName: row.teamName,
+      teamImage: row.teamImage,
+      rank:
+        mode === 'league'
+          ? row.placement
+          : // Strictly greater, so a tie shares a rank.
+            table.filter((other) => other.kickbasePoints > row.kickbasePoints)
+              .length + 1,
+      movement:
+        mode === 'league' && row.previousPlacement !== undefined
+          ? // `pcpl − cpl`: every movement mark in this app speaks in *places
+            // gained*, so 5th → 3rd is `+2`. See `PlacementChange`.
+            row.previousPlacement - row.placement
+          : undefined,
+      matchesPlayed: row.matchesPlayed,
+      goalsFor: record?.goalsFor,
+      goalsAgainst: record?.goalsAgainst,
+      goalDifference: row.goalDifference,
+      points: row.points,
+      kickbasePoints: row.kickbasePoints,
+    } satisfies ClubStanding
+  })
+
+  // The club name breaks ties so the order is total: two clubs sharing a rank
+  // must not swap places between renders just because the payload did.
+  return rows.sort(
+    (a, b) => a.rank - b.rank || a.teamName.localeCompare(b.teamName, 'de'),
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /* One club's season                                                          */
 /* -------------------------------------------------------------------------- */
 

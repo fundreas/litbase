@@ -20,8 +20,8 @@ import {
   PlayersPage,
   RankingPage,
   SquadPage,
-  TablePage,
   TeamDetailPage,
+  TeamsPage,
 } from '@/routes/lazyPages'
 
 /**
@@ -51,6 +51,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/matchday            every fixture of a matchday
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
  *   /leagues/:leagueId/players/:playerId   one player, three tabs
+ *   /leagues/:leagueId/teams               every club, as a table
  *   /leagues/:leagueId/teams/:teamId       one club, four tabs
  *
  * The league id lives in the path, not in context alone, so a refresh, a
@@ -152,7 +153,24 @@ export const router = createBrowserRouter(
                 // linkable and survives a refresh, as on the squad page.
                 { path: 'duels/:duelId', element: <DuelDetailPage /> },
                 { path: 'duels/:duelId/ranking', element: <DuelDetailPage /> },
-                { path: 'table', element: <TablePage /> },
+                // The competition's clubs as a table, and one club in detail.
+                // The list is the **parent** of the detail route rather than a
+                // sibling of it, so `isNavItemActive`'s prefix test keeps
+                // *Teams* lit when you tap into a club — and a club page
+                // reached from a crest elsewhere now lights an entry at all,
+                // which it never did while it had no list above it.
+                { path: 'teams', element: <TeamsPage /> },
+                // `/table` was the Bundesliga-table stub's own route until the
+                // page was built as `/teams` — the same table, finally
+                // rendered, plus the Kickbase-points view and a way into each
+                // club. Kept as a redirect so an old bookmark lands on the page
+                // rather than on the 404, exactly as `/lineup` does above, and
+                // rebuilt from `params` for the same reason.
+                {
+                  path: 'table',
+                  loader: ({ params }) =>
+                    redirect(`/leagues/${params.leagueId ?? ''}/teams`),
+                },
                 { path: 'players', element: <PlayersPage /> },
                 // Three routes, one component, as on the squad and duel-detail
                 // pages: the bottom bar's tab is read out of the segment, so

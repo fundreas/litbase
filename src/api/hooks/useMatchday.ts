@@ -3,13 +3,15 @@ import { useCallback } from 'react'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import type {
-  MatchdayFixture,
-  MatchdayMatch,
-  SeasonMatchday,
-  SeasonSchedule,
-  TeamFixture,
-  TeamSeasonFixture,
+import {
+  teamRecord,
+  type MatchdayFixture,
+  type MatchdayMatch,
+  type SeasonMatchday,
+  type SeasonSchedule,
+  type TeamFixture,
+  type TeamRecord,
+  type TeamSeasonFixture,
 } from '@/api/models'
 import { MATCHDAY_STATE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
@@ -176,6 +178,84 @@ function selectSeasonSchedule(data: MatchdaysResponse): SeasonSchedule {
     .sort((a, b) => a.day - b.day)
 
   return { currentDay: data.day, matchdays }
+}
+
+/**
+ * Every club's season record, keyed by club id.
+ *
+ * **The goals a league table needs and the API's table does not have.**
+ * `/competitions/{id}/table` carries `gd` alone, so a 14:11 club and a 5:2 club
+ * are the same `+3` to it, and no other endpoint serves the split — see the
+ * probe table in [the API docs](../../../docs/api/competitions.md). The fixture
+ * list does, and it is already cached for every other page, so the
+ * [Teams page](../../../docs/pages/teams.md) pays no request for its goals
+ * column.
+ *
+ * It groups the season by club and hands each group to
+ * [`teamRecord`](../models.ts) — the same function the club page's header
+ * already uses, rather than a second summation with its own idea of which
+ * matches count. That matters: `teamRecord` counts only fixtures the API has
+ * marked finished, because a 1:0 in the 30th minute is not a win and this
+ * payload is cached for an hour besides. Two derivations would eventually
+ * disagree about exactly that, and the club page and the table would then show
+ * one club two records.
+ *
+ * Summing this way reproduces the table's own `mc`, `gd` and `cp` for all 18
+ * Bundesliga clubs exactly, which is what established that the grouping counts
+ * the right matches. The page still shows the **server's** figures for those
+ * three and takes only the goals from here — they agree today, and where they
+ * ever disagree the server is the authority.
+ *
+ * One pass over the whole season, memoised by `select` on a payload that moves
+ * once a week.
+ */
+function selectSeasonRecords(data: MatchdaysResponse): Map<string, TeamRecord> {
+  const fixturesByTeam = new Map<string, TeamSeasonFixture[]>()
+
+  const add = (teamId: string, fixture: TeamSeasonFixture) => {
+    const existing = fixturesByTeam.get(teamId)
+    if (existing === undefined) fixturesByTeam.set(teamId, [fixture])
+    else existing.push(fixture)
+  }
+
+  for (const matchday of data.it ?? []) {
+    for (const fixture of matchday.it ?? []) {
+      const isFinished = fixture.st === FIXTURE_FINISHED
+
+      // Both sides, each resolved from its own perspective — the same
+      // inversion `useTeamSeason` does for one club, done once for all of them.
+      add(fixture.t1, {
+        day: fixture.day,
+        matchId: fixture.mi,
+        kickoff: fixture.dt,
+        isHome: true,
+        opponentId: fixture.t2,
+        opponentSymbol: fixture.t2sy ?? fixture.t2,
+        opponentImage: fixture.t2im,
+        isFinished,
+        goalsFor: fixture.t1g,
+        goalsAgainst: fixture.t2g,
+      })
+      add(fixture.t2, {
+        day: fixture.day,
+        matchId: fixture.mi,
+        kickoff: fixture.dt,
+        isHome: false,
+        opponentId: fixture.t1,
+        opponentSymbol: fixture.t1sy ?? fixture.t1,
+        opponentImage: fixture.t1im,
+        isFinished,
+        goalsFor: fixture.t2g,
+        goalsAgainst: fixture.t1g,
+      })
+    }
+  }
+
+  const records = new Map<string, TeamRecord>()
+  for (const [teamId, fixtures] of fixturesByTeam) {
+    records.set(teamId, teamRecord(fixtures))
+  }
+  return records
 }
 
 /**
@@ -392,6 +472,24 @@ export function useTeamSeason(
   )
 
   return useMatchdaysQuery(competitionId, select)
+}
+
+/**
+ * **Every club's record**, keyed by club id — the fifth reading of the one
+ * season payload.
+ *
+ * {@link useTeamSeason} answers "how has *this* club done"; this answers it for
+ * all of them at once, which is what a table needs. Reads the same cache entry
+ * as the other four, so the [Teams page](../../../docs/pages/teams.md) adds no
+ * request to a session that has already opened any other page.
+ *
+ * See {@link selectSeasonRecords} for why the goals are derived at all, and why
+ * they come out of `teamRecord` rather than a summation of their own.
+ */
+export function useSeasonRecords(
+  competitionId: string | undefined,
+): UseQueryResult<Map<string, TeamRecord>> {
+  return useMatchdaysQuery(competitionId, selectSeasonRecords)
 }
 
 /**

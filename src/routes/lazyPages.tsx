@@ -48,8 +48,8 @@ export const RankingPage = lazy(async () => ({
   default: (await import('@/pages/RankingPage')).RankingPage,
 }))
 
-export const TablePage = lazy(async () => ({
-  default: (await import('@/pages/TablePage')).TablePage,
+export const TeamsPage = lazy(async () => ({
+  default: (await import('@/pages/TeamsPage')).TeamsPage,
 }))
 
 export const PlayersPage = lazy(async () => ({

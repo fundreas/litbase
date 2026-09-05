@@ -35,7 +35,7 @@ row count from the live query.
 
 ## Scope: competition, not league
 
-Like [Bundesliga table](table.md), this reads `competitionId` from
+Like [Teams](teams.md), this reads `competitionId` from
 `useActiveLeague()`, so its cache is shared across leagues in the same
 competition and survives a league switch.
 

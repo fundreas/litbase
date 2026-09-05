@@ -260,12 +260,54 @@ The real-world league table.
 | `il` | boolean | **?** Same flag as on a player row |
 
 **No wins/draws/losses and no goals for/against** — only the difference. A full
-table would have to derive the rest from the fixture list.
+table has to derive the rest from the fixture list.
+
+### ⚠ There is no richer table endpoint. Goals scored:conceded are derived
+
+Probed live 2026-09-05, looking for a payload carrying goals **for** and
+**against** rather than only `gd`. Nothing serves them:
+
+| Probe | Result |
+| ----- | ------ |
+| `/v4/competitions/1/tables` | empty |
+| `/v4/competitions/1/table/full` | empty |
+| `/v4/competitions/1/table/2` | empty |
+| `/v4/competitions/1/standings` | empty |
+| `/v4/competitions/1/teams` | empty |
+| `/v4/leagues/{leagueId}/competition/table` | empty |
+| `/v4/competitions/1/table?full=true` | the **same 12 fields** — the parameter is ignored |
+
+So `gd` is all the table has, and `14:11` and `5:2` are the same `+3` to it.
+The [Teams page](../pages/teams.md) needs the split, and gets it by summing
+[`matchdays`](#get-v4competitionscompetitionidmatchdays) — one payload the app
+already caches, so the page costs no extra request.
+
+**The derivation was verified against the table itself.** Summing every fixture
+with `st === 2` over all 34 matchdays reproduces the API's own `mc`, `gd` *and*
+`cp` for **all 18 clubs, exactly** — so the same pass that yields goals for and
+against is demonstrably counting the right matches the right way:
+
+```
+club            mc  mc*   gd  gd*   cp  cp*   gf:ga
+Bayern           1    1    4    4    3    3   5:1
+Stuttgart        2    2   -1   -1    3    3   5:6
+Köln             2    2   -2   -2    3    3   4:6
+…                                             (18/18 reconcile)
+```
+
+Only `st === 2` counts, which is what [`teamResult`](../../src/api/models.ts)
+already enforces: a 1:0 in the 30th minute is not a win, and the fixture list is
+cached for an hour besides. That is why the page shows the **API's** `mc` and
+`cp` rather than the derived ones — they agree today, and where they ever
+disagree the server is the authority.
 
 ### Used by
 
 [`useCompetitionTable`](../../src/api/hooks/useCompetition.ts) → the
-[Bundesliga table](../pages/table.md) stub.
+[Teams](../pages/teams.md) page, together with
+[`useSeasonRecords`](../../src/api/hooks/useMatchday.ts) for the goal split.
+[`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) reads the same cache
+entry for club names and crests.
 
 ---
 
@@ -322,6 +364,8 @@ fetched for its smallest fact. The live score comes from
 ### Used by
 
 [`useMatchdays`](../../src/api/hooks/useMatchday.ts) →
-[Matchday](../pages/matchday.md), [Match detail](../pages/match-detail.md), and
-the fixture chips on [Squad](../pages/squad.md) and
-[Market](../pages/market.md).
+[Matchday](../pages/matchday.md), [Match detail](../pages/match-detail.md), the
+fixture chips on [Squad](../pages/squad.md) and [Market](../pages/market.md),
+and — via `useSeasonRecords` — the goals column on
+[Teams](../pages/teams.md), which the
+[table](#get-v4competitionscompetitionidtable) cannot serve.

@@ -35,9 +35,10 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/matchday` | [Matchday](pages/matchday.md) | Implemented |
 | `/leagues/:leagueId/matchday/:matchId` | [Match detail](pages/match-detail.md) | Implemented |
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Implemented |
-| `/leagues/:leagueId/table` | [Bundesliga table](pages/table.md) | Stub |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
 | `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |
+| `/leagues/:leagueId/teams` | [Teams](pages/teams.md) | Implemented |
+| `/leagues/:leagueId/table` | → redirects to [Teams](pages/teams.md) | Implemented |
 | `/leagues/:leagueId/teams/:teamId` | [Club](pages/team.md) | Implemented |
 | `/leagues/:leagueId/teams/:teamId/squad` | [Club — Kader](pages/team.md#kader) | Implemented |
 | `/leagues/:leagueId/teams/:teamId/matches` | [Club — Spiele](pages/team.md#spiele) | Implemented |
@@ -53,7 +54,10 @@ URL until the screen exists. See
 Neither are the two **detail** pages, and for a different reason: a player and
 a club have no single subject a drawer entry could name. They are reached by
 tapping the thing that names them — a squad row for a player, a **crest** for a
-club, on the player header and on either side of a match's scoreline.
+club, on the player header and on either side of a match's scoreline, or a row
+on [Teams](pages/teams.md). The club page does now light an entry, since
+*Teams* is its parent route and the drawer's match is a prefix one; the player
+page still borrows *Mannschaft*.
 
 ## Conventions used throughout
 

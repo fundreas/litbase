@@ -31,13 +31,14 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          ├─ matchday   ?day=N — every fixture of one matchday
          │  └─ :matchId         one match; the matchday is looked up from it
          │     └─ lineup        second tab of the same component
-         ├─ table
+         ├─ table       the Bundesliga table's old URL, kept as a redirect
          ├─ players
          │  └─ :playerId        one player; three tabs from the segment
-         └─ teams/:teamId       one club; four tabs from the segment
-            ├─ squad
-            ├─ matches
-            └─ live             only while one of its fixtures runs, else → the club
+         └─ teams       every club, as a table; league or Kickbase points
+            └─ :teamId          one club; four tabs from the segment
+               ├─ squad
+               ├─ matches
+               └─ live          only while one of its fixtures runs, else → the club
 /*                                  404
 ```
 
@@ -248,12 +249,12 @@ redirects to the dashboard when the league does not play duels, so a typed or
 bookmarked URL is a dead end exactly where the drawer entry is missing. This is
 the pattern to copy for any future league-dependent page.
 
-**Only built pages are listed.** `market` (*Transfermarkt*), `table`
-(*Bundesliga-Tabelle*) and `players` (*Alle Spieler*) are still
-[`PagePlaceholder`](../src/components/PagePlaceholder.tsx) stubs, and offering
-them in the drawer promises a screen that is not there. Their **routes are
-untouched** — a direct URL still opens the stub — so each one comes back by
-adding its entry here once the page exists.
+**Only built pages are listed.** `players` (*Alle Spieler*) is still a
+[`PagePlaceholder`](../src/components/PagePlaceholder.tsx) stub, and offering it
+in the drawer promises a screen that is not there. Its **route is untouched** —
+a direct URL still opens the stub — so it comes back by adding its entry here
+once the page exists. `table` (*Bundesliga-Tabelle*) was the other stub; it is
+now the built [Teams](pages/teams.md) page, and `/table` redirects onto it.
 
 **Detail routes keep their page lit.** `isNavItemActive()` matches a nav item's
 segment exactly *or* as a path prefix, so `/duels/3212306-2857817` and its
@@ -265,21 +266,26 @@ so any future detail route inherits it without a per-item flag.
 routes: the tabs on that page are the natural way between the squad list, the
 lineup and the [live view](pages/squad.md#live-tab), and a second drawer entry
 for a sibling tab is noise. (It is the manager's own team; the *club* pages at
-`/teams/:teamId` are a different thing, and have no entry at all — see below.)
+`/teams/:teamId` are a different thing, listed under **Teams** — see below.)
 It therefore
 resolves the active item with `isNavItemActive()` rather than `NavLink`'s own
 matching. That helper also prefix-matches, so a page's detail routes keep its
 entry lit: `/squad/lineup` and `/players/:playerId` both leave **Mannschaft**
 highlighted, rather than the drawer going dark the moment you tap into a row.
 
-**The [team page](pages/team.md) has no entry at all**, and deliberately. A
+**The [club page](pages/team.md) has no entry of its own**, and never will: a
 drawer entry needs a single subject — *your* squad, *the* market — and a club
-page has eighteen of them; it is a detail page like a player's, and its way in
-is the thing that names a club on the screen you are already on: the crest in
-the [player header](pages/player-detail.md) and either crest on a
-[match](pages/match-detail.md)'s scoreline. No entry is therefore lit while one
-is open, which is the one case the prefix rule above does not cover and the one
-case where it should not.
+page has eighteen of them. It is a detail page like a player's, and one way in
+is still the thing that names a club on the screen you are already on: the crest
+in the [player header](pages/player-detail.md) and either crest on a
+[match](pages/match-detail.md)'s scoreline.
+
+It does now **light an entry**, though, because it has a list above it.
+[Teams](pages/teams.md) is registered as `/teams` with the club page at
+`/teams/:teamId` **beneath** it rather than beside it, so the prefix rule above
+keeps **Teams** highlighted for the club page and all four of its tabs —
+however the reader got there. That was the one case the rule did not cover, and
+the fix was giving the detail page a parent rather than giving it a flag.
 
 There is **no global bottom tab bar**: it duplicated the drawer, ate a row of
 screen height on exactly the small screens where the pitch needs it, and forced

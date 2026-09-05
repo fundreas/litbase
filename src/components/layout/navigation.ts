@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   LayoutDashboard,
+  Shield,
   Store,
   Swords,
   Trophy,
@@ -68,11 +69,12 @@ export function isNavItemActive(
  * dock a `BottomTabBar` of their own, but that switches between views of one
  * page rather than between pages, and never leaves it.
  *
- * **Only built pages are listed.** `table` (Bundesliga-Tabelle) and `players`
- * (Alle Spieler) are still `PagePlaceholder` stubs, and offering them in the
- * drawer promises a screen that is not there. Their routes are untouched, so a
- * direct URL still opens the stub — add the entry back here when the page
- * exists and it reappears.
+ * **Only built pages are listed.** `players` (Alle Spieler) is still a
+ * `PagePlaceholder` stub, and offering it in the drawer promises a screen that
+ * is not there. Its route is untouched, so a direct URL still opens the stub —
+ * add the entry back here when the page exists and it reappears. `table` was
+ * the other one; it is now the built *Teams* page below, and `/table` redirects
+ * onto it.
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
@@ -97,5 +99,10 @@ export const NAV_ITEMS: NavItem[] = [
   // the match detail page at `/matchday/:matchId`, so it needs no
   // `alsoMatches` — tapping into a match keeps *Spieltag* lit.
   { to: 'matchday', label: 'Spieltag', icon: CalendarDays },
+  // Every club in the competition, as a table. `isNavItemActive`'s prefix test
+  // covers the club page at `/teams/:teamId` for free, so tapping a row keeps
+  // *Teams* lit — and so does arriving at a club from a crest on some other
+  // page, which used to light nothing at all.
+  { to: 'teams', label: 'Teams', icon: Shield },
   { to: 'duels', label: 'Duelle', icon: Swords, requiresDuelMode: true },
 ]

@@ -103,7 +103,9 @@ src/
 /leagues/:leagueId/matchday     ?day=N — every fixture, live scores
 /leagues/:leagueId/matchday/:matchId             one match — Verlauf
 /leagues/:leagueId/matchday/:matchId/lineup      both team sheets + owners
-/leagues/:leagueId/table
+/leagues/:leagueId/teams         every club — league or Kickbase points
+/leagues/:leagueId/teams/:teamId                  one club — Übersicht
+/leagues/:leagueId/table         → redirects to /teams
 /leagues/:leagueId/players
 /leagues/:leagueId/players/:playerId              one player — Details
 /leagues/:leagueId/players/:playerId/performance  every season, every match
@@ -171,8 +173,8 @@ before any league is known. See [docs/pages/duels.md](docs/pages/duels.md).
 [DashboardPage](src/pages/DashboardPage.tsx),
 [RankingPage](src/pages/RankingPage.tsx) and
 [SquadPage](src/pages/SquadPage.tsx) are worked examples.
-`table` and `players` are still
-[PagePlaceholder](src/components/PagePlaceholder.tsx) stubs — each already runs
+`players` is still a
+[PagePlaceholder](src/components/PagePlaceholder.tsx) stub — it already runs
 its real query and shows how many rows came back, so you can see the endpoint
 works before you build the UI.
 
