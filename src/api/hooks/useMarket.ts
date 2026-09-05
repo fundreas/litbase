@@ -84,6 +84,7 @@ export function useMarket(
         marketValueUpdateAt: toInstant(data.mvud),
         matchdayStartAt: toInstant(data.dt),
         day: data.day,
+        teamValue: data.tv,
       } satisfies Market
     },
   })

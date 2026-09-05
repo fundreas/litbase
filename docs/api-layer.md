@@ -316,7 +316,7 @@ exists in the shape it does. Observed behaviour:
 | ------ | ----- |
 | `403` | Missing, malformed or expired token — **the "re-authenticate" status** |
 | `401` | Wrong email or password, on `/v4/user/login` only |
-| `500` | Includes *validation* errors such as `PasswordTooWeak` and `InvalidEMailAddress` |
+| `500` | Includes *validation* errors such as `PasswordTooWeak` and `InvalidEMailAddress`, and **every rejected bid** (`UnderpayNotAllowed`, `NinetyPercentRuleExceeded`, `ThirtyThreePercentRuleExceeded` — see [Market](pages/market.md#what-kickbase-refuses)) |
 | `400` | Other semantic errors, e.g. `EMailAddressAlreadyTaken` |
 
 The body is `{ err: <number>, errMsg: <string>, svcs: [] }`. Note `err` is a
@@ -355,6 +355,13 @@ Components should never see `mvt` or `spl`.
 
 - `/v4/user/settings` and `/v4/user/me` — both 200, redundant with the login
   response for now.
+- `/v4/leagues/{id}/settings` — the league's own configuration, and
+  **admin-only**: a member who is not an admin gets 500 `NotFound`, so nothing
+  in the app may depend on it. The one league rule the market page needs
+  (`upe`, whether bids may fall below the market value) is on `/overview`
+  instead, which every member can read. `/v4/leagues/{id}/me/budget` is 200 for
+  everyone and answers `{ b, bs, pbas }`, where `pbas` equalled `b` in both
+  leagues probed and is **not** the 33 % ceiling — that has to be computed.
 - `/v4/competitions/{cid}/players/{pid}` — the **league-free** twin of
   `/v4/leagues/{id}/players/{pid}`, carrying the same `prob`/`plpim`/`stxt`
   fields. Unused by the app, but it is how the lineup probability was probed

@@ -58,9 +58,13 @@ at the last listing that has an expiry at all.
 
 **The heading counts what you have promised.** Beside the budget, and only when
 at least one bid stands, sits what would be left **if every one of them won**.
-Kickbase checks each offer against the budget on its own, so five live bids can
-commit a manager to far more than they hold, and nothing else on the page adds
-them up. It turns red when the total goes past what there is.
+Kickbase counts every standing bid against **one** ceiling — budget plus 33 %
+of team value — so the figure is three different situations and takes three
+colours: accent while the bids fit inside the budget, **amber** once they
+borrow past it, which the game allows, and **red** past the ceiling, where the
+next bid is refused outright. The last needs no action to reach: the nightly
+recalculation moves team value, and the ceiling with it, under bids already
+standing.
 
 **Two targets, split at the portrait.** Tapping the picture opens the player's
 page — the reference move, the one you make to read a scoring history before
@@ -105,8 +109,50 @@ The X only appears when there is an offer to withdraw. It rides the input's
 amount it sits beside, and it is not one of the dialog's two conclusions.
 
 Bidding costs nothing up front — the budget is debited only when the listing
-settles — which is what makes a plain button the right affordance. The dialog
-still refuses an amount above the budget, because Kickbase would.
+settles — which is what makes a plain button the right affordance. An amount
+**above the budget is not refused**: Kickbase lends against team value, and the
+dialog says so instead. What it does refuse is the three things Kickbase
+refuses, below.
+
+### What Kickbase refuses
+
+Three rules, each with its own error name, all served as HTTP 500 and all
+**probed to the euro on 2026-09-05** against two leagues that disagree on the
+first of them. They live in
+[`offerRules.ts`](../../src/lib/offerRules.ts), and the same three names are
+mapped to German in [`errors.ts`](../../src/api/errors.ts).
+
+| Rule | Refused with | Bound |
+| ---- | ------------ | ----- |
+| Underpaying, in a league that forbids it | `5080` `UnderpayNotAllowed` | offer ≥ market value |
+| Underpaying, where it is allowed | `5060` `NinetyPercentRuleExceeded` | offer ≥ `floor(mv × 0.9)` |
+| Borrowing too far | `5050` `ThirtyThreePercentRuleExceeded` | Σ standing offers ≤ budget + `floor(tv × 0.33)` |
+
+**Which of the first two applies is a league setting: `upe` on
+`/leagues/{id}/overview`.** It is the only place the rule is exposed —
+`/leagues/{id}/settings` holds the league's configuration but is admin-only
+(500 `NotFound` for everyone else), and neither `/me` nor the market payload
+mentions it. Both leagues probed followed their own flag exactly: with
+`upe: false`, 499 999 on a player worth 500 000 was refused; with `upe: true`,
+1 776 380 on a player worth 1 973 756 was taken and 1 776 379 was not, which is
+`floor(mv × 0.9)` and pins the rounding. The two leagues also differ in `gpm`
+(Classic vs. Anfänger), so whether `upe` is a setting an admin can flip or a
+consequence of the game mode is **not settled** — it is the field that reports
+the truth either way.
+
+**The 33 % ceiling counts every bid at once, not one at a time.** This is the
+rule the page cannot leave to the server, because nobody tracks the sum. With a
+budget of 150 000 000 and a team worth 99 771 034 the ceiling was
+182 924 441 = `b + floor(tv × 0.33)`, exactly: at 180 000 000 committed
+elsewhere, a second bid of 2 924 442 was refused and 2 924 441 was taken. A
+**re-bid on the same player replaces** its predecessor rather than adding to it
+— a bid at the full ceiling was accepted on a listing that already held one.
+
+Two corners are **not** probed, for want of a manager listing at the time:
+whether the underpay floor on a user's listing is measured against the market
+value or the asking price (the client assumes market value, which is what the
+rule is named after), and what happens to a standing bid when the seller
+accepts a different one.
 
 ### Countdowns
 
@@ -152,7 +198,14 @@ the overlap once.
 plus `marketValueUpdateAt`, `matchdayStartAt` and `day` — the response's own
 `mvud`, `dt` and `day`, resolved to epoch millis so they compare directly
 against a listing's `expiresAt`. Those are what the milestone rules are drawn
-from.
+from. `teamValue` (`tv`) rides along too: it is the base of the 33 % ceiling,
+and this is the one response the page already fetches that carries it.
+
+The league's underpay setting comes from a second query,
+[`useLeagueDetails`](../../src/api/hooks/useLeague.ts) → `/overview`, as
+`allowsUnderpay`. It is cached ten minutes and the dashboard has usually filled
+it already; until it lands, the dialog enforces no underpay rule at all rather
+than guessing at one.
 
 Each listing:
 
@@ -186,8 +239,9 @@ The wire payload carries more still (`MarketPlayer` in
 | `iposl` | Position locked. `false` on every listing observed |
 
 and the response has a top-level block beside `it`: `nps` (own squad size),
-`tv` (own team value), `mvud` (when market values are next recalculated —
-20:00 UTC), `dt` (the next matchday deadline), `day`, `sn` (season).
+`tv` (own team value, **mapped** — the 33 % ceiling is measured against it),
+`mvud` (when market values are next recalculated — 20:00 UTC), `dt` (the next
+matchday deadline), `day`, `sn` (season).
 
 ## When a listing is sold
 

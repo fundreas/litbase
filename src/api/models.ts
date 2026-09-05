@@ -283,6 +283,11 @@ export interface LeagueDetails {
   createdAt: string
   memberCount: number
   members: Array<{ id: string; image?: string }>
+  /**
+   * Whether a bid may fall below the player's market value — the league's
+   * `upe`. Drives the bid dialog; see [`offerRules.ts`](../lib/offerRules.ts).
+   */
+  allowsUnderpay: boolean
 }
 
 export interface RankedManager {
@@ -1315,6 +1320,14 @@ export interface Market {
   matchdayStartAt?: number
   /** The matchday {@link matchdayStartAt} belongs to. */
   day?: number
+  /**
+   * The manager's own team value, in € — the response's `tv`.
+   *
+   * It is here because it is what the **33 % debt ceiling** is measured
+   * against, and the market response is the one place the market page can read
+   * it without a second request. See [`offerRules.ts`](../lib/offerRules.ts).
+   */
+  teamValue?: number
 }
 
 /**

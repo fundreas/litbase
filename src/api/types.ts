@@ -282,6 +282,36 @@ export interface LeagueOverviewResponse {
   /** Matchday count? */
   mgc?: number
   isr?: boolean
+  /**
+   * **Underpaying allowed** — whether a bid may fall below the player's market
+   * value.
+   *
+   * The one league rule the market page has to know, and the only place it is
+   * exposed: `/leagues/{id}/settings` carries the league's configuration but
+   * is **admin-only** (500 `NotFound` for everyone else), and neither `/me`
+   * nor the market payload mentions it.
+   *
+   * Probed 2026-09-05 across two leagues that disagree on it, and the API
+   * followed the flag exactly: `false` → anything below the market value is
+   * refused with `UnderpayNotAllowed`, down to a single euro short; `true` →
+   * the floor drops to 90 % of it (`NinetyPercentRuleExceeded` below that).
+   * See [`offerRules.ts`](../lib/offerRules.ts).
+   *
+   * The two leagues also differed in `gpm` (Classic vs. Anfänger), so whether
+   * the flag is a league *setting* or a consequence of the game mode is not
+   * settled — but it is the field that reports the truth either way.
+   */
+  upe?: boolean
+  /** Max players one manager may hold. `0` = no limit. */
+  mppu?: number
+  /** Max players from one real club. `0` = no limit. */
+  mpst?: number
+  /** Max managers the league takes. */
+  mgm?: number
+  /** League description, as the admin wrote it. */
+  d?: string
+  /** Starting budget of the league, in €. */
+  b?: number
 }
 
 export interface RankingResponse {

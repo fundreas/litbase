@@ -1,6 +1,7 @@
 import { Flag, RefreshCw, Store, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { useLeagueDetails } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
 import { useMarketValueChanges } from '@/api/hooks/useMarketValueChanges'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
@@ -13,6 +14,7 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { nowMs } from '@/lib/clock'
 import { COUNTDOWN_SECONDS_FROM, kickoff, money } from '@/lib/format'
+import { maximumOffer } from '@/lib/offerRules'
 
 /**
  * How often the countdowns are redrawn, at rest.
@@ -64,6 +66,10 @@ export function MarketPage() {
   const { league, leagueId, competitionId } = useActiveLeague()
   const { data, isPending, isError, error, refetch } = useMarket(leagueId)
   const matchday = useCurrentMatchday(competitionId)
+  // For `upe` — whether this league lets a bid fall below the market value.
+  // Cached ten minutes and already fetched by the dashboard, so arriving from
+  // there costs nothing.
+  const details = useLeagueDetails(leagueId)
   const listings = data?.listings
   const marketValueChanges = useMarketValueChanges(leagueId, listings)
 
@@ -90,6 +96,15 @@ export function MarketPage() {
     (total, listing) => total + (listing.ownOffer ?? 0),
     0,
   )
+  // …and how far the sum of them is allowed to go: budget plus 33 % of team
+  // value. Kickbase enforces this on the *total*, not per bid.
+  const ceiling = maximumOffer({
+    allowsUnderpay: details.data?.allowsUnderpay,
+    budget: league.budget,
+    teamValue: data?.teamValue,
+    committedElsewhere: 0,
+  })
+  const afterOffers = league.budget - committed
 
   const heading = (
     <PageHeading
@@ -99,19 +114,26 @@ export function MarketPage() {
           <span>
             Budget <span className="nums">{money(league.budget)}</span>
           </span>
-          {/* What is left **if every standing bid wins**. Kickbase checks each
-              offer against the budget on its own, so a manager with five live
-              bids can be committed to far more than they have — and nothing
-              else on the page adds them up. */}
+          {/* What is left **if every standing bid wins**, and nothing else on
+              the page adds them up. Kickbase counts them all against one
+              ceiling — budget plus 33 % of team value — so the three colours
+              are three different situations: inside the budget (accent),
+              borrowing, which is allowed (amber), and past the ceiling, where
+              the next bid is refused outright (red). The last is reachable
+              without doing anything: the nightly recalculation moves both team
+              value and the ceiling under bids already standing. */}
           {committed > 0 && (
             <span
               className={
-                league.budget - committed < 0 ? 'text-negative' : 'text-accent'
+                ceiling !== undefined && committed > ceiling
+                  ? 'text-negative'
+                  : afterOffers < 0
+                    ? 'text-warning'
+                    : 'text-accent'
               }
               title="Budget, wenn alle offenen Gebote angenommen werden"
             >
-              nach Geboten{' '}
-              <span className="nums">{money(league.budget - committed)}</span>
+              nach Geboten <span className="nums">{money(afterOffers)}</span>
             </span>
           )}
         </span>
@@ -187,7 +209,15 @@ export function MarketPage() {
           key={selected.id}
           listing={selected}
           leagueId={leagueId}
-          budget={league.budget}
+          rules={{
+            allowsUnderpay: details.data?.allowsUnderpay,
+            budget: league.budget,
+            teamValue: data.teamValue,
+            // This listing's own bid is **not** committed: re-bidding on the
+            // same player replaces the standing offer rather than adding a
+            // second one.
+            committedElsewhere: committed - (selected.ownOffer ?? 0),
+          }}
           marketValueChange={marketValueChanges.get(selected.id)}
           onClose={() => {
             setSelectedId(null)

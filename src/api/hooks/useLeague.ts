@@ -53,6 +53,10 @@ export function useLeagueDetails(
         createdAt: data.dt,
         memberCount: data.mid?.length ?? members.length,
         members,
+        // Permissive when the field is missing: the server enforces the rule
+        // anyway, and blocking a legal bid on an absent flag is the worse of
+        // the two failures.
+        allowsUnderpay: data.upe ?? true,
       } satisfies LeagueDetails
     },
   })

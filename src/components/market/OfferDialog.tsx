@@ -7,6 +7,12 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
 import { money, moneyDelta, moneyExact } from '@/lib/format'
+import {
+  checkOffer,
+  maximumOffer,
+  minimumOffer,
+  type OfferRules,
+} from '@/lib/offerRules'
 
 /**
  * The steps the shortcut row offers, coarsest first so the two rows line up
@@ -140,6 +146,15 @@ function StepButton({
  * and only appears when there is one — it acts on the amount it sits next to,
  * which is why it belongs there rather than among the two conclusions.
  *
+ * **What Kickbase would refuse, the button refuses first.** The three rules in
+ * [`offerRules.ts`](../../lib/offerRules.ts) — the league's underpay setting,
+ * the 90 % floor, the 33 % debt ceiling — are checked against every keystroke:
+ * the reason appears under the field and *Bieten* goes dead. Two of them are
+ * arithmetic on numbers already on screen, and the third counts every bid
+ * standing on every other listing, which is not something anyone tracks. A
+ * bid that was legal at render time and is not by the time it is sent still
+ * comes back as a mapped server error — see [`errors.ts`](../../api/errors.ts).
+ *
  * Mount it with `key={listing.id}`: the amount is seeded once, at mount, and a
  * component per listing is what keeps a market refetch — every thirty seconds,
  * on a page whose rows are all moving — from overwriting a half-typed figure.
@@ -147,14 +162,14 @@ function StepButton({
 export function OfferDialog({
   listing,
   leagueId,
-  budget,
+  rules,
   marketValueChange,
   onClose,
 }: {
   listing: MarketListing
   leagueId: string | undefined
-  /** The manager's budget, for the affordability check. */
-  budget: number
+  /** Budget, team value and the league's underpay setting. */
+  rules: OfferRules
   /** Market-value move over the last 24 hours, if it has landed. */
   marketValueChange: number | undefined
   onClose: () => void
@@ -179,8 +194,11 @@ export function OfferDialog({
   }, [])
 
   const value = Number(amount)
-  const isValid = Number.isFinite(value) && value > 0
-  const isAffordable = value <= budget
+  const verdict = checkOffer(value, listing.marketValue, rules)
+  const bounds = boundsLabel(
+    minimumOffer(listing.marketValue, rules.allowsUnderpay),
+    maximumOffer(rules),
+  )
   const isBusy = placeOffer.isPending || withdrawOffer.isPending
   const error = placeOffer.error ?? withdrawOffer.error
   const { ownOffer, ownOfferId } = listing
@@ -220,14 +238,14 @@ export function OfferDialog({
       }
       confirmLabel={ownOffer === undefined ? 'Bieten' : 'Gebot ändern'}
       onConfirm={() => {
-        if (!isValid || !isAffordable) return
+        if (!verdict.isAllowed) return
         placeOffer.mutate(
           { playerId: listing.id, price: value },
           { onSuccess: onClose },
         )
       }}
       isBusy={isBusy}
-      isConfirmDisabled={!isValid || !isAffordable}
+      isConfirmDisabled={!verdict.isAllowed}
       error={error?.message ?? null}
     >
       <div className="flex flex-col gap-2">
@@ -242,8 +260,22 @@ export function OfferDialog({
           onChange={(event) => {
             setAmount(event.target.value.replace(/\D/g, ''))
           }}
-          error={isAffordable ? undefined : 'Mehr als dein Budget.'}
-          hint={<span className="nums">Budget {money(budget)}</span>}
+          error={verdict.problem}
+          /* Under the field, in order of what the reader needs: what they
+             have, then either the borrowing this bid commits them to — which
+             Kickbase allows, so it is said rather than prevented — or the
+             window the two rules leave. The bounds are exact figures: a
+             minimum rounded to `1,8 Mio. €` is a minimum you cannot type. */
+          hint={
+            <span className="flex flex-col gap-0.5">
+              <span className="nums">Budget {money(rules.budget)}</span>
+              {verdict.note !== undefined ? (
+                <span className="nums text-warning">{verdict.note}</span>
+              ) : (
+                bounds !== undefined && <span className="nums">{bounds}</span>
+              )}
+            </span>
+          }
           /* Withdrawing sits **on the field it undoes**, at the end of the
              amount it would erase. It is not one of the dialog's two
              conclusions — it is what you do to the offer itself — and it only
@@ -289,6 +321,25 @@ export function OfferDialog({
       </div>
     </ConfirmDialog>
   )
+}
+
+/**
+ * The window the rules leave, for the line under the field.
+ *
+ * Either bound can be unknown — the league overview is still loading, or the
+ * market response carried no team value — and then only the other one is named
+ * rather than inventing a range.
+ */
+function boundsLabel(
+  minimum: number | undefined,
+  maximum: number | undefined,
+): string | undefined {
+  if (minimum !== undefined && maximum !== undefined) {
+    return `Erlaubt ${moneyExact(minimum)} – ${moneyExact(maximum)}`
+  }
+  if (minimum !== undefined) return `Mindestens ${moneyExact(minimum)}`
+  if (maximum !== undefined) return `Höchstens ${moneyExact(maximum)}`
+  return undefined
 }
 
 /** The overnight move, beside the market value it moved. */

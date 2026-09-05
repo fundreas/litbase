@@ -87,6 +87,23 @@ const MESSAGE_BY_API_ERROR: Record<string, string> = {
   // 400 on a write whose body Kickbase would not take — an offer below what
   // it will entertain, or a price it considers out of range.
   InvalidData: 'Kickbase hat diesen Wert nicht akzeptiert.',
+
+  /* --- The three ways a bid is refused (all served as HTTP 500) ---------
+     Probed against the live API on 2026-09-05; the client checks the same
+     three rules up front, so these are the backstop for a bid that was legal
+     when the dialog rendered and is not by the time it is sent — a market
+     value recalculated at 20:00 UTC moves both the floor and the ceiling.
+     See src/lib/offerRules.ts and docs/pages/market.md. */
+
+  /** `err: 5080` — league has `upe: false`, so the market value is the floor. */
+  UnderpayNotAllowed:
+    'In dieser Liga sind Gebote unter dem Marktwert nicht erlaubt.',
+  /** `err: 5060` — league allows underpaying, but not below 90 % of the value. */
+  NinetyPercentRuleExceeded:
+    'Dein Gebot muss mindestens 90 % des Marktwerts betragen.',
+  /** `err: 5050` — all standing offers together, past budget + 33 % of team value. */
+  ThirtyThreePercentRuleExceeded:
+    'Deine offenen Gebote zusammen gehen weiter ins Minus als 33 % deines Teamwerts.',
 }
 
 /** Turn anything thrown by axios into an {@link ApiError}. */
