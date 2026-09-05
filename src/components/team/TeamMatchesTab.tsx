@@ -9,23 +9,31 @@ import {
   type TeamResult,
   type TeamSeasonFixture,
 } from '@/api/models'
-import { pointsColor, pointsFraction } from '@/components/player/pointsScale'
+import {
+  pointsColor,
+  pointsFraction,
+  TEAM_POINTS_BANDS,
+} from '@/components/player/pointsScale'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
 import { points, time, weekdayDate } from '@/lib/format'
 
 /**
- * What a full bar means before any club has beaten it.
+ * What a full bar means before any club has beaten it — **where gold begins**.
  *
  * A club's matchday yield has no ceiling, so the bars are scaled to the best
  * one this club has actually managed — except at the start of a season, when
  * "the best so far" is one matchday and every bar would be full or nearly so,
- * which says nothing. Two thousand is a full week's work for a Bundesliga
- * squad, so early matchdays sit somewhere sensible under it and the scale only
- * grows once a club earns it.
+ * which says nothing.
+ *
+ * Taken from the top of {@link TEAM_POINTS_BANDS} rather than written out
+ * again, so the length and the colour cannot drift apart: a bar that fills its
+ * track is exactly a bar that has turned gold, and the two say one thing. It is
+ * 2000 — roughly a Bundesliga squad's good week — so early matchdays sit
+ * sensibly under it and the scale only grows once a club earns it.
  */
-const FALLBACK_SCALE = 2000
+const FALLBACK_SCALE = TEAM_POINTS_BANDS[2]
 
 const RESULT_COLOR: Record<TeamResult, string> = {
   win: 'text-positive',
@@ -138,7 +146,10 @@ function FixtureRow({
   const state = fixtureState(fixture)
   const result = teamResult(fixture)
   const Venue = fixture.isHome ? House : PlaneTakeoff
-  const color = teamPoints === undefined ? undefined : pointsColor(teamPoints)
+  const color =
+    teamPoints === undefined
+      ? undefined
+      : pointsColor(teamPoints, TEAM_POINTS_BANDS)
 
   return (
     <Link

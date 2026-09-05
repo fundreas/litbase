@@ -316,9 +316,9 @@ owner column on the rows still answers it one row at a time.
 
 ## Spiele
 
-All 34 fixtures, ascending, the current matchday marked with an accent edge —
-an edge rather than a filled row, because a tint at this density reads as a
-selection the tap did not make.
+All 34 fixtures, ascending, each its own card, the current matchday marked with
+an accent border — a border rather than a filled row, because a tint at this
+density reads as a selection the tap did not make.
 
 The right-hand column is what makes it a tab rather than a card: **what the
 club's players scored on each matchday**. A 0:0 that yielded 480 points and a
@@ -339,9 +339,61 @@ payload's own `day`, and a second copy of that arithmetic — off by one in the
 same quiet way — is a bug that has already shipped once: every matchday would
 still have a plausible total, just the wrong one.
 
-A matchday with no total is `–`, never `0`. The bar under each figure is scaled
-to the club's **own best matchday**, because Kickbase points have no natural
-ceiling and the useful comparison is between this club's weeks.
+A matchday with no total is `–`, never `0`.
+
+### The bar is the row's bottom edge
+
+The same treatment [`PlayerMatchRow`](../../src/components/player/PlayerMatchRow.tsx)
+gives a player's season, and worth copying for the reason it exists there: a
+column of rows each ending in a filled edge reads as a **bar chart on its side**,
+without anything having to draw a chart or spend width on one. The number keeps
+the right-hand column to itself.
+
+**The bar's full length is where gold begins.** Kickbase points have no natural
+maximum, so the track is scaled to the best matchday this club has managed — but
+on matchday 2 "the best so far" is one result, every bar would be full, and a
+full bar would mean nothing. The floor is the top of `TEAM_POINTS_BANDS` rather
+than a second number written out beside it, so a bar that fills its track is
+exactly a bar that has turned gold, and the length and the colour say one thing.
+
+Only played matchdays get a bar. An empty track under every upcoming fixture
+would be seventeen rows of nothing.
+
+### Two band sets, and no default
+
+Colour is the app's shared [points scale](../../src/components/player/pointsScale.ts) —
+same five colours, same meanings, same inclusive-at-the-bottom boundaries — and
+the figure is tinted with it too, so the number and the edge under it cannot
+disagree.
+
+**But on the club band set, not the player one.** A club's yield is the sum of
+everyone who played, fourteen to sixteen scores, so on the player thresholds
+(`elite` at 300) every matchday of every club lands in gold and the colour says
+nothing the length does not. That is what shipped first.
+
+| Band | Player, one match | Club, one matchday |
+| ---- | ----------------- | ------------------ |
+| `low` — white | 0–99 | 0–799 |
+| `good` — lime | 100–199 | 800–1399 |
+| `strong` — green | 200–299 | 1400–1999 |
+| `elite` — gold | 300+ | 2000+ |
+
+2000 is the gold that 300 is for a player: occasional, notable, and comfortably
+short of the 2500 that almost never happens.
+
+`pointsBand` and `pointsColor` take the band set as an **explicit argument with
+no default**. A default would be a standing invitation to paint a club's 1300 as
+though it were a player's — and the wrong answer there is not an error but a
+real colour on a real scale, which is exactly the kind of bug that survives
+review.
+
+The bands are **calibrated by eye rather than measured**: nothing has counted
+the distribution of club matchday totals across a season. They rest on two
+indirect signals — that above 2500 is very rare, observed from this tab across
+a season's fixtures, and that a fixture's best individual scores ran 150–290 on
+the matchday probed, so fifteen players at a routine 80–100 lands around
+1200–1400. If the bars skew, `TEAM_POINTS_BANDS` is the one place to change and
+every consumer follows.
 
 ## Live
 

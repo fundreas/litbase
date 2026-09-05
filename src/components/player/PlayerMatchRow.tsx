@@ -3,7 +3,11 @@ import { House, PlaneTakeoff, Timer } from 'lucide-react'
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { didPlay, type MatchOutcome, type PlayerMatch } from '@/api/models'
 import { MatchEventBadge } from '@/components/player/MatchEventBadge'
-import { pointsColor, pointsFraction } from '@/components/player/pointsScale'
+import {
+  PLAYER_POINTS_BANDS,
+  pointsColor,
+  pointsFraction,
+} from '@/components/player/pointsScale'
 import { MatchRoleMark } from '@/components/player/statGlyphs'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
@@ -59,7 +63,9 @@ export function PlayerMatchRow({
   const Venue = match.isHome ? House : PlaneTakeoff
   const played = didPlay(match.role)
   const color =
-    match.points === undefined ? undefined : pointsColor(match.points)
+    match.points === undefined
+      ? undefined
+      : pointsColor(match.points, PLAYER_POINTS_BANDS)
 
   return (
     <div
