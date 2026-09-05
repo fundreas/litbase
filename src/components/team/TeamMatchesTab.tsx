@@ -9,10 +9,23 @@ import {
   type TeamResult,
   type TeamSeasonFixture,
 } from '@/api/models'
+import { pointsColor, pointsFraction } from '@/components/player/pointsScale'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
 import { points, time, weekdayDate } from '@/lib/format'
+
+/**
+ * What a full bar means before any club has beaten it.
+ *
+ * A club's matchday yield has no ceiling, so the bars are scaled to the best
+ * one this club has actually managed — except at the start of a season, when
+ * "the best so far" is one matchday and every bar would be full or nearly so,
+ * which says nothing. Two thousand is a full week's work for a Bundesliga
+ * squad, so early matchdays sit somewhere sensible under it and the scale only
+ * grows once a club earns it.
+ */
+const FALLBACK_SCALE = 2000
 
 const RESULT_COLOR: Record<TeamResult, string> = {
   win: 'text-positive',
@@ -42,10 +55,21 @@ const RESULT_COLOR: Record<TeamResult, string> = {
  * it has not scored nothing, and the whole point of the column is the size of
  * the number.
  *
- * The bar under each figure is scaled to the club's **own best matchday**, not
- * to a fixed ceiling: Kickbase points have no natural maximum, and the useful
+ * **The bar is the row's bottom edge**, not a track inside it — the treatment
+ * [`PlayerMatchRow`](../player/PlayerMatchRow.tsx) uses for a player's season,
+ * and it is worth copying for exactly the reason it exists there: a column of
+ * rows each ending in a filled edge reads as a bar chart on its side, without
+ * anything having to draw a chart or spend width on one. The colour is the
+ * app's shared [points scale](../player/pointsScale.ts), so a hue means the
+ * same thing here as on a player's match row.
+ *
+ * Scaled to the club's **own best matchday**, or {@link FALLBACK_SCALE} while
+ * that is still small — Kickbase points have no natural maximum, and the useful
  * comparison is between this club's weeks rather than against an absolute
  * nobody knows the shape of.
+ *
+ * Only played matchdays get a bar. An empty track under every upcoming fixture
+ * would be a row of nothing, seventeen times over.
  */
 export function TeamMatchesTab({
   fixtures,
@@ -66,7 +90,7 @@ export function TeamMatchesTab({
   currentDay: number | undefined
   leagueId: string
 }) {
-  const best = Math.max(1, ...pointsByDay.values())
+  const best = Math.max(FALLBACK_SCALE, ...pointsByDay.values())
 
   return (
     <div className="flex flex-col gap-2">
@@ -77,7 +101,7 @@ export function TeamMatchesTab({
         </p>
       )}
 
-      <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+      <ul className="flex flex-col gap-1.5">
         {fixtures.map((fixture) => (
           <li key={fixture.matchId}>
             <FixtureRow
@@ -114,92 +138,119 @@ function FixtureRow({
   const state = fixtureState(fixture)
   const result = teamResult(fixture)
   const Venue = fixture.isHome ? House : PlaneTakeoff
+  const color = teamPoints === undefined ? undefined : pointsColor(teamPoints)
 
   return (
     <Link
       to={`/leagues/${leagueId}/matchday/${fixture.matchId}`}
       className={cn(
-        'flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-surface-2/60',
+        'flex flex-col overflow-hidden rounded-card border bg-surface transition-colors',
+        'hover:bg-surface-2/60',
         // The current matchday is the row a reader is looking for when the
-        // list is 34 long. A left edge rather than a filled row: a tinted
+        // list is 34 long. An accent border rather than a filled row: a tinted
         // background at this density reads as a selection the tap did not make.
-        isCurrent && 'border-l-2 border-l-accent pl-2.5',
+        isCurrent ? 'border-accent/50' : 'border-line',
       )}
     >
-      <span className="nums w-7 shrink-0 text-[0.6875rem] text-faint">
-        {fixture.day}.
-      </span>
+      <span className="flex items-center gap-2.5 px-3 py-2">
+        <span className="nums w-7 shrink-0 text-[0.6875rem] text-faint">
+          {fixture.day}.
+        </span>
 
-      <Venue
-        size={13}
-        aria-label={fixture.isHome ? 'Heimspiel' : 'Auswärtsspiel'}
-        className={cn(
-          'shrink-0',
-          fixture.isHome ? 'text-positive' : 'text-accent',
-        )}
-      />
+        <Venue
+          size={13}
+          aria-label={fixture.isHome ? 'Heimspiel' : 'Auswärtsspiel'}
+          className={cn(
+            'shrink-0',
+            fixture.isHome ? 'text-positive' : 'text-accent',
+          )}
+        />
 
-      <Avatar
-        src={fixture.opponentImage}
-        name={fixture.opponentSymbol}
-        size={24}
-        square
-        className="shrink-0 bg-transparent"
-      />
+        <Avatar
+          src={fixture.opponentImage}
+          name={fixture.opponentSymbol}
+          size={24}
+          square
+          className="shrink-0 bg-transparent"
+        />
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-ink">
-          {opponent?.name ?? fixture.opponentSymbol}
-        </p>
-        <p className="nums truncate text-[0.625rem] text-faint">
-          {weekdayDate(fixture.kickoff)} · {time(fixture.kickoff)}
-        </p>
-      </div>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm text-ink">
+            {opponent?.name ?? fixture.opponentSymbol}
+          </span>
+          <span className="nums block truncate text-[0.625rem] text-faint">
+            {weekdayDate(fixture.kickoff)} · {time(fixture.kickoff)}
+          </span>
+        </span>
 
-      {/* The scoreline, or where the match stands instead. Fixed width so the
+        {/* The scoreline, or where the match stands instead. Fixed width so the
           points column to its right lines up down all 34 rows. */}
-      <span className="w-14 shrink-0 text-center">
-        {state === 'upcoming' ? (
-          <span className="text-[0.6875rem] text-faint">offen</span>
-        ) : state === 'running' ? (
-          <span className="flex items-center justify-center gap-1 text-[0.6875rem] font-semibold text-accent">
+        <span className="w-14 shrink-0 text-center">
+          {state === 'upcoming' ? (
+            <span className="text-[0.6875rem] text-faint">offen</span>
+          ) : state === 'running' ? (
+            <span className="flex items-center justify-center gap-1 text-[0.6875rem] font-semibold text-accent">
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent"
+              />
+              Läuft
+            </span>
+          ) : (
             <span
-              aria-hidden="true"
-              className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent"
-            />
-            Läuft
-          </span>
-        ) : (
-          <span
-            title={result === undefined ? undefined : TEAM_RESULT_LABEL[result]}
-            className={cn(
-              'nums text-sm font-semibold',
-              result === undefined ? 'text-ink' : RESULT_COLOR[result],
-            )}
-          >
-            {fixture.goalsFor ?? '–'}:{fixture.goalsAgainst ?? '–'}
-          </span>
-        )}
+              title={
+                result === undefined ? undefined : TEAM_RESULT_LABEL[result]
+              }
+              className={cn(
+                'nums text-sm font-semibold',
+                result === undefined ? 'text-ink' : RESULT_COLOR[result],
+              )}
+            >
+              {fixture.goalsFor ?? '–'}:{fixture.goalsAgainst ?? '–'}
+            </span>
+          )}
+        </span>
+
+        <TeamPoints value={teamPoints} color={color} />
       </span>
 
-      <TeamPoints value={teamPoints} best={best} />
+      {/* Flush against the card's bottom edge, so a column of these reads as a
+          bar chart on its side without anything drawing a chart. Only for
+          matchdays that were actually played — an empty track under every
+          upcoming fixture would be seventeen rows of nothing. */}
+      {teamPoints !== undefined && color !== undefined && (
+        <span
+          aria-hidden="true"
+          className="block h-1 w-full shrink-0 bg-surface-2"
+        >
+          <span
+            className="block h-full rounded-r-full transition-[width]"
+            style={{
+              width: `${String(pointsFraction(teamPoints, best) * 100)}%`,
+              background: color,
+            }}
+          />
+        </span>
+      )}
     </Link>
   )
 }
 
 /**
- * What the club's players scored that matchday, with a bar for the shape of it.
+ * What the club's players scored that matchday.
  *
- * The bar is the reason the column works at a glance: 34 four-digit numbers
- * down a phone screen are unreadable as a series, while 34 bars are a season's
- * form curve that happens to be labelled.
+ * The figure alone — the shape of it is the bar along the card's bottom edge,
+ * and a second track beside the number would say the same thing twice in a
+ * quarter of the width. Tinted by the same
+ * [points scale](../player/pointsScale.ts) that colours the bar, so the number
+ * and the edge under it can never disagree.
  */
 function TeamPoints({
   value,
-  best,
+  color,
 }: {
   value: number | undefined
-  best: number
+  color: string | undefined
 }) {
   const label =
     value === undefined
@@ -207,26 +258,16 @@ function TeamPoints({
       : `${points(value)} Kickbase-Punkte`
 
   return (
-    <span title={label} className="flex w-16 shrink-0 flex-col items-end gap-1">
-      <span
-        aria-hidden="true"
-        className={cn(
-          'nums text-[0.6875rem] font-semibold',
-          value === undefined ? 'text-faint' : 'text-ink',
-        )}
-      >
+    <span
+      title={label}
+      style={color === undefined ? undefined : { color }}
+      className={cn(
+        'nums w-14 shrink-0 text-right text-sm font-bold',
+        value === undefined && 'text-faint',
+      )}
+    >
+      <span aria-hidden="true">
         {value === undefined ? '–' : points(value)}
-      </span>
-      <span
-        aria-hidden="true"
-        className="h-1 w-full overflow-hidden rounded-full bg-surface-2"
-      >
-        <span
-          className="block h-full rounded-full bg-accent/70"
-          style={{
-            width: `${String(Math.round(((value ?? 0) / best) * 100))}%`,
-          }}
-        />
       </span>
       <span className="sr-only">{label}</span>
     </span>
