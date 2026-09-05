@@ -405,7 +405,7 @@ function BudgetChip({
  * **Selling is one button away, and only one.** *Verkaufen* appears as soon as
  * a player is marked and opens the [sale dialog](../components/squad/SellDialog.tsx),
  * which is where the selection is named, the proceeds are stated and the
- * three-second hold lives. Nothing on this bar is a transaction: it is still
+ * two-second hold lives. Nothing on this bar is a transaction: it is still
  * arithmetic on the squad's own market values — Kickbase's real sale price is
  * what the market pays, which is the market value only for a sale back to the
  * computer — and the heading still says *Rechner*. The button is the door out

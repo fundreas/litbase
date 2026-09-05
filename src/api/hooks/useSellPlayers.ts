@@ -25,7 +25,7 @@ export interface SellSubject {
  * `Promise.all` that rejects on the first error cannot say.
  *
  * **Nothing here is reversible.** That is why the confirmation is a
- * [three-second hold](../../components/ui/HoldButton.tsx) rather than a second
+ * [two-second hold](../../components/ui/HoldButton.tsx) rather than a second
  * button, and why the mutation is deliberately unshared: it exists for exactly
  * one caller, the [sale dialog](../../components/squad/SellDialog.tsx).
  *

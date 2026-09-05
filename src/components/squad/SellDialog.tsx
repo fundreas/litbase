@@ -18,7 +18,7 @@ import { money, moneyExact } from '@/lib/format'
  * player is listed with the figure he brings, and the sum is underneath them
  * where a sum belongs.
  *
- * **The confirm is a three-second hold**, not a button — see
+ * **The confirm is a two-second hold**, not a button — see
  * [`HoldButton`](../ui/HoldButton.tsx) for why. Selling cannot be undone: there
  * is no "unsell", the player goes back on the market at his value, and buying
  * him back costs whatever the market then charges.
@@ -84,8 +84,7 @@ export function SellDialog({
           </Button>
         ) : (
           <HoldButton
-            label="Verkaufen"
-            holdingLabel="Halten"
+            label="Halten zum Verkaufen"
             onComplete={() => {
               sell.mutate(
                 players.map((player) => ({
@@ -135,7 +134,7 @@ export function SellDialog({
           />
           <span>
             Verkauf an Kickbase zum Marktwert. Das lässt sich nicht rückgängig
-            machen — halte zum Bestätigen drei Sekunden.
+            machen.
           </span>
         </p>
       </div>

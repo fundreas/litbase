@@ -173,7 +173,7 @@ and why the projected figure is honest for it.
 │ └──────────────────────────────────┘ │
 │ ⚠ Verkauf an Kickbase zum Marktwert. │
 │   Nicht rückgängig zu machen.        │
-│ [ Abbrechen ] [ ███▌ Halten 2      ] │
+│ [ Abbrechen ] [███▌Halten zum Verk.] │
 └──────────────────────────────────────┘
 ```
 
@@ -182,14 +182,20 @@ calculator is a mode you drift through, tapping rows and watching a number; the
 tap that opened this dialog is the first one that meant anything, and *3
 Spieler* will not catch the row marked two minutes ago and forgotten.
 
-**The confirm is a three-second hold** —
+**The confirm is a two-second hold** —
 [`HoldButton`](../../src/components/ui/HoldButton.tsx), which fills as it is
 held and fires only when full. A dialog asking "are you sure" is answered by the
-same reflex that opened it: two taps in the same place, half a second apart.
-Three seconds of deliberate contact cannot be given by accident, can be
-withdrawn at any point, and the fill says how much time is left to withdraw it.
-Letting go early drains the bar and sends nothing. Keyboard holds work the same
-way, on Enter or Space.
+same reflex that opened it: two taps in the same place, half a second apart. Two
+seconds of deliberate contact cannot be given by accident, can be withdrawn at
+any point, and the fill says how much time is left to withdraw it. Letting go
+early drains the bar and sends nothing. Keyboard holds work the same way, on
+Enter or Space.
+
+The label reads **Halten zum Verkaufen** and does not change while the bar
+fills. It names the gesture as well as the act, because this is the app's only
+control that does not fire on a tap and the label is where a reader finds that
+out; and a button that renamed itself mid-press — counting down, say — would be
+arguing with the finger already on it. The fill is the progress indicator.
 
 The progress is state, updated per animation frame, **not** a CSS transition
 whose end is inferred from `transitionend` — that is precisely the event that

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
 
 /** How long the finger has to stay down, by default. */
-const DEFAULT_HOLD_MS = 3000
+const DEFAULT_HOLD_MS = 2000
 
 /**
  * A button that has to be **held**, filling as it goes, and fires only when it
@@ -11,7 +11,7 @@ const DEFAULT_HOLD_MS = 3000
  *
  * For the one action in the app that cannot be undone. A confirmation dialog
  * asks "are you sure" and is answered by the same reflex that got you there —
- * two taps in the same place, half a second apart. Three seconds of deliberate
+ * two taps in the same place, half a second apart. Two seconds of deliberate
  * contact is a different kind of answer: it cannot be given by accident, it can
  * be withdrawn at any point up to the last moment, and the fill says exactly
  * how much time is left to withdraw it.
@@ -21,8 +21,13 @@ const DEFAULT_HOLD_MS = 3000
  * drawn rather than snapped: a bar that vanished would leave the reader unsure
  * whether it had fired.
  *
+ * **The label does not change while it fills.** A button that renamed itself
+ * mid-press to explain the press is a button arguing with the finger already on
+ * it; the fill is the progress indicator, and the label's job is to keep saying
+ * what happens when it completes.
+ *
  * The progress is state, updated per animation frame. Sixty renders a second of
- * one small component for three seconds is nothing next to the alternative — a
+ * one small component for two seconds is nothing next to the alternative — a
  * CSS transition whose completion is inferred from `transitionend`, which is
  * exactly the event that does not arrive when the transition is interrupted,
  * which is the case that must never fire the request.
@@ -33,17 +38,20 @@ const DEFAULT_HOLD_MS = 3000
 export function HoldButton({
   onComplete,
   label,
-  holdingLabel,
   holdMs = DEFAULT_HOLD_MS,
   disabled = false,
   className,
 }: {
   /** Fired once, at the moment the bar fills. */
   onComplete: () => void
-  /** What the button says at rest. */
+  /**
+   * What the button says — at rest and while it fills alike.
+   *
+   * It should name the **gesture and the act** together ("Halten zum
+   * Verkaufen"): this is the app's only control that does not fire on a tap,
+   * and the one place a reader is told so is the label they are about to press.
+   */
   label: string
-  /** What it says while being held — the instruction, not the action. */
-  holdingLabel: string
   holdMs?: number
   disabled?: boolean
   className?: string
@@ -93,13 +101,10 @@ export function HoldButton({
     frame.current = requestAnimationFrame(tick)
   }, [disabled, holdMs])
 
-  const remaining = Math.ceil((holdMs / 1000) * (1 - progress))
-
   return (
     <button
       type="button"
       disabled={disabled}
-      aria-label={label}
       onPointerDown={start}
       onPointerUp={stop}
       onPointerLeave={stop}
@@ -114,10 +119,14 @@ export function HoldButton({
       onBlur={stop}
       className={cn(
         'relative flex h-12 w-full items-center justify-center overflow-hidden',
-        'rounded-xl border border-negative/40 bg-negative/15 font-semibold text-negative',
+        'rounded-xl border border-negative/40 bg-negative/15 text-negative',
+        // The label names the gesture as well as the act ("Halten zum
+        // Verkaufen"), which is longer than a verb — `nowrap` so it never
+        // becomes two lines inside a fixed height that would clip them.
+        'px-3 text-sm font-semibold whitespace-nowrap',
         'transition-colors select-none',
         // Holding is a gesture: no text cursor, no scroll stealing the press,
-        // no long-press context menu on the way to three seconds.
+        // no long-press context menu on the way to two seconds.
         'touch-none',
         'disabled:pointer-events-none disabled:opacity-50',
         className,
@@ -136,13 +145,7 @@ export function HoldButton({
         )}
       />
 
-      {/* `aria-hidden` with the label carried by `aria-label` above: the
-          countdown is decoration, and a screen reader reciting a number that
-          changes three times would drown the label that says what the button
-          does. */}
-      <span aria-hidden="true" className="relative">
-        {isHolding ? `${holdingLabel} ${String(remaining)}` : label}
-      </span>
+      <span className="relative">{label}</span>
     </button>
   )
 }

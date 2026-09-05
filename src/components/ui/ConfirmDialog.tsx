@@ -41,7 +41,7 @@ export function ConfirmDialog({
    * A confirm control of the caller's own, in place of the plain button.
    *
    * One dialog shell rather than two: the sale dialog needs a
-   * [three-second hold](./HoldButton.tsx) where every other dialog needs a tap,
+   * [two-second hold](./HoldButton.tsx) where every other dialog needs a tap,
    * and that is the only thing it needs differently. `onConfirm` is then the
    * slot's business, not this component's.
    */

@@ -340,7 +340,7 @@ you would be listing, not here.
 
 Selling **back to Kickbase** at market value is built, and lives there too: the
 squad's [sale calculator](squad.md#selling) marks players and its dialog fires
-`POST /market/{playerId}/sell` per player behind a three-second hold.
+`POST /market/{playerId}/sell` per player behind a two-second hold.
 
 **Filters.** Position and price band are the obvious next ones; twenty-odd
 rows do not need them yet.

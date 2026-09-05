@@ -248,7 +248,7 @@ bid dialog.
 
 Sell one of your own players **straight back to Kickbase**, at his market
 value. This is what the squad page's [sale calculator](../pages/squad.md#selling)
-fires, one request per player, behind a three-second hold.
+fires, one request per player, behind a two-second hold.
 
 **Request body: none.** Empty is what the app sends.
 
