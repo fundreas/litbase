@@ -1,3 +1,5 @@
+import { Link } from 'react-router'
+
 import {
   fixtureState,
   type MatchDetail,
@@ -33,10 +35,13 @@ import { kickoff as kickoffLabel, minute as minuteLabel } from '@/lib/format'
 export function MatchScoreHeader({
   match,
   detail,
+  leagueId,
 }: {
   match: MatchdayMatch
   /** The match payload, once it has arrived. */
   detail?: MatchDetail
+  /** For the crests' links to the two clubs' own pages. */
+  leagueId: string
 }) {
   const state = fixtureState(match)
   const home = detail?.home ?? match.home
@@ -66,7 +71,7 @@ export function MatchScoreHeader({
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="flex w-full items-start gap-2">
-        <TeamBlock team={home} align="left" />
+        <TeamBlock team={home} align="left" leagueId={leagueId} />
 
         <div className="flex shrink-0 flex-col items-center px-1">
           <p
@@ -85,7 +90,7 @@ export function MatchScoreHeader({
           </p>
         </div>
 
-        <TeamBlock team={away} align="right" />
+        <TeamBlock team={away} align="right" leagueId={leagueId} />
       </div>
 
       <p className="nums flex items-center gap-1.5 text-xs text-muted">
@@ -117,18 +122,32 @@ export function MatchScoreHeader({
   )
 }
 
-/** One club: crest over its name, leaning away from the score. */
+/**
+ * One club: crest over its name, leaning away from the score.
+ *
+ * **The whole block is a link to that club's page.** A scoreline is the one
+ * place in the app where two clubs are named at once, so it is the natural
+ * place to ask about either — and unlike the player header's lone crest, this
+ * one has its name underneath, so the target is large and says where it goes
+ * without a tooltip. Tapping the *number* between them does nothing, which is
+ * what keeps the two halves apart.
+ */
 function TeamBlock({
   team,
   align,
+  leagueId,
 }: {
   team: MatchTeam
   align: 'left' | 'right'
+  leagueId: string
 }) {
   return (
-    <div
+    <Link
+      to={`/leagues/${leagueId}/teams/${team.id}`}
+      title={`${team.name ?? team.symbol} ansehen`}
       className={cn(
-        'flex min-w-0 flex-1 flex-col gap-1',
+        'flex min-w-0 flex-1 flex-col gap-1 rounded-lg transition-opacity',
+        'hover:opacity-80 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
         align === 'right' ? 'items-end' : 'items-start',
       )}
     >
@@ -147,6 +166,6 @@ function TeamBlock({
       >
         {team.name ?? team.symbol}
       </p>
-    </div>
+    </Link>
   )
 }

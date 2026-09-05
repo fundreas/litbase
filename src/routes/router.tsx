@@ -21,6 +21,7 @@ import {
   RankingPage,
   SquadPage,
   TablePage,
+  TeamDetailPage,
 } from '@/routes/lazyPages'
 
 /**
@@ -50,6 +51,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/matchday            every fixture of a matchday
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
  *   /leagues/:leagueId/players/:playerId   one player, three tabs
+ *   /leagues/:leagueId/teams/:teamId       one club, four tabs
  *
  * The league id lives in the path, not in context alone, so a refresh, a
  * bookmark or a link shared between managers all resolve to the same view.
@@ -164,6 +166,20 @@ export const router = createBrowserRouter(
                   path: 'players/:playerId/market',
                   element: <PlayerDetailPage />,
                 },
+                // One club, four routes, one component — the tab comes from
+                // the segment, as everywhere else. Reached by tapping a crest
+                // on a player or a match rather than from the drawer: a club
+                // is a detail page, and its way in is the thing that names it.
+                //
+                // `teams/:teamId/live` is registered unconditionally, like
+                // `squad/live`: the table is built once, before any matchday
+                // is known, and the page redirects to the club's Übersicht
+                // when none of its fixtures is running — so the URL is a dead
+                // end exactly when its tab is missing.
+                { path: 'teams/:teamId', element: <TeamDetailPage /> },
+                { path: 'teams/:teamId/squad', element: <TeamDetailPage /> },
+                { path: 'teams/:teamId/matches', element: <TeamDetailPage /> },
+                { path: 'teams/:teamId/live', element: <TeamDetailPage /> },
               ],
             },
           ],

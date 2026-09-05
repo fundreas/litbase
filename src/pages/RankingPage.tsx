@@ -4,8 +4,6 @@ import {
   CircleX,
   Sigma,
   Swords,
-  TrendingDown,
-  TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -15,6 +13,7 @@ import type { DuelResult, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
 import { Avatar } from '@/components/ui/Avatar'
+import { PlacementChange } from '@/components/ui/PlacementChange'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
@@ -282,24 +281,5 @@ function DuelLine({
         <span className="truncate text-faint">vs. {opponentName}</span>
       )}
     </p>
-  )
-}
-
-function PlacementChange({ value }: { value: number }) {
-  // Nothing at all when the placement held: a dash on its own line was a
-  // second subtitle that carried no information.
-  if (value === 0) return null
-
-  const isUp = value > 0
-  return (
-    <span
-      className={cn(
-        'nums flex items-center justify-center gap-0.5 text-xs',
-        isUp ? 'text-positive' : 'text-negative',
-      )}
-    >
-      {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-      {Math.abs(value)}
-    </span>
   )
 }

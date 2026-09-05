@@ -32,7 +32,12 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          │  └─ :matchId         one match; the matchday is looked up from it
          │     └─ lineup        second tab of the same component
          ├─ table
-         └─ players
+         ├─ players
+         │  └─ :playerId        one player; three tabs from the segment
+         └─ teams/:teamId       one club; four tabs from the segment
+            ├─ squad
+            ├─ matches
+            └─ live             only while one of its fixtures runs, else → the club
 /*                                  404
 ```
 
@@ -256,29 +261,42 @@ segment exactly *or* as a path prefix, so `/duels/3212306-2857817` and its
 soon as you tap into a row reads as having left the app. The rule is general,
 so any future detail route inherits it without a per-item flag.
 
-**Mannschaft** is the only entry for the team page, even though it has three
+**Mannschaft** is the only entry for the *squad* page, even though it has three
 routes: the tabs on that page are the natural way between the squad list, the
 lineup and the [live view](pages/squad.md#live-tab), and a second drawer entry
-for a sibling tab is noise. It therefore
+for a sibling tab is noise. (It is the manager's own team; the *club* pages at
+`/teams/:teamId` are a different thing, and have no entry at all — see below.)
+It therefore
 resolves the active item with `isNavItemActive()` rather than `NavLink`'s own
 matching. That helper also prefix-matches, so a page's detail routes keep its
 entry lit: `/squad/lineup` and `/players/:playerId` both leave **Mannschaft**
 highlighted, rather than the drawer going dark the moment you tap into a row.
+
+**The [team page](pages/team.md) has no entry at all**, and deliberately. A
+drawer entry needs a single subject — *your* squad, *the* market — and a club
+page has eighteen of them; it is a detail page like a player's, and its way in
+is the thing that names a club on the screen you are already on: the crest in
+the [player header](pages/player-detail.md) and either crest on a
+[match](pages/match-detail.md)'s scoreline. No entry is therefore lit while one
+is open, which is the one case the prefix rule above does not cover and the one
+case where it should not.
 
 There is **no global bottom tab bar**: it duplicated the drawer, ate a row of
 screen height on exactly the small screens where the pitch needs it, and forced
 a second, coarser notion of which entry was active (`/lineup` had no bar entry
 of its own, so **Mannschaft** had to stand in for it).
 
-Two pages dock a bar **of their own**, which is a different thing:
+Several pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
-of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, and the player
-page's three tabs — rather than between pages, and exists only while that page
-is open. The squad page's third tab is itself conditional, appearing only while
-a matchday runs; it is **appended** rather than inserted, so the two permanent
-tabs never move under a thumb that had learned where they are. It
-is `sticky`, not `fixed`, so at `lg` and up it stays inside the content column
-instead of lying across the sidebar.
+of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, the player page's
+three tabs, the match page's three, and the [team page](pages/team.md)'s four —
+rather than between pages, and exists only while that page is open. Two of
+those bars have a **conditional last tab**, appearing only while something is
+being played: the squad page's *Live* while a matchday runs, and the team
+page's while that club's own fixture does. Both are **appended** rather than
+inserted, so the permanent tabs never move under a thumb that had learned where
+they are. The bar is `sticky`, not `fixed`, so at `lg` and up it stays inside
+the content column instead of lying across the sidebar.
 
 Pages can claim the leftover viewport height: `main` is a flex column, so a
 page root with `flex-1` fills it. The [lineup](pages/squad.md#lineup-tab) uses
@@ -357,6 +375,7 @@ based.
 | `Tabs` | Styled Radix Tabs with equal-width segments |
 | `FilterChip`, `FilterChipRow` | Toggleable filters in a sideways-scrolling row |
 | `Card`, `CardHeader`, `StatTile` | Panels and the label-over-value tile |
+| `PlacementChange` | Up/down mark for a table movement; nothing at all when it held |
 | `Skeleton`, `SkeletonList` | Loading placeholders |
 | `Spinner` | Inline SVG spinner |
 | `LoadingState`, `ErrorState`, `EmptyState` | The three shared page states |

@@ -127,5 +127,33 @@ VITE_NOW=2026-08-29T16:45:00+02:00 npm run dev:live:host
 # Manager Details
 
 # Team Details
+  DONE -> Club page, see docs/pages/team.md
+    /leagues/:leagueId/teams/:teamId            Übersicht
+    /leagues/:leagueId/teams/:teamId/squad      Kader
+    /leagues/:leagueId/teams/:teamId/matches    Spiele
+    /leagues/:leagueId/teams/:teamId/live       Live, only while that club plays
+  - reached by tapping a CREST: the player header's, and either side of a
+    match's scoreline. No drawer entry — a club page has eighteen subjects.
+  - the point of the page is the JOIN with your league, not the football:
+    who owns these players, what they cost, who is collecting their points.
+  - COST, and the reason for the tab split:
+      Übersicht  free — table + matchdays + competition players, all shared
+                 1h caches the squad/matchday pages have already filled
+      Kader      ~26 requests, /leagues/$L/players/$P per player. The ONLY
+                 source of mv + prob + st/stxt + oui, no bulk spelling exists
+      Spiele     the SAME fan-out: ph on each response is that player's whole
+                 season, so it also yields the club's points per matchday.
+                 Nothing else in the API answers "where were this club's
+                 points". Flicking Kader <-> Spiele is free.
+      Live       useMatchLineup, ~36 players polling — same cache entries the
+                 match page fills, so arriving from there costs nothing
+  - `oui` is the RIGHT owner here (owns him today) and the wrong one on a
+    match page. TeamSquadOwner is literally MatchPlayerOwner with
+    source:'currentOwner', so OwnerBadge/ownerLabel are reused verbatim.
+  - plpim finally has a home: it is a whole-TEAM poster, identical for all 25
+    players, which is why it failed as a per-player badge and works here.
+  - matchdayEntry() is now exported from useMatchdayPoints — the ph index is
+    newest-first off the payload's own `day`, and a second copy of that
+    arithmetic is the off-by-one that already shipped once.
 
 # Squad -> Live Tab when matchday is active

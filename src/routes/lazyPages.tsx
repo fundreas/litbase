@@ -59,3 +59,7 @@ export const PlayersPage = lazy(async () => ({
 export const PlayerDetailPage = lazy(async () => ({
   default: (await import('@/pages/PlayerDetailPage')).PlayerDetailPage,
 }))
+
+export const TeamDetailPage = lazy(async () => ({
+  default: (await import('@/pages/TeamDetailPage')).TeamDetailPage,
+}))

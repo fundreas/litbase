@@ -1,5 +1,6 @@
 import { ChevronRight, House, PlaneTakeoff, Timer } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import {
@@ -44,6 +45,7 @@ export function PlayerHeader({
   currentMatch,
   teams,
   showStartProbability,
+  leagueId,
 }: {
   player: PlayerDetail
   /**
@@ -68,6 +70,8 @@ export function PlayerHeader({
    * which is where someone goes to ask "does he play?".
    */
   showStartProbability: boolean
+  /** For the crest's link to the club's own page. */
+  leagueId: string
 }) {
   const isFit = player.status === 0
   const probability =
@@ -127,14 +131,27 @@ export function PlayerHeader({
             at this size it is read faster than its name; spelling the name out
             next to it cost a line of a phone-width header to say the same
             thing twice. The name survives as the image's alt text and as the
-            initials the fallback draws when the crest fails to load. */}
-        <Avatar
-          src={player.teamImage}
-          name={player.teamName}
-          size={56}
-          square
-          className="shrink-0 bg-transparent"
-        />
+            initials the fallback draws when the crest fails to load.
+
+            **It is the way into the club's page.** A crest is the thing on a
+            player's screen that names his club, so it is where a tap asking
+            about that club lands — the same rule the match scoreline follows.
+            Wordless, therefore labelled: the destination rides as the tooltip
+            and as the accessible name. */}
+        <Link
+          to={`/leagues/${leagueId}/teams/${player.teamId}`}
+          title={`${player.teamName ?? 'Klub'} ansehen`}
+          aria-label={`${player.teamName ?? 'Klub'} ansehen`}
+          className="shrink-0 rounded-lg transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+        >
+          <Avatar
+            src={player.teamImage}
+            name={player.teamName}
+            size={56}
+            square
+            className="bg-transparent"
+          />
+        </Link>
       </div>
 
       {(!isFit || probability !== undefined) && (

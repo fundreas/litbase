@@ -36,8 +36,13 @@ import type { PlayerDetailResponse, PlayerMatchdayPoints } from '@/api/types'
  * he still has an entry for it, at the **front**. Every payload probed carried
  * exactly `day` entries, so `ph.length` is the fallback when `day` is missing —
  * the same arithmetic, from the array instead of the field.
+ *
+ * Exported so that nothing has to re-derive it. The
+ * [team roster](./useTeam.ts) reads the same `ph` across a whole season to add
+ * a club's points up per matchday, and a second copy of this index — off by
+ * one in the same quiet way — is exactly the bug that was shipped once already.
  */
-function matchdayEntry(
+export function matchdayEntry(
   detail: PlayerDetailResponse,
   day: number,
 ): PlayerMatchdayPoints | undefined {

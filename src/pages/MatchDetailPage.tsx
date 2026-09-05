@@ -136,7 +136,11 @@ export function MatchDetailPage() {
       {/* No separate live query: `useMatchDetails` reads the very same cache
           entry `useLiveMatches` fills, with the same polling, so `detail` *is*
           the live source here — score, minute and events from one request. */}
-      <MatchScoreHeader match={match.data} detail={detail.data} />
+      <MatchScoreHeader
+        match={match.data}
+        detail={detail.data}
+        leagueId={leagueId}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col">
         {detail.isPending ? (

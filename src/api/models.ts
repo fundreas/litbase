@@ -1367,6 +1367,325 @@ export interface TableRow {
 }
 
 /* -------------------------------------------------------------------------- */
+/* One club's season                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One fixture of a club's season, from that club's side.
+ *
+ * {@link MatchdayFixture} plus the matchday it belongs to — which the
+ * matchday-scoped hooks can leave out, because there the day is the question
+ * being asked, and a whole season cannot.
+ *
+ * Everything the [team page](../../docs/pages/team.md) derives about a club —
+ * its form, its record, its home/away split, its streak — comes out of a list
+ * of these, and therefore out of the one season payload every other page
+ * already caches. See [`useTeamSeason`](./hooks/useMatchday.ts).
+ */
+export interface TeamSeasonFixture extends MatchdayFixture {
+  day: number
+}
+
+/** How a finished fixture went, from the club's own side. */
+export type TeamResult = 'win' | 'draw' | 'loss'
+
+/** German for a result, as the form strip and its tooltips spell it. */
+export const TEAM_RESULT_LABEL: Record<TeamResult, string> = {
+  win: 'Sieg',
+  draw: 'Unentschieden',
+  loss: 'Niederlage',
+}
+
+/** One letter, as a form strip draws it. */
+export const TEAM_RESULT_LETTER: Record<TeamResult, string> = {
+  win: 'S',
+  draw: 'U',
+  loss: 'N',
+}
+
+/**
+ * How a fixture went for the club, or `undefined` while it cannot be known.
+ *
+ * A fixture the API has not marked finished has no result even if it carries
+ * goals: a 1:0 in the 30th minute is not a win, and the fixture list is cached
+ * for an hour besides. Everything that counts results therefore counts only
+ * settled ones.
+ */
+export function teamResult(fixture: TeamSeasonFixture): TeamResult | undefined {
+  if (!fixture.isFinished) return undefined
+  const scored = fixture.goalsFor ?? 0
+  const conceded = fixture.goalsAgainst ?? 0
+  if (scored > conceded) return 'win'
+  if (scored < conceded) return 'loss'
+  return 'draw'
+}
+
+/** League points for one result — three, one, none, as the Bundesliga pays. */
+function resultPoints(result: TeamResult): number {
+  return result === 'win' ? 3 : result === 'draw' ? 1 : 0
+}
+
+/**
+ * What a set of fixtures adds up to.
+ *
+ * Deliberately computed rather than read off the table: the table has the
+ * season total and nothing else, so it cannot answer "how has this club done
+ * *at home*" or "in its last five" — and those are the questions a club page
+ * is opened with. Handed the whole season it reproduces the table's own row,
+ * which is the check that the arithmetic is right.
+ *
+ * **Goals for and against are the point.** The table carries only the
+ * difference (`gd`), so a club that has scored fourteen and conceded eleven is
+ * indistinguishable there from one that has scored five and conceded two.
+ */
+export interface TeamRecord {
+  played: number
+  wins: number
+  draws: number
+  losses: number
+  goalsFor: number
+  goalsAgainst: number
+  /** Three for a win, one for a draw — the real table's currency. */
+  points: number
+  /** Fixtures the club kept a clean sheet in. */
+  cleanSheets: number
+}
+
+/** The record over whichever fixtures are handed in. Unplayed ones are ignored. */
+export function teamRecord(fixtures: readonly TeamSeasonFixture[]): TeamRecord {
+  const record: TeamRecord = {
+    played: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+    goalsFor: 0,
+    goalsAgainst: 0,
+    points: 0,
+    cleanSheets: 0,
+  }
+
+  for (const fixture of fixtures) {
+    const result = teamResult(fixture)
+    if (result === undefined) continue
+
+    const scored = fixture.goalsFor ?? 0
+    const conceded = fixture.goalsAgainst ?? 0
+
+    record.played += 1
+    record.goalsFor += scored
+    record.goalsAgainst += conceded
+    record.points += resultPoints(result)
+    if (conceded === 0) record.cleanSheets += 1
+    if (result === 'win') record.wins += 1
+    else if (result === 'draw') record.draws += 1
+    else record.losses += 1
+  }
+
+  return record
+}
+
+/**
+ * The club's current run, as a count and what it is a run *of*.
+ *
+ * Counted back from the most recent finished fixture, and only over
+ * consecutive equal results — so a club that has won three then drawn is on a
+ * one-match draw streak, not a four-match unbeaten one. "Unbeaten" is the
+ * softer, more flattering framing and it hides the difference between winning
+ * and not losing, which is the thing worth knowing in September.
+ *
+ * `undefined` before a club has played at all.
+ */
+export interface TeamStreak {
+  result: TeamResult
+  length: number
+}
+
+export function teamStreak(
+  fixtures: readonly TeamSeasonFixture[],
+): TeamStreak | undefined {
+  const played = fixtures
+    .filter((fixture) => teamResult(fixture) !== undefined)
+    .sort((a, b) => a.day - b.day)
+
+  const latest = played.at(-1)
+  if (latest === undefined) return undefined
+
+  const result = teamResult(latest) as TeamResult
+  let length = 0
+  for (let index = played.length - 1; index >= 0; index -= 1) {
+    if (teamResult(played[index] as TeamSeasonFixture) !== result) break
+    length += 1
+  }
+
+  return { result, length }
+}
+
+/**
+ * The club's fixture **right now**, in the order a header wants it.
+ *
+ * A running match first — it is the only state that changes while somebody is
+ * looking — then the next one to be played, and only if the season is over,
+ * the last one that was. So the strip under a club's name always has something
+ * to say, and what it says is the most immediate thing there is.
+ */
+export function teamCurrentFixture(
+  fixtures: readonly TeamSeasonFixture[],
+  now: number = nowMs(),
+): TeamSeasonFixture | undefined {
+  const byDay = [...fixtures].sort((a, b) => a.day - b.day)
+
+  return (
+    byDay.find((fixture) => fixtureState(fixture, now) === 'running') ??
+    byDay.find((fixture) => fixtureState(fixture, now) === 'upcoming') ??
+    byDay.at(-1)
+  )
+}
+
+/**
+ * How hard the opponent is, as its position in the real table.
+ *
+ * The whole reason a fixture ticker beats a list of crests: "Heidenheim (H)"
+ * and "Bayern (A)" are the same three words and completely different weeks, and
+ * a club page in a fantasy app is read to decide whether to buy. The table
+ * position is a crude measure and an honest one — it is the only strength
+ * signal the API serves, and everybody already reads it that way.
+ *
+ * Three bands rather than eighteen shades: the top third, the bottom third and
+ * the middle. Finer gradations would claim a precision a league table six
+ * matchdays old does not have.
+ */
+export type FixtureDifficulty = 'hard' | 'even' | 'easy'
+
+export function fixtureDifficulty(
+  opponentPlacement: number | undefined,
+  tableSize: number,
+): FixtureDifficulty | undefined {
+  if (opponentPlacement === undefined || tableSize <= 0) return undefined
+  if (opponentPlacement <= tableSize / 3) return 'hard'
+  if (opponentPlacement > (tableSize * 2) / 3) return 'easy'
+  return 'even'
+}
+
+/**
+ * Where a club sits, on **both** of the table's two orderings.
+ *
+ * The real table ranks by league points; `sp` on the very same row ranks by the
+ * Kickbase points that club's players have produced. They routinely disagree,
+ * and the disagreement is the one thing a fantasy app can say about a
+ * Bundesliga table that a newspaper cannot — a mid-table side with two prolific
+ * attackers outproduces a grinding 1:0 machine above it, and that is exactly
+ * who is worth buying.
+ */
+export interface TeamStanding {
+  row: TableRow
+  /** Position among all clubs by {@link TableRow.kickbasePoints}, best first. */
+  kickbasePointsRank: number
+  /** Clubs in the table, so a rank can be spoken as "3 von 18". */
+  size: number
+}
+
+export function teamStanding(
+  table: readonly TableRow[] | undefined,
+  teamId: string | undefined,
+): TeamStanding | undefined {
+  const row = table?.find((entry) => entry.teamId === teamId)
+  if (row === undefined || table === undefined) return undefined
+
+  // Strictly greater, so clubs level on Kickbase points share a rank rather
+  // than being ordered by whatever the payload happened to list first.
+  const ahead = table.filter(
+    (entry) => entry.kickbasePoints > row.kickbasePoints,
+  ).length
+
+  return { row, kickbasePointsRank: ahead + 1, size: table.length }
+}
+
+/**
+ * One player of a club, with everything the league knows about him.
+ *
+ * Assembled from two sources of very different cost — see
+ * [`useTeamRoster`](./hooks/useTeam.ts). The first six fields are the free
+ * half, out of the competition's player list; the rest arrives one request per
+ * player and every one of them is optional because of it.
+ */
+export interface TeamSquadPlayer {
+  id: string
+  name: string
+  position: PositionKey
+  image?: string
+  /** Season points, from the competition list. */
+  points: number
+  /** Minutes played this season. */
+  minutesPlayed: number
+  goals: number
+  assists: number
+
+  /* --- From the per-player fan-out, all absent until it lands ------------- */
+
+  /** Market value in €. **Not** on the competition list — only league-scoped. */
+  marketValue?: number
+  marketValueTrend?: MarketValueTrend
+  /** Availability code (`st`); `0` is fit. */
+  availability?: number
+  /** Why he is unavailable, in Kickbase's own German. */
+  availabilityText?: string
+  startProbability?: StartProbability
+  /** The manager in the viewer's league who owns him **today**. */
+  owner?: TeamSquadOwner
+}
+
+/**
+ * The manager holding a club's player — **the match lineup's own badge model**.
+ *
+ * Deliberately the same type rather than a roster-shaped copy of it, so a
+ * club's Kader can render [`OwnerBadge`](../components/matchday/OwnerBadge.tsx)
+ * and word it with [`ownerLabel`](../components/matchday/ownerLabel.ts)
+ * verbatim. Both already say the right thing here: the source is always
+ * `currentOwner`, because a roster reads `oui` — who owns him *today* — and
+ * that is the claim "Gehört X" makes and the one a club page is asking.
+ *
+ * `wasFielded` is consequently always `false`, which is what
+ * {@link OwnerSource} says it means for this source: a `currentOwner` badge
+ * asserts nothing about anybody's lineup.
+ */
+export type TeamSquadOwner = MatchPlayerOwner
+
+/**
+ * What a club's roster adds up to for the viewer's league.
+ *
+ * The number a manager actually came for: not "Bayern are worth 600 million"
+ * but "eleven of these twenty-six are already gone, and three of them are
+ * mine". `marketValue` is a sum over the players whose value has arrived, so it
+ * climbs as the fan-out lands rather than jumping from nothing.
+ */
+export interface TeamSquadTotals {
+  players: number
+  marketValue: number
+  owned: number
+  ownedByViewer: number
+}
+
+export function teamSquadTotals(
+  players: readonly TeamSquadPlayer[],
+): TeamSquadTotals {
+  const totals: TeamSquadTotals = {
+    players: players.length,
+    marketValue: 0,
+    owned: 0,
+    ownedByViewer: 0,
+  }
+
+  for (const player of players) {
+    totals.marketValue += player.marketValue ?? 0
+    if (player.owner === undefined) continue
+    totals.owned += 1
+    if (player.owner.isViewer) totals.ownedByViewer += 1
+  }
+
+  return totals
+}
+
+/* -------------------------------------------------------------------------- */
 /* Player detail                                                              */
 /* -------------------------------------------------------------------------- */
 

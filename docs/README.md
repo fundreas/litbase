@@ -38,6 +38,10 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/table` | [Bundesliga table](pages/table.md) | Stub |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
 | `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |
+| `/leagues/:leagueId/teams/:teamId` | [Club](pages/team.md) | Implemented |
+| `/leagues/:leagueId/teams/:teamId/squad` | [Club — Kader](pages/team.md#kader) | Implemented |
+| `/leagues/:leagueId/teams/:teamId/matches` | [Club — Spiele](pages/team.md#spiele) | Implemented |
+| `/leagues/:leagueId/teams/:teamId/live` | [Club — Live](pages/team.md#live) | Implemented — only while that club plays |
 | `*` | [Not found](pages/not-found.md) | Implemented |
 
 A **stub** page already calls its real query hook and reports how many rows
@@ -45,6 +49,11 @@ came back — the API binding is proven, only the UI is missing. Stubs are
 **not listed in the nav drawer**; their routes work, so they are reachable by
 URL until the screen exists. See
 [Navigation](routing-and-layout.md#navigation).
+
+Neither are the two **detail** pages, and for a different reason: a player and
+a club have no single subject a drawer entry could name. They are reached by
+tapping the thing that names them — a squad row for a player, a **crest** for a
+club, on the player header and on either side of a match's scoreline.
 
 ## Conventions used throughout
 

@@ -9,6 +9,7 @@ import type {
   SeasonMatchday,
   SeasonSchedule,
   TeamFixture,
+  TeamSeasonFixture,
 } from '@/api/models'
 import { MATCHDAY_STATE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
@@ -329,6 +330,65 @@ export function useMatchdayMatches(
       return (matchday?.it ?? []).map(toMatchdayMatch).sort(byKickoff)
     },
     [day],
+  )
+
+  return useMatchdaysQuery(competitionId, select)
+}
+
+/**
+ * **One club's whole season**, ascending by matchday.
+ *
+ * The fourth reading of the same cached payload, and the one the
+ * [team page](../../../docs/pages/team.md) is built on: everything it derives
+ * about a club — the form, the record, the home/away split, the streak, the
+ * fixture ticker — comes out of this one list, so the Übersicht costs no
+ * request of its own beyond what the squad and matchday pages have already
+ * fetched.
+ *
+ * The season's 34 matchdays are scanned rather than indexed, because a club's
+ * fixtures are spread across all of them and there is no key that gathers them.
+ * That is 34 iterations over ~9 fixtures each on a payload that changes once a
+ * week, memoised on the team id by `select`.
+ *
+ * A club with no fixture on some matchday — a rescheduled game, or a competition
+ * with an odd number of teams — simply has no entry for it. The list is the
+ * club's fixtures, not one slot per matchday, so nothing downstream may assume
+ * `fixtures[n].day === n + 1`.
+ */
+export function useTeamSeason(
+  competitionId: string | undefined,
+  teamId: string | undefined,
+): UseQueryResult<TeamSeasonFixture[]> {
+  const select = useCallback(
+    (data: MatchdaysResponse) => {
+      const season: TeamSeasonFixture[] = []
+      if (teamId === undefined) return season
+
+      for (const matchday of data.it ?? []) {
+        for (const fixture of matchday.it ?? []) {
+          const isHome = fixture.t1 === teamId
+          if (!isHome && fixture.t2 !== teamId) continue
+
+          season.push({
+            day: fixture.day,
+            matchId: fixture.mi,
+            kickoff: fixture.dt,
+            isHome,
+            opponentId: isHome ? fixture.t2 : fixture.t1,
+            opponentSymbol:
+              (isHome ? fixture.t2sy : fixture.t1sy) ??
+              (isHome ? fixture.t2 : fixture.t1),
+            opponentImage: isHome ? fixture.t2im : fixture.t1im,
+            isFinished: fixture.st === FIXTURE_FINISHED,
+            goalsFor: isHome ? fixture.t1g : fixture.t2g,
+            goalsAgainst: isHome ? fixture.t2g : fixture.t1g,
+          })
+        }
+      }
+
+      return season.sort((a, b) => a.day - b.day)
+    },
+    [teamId],
   )
 
   return useMatchdaysQuery(competitionId, select)
