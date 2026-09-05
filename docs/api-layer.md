@@ -6,6 +6,10 @@ Everything that speaks to Kickbase lives under [`src/api/`](../src/api/). The
 layer has one job beyond fetching: **translate**. Kickbase's v4 API uses
 heavily abbreviated field names, and none of them reach a component.
 
+This page is about **the layer**. For the API itself — every endpoint, its
+parameters and every field of its response — see the
+[Kickbase API reference](api/README.md).
+
 ## The request path
 
 ```
