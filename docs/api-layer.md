@@ -290,6 +290,37 @@ queryClient.removeQueries({ queryKey: ['league', leagueId] })
 
 So a stale squad can never flash under a different league's name.
 
+### A shared key means the cache holds the *raw* payload
+
+Several endpoints are read more than one way — the season fixtures four ways,
+a match two, the league table two, a player's detail five. When two hooks key
+on the same thing they get **one cache entry** between them, and an entry can
+only hold one shape. So the rule is absolute:
+
+> **`queryFn` returns the wire DTO. Every mapping happens in `select`.**
+
+Mapping inside `queryFn` works perfectly until a second hook shares the key,
+and then it fails on whichever query happens to resolve *first*. Both outcomes
+were live in `useCompetition.ts` until 2026-09-05, when the
+[club page](pages/team.md) became the first screen to want the table and the
+club-name directory at once:
+
+| Resolves first | What the other hook reads | Symptom |
+| -------------- | ------------------------- | ------- |
+| the directory | the raw `{ it: [...] }`, handed out as a `TableRow[]` | `table.find is not a function` |
+| the table | `data.it` off an array → `undefined` | **no error**; every club silently loses its name |
+
+The second is the dangerous one. Both hooks were correct in isolation, and the
+bug did not exist until a page called both — so the rule has to hold for hooks
+that do not yet have a second reader.
+
+`select` is memoised on the function's **identity**, so a selector must be a
+module-level constant, not an arrow created during render — otherwise it
+re-maps on every render and hands out a fresh array or `Map` each time, quietly
+breaking every `useMemo` downstream. Where a selector has to close over a
+parameter (a matchday number, a team id), memoise it with `useCallback` on that
+parameter — see [`useMatchday.ts`](../src/api/hooks/useMatchday.ts).
+
 ## Cache and retry policy
 
 [`queryClient.ts`](../src/api/queryClient.ts):

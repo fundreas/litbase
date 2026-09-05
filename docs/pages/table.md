@@ -49,6 +49,12 @@ competition share one cached table, which is correct.
 
 `staleTime` is 10 minutes — a real table only changes on matchdays.
 
+**The cache holds the raw payload**, and both this hook and
+[`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) map it in `select`.
+They share the key, so an entry mapped in `queryFn` would hand one of the two
+the other's shape — see
+[A shared key means the cache holds the raw payload](../api-layer.md#a-shared-key-means-the-cache-holds-the-raw-payload).
+
 ## Things worth knowing
 
 **`kickbasePoints` is the interesting column.** A plain Bundesliga table is
