@@ -475,14 +475,30 @@ midfield would put a stranger in the middle of the park and look deliberate.
 ## Ranking — who actually scored
 
 [`MatchRankingTab`](../../src/components/matchday/MatchRankingTab.tsx). Every
-player in the match, best first, **both clubs interleaved and both benches
-included**.
+player in the match, best first, **both benches included**, in either of two
+readings.
 
 It exists for the reason the [duel's ranking](duel-detail.md#the-ranking-tab)
 does: the pitch answers "how are the two teams set up", a ranked list answers
-"who actually scored the points", and those are different questions. Interleaving
-the clubs is the point — a list where one side occupies the top six says
-something two separate columns cannot.
+"who actually scored the points", and those are different questions.
+
+### Two readings, one toggle
+
+| View | What it is | For |
+| ---- | ---------- | --- |
+| **Gemeinsam** (default) | Both clubs interleaved in one numbered list | "Who scored the points in this match" — a list where one side takes the top six says something two separate lists cannot |
+| **Nach Verein** | Home above away, each list numbered **from 1** | "Who was this club's best today" — which the combined list buries whenever the other side has run away with the match |
+
+The numbering restarting per club is the whole point of the split: a player
+carrying `14` because thirteen opponents outscored him is answering the other
+question.
+
+The control is [`PairToggle`](../../src/components/ui/PairToggle.tsx) — the
+same one-button, two-glyph control the [squad](squad.md#kader--two-layouts) uses
+for list/grid, sitting right-aligned above the list. The choice is remembered
+in `localStorage` (`litbase.matchRanking.view`) and deliberately **not** in the
+URL: it is a preference, not a place, so a link to a match opens in the
+reader's own reading rather than the sender's.
 
 ```
  1  (portrait)  Musiala          158

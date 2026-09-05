@@ -265,6 +265,11 @@ button is what makes it legible: a lone icon has to answer "is this where I am
 or where I would go?", which a single glyph cannot. The lit one is the current
 view, the faint one is a tap away.
 
+It lives in [`PairToggle`](../../src/components/ui/PairToggle.tsx), shared with
+the [match ranking](match-detail.md#ranking--who-actually-scored)'s
+combined/per-club switch — one notation for "two views of the same thing",
+learned once.
+
 ### Tiles
 
 Portrait, last name, position abbreviation, and the two marks that say whether

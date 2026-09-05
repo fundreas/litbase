@@ -15,6 +15,7 @@ import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { PairToggle } from '@/components/ui/PairToggle'
 import { cn } from '@/lib/cn'
 import { money, moneyDelta } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
@@ -107,7 +108,7 @@ export function PlayerListTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <ViewToggle view={view} onChange={setView} />
+      <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
 
       {/* The grid is **one flat run**, not four grouped ones. Position
           headings buy little once each tile names its own position, and four
@@ -216,60 +217,14 @@ function useSquadView(): [SquadView, (view: SquadView) => void] {
   return [view, setView]
 }
 
-/**
- * List or grid, as **one button showing both symbols**.
- *
- * Two buttons said the same thing with twice the target area and an
- * `aria-pressed` state each, for a choice with exactly two outcomes and no
- * cost to getting it wrong. One button that swaps is the smaller, faster
- * control — and keeping *both* glyphs on it is what makes it legible: a lone
- * icon has to answer "is this the current view or the one I would switch to?",
- * which a single glyph cannot. Here the lit one is where you are and the faint
- * one is where a tap takes you.
- *
- * Right-aligned and icon-only: it is a preference set once, not a primary
- * action, and it should not pull the eye away from the squad.
- */
-function ViewToggle({
-  view,
-  onChange,
-}: {
-  view: SquadView
-  onChange: (view: SquadView) => void
-}) {
-  const next: SquadView = view === 'list' ? 'grid' : 'list'
-  const label = next === 'grid' ? 'Zur Kachelansicht' : 'Zur Listenansicht'
-
-  return (
-    <div className="flex justify-end">
-      <button
-        type="button"
-        onClick={() => {
-          onChange(next)
-        }}
-        title={label}
-        aria-label={label}
-        className={cn(
-          'flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-2',
-          'transition-colors hover:border-accent/40 hover:bg-surface-2',
-          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-        )}
-      >
-        <List
-          size={15}
-          aria-hidden="true"
-          className={view === 'list' ? 'text-accent' : 'text-faint'}
-        />
-        <span aria-hidden="true" className="h-4 w-px bg-line" />
-        <LayoutGrid
-          size={15}
-          aria-hidden="true"
-          className={view === 'grid' ? 'text-accent' : 'text-faint'}
-        />
-      </button>
-    </div>
-  )
-}
+/** The two layouts, as the shared toggle draws them. */
+const VIEW_OPTIONS = [
+  { value: 'list', icon: List, label: 'Listenansicht' },
+  { value: 'grid', icon: LayoutGrid, label: 'Kachelansicht' },
+] as const satisfies readonly [
+  { value: SquadView; icon: typeof List; label: string },
+  { value: SquadView; icon: typeof List; label: string },
+]
 
 /**
  * A player as a tile: portrait, name, position, and the two marks that say
