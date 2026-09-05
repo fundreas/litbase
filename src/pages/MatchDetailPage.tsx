@@ -43,9 +43,9 @@ type ViewValue = (typeof VIEWS)[keyof typeof VIEWS]
  * **The URL carries a match id and nothing else.** The matchday is looked up
  * from the season's fixture list ([`useSeasonMatch`](../api/hooks/useMatchday.ts)),
  * which is already cached, and everything matchday-scoped on the page hangs off
- * that answer: the fixtures the points hook needs, and the `ph[day - 1]` index
- * itself. A link to a match therefore needs no `?day=` and cannot carry a wrong
- * one.
+ * that answer: the fixtures the points hook needs, and the matchday its `ph`
+ * lookup is for. A link to a match therefore needs no `?day=` and cannot carry
+ * a wrong one.
  *
  * **Opening a match from the [list](./MatchdayPage.tsx) costs no request.** The
  * list already fetched every started match's detail for its scores, and this

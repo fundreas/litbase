@@ -82,11 +82,14 @@ export function mapMatchdaySquad(
  * this was found and what it replaced.
  *
  * **Points do not come from here.** They stay with
- * [`useMatchdayPoints`](./useMatchdayPoints.ts) and `ph[day - 1]`, which is
- * proven and matchday-indexed. A `p` field on these entries is a candidate to
- * switch to — it would collapse the per-player fan-out to a single request —
- * but it has not been observed on a played matchday yet, and guessing at it
- * would mean showing points that might be a different matchday's.
+ * [`useMatchdayPoints`](./useMatchdayPoints.ts) and its `ph` lookup.
+ *
+ * A `p` field on these entries *does* arrive once the player's match is over —
+ * measured 2026-09-05, and it would collapse the per-player fan-out to a single
+ * request. It is still not used, because it **disagrees**: the same player on
+ * the same matchday read `p: -8` here against `-14` from both `ph` and
+ * `/performance`, which agree with each other and with what Kickbase shows.
+ * Until that gap is explained, the cheap field is the wrong one.
  *
  * `positionByPlayerId` back-fills the one field the payload does not reliably
  * carry. Pass the squad you already hold (the signed-in manager's `useSquad`,

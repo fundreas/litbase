@@ -741,12 +741,18 @@ export interface PlayerDetailResponse {
    */
   mdsum?: PlayerFixtureSummary[]
   /**
-   * Points per matchday, oldest first.
+   * Points per matchday, **newest first** — `ph[0]` is {@link day}, the
+   * matchday this response is current for.
    *
-   * **Dense**: there is an entry for every matchday played so far, and a
-   * player who missed one gets `{ hp: false }` with no `p` rather than being
-   * skipped. That is what makes `ph[day - 1]` a valid lookup. Entries stop at
-   * the current matchday, so a future one reads `undefined`.
+   * **Dense**: one entry per matchday from the first up to {@link day}, so the
+   * array is `day` long. A player who missed a matchday gets `{ hp: false }`
+   * with no `p` rather than being skipped, and so does one whose club has not
+   * kicked off yet — an entry exists for the current matchday from the moment
+   * it becomes current.
+   *
+   * The order was documented as oldest-first until 2026-09-05 and is not: see
+   * [`matchdayEntry`](./hooks/useMatchdayPoints.ts) for the measurement and for
+   * the index that follows from it.
    */
   ph?: PlayerMatchdayPoints[]
   /** Position, see PLAYER_POSITION. */

@@ -11,7 +11,41 @@ import {
 } from '@/api/models'
 import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
-import type { PlayerDetailResponse } from '@/api/types'
+import type { PlayerDetailResponse, PlayerMatchdayPoints } from '@/api/types'
+
+/**
+ * One matchday's entry out of a player's points history.
+ *
+ * **`ph` is newest first**, and `ph[0]` is the matchday the response itself is
+ * current for — `day` on the payload — whether or not that match has been
+ * played. So the index counts *back* from there, and a matchday older than the
+ * array reaches past its end and reads `undefined`.
+ *
+ * This was `ph[day - 1]` until 2026-09-05, on a documented but wrong reading of
+ * the array as oldest-first. It agreed with the truth for exactly one matchday
+ * — index `0` either way — and then, on the second, showed every player their
+ * *previous* matchday's points on the duel and match pages alike. Measured
+ * against `/performance`, which carries an explicit `day` per entry:
+ *
+ * | Player | `ph` | `/performance` |
+ * | ------ | ---- | -------------- |
+ * | Heskey, played MD2 only | `[{hp:true,p:-14},{hp:false}]` | MD1 –, MD2 -14 |
+ * | Vermeeren, MD2 not kicked off | `[{hp:false},{hp:true,p:25}]` | MD1 25 |
+ *
+ * Vermeeren is the one that settles it: his club had not played matchday 2 and
+ * he still has an entry for it, at the **front**. Every payload probed carried
+ * exactly `day` entries, so `ph.length` is the fallback when `day` is missing —
+ * the same arithmetic, from the array instead of the field.
+ */
+function matchdayEntry(
+  detail: PlayerDetailResponse,
+  day: number,
+): PlayerMatchdayPoints | undefined {
+  const history = detail.ph
+  if (history === undefined) return undefined
+  const index = (detail.day ?? history.length) - day
+  return index < 0 ? undefined : history[index]
+}
 
 /** The little a caller has to know about a player to ask for their points. */
 export interface PointsSubject {
@@ -172,11 +206,9 @@ export function useMatchdayPoints(
     const ownerId = toOwnerId(detail.oui)
     if (ownerId !== undefined) ownerIdByPlayerId.set(detail.i, ownerId)
     if (day === undefined) continue
-    // `ph` is dense from matchday 1, so the index is the matchday minus one.
-    // A matchday not played yet is simply past the end of the array, and a
-    // player who missed one carries `hp: false` with no `p` — which must stay
-    // absent from the map rather than becoming `0`.
-    const entry = detail.ph?.[day - 1]
+    // A player who missed the matchday carries `hp: false` with no `p`, which
+    // must stay absent from the map rather than becoming `0`.
+    const entry = matchdayEntry(detail, day)
     if (entry?.hp === true && entry.p !== undefined) {
       byPlayerId.set(detail.i, entry.p)
     }

@@ -341,11 +341,28 @@ whole duel is a single fan-out. Three rules keep that affordable:
    player*, not to the page, so a matchday with one late kick-off costs one
    request a minute rather than twenty-two.
 
-`ph` is indexed as `ph[day - 1]`. That is safe because it is **dense**: there
-is an entry for every matchday played so far, and a player who missed one gets
-`{ hp: false }` with no `p` rather than being skipped — verified against an
-injured player. Entries stop at the current matchday, so a future one reads
-`undefined`.
+**`ph` is newest first**, and `ph[0]` is the matchday the response is current
+for — `day` on the payload itself. The index therefore counts *back* from there
+(`matchdayEntry`), and a matchday older than the array reads `undefined`. The
+array is dense: one entry per matchday up to `day`, with `{ hp: false }` and no
+`p` for a matchday the player missed *and* for one his club has not kicked off
+in yet.
+
+It was read as `ph[day - 1]` until 2026-09-05, on the opposite and wrongly
+documented ordering. That is right for exactly one matchday — index `0` either
+way — and from the second onward it served **the previous matchday's points**,
+on this page and on [match detail](match-detail.md) alike, while the scoreline
+above it stayed correct because that comes from the standings. Two payloads
+settle the ordering, both measured against `/performance`, which carries an
+explicit `day` per entry:
+
+| Player | `ph` | `/performance` |
+| ------ | ---- | -------------- |
+| Heskey — played MD2, missed MD1 | `[{hp:true,p:-14},{hp:false}]` | MD1 –, MD2 **-14** |
+| Vermeeren — MD2 not kicked off | `[{hp:false},{hp:true,p:25}]` | MD1 **25** |
+
+Vermeeren is the decisive one: his club had not played matchday 2 and he still
+has an entry for it, at the front.
 
 The cache key is `qk.playerDetail(leagueId, playerId)` with **no matchday** in
 it: one response carries every matchday's points, so all matchdays share the

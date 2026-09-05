@@ -22,8 +22,8 @@
  *
  * Hence this: the clock moves *and* the fixture list is rewritten so the
  * chosen matchday reports itself unfinished. Both then agree, and everything
- * downstream is genuinely real — real fixtures, real per-player points from
- * `ph[day - 1]`, real standings for that `dayNumber`. Nothing is mocked; one
+ * downstream is genuinely real — real fixtures, real per-player points out of
+ * `ph`, real standings for that `dayNumber`. Nothing is mocked; one
  * flag and one number are bent.
  *
  * ## What it costs in honesty
@@ -121,7 +121,10 @@ function configuredNumber(value: string | undefined): number | undefined {
  *
  *  1. **`day`** becomes the simulated matchday, so everything that asks the
  *     competition what is current gets that answer — the squad page's Live
- *     tab, the duel picker's default, `ph[day - 1]`.
+ *     tab, the duel picker's default, the matchday every points lookup is for.
+ *     The lookup *inside* `ph` is anchored on the player payload's own `day`,
+ *     which is not simulated, so a replayed matchday still reads its own real
+ *     points rather than following the bent number.
  *  2. **`st`** on that matchday's fixtures is recomputed from the simulated
  *     clock: finished once the match would be over, upcoming otherwise. A
  *     fixture that has not kicked off yet also has its goals stripped, since

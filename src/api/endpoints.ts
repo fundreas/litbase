@@ -104,10 +104,10 @@ export const endpoints = {
      *
      * Carries two things nothing else does:
      *
-     *  - **`ph`, points per matchday.** Dense — one entry per matchday played
-     *    so far, `{ hp: false }` with no `p` for a matchday the player missed
-     *    — so `ph[day - 1]` is a safe index. This is the *only* source of a
-     *    per-player, per-matchday score; there is no bulk equivalent
+     *  - **`ph`, points per matchday.** Dense but **newest first**: `ph[0]` is
+     *    the payload's own `day`, and the index counts back from there — see
+     *    [`matchdayEntry`](./hooks/useMatchdayPoints.ts). This is the *only*
+     *    source of a per-player, per-matchday score; there is no bulk equivalent
      *    (`/leagues/{id}/players`, `?ids=` → 404), which is why
      *    [Duel detail](../../docs/pages/duel-detail.md#points-cost-one-request-per-player)
      *    fans out one request per player.

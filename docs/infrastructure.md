@@ -240,9 +240,12 @@ sitting unreachable in `ph`. The profile therefore does both: the clock moves,
 (finished once a match would be over at 110 minutes, upcoming otherwise, with
 goals stripped from anything that has not kicked off yet).
 
-Everything downstream is then real: real fixtures, real per-player points from
-`ph[day - 1]`, real standings for that `dayNumber`. Nothing is mocked — one
-flag and one number are bent, which is why adding a screen needs no work here.
+Everything downstream is then real: real fixtures, real per-player points out of
+`ph`, real standings for that `dayNumber`. Nothing is mocked — one flag and one
+number are bent, which is why adding a screen needs no work here. The lookup
+inside `ph` is anchored on the *player* payload's own `day`, which the profile
+does not touch, so a replayed matchday reads its own points rather than
+following the bent number.
 
 ### What it does not fake
 

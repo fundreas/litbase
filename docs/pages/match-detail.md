@@ -28,7 +28,9 @@ a pairing.
 The matchday is looked up from the season's fixture list —
 `useSeasonMatch(cid, matchId)`, one more `select` on the payload that is already
 cached — and everything matchday-scoped on the page hangs off that answer: the
-fixtures the points hook measures against, and the `ph[day - 1]` index itself.
+fixtures the points hook measures against, and the matchday its `ph` lookup is
+for — see [duel detail](duel-detail.md#points-cost-one-request-per-player) for
+how that array is indexed.
 
 A link to a match therefore needs no `?day=` and **cannot carry a wrong one**. A
 match id that is not in the fixture list gets an `EmptyState` with a way back,

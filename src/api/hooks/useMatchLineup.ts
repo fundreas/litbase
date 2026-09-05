@@ -30,7 +30,7 @@ export interface MatchLineupData {
  *    each manager's squad **as it stood on this matchday**, one request per
  *    manager in the league.
  *  - [`useMatchdayPoints`](./useMatchdayPoints.ts) — one request per player,
- *    which is what carries the points (`ph[day - 1]`), a last-resort owner
+ *    which is what carries the points (out of `ph`), a last-resort owner
  *    (`oui`) and, where the match payload omitted it, the position. **Roughly
  *    36 requests** for a full fixture with both benches. Everything that hook
  *    does to keep the cost down applies — a player whose match cannot have
