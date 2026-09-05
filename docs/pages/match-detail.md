@@ -244,8 +244,27 @@ Each portrait carries three things and no more:
 - the **points** on the plate — `–` rather than `0` while they are unknown,
   because a match that has not kicked off is not a blank performance;
 - the **owning manager**, top-left;
-- a **red arrow**, top-right, once the player has been taken off — the one
-  thing that changes what his number means, because it is now final.
+- a **green arrow**, top-right, when the player came on from the bench — his
+  figure was scored in part of a match rather than all of one, and it is still
+  climbing.
+
+**The pitch follows the substitutions.** A player who is taken off drops to the
+bottom of his club's bench; the man who replaced him takes a place in the band
+his position calls for. The eleven on the grass is therefore the eleven
+currently on it — a pitch still showing the man who came off in the 46th, with
+his replacement sitting below scoring the points, describes a match that is not
+being played. The re-sorting happens once, in
+[`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts), so the bench columns
+and the ranking cannot disagree with the pitch.
+
+Two edges are worth knowing. A substitute is moved onto the grass only once
+**his position is known** — normally immediately, from the match payload's
+`pos`, otherwise when his player detail lands a moment later; until then he
+stays on the bench with his green arrow rather than becoming a portrait the
+pitch has no band for. And the whole thing rests on `role`, so it inherits the
+confidence [`resolveSwaps`](#who-came-off) has: where the
+outgoing player is ambiguous, nobody leaves and that side shows twelve — odd to
+look at, which is the point, and better than benching the wrong man.
 
 No names and no event badges. At twenty-two portraits on a phone a name under
 each is unreadable and a row of badges beside a 30px avatar is worse. The
@@ -253,14 +272,15 @@ tooltip and the accessible name carry the lot — name, score, owner, every even
 and the swap — which is the one place the width is free, and it is where
 `MatchPlayer.events` earns its keep.
 
-The **substitutes** go underneath as two columns, home left and away right,
-matching the header's arrangement (the pitch has to stack the teams to make
-them face each other; the corner labels bridge the two). Rows rather than
-portraits, so each gets a name. These are the club's real substitutes, not a
-Kickbase bench, and they are worth the space three times over: a manager's own
-player among them answers "why did he score nothing", the ones who came on carry
-an arrow and a real figure, and each row shows its **owning manager** as its own
-inline avatar.
+The **bench** goes underneath as two columns, home left and away right, matching
+the header's arrangement (the pitch has to stack the teams to make them face
+each other; the corner labels bridge the two). Rows rather than portraits, so
+each gets a name. It holds whoever is *not on the pitch right now*: the
+substitutes who never came on, and under them the players who have been taken
+off. Worth the space three times over — a manager's own player among them
+answers "why did he score nothing", a replaced player carries a red arrow beside
+a figure that has stopped moving, and each row shows its **owning manager** as
+its own inline avatar.
 
 Inline, not as a corner badge — that is the one place the pitch's treatment does
 not transfer. A 26px badge on a 60px portrait is legible; the same badge on a
@@ -443,6 +463,16 @@ A row is a portrait, the name, and a second line carrying the **club crest**
 has to give back), the **event glyphs**, and an arrow if he was swapped. Then the
 **owning manager** and the score. Unlike the duel's row it needs no scoreline
 beside the crest, because every row in this list is the same match.
+
+**Arrows only — no `S11` chip.** In a single match a role exists only where
+there was a substitution, so the chip landed on exactly the players who were
+*taken off* and on none of the ten beside them who also started: it read as a
+distinction that is the opposite of what it means. The mark is suppressed with
+`showStart={false}` on
+[`MatchRoleMark`](../../src/components/player/statGlyphs.tsx), which keeps the
+tooltip and the accessible name spelling the role out in full. The chip still
+earns its place on a **player's** page, where the rows are many matches and
+"started" is genuinely one of the answers.
 
 The event glyphs live here rather than on the pitch: a row has the width for
 them and a 30px portrait does not.

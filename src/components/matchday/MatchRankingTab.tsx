@@ -36,8 +36,9 @@ interface RankedPlayer {
  *
  * **Substitutes are in the list.** They scored what they scored, and one who
  * came on and outscored a starter is the most interesting thing the view can
- * show. Their rows carry the same arrow the bench columns do, so nothing is
- * mistaken for a start.
+ * show. Their rows carry the same arrows the bench columns do — and *only* the
+ * arrows: an `S11` chip in a single match's list marks the replaced players and
+ * nobody else, which is worse than marking nothing.
  *
  * A player with no points sorts **last** rather than as zero — not knowing is
  * not the same as nothing, the rule [`byMatchdayPoints`](../../api/models.ts)
@@ -149,8 +150,18 @@ function PlayerRow({ player, team }: { player: MatchPlayer; team: MatchTeam }) {
           {player.events?.map((event) => (
             <MatchEventBadge key={event.kind} event={event} />
           ))}
+          {/* Arrows only. Every row here belongs to one match, and in a match
+              a role exists only where there was a substitution — so an `S11`
+              chip would sit on the handful of players who were *taken off* and
+              on none of the ten beside them who also started, saying the
+              opposite of what it means. The tooltip and the accessible name
+              still spell the role out. */}
           {player.role !== undefined && (
-            <MatchRoleMark role={player.role} className="text-[0.6875rem]" />
+            <MatchRoleMark
+              role={player.role}
+              showStart={false}
+              className="text-[0.6875rem]"
+            />
           )}
         </span>
       </div>

@@ -12,6 +12,11 @@ import type {
 
 /** Both team sheets, with everything the league knows layered on. */
 export interface MatchLineupData {
+  /**
+   * The two sheets **as the pitch stands now**, not as the clubs named them:
+   * `starters` is who is on, `substitutes` is who is not. See
+   * {@link applySubstitutions}.
+   */
   home: MatchLineup
   away: MatchLineup
   /** True while either fan-out — the points or the owners — is still arriving. */
@@ -179,11 +184,12 @@ export function useMatchLineup(
     role: swaps.get(player.id),
   })
 
-  const rebuild = (lineup: MatchLineup): MatchLineup => ({
-    ...lineup,
-    starters: lineup.starters.map(decorate),
-    substitutes: lineup.substitutes.map(decorate),
-  })
+  const rebuild = (lineup: MatchLineup): MatchLineup =>
+    applySubstitutions({
+      ...lineup,
+      starters: lineup.starters.map(decorate),
+      substitutes: lineup.substitutes.map(decorate),
+    })
 
   return {
     home: rebuild(detail.home11),
@@ -192,6 +198,57 @@ export function useMatchLineup(
     // the ownership badges. A pitch that has drawn its portraits but is still
     // collecting badges should say so.
     isPending: points.isPending || lineups.isPending,
+  }
+}
+
+/**
+ * Play the substitutions out: **whoever left the pitch joins the bench, and
+ * whoever came on takes his place on it.**
+ *
+ * The payload's two arrays are the team sheet as it was *named*, which is the
+ * right answer for an hour before kick-off and the wrong one from the 60th
+ * minute on — a pitch still showing the man who came off in the 46th, and his
+ * replacement sitting on the bench with the points he is scoring, describes a
+ * match that is not being played. So the arrays are re-sorted rather than
+ * annotated, and the pitch becomes what its name says: who is on it.
+ *
+ * Three details decide the edges:
+ *
+ *  - **Those who left sort last** on the bench, under the substitutes who never
+ *    came on. Their afternoon is over and their figure is final, where an
+ *    unused substitute's is still a maybe.
+ *  - A substitute is moved onto the grass only once **his position is known**.
+ *    It usually is — the match payload carries `pos` — but where it is not, it
+ *    arrives with his player detail a moment later, and until then a row on the
+ *    bench with a green arrow beats a portrait the pitch has no band for.
+ *  - The whole thing rests on `role`, so it inherits exactly the confidence
+ *    {@link resolveSwaps} has: the player coming *on* is stated by the feed,
+ *    the one going off is matched by surname and skipped when that is
+ *    ambiguous. A skipped one leaves a side with twelve on the pitch — visibly
+ *    odd, which is better than quietly benching the wrong man.
+ */
+function applySubstitutions(lineup: MatchLineup): MatchLineup {
+  const left = (player: MatchPlayer): boolean =>
+    player.role === 'substitutedOff' || player.role === 'substitutedInAndOff'
+
+  const cameOn = (player: MatchPlayer): boolean =>
+    player.role === 'substitutedIn' && player.position !== undefined
+
+  return {
+    ...lineup,
+    starters: [
+      ...lineup.starters.filter((player) => !left(player)),
+      ...lineup.substitutes.filter(cameOn),
+    ],
+    substitutes: [
+      ...lineup.substitutes.filter(
+        (player) => !cameOn(player) && !left(player),
+      ),
+      // Off the pitch, and last: the ones who came on and went off again, then
+      // the starters who were replaced.
+      ...lineup.substitutes.filter(left),
+      ...lineup.starters.filter(left),
+    ],
   }
 }
 

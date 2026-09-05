@@ -216,14 +216,25 @@ export function SwapMark({
  */
 export function MatchRoleMark({
   role,
+  showStart = true,
   className,
 }: {
   role: PlayerMatchRole
+  /**
+   * Whether a start is worth marking at all.
+   *
+   * It is not, in a list of one single match: there the chip appears on exactly
+   * the players who were *replaced* — nobody else in a match carries a role —
+   * so it reads as a distinction between them and the untouched starters
+   * beside them, which is not what it means. See
+   * [`MatchRankingTab`](../matchday/MatchRankingTab.tsx).
+   */
+  showStart?: boolean
   className?: string
 }) {
   const text = ROLE_TEXT[role]
   // A player taken off still started, so he keeps the chip and gains an arrow.
-  const started = role === 'started' || role === 'substitutedOff'
+  const started = showStart && (role === 'started' || role === 'substitutedOff')
   const cameOn = role === 'substitutedIn' || role === 'substitutedInAndOff'
   const cameOff = role === 'substitutedOff' || role === 'substitutedInAndOff'
 

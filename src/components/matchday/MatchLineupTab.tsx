@@ -45,14 +45,13 @@ const RING_CLASS: Record<Side, string> = {
 }
 
 /**
- * Has the player left the pitch? `resolveSwaps` in
- * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts) is where that is worked
- * out, and how reliable it is.
+ * Did the player come on from the bench? Nobody on this pitch has *left* it —
+ * `applySubstitutions` in
+ * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts) moves those to the
+ * bench — so the only swap a portrait can carry is an arrival.
  */
-function wasTakenOff(player: MatchPlayer): boolean {
-  return (
-    player.role === 'substitutedOff' || player.role === 'substitutedInAndOff'
-  )
+function cameOnAsSub(player: MatchPlayer): boolean {
+  return player.role === 'substitutedIn'
 }
 
 /**
@@ -104,8 +103,16 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  *  - the **owning manager**, as an [`OwnerBadge`](./OwnerBadge.tsx) in the
  *    corner — the whole reason this screen exists rather than a link to
  *    kicker.de;
- *  - a **red arrow** in the other corner once he has been taken off, because
- *    that is the one thing which changes what his number means: it is final.
+ *  - a **green arrow** in the other corner when he came on from the bench,
+ *    because his number was scored in part of a match rather than all of one.
+ *
+ * **The pitch follows the substitutions.** A player taken off drops to the
+ * bottom of his club's bench and the man who replaced him takes a place in the
+ * band his position calls for — so the eleven drawn on the grass is the eleven
+ * currently on it, which is the question a lineup is opened to answer. The
+ * re-sorting happens once, in
+ * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts), so the bench columns
+ * and the [ranking](./MatchRankingTab.tsx) cannot disagree with the pitch.
  *
  * No names, and **no event badges**. At twenty-two portraits on a phone a name
  * under each is unreadable and a row of badges beside a 30px avatar is worse;
@@ -303,19 +310,18 @@ function PitchPlayer({
             className="absolute -top-0.5 -left-0.5"
           />
         )}
-        {/* Top-*right*, the corner the owner badge left free. A starter who
-            has been taken off cannot score again, which is the one thing about
-            a portrait on the grass that changes what its number means — and it
-            is exactly the state the duel page's `substituted` has never had a
-            source for. The mark is the app's shared `SwapMark`, so the red
-            left arrow means the same here as on a bench row. */}
-        {wasTakenOff(player) && (
+        {/* Top-*right*, the corner the owner badge left free. He is standing
+            here because he came on, not because his club named him — and that
+            changes what his number means: it was scored in part of a match, and
+            it is still climbing. The mark is the app's shared `SwapMark`, so
+            the green right arrow means the same here as on a bench row. */}
+        {cameOnAsSub(player) && (
           <span
             aria-hidden="true"
             className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full bg-black/75 p-0.5"
           >
             <SwapMark
-              direction="out"
+              direction="in"
               size={Math.round(cornerBadgeSize(metrics.avatar) * 0.7)}
             />
           </span>
@@ -425,10 +431,12 @@ function teamPoints(lineup: MatchLineup): number | undefined {
 /**
  * One club's substitutes, as a **column** beside the other's.
  *
- * The real bench, not a Kickbase one — these are the players the club named in
- * its squad and did not start. They are worth the space for two reasons: a
- * manager's own player among them is the answer to "why did he score nothing",
- * and the ones who came on carry an arrow and a real points figure.
+ * The real bench, not a Kickbase one — the players the club named in its squad
+ * who are **not on the pitch right now**: the ones who never came on, and, at
+ * the bottom, the ones who have been taken off. They are worth the space for
+ * two reasons: a manager's own player among them is the answer to "why did he
+ * score nothing", and a player who was replaced carries a red arrow beside a
+ * figure that has stopped moving.
  *
  * Rows rather than portraits, so each gets a name — and stacked rather than a
  * sideways-scrolling strip, because two benches side by side are meant to be
