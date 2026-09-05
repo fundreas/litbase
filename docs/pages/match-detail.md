@@ -207,11 +207,19 @@ of their own.
 Anpfiff, Halbzeit and Abpfiff are **derived from the match's state, not read
 from the feed**, and drawn as full-width dividers rather than as events.
 
-The feed does carry match-level entries — they are the ones with `pi: "0"` — but
-their `ke` codes are **not on the player scale and have not been identified**.
-Guessing them would put a mislabelled marker in the middle of an otherwise real
-timeline, which is a worse failure than not having them: a reader cannot tell a
-wrong *Halbzeit* from a right one.
+The feed does carry match-level entries — they are the ones with `pi: "0"` — and
+**their `ke` codes are now known**: `10` kick-off, `11` end of the first half,
+`12` start of the second, `13` full time, and `26` an added-time announcement
+carrying `amn` minutes. See
+[Codes](../api/codes.md#match-level-ke-pi-0).
+
+Deriving the three markers is now a **choice, not a workaround**, and it stays
+the right one for a reason the codes do not change: the derivation depends only
+on the fixture's own state, which is what
+[the live development profile](../infrastructure.md#development-profiles)
+rewrites. A timeline that read the feed's markers would go blank outside the
+few hours a week a real match is on, and `npm run dev:live` would stop
+exercising it.
 
 All three moments are implied by data the app already trusts:
 
@@ -223,10 +231,13 @@ All three moments are implied by data the app already trusts:
   the divider.
 - **Abpfiff** — the fixture reports finished. Always the first row.
 
-> **Open probe.** One request against a live or finished match, reading the `ke`
-> of the entries with `pi: "0"`, would settle whether the API's own markers are
-> worth reading instead. It is a one-line change to `mapMatchDetail` if they
-> are — the shape is already there, the codes are the only unknown.
+> **Probe closed** (2026-09-05, match `11947`). The codes are identified, and
+> reading them would still be a one-line change to `mapMatchDetail` — the shape
+> is already there. What the probe also found is a reason to be careful if you
+> make it: **the feed is sorted by `mt` descending, not chronologically**, so
+> `ke: 12` (minute 45) arrives after `ke: 11` (minute 48). Rendering the
+> markers in array order would put *Halbzeit* on the wrong side of the second
+> half's start.
 
 Before kick-off the timeline is empty and says so, with the kick-off time.
 
@@ -596,13 +607,14 @@ of the same set of requests, exactly as the duel page's two views are.
 
 ## Possible extensions
 
-- **Read the API's own markers** once the `pi: "0"` codes are known — see the
-  probe above. `/v4/live/eventtypes` carries `-10` *Erste Halbzeit des Spiels
-  beendet* and `-17` *Zweite Halbzeit des Spiels beendet*, which are the best
-  guess yet at what those codes are; see
-  [the six negative ids](../api/matches.md#the-six-negative-ids).
-- **The per-event points breakdown.** `/v4/live/eventtypes` names 621 scoring
-  events (*Deadly Pass*, *Big Chance Created*) on a much larger scale than `ke`.
-  It is what a "why did he get 158?" view would need, and nothing reads it
-  yet — see [API layer](../api-layer.md#endpoints-probed-but-unused).
+- **Added-time markers.** `ke: 26` carries `amn`, the minutes announced at the
+  end of each half (`3` and `6` on match `11947`). The timeline has no *+3* row
+  and could have one — this is the only one of the newly-identified match-level
+  codes that would say something the derived markers do not.
+- **The per-event points breakdown**, which is now buildable. The player
+  centre's `events[]` gives `eti` + `p` per action, `/v4/live/eventtypes` names
+  the `eti`, and the `p` values sum exactly to the player's matchday points
+  (129 events, 239 points, verified). A "why did he get 239?" sheet behind a
+  player's row on the pitch is the natural home for it — see
+  [the join](../api/matches.md#the-join-that-was-missing).
 - **A team page** behind each crest, which the matchday list wants too.

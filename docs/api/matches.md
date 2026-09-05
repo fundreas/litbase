@@ -77,11 +77,25 @@ match is actually under way.
 | `pim` | string | Portrait, CDN-relative |
 | `rev` | object | A related event, e.g. the assist folded into a goal. **Its `pi` is `"0"` even though `pn` names somebody**, so the related player cannot be identified by id — which is why it is unused |
 
-> **Match-level entries are dropped.** Their `ke` codes are *not* on the player
-> scale and have not been identified (**✗**). The
-> [match timeline](../pages/match-detail.md#the-structural-markers) derives
-> kick-off, half-time and the whistle from the fixture's own state instead. One
-> probe reading the `ke` of a `pi: "0"` entry would settle it.
+> **Match-level entries are dropped**, and that is now a choice rather than a
+> gap: their `ke` codes sit on a separate band — `10` kick-off, `11` end of the
+> first half, `12` start of the second, `13` full time, `26` added time (with
+> `amn` minutes) — identified on 2026-09-05 and tabulated in
+> [Codes](codes.md#match-level-ke-pi-0). The
+> [match timeline](../pages/match-detail.md#the-structural-markers) still
+> derives those moments from the fixture's own state, which keeps it testable
+> off-matchday.
+
+#### `events[]` — extra fields on match-level entries
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `amn` | number | **Added minutes**, on `ke: 26` only. `3` at minute 45, `6` at minute 90 |
+
+> **The feed is sorted by `mt` descending, not chronologically** — verified by
+> reading all 20 events of match `11947` in delivery order. `ke: 12` (minute
+> 45) therefore lands *after* `ke: 11` (minute 48). Never infer sequence from
+> array position.
 
 ### Used by
 
@@ -112,7 +126,10 @@ That gate is the one uncertain thing about it; see
 Names for every scoring event Kickbase knows — **621 of them**, ids `-17` to
 `4765`, from *Deadly Pass* to *Fouled in the opponent's half*.
 
-**Auth** Bearer. No parameters. **Unused.**
+**Auth** Bearer. No parameters. **Unused — but no longer unusable:** it is the
+lookup table for `eti` on the player centre's `events[]`, which is the
+per-event points breakdown this endpoint was always waiting for. See
+[the join](#the-join-that-was-missing).
 
 > **It is not live, whatever the path says.** Polled seven times at 30-second
 > intervals during a running matchday, every response came back byte-identical
@@ -128,7 +145,7 @@ Names for every scoring event Kickbase knows — **621 of them**, ids `-17` to
 | ----- | ---- | ----------- |
 | `lcud` | string | Last updated, ISO 8601. Moves when Kickbase revises its scoring, not per matchday |
 | `it` | array | `{ i, ti }` — event type id and human-readable title. 621 entries, **169 distinct titles** |
-| `dds` | object | **~** Templates for an event card's sub-line, keyed `1`…`7`, `20`, `100`: `"Assist by {assistBy}"`, `"Goal by {goalBy}"`, `"Missed by {missedBy}"`, `"Suspended for next match day"`, `"-"`. **✗** what indexes it — the keys look like `ke` codes but the meanings do not line up (`3` is a red card there, a goal here), so do not join them |
+| `dds` | object | Templates for an event card's sub-line, keyed `1`…`7`, `20`, `100`: `"Assist by {assistBy}"`, `"Goal by {goalBy}"`, `"Missed by {missedBy}"`, `"Suspended for next match day"`, `"-"`. **What indexes it is `ddi`** on a player-centre event — observed `ddi: "100"` on a goal, resolving to `dds["100"]`. These keys are *not* `ke` codes; do not join them to that scale |
 
 > **This is a different, much larger scale than the `ke` codes** on a match's
 > event feed. Confirmed numerically: the lowest **positive** id here is `45`,
@@ -139,23 +156,55 @@ Names for every scoring event Kickbase knows — **621 of them**, ids `-17` to
 > what a live score needs. Do not cross the two scales; see
 > [Codes](codes.md#the-other-event-scale).
 
-#### The six negative ids
+#### The negative ids are the match-structure scale
 
 The only German strings left in the payload, and not scoring events at all:
 `-1` Eingewechselt, `-2` Ausgewechselt, `-7` Auf Bank, `-8` Von Anfang an
 gespielt, `-10` Erste Halbzeit des Spiels beendet, `-17` Zweite Halbzeit des
 Spiels beendet.
 
-The last two are exactly the half-time and full-time moments whose `ke` on a
-`pi: "0"` event was never identified (**✗** above). **One probe would settle
-it**: read the `ke` of a match-level entry on a live match and see whether it
-is negative. If it is, the timeline could stop deriving those moments from the
-fixture's state.
+A player centre's `events[]` uses **negative `eti`** for exactly the structural
+moments, and pairs each with a `ke` — which is what finally identified the
+`pi: "0"` codes. Observed on match `11947`:
 
-### Not used, and what would use it
+| `eti` | `ke` | `mt` | Catalogue name |
+| ----- | ---- | ---- | -------------- |
+| `-9` | `10` | `0` | *(absent)* — kick-off |
+| `-11` | `12` | `45` | *(absent)* |
+| `-20` | `26` | `45`, `90` | *(absent)* — added time, carries `amn` |
+| `-10` | `11` | `48` | **Erste Halbzeit des Spiels beendet** |
+| `-12` | `13` | `96` | *(absent)* — full time |
 
-A per-player points breakdown during a live match. The blocker is not this
-endpoint but the other half: nothing found so far returns *which* of these
-events a given player accumulated in a given match with their point values —
-`k` on the [performance endpoint](players.md) is the coarse ten-code scale, not
-this one.
+> **The catalogue is not a complete index of the negative ids.** Only `-10` of
+> the five actually observed is in it, while `-17` — which the catalogue *does*
+> name, as the end of the second half — never appeared; the real full-time
+> event used `eti: -12`. So `-17` looks legacy. Resolve a negative `eti`
+> defensively and fall back to the `ke`.
+
+That one named row is enough to pin `ke: 11`, and the rest follow by minute —
+see [Codes](codes.md#match-level-ke-pi-0).
+
+### The join that was missing
+
+This endpoint's stated blocker was that nothing returned *which* of these
+events a player accumulated. **`GET /v4/leagues/{leagueId}/playercenter/{playerId}?dayNumber=N`
+does** — see [Players](players.md). Its `events[]` entries carry `eti` (this
+catalogue's scale) and `p`, the points that action was worth.
+
+Verified on Baku, matchday 2: **129 events, 123 of whose `eti` resolve against
+the catalogue**, and their `p` values sum to **239 — exactly the player's `p`
+for the matchday**. The six that do not resolve are the negative structural
+ids above, all worth `p: 0`.
+
+Every `eti` in that match came from the **`3849…4393` block** — so a consumer
+does not need all 621 entries, but it does need to key by id rather than
+assume a block, since the blocks repeat per game mode.
+
+```
+eti 4153  p=-5   Ball intercepted
+eti 4150  p=-1   Interception (outside the box)
+eti 4390  p=3    Cleared (outside the box)
+eti 4291  p=100  Goal (Defender)          ← ddi "100"
+eti 4270  p=10   Played Minutes Bonus
+eti 4267  p=-15  Game Lost
+```

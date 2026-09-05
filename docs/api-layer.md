@@ -223,11 +223,16 @@ player-performance endpoint, so they go straight through `toEventTallies()` and
 render as the glyphs the player page already draws. Verified against a finished
 5:1: five `1`s and one `2` (four goals plus an own goal for one side, one goal
 for the other — which is exactly that scoreline), four `4`s for the yellow
-cards, ten `8`s for the substitutions. `/v4/live/eventtypes` is a *different*,
-621-entry catalogue of Kickbase's scoring events (*Deadly Pass*, *Big Chance
-Created*); it is what a points-breakdown view would need and is unused. It is
-also, despite the path, **not live** — seven polls across a running matchday
-returned byte-identical payloads.
+cards, ten `8`s for the substitutions. Match-level entries (`pi: "0"`) use a
+separate band of the same scale — `10`–`13` and `26` — identified on
+2026-09-05; the app still drops them, deliberately.
+
+`/v4/live/eventtypes` is a *different*, 621-entry catalogue of Kickbase's
+scoring events (*Deadly Pass*, *Big Chance Created*). Nothing reads it, but it
+is no longer a dead end: it is the lookup table for `eti` on the player
+centre's `events[]`, whose per-event `p` values sum exactly to a player's
+matchday points. It is also, despite the path, **not live** — seven polls
+across a running matchday returned byte-identical payloads.
 
 `useMatchdayPoints` is the one **fan-out** in the app: there is no bulk source
 of per-player matchday points, so it issues one request per player — but only

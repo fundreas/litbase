@@ -81,23 +81,45 @@ code appears across the same season for 60 players.
 | `9` | Substituted off | Only ever alongside an `8` or a start, never on a non-appearance |
 | `25` | Clean sheet | Exact match with `cs` |
 
-**Match-level events use `pi: "0"`** — kick-off, half-time, the whistle — and
-their `ke` codes are *not* on this scale and have not been identified (**✗**).
-The app drops them and derives those three moments from the fixture's own
-state; one probe reading the `ke` of a `pi: "0"` entry would settle it.
+### Match-level `ke` (`pi: "0"`)
+
+**Match-level events use `pi: "0"`** and their `ke` codes are on a **separate
+band of the same scale** — `10`–`13` and `26`, which do not collide with the
+player codes above. Captured on Bremen 3-1 Leipzig (match `11947`, matchday 2,
+full time) on 2026-09-05:
+
+| Code | Event | `mt` seen | How it was established |
+| ---- | ----- | --------- | ---------------------- |
+| `10` | Kick-off | `0` | The only event at minute zero |
+| `11` | **End of the first half** | `48` | **Named outright**: the player centre pairs it with `eti: -10`, which [eventtypes](matches.md#the-negative-ids-are-the-match-structure-scale) calls *Erste Halbzeit des Spiels beendet* |
+| `12` | **?** Start of the second half | `45` | By elimination — the remaining structural marker, carrying the nominal 45 rather than a stoppage-inclusive minute |
+| `13` | Full time | `96` | Last event of the feed, and its `mt` equals the match's own final `mt` |
+| `26` | **Added time announced** | `45`, `90` | The only code carrying **`amn`**, the number of added minutes — `3` at 45', `6` at 90', matching the two halves' stoppage |
+
+> **The feed is sorted by `mt` descending, not chronologically.** `ke: 12` at
+> minute 45 therefore appears *after* `ke: 11` at minute 48 in the array even
+> though the first half ended later than the second began by Kickbase's own
+> numbering. Do not read sequence from position.
+
+This resolves a long-standing **✗**. The app still derives kick-off, half-time
+and the whistle from the fixture's own state — see
+[match detail](../pages/match-detail.md#the-structural-markers) — which stays
+correct, but no longer has to.
 
 ### The other event scale
 
 [`GET /v4/live/eventtypes`](matches.md#get-v4liveeventtypes) is a **different,
 much larger catalogue** — 621 entries, ids `-17` to `4765`, repeating per game
-mode. Its lowest **positive** id is `45`, and none of the codes in the table
-above appears in it. It is what a points-breakdown view would need. It is
-**not** the `ke` scale and the two must not be crossed.
+mode. Its lowest **positive** id is `45`, and none of the *player* codes in the
+table above appears in it. It is **not** the `ke` scale and the two must not be
+crossed — with one deliberate exception below.
 
-Its six **negative** ids are a separate matter: `-10` and `-17` name the end of
-each half, and are candidates for the unidentified `ke` on `pi: "0"`
-match-level events — see
-[eventtypes](matches.md#the-six-negative-ids).
+Where the two scales meet is the **player centre**, whose `events[]` carries
+both: `eti` on this catalogue's scale and, on structural events only, a `ke` on
+the scale above. That pairing is what named `ke: 11`. See
+[players.md](players.md) for the endpoint and
+[the negative ids](matches.md#the-negative-ids-are-the-match-structure-scale)
+for the mapping.
 
 ## Market-value trend (`mvt`)
 
