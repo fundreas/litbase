@@ -109,25 +109,48 @@ That gate is the one uncertain thing about it; see
 
 ## `GET /v4/live/eventtypes`
 
-Names for every scoring event Kickbase knows — **621 of them**, from
-*Fernschusstor (Bonus)* to *Pass des Todes*.
+Names for every scoring event Kickbase knows — **621 of them**, ids `-17` to
+`4765`, from *Deadly Pass* to *Fouled in the opponent's half*.
 
 **Auth** Bearer. No parameters. **Unused.**
+
+> **It is not live, whatever the path says.** Polled seven times at 30-second
+> intervals during a running matchday, every response came back byte-identical
+> and `lcud` read `2026-08-10T14:40:33Z` — a month stale. It takes no
+> parameters, so there is nothing to scope it to a match. The
+> `cache-control: no-store` on the response is about HTTP caching, not about
+> the content moving. Samples and the full analysis:
+> [`test-data/eventtypes/`](../../test-data/eventtypes/README.md).
 
 ### Response `200`
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `lcud` | string | Last updated, ISO 8601 |
-| `it` | array | `{ i, ti }` — event type id and human-readable title |
-| `dds` | object | **✗** A map keyed by small integers (`1`…`7`, `20`, `100`) to strings. Presumably display groupings |
+| `lcud` | string | Last updated, ISO 8601. Moves when Kickbase revises its scoring, not per matchday |
+| `it` | array | `{ i, ti }` — event type id and human-readable title. 621 entries, **169 distinct titles** |
+| `dds` | object | **~** Templates for an event card's sub-line, keyed `1`…`7`, `20`, `100`: `"Assist by {assistBy}"`, `"Goal by {goalBy}"`, `"Missed by {missedBy}"`, `"Suspended for next match day"`, `"-"`. **✗** what indexes it — the keys look like `ke` codes but the meanings do not line up (`3` is a red card there, a goal here), so do not join them |
 
 > **This is a different, much larger scale than the `ke` codes** on a match's
-> event feed. These ids run into the thousands and repeat per game mode
-> (classic, PlusOne, 3 Play) — `"Big Chance Created"` alone appears under six
-> ids. It is what a **points-breakdown** view would need ("why did this player
-> score 47?"), not what a live score needs. Do not cross the two scales; see
+> event feed. Confirmed numerically: the lowest **positive** id here is `45`,
+> and none of `1`, `2`, `3`, `4`, `8`, `9`, `25` — the codes the app actually
+> reads — exists in the catalogue. The ids run into the thousands and repeat
+> per game mode; `"Big Chance Created"` alone appears under 18 ids. It is what
+> a **points-breakdown** view would need ("why did this player score 47?"), not
+> what a live score needs. Do not cross the two scales; see
 > [Codes](codes.md#the-other-event-scale).
+
+#### The six negative ids
+
+The only German strings left in the payload, and not scoring events at all:
+`-1` Eingewechselt, `-2` Ausgewechselt, `-7` Auf Bank, `-8` Von Anfang an
+gespielt, `-10` Erste Halbzeit des Spiels beendet, `-17` Zweite Halbzeit des
+Spiels beendet.
+
+The last two are exactly the half-time and full-time moments whose `ke` on a
+`pi: "0"` event was never identified (**✗** above). **One probe would settle
+it**: read the `ke` of a match-level entry on a live match and see whether it
+is negative. If it is, the timeline could stop deriving those moments from the
+fixture's state.
 
 ### Not used, and what would use it
 

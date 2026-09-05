@@ -1,0 +1,9 @@
+HTTP/2 200 
+date: Sat, 05 Sep 2026 13:53:12 GMT
+content-type: application/json; charset=utf-8
+cache-control: no-store, no-cache
+vary: Accept-Encoding
+server: cloudflare
+cf-cache-status: DYNAMIC
+cf-ray: a365b8041c7dd3a1-FRA
+

@@ -89,10 +89,15 @@ state; one probe reading the `ke` of a `pi: "0"` entry would settle it.
 ### The other event scale
 
 [`GET /v4/live/eventtypes`](matches.md#get-v4liveeventtypes) is a **different,
-much larger catalogue** — 621 entries running into the thousands and repeating
-per game mode, from *Fernschusstor (Bonus)* to *Pass des Todes*. It is what a
-points-breakdown view would need. It is **not** the `ke` scale and the two must
-not be crossed.
+much larger catalogue** — 621 entries, ids `-17` to `4765`, repeating per game
+mode. Its lowest **positive** id is `45`, and none of the codes in the table
+above appears in it. It is what a points-breakdown view would need. It is
+**not** the `ke` scale and the two must not be crossed.
+
+Its six **negative** ids are a separate matter: `-10` and `-17` name the end of
+each half, and are candidates for the unidentified `ke` on `pi: "0"`
+match-level events — see
+[eventtypes](matches.md#the-six-negative-ids).
 
 ## Market-value trend (`mvt`)
 

@@ -590,9 +590,12 @@ of the same set of requests, exactly as the duel page's two views are.
 ## Possible extensions
 
 - **Read the API's own markers** once the `pi: "0"` codes are known — see the
-  probe above.
+  probe above. `/v4/live/eventtypes` carries `-10` *Erste Halbzeit des Spiels
+  beendet* and `-17` *Zweite Halbzeit des Spiels beendet*, which are the best
+  guess yet at what those codes are; see
+  [the six negative ids](../api/matches.md#the-six-negative-ids).
 - **The per-event points breakdown.** `/v4/live/eventtypes` names 621 scoring
-  events (*Fernschusstor (Bonus)*, *Pass des Todes*) on a much larger scale than
-  `ke`. It is what a "why did he get 158?" view would need, and nothing reads it
+  events (*Deadly Pass*, *Big Chance Created*) on a much larger scale than `ke`.
+  It is what a "why did he get 158?" view would need, and nothing reads it
   yet — see [API layer](../api-layer.md#endpoints-probed-but-unused).
 - **A team page** behind each crest, which the matchday list wants too.
