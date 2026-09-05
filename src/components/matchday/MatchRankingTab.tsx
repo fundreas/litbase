@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 import type { MatchLineup, MatchPlayer, MatchTeam } from '@/api/models'
 import { matchPlayerFigure } from '@/components/matchday/matchPlayerFigure'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
+import { teamPoints } from '@/components/matchday/teamPoints'
 import { MatchEventBadge } from '@/components/player/MatchEventBadge'
 import {
   figureDescription,
@@ -16,6 +17,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
+import { points } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
 /** One ranked row: a player, whose club he is, and who had him. */
@@ -140,11 +142,19 @@ function useRankingView(): [RankingView, (view: RankingView) => void] {
 }
 
 /**
- * One club's players, ranked among themselves, under a crest.
+ * One club's players, ranked among themselves, under a crest — and **what the
+ * club scored altogether**.
  *
  * The numbering **restarts at 1**, which is the whole point of the split: in
  * this reading the question is "who was this club's best", and a player carrying
  * `14` because thirteen opponents outscored him answers a different one.
+ *
+ * The total closes the same question at the club level: split into two lists,
+ * the two columns of figures no longer add up to anything the eye can compare,
+ * so the comparison is drawn. It is the same
+ * [`teamPoints`](./teamPoints.ts) the pitch's corner labels use — including
+ * substitutes, `–` until the first figure lands — so a reader flicking between
+ * the two tabs meets one number, not two that disagree.
  */
 function TeamRanking({
   lineup,
@@ -154,10 +164,16 @@ function TeamRanking({
   leagueId: string
 }) {
   const rows = rankMatchPlayers(lineup)
+  const total = teamPoints(lineup)
+  const name = lineup.team.name ?? lineup.team.symbol
+  const totalLabel =
+    total === undefined
+      ? `${name}: noch keine Punkte`
+      : `${name}: ${points(total)} Punkte in diesem Spiel`
 
   return (
     <section className="flex flex-col gap-1.5">
-      <h3 className="flex min-w-0 items-center gap-2 px-0.5">
+      <h3 className="flex min-w-0 items-center gap-2 px-0.5" title={totalLabel}>
         <Avatar
           src={lineup.team.image}
           name={lineup.team.symbol}
@@ -166,8 +182,18 @@ function TeamRanking({
           className="shrink-0 bg-transparent"
         />
         <span className="truncate text-xs font-semibold tracking-wide text-muted uppercase">
-          {lineup.team.name ?? lineup.team.symbol}
+          {name}
         </span>
+        <span
+          aria-hidden="true"
+          className={cn(
+            'nums ml-auto shrink-0 text-sm font-bold',
+            total === undefined ? 'text-faint' : 'text-ink',
+          )}
+        >
+          {points(total)}
+        </span>
+        <span className="sr-only">{totalLabel}</span>
       </h3>
 
       {rows.length === 0 ? (

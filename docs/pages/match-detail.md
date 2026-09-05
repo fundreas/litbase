@@ -324,7 +324,9 @@ match** — the sum of every known figure in the team sheet, substitutes include
 A substitute who came on and scored did so for this club; one who never left the
 bench contributes nothing, because his points are `undefined` rather than `0`.
 The total is `–` until the first figure lands and then climbs as the fan-out
-arrives, which is also what the spinner under the pitch is saying.
+arrives, which is also what the spinner under the pitch is saying. It comes from
+[`teamPoints`](../../src/components/matchday/teamPoints.ts), shared with the
+ranking's per-club headings.
 
 It answers the question the score cannot: *where in this fixture were the
 points*. Nothing else on the screen adds up the two teams.
@@ -487,11 +489,19 @@ does: the pitch answers "how are the two teams set up", a ranked list answers
 | View | What it is | For |
 | ---- | ---------- | --- |
 | **Gemeinsam** (default) | Both clubs interleaved in one numbered list | "Who scored the points in this match" — a list where one side takes the top six says something two separate lists cannot |
-| **Nach Verein** | Home above away, each list numbered **from 1** | "Who was this club's best today" — which the combined list buries whenever the other side has run away with the match |
+| **Nach Verein** | Home above away, each list numbered **from 1**, each headed by its crest and the club's **total** | "Who was this club's best today" — which the combined list buries whenever the other side has run away with the match |
 
 The numbering restarting per club is the whole point of the split: a player
 carrying `14` because thirteen opponents outscored him is answering the other
 question.
+
+The heading's total closes the same question at club level. Split into two
+lists, the two columns of figures stop adding up to anything the eye can
+compare, so the comparison is drawn instead. It is the same
+[`teamPoints`](../../src/components/matchday/teamPoints.ts) the pitch's corner
+labels show — substitutes included, `–` until the first figure lands, climbing
+as the fan-out arrives — extracted so the two tabs cannot disagree about the
+same club in the same match.
 
 The control is [`PairToggle`](../../src/components/ui/PairToggle.tsx) — the
 same one-button, two-glyph control the [squad](squad.md#kader--two-layouts) uses

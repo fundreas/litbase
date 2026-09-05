@@ -12,6 +12,7 @@ import {
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { matchPlayerFigure } from '@/components/matchday/matchPlayerFigure'
 import { ownerLabel } from '@/components/matchday/ownerLabel'
+import { teamPoints } from '@/components/matchday/teamPoints'
 import {
   figureDescription,
   figureLabel,
@@ -426,25 +427,6 @@ function SideLabel({ lineup, side }: { lineup: MatchLineup; side: Side }) {
       <span className="sr-only">{label}</span>
     </span>
   )
-}
-
-/**
- * What a club's players scored in this match, or `undefined` when not one of
- * them has a figure yet.
- *
- * `undefined` rather than `0`, for the reason the model's `points` is optional:
- * before kick-off nobody has scored *nothing*, they have scored *not yet*, and
- * a corner reading `0` over a team about to play would be a claim.
- */
-function teamPoints(lineup: MatchLineup): number | undefined {
-  let total: number | undefined
-
-  for (const player of [...lineup.starters, ...lineup.substitutes]) {
-    if (player.points === undefined) continue
-    total = (total ?? 0) + player.points
-  }
-
-  return total
 }
 
 /**
