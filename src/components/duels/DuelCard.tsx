@@ -18,6 +18,9 @@ import { placement, points } from '@/lib/format'
  * matchday has kicked off: points once it has (live while it runs), the
  * manager's standing before that, when every score is still `0` and printing
  * "0 Pkt" ten times would say nothing.
+ *
+ * While a match is being played a third line appears under the score, saying
+ * how many of that manager's players are on the pitch — see {@link Side}.
  */
 export function DuelCard({
   duel,
@@ -25,6 +28,7 @@ export function DuelCard({
   hasStarted,
   isFinished,
   viewerId,
+  activePlayers,
 }: {
   duel: Duel
   /** Detail route for this duel, matchday included. */
@@ -32,6 +36,11 @@ export function DuelCard({
   hasStarted: boolean
   isFinished: boolean
   viewerId?: string
+  /**
+   * Fielded players currently on the pitch, per manager id. Empty unless a
+   * match is running; a manager whose squad has not loaded is absent from it.
+   */
+  activePlayers?: Map<string, number>
 }) {
   // Before kick-off both sides are level at zero, so there is no leader to
   // mark — only a started matchday can have one.
@@ -58,6 +67,7 @@ export function DuelCard({
           isFinished={isFinished}
           isLeader={leader?.id === duel.sides[0].id}
           isViewer={duel.sides[0].id === viewerId}
+          activePlayers={activePlayers?.get(duel.sides[0].id)}
         />
 
         <Swords
@@ -76,6 +86,7 @@ export function DuelCard({
           isFinished={isFinished}
           isLeader={leader?.id === duel.sides[1].id}
           isViewer={duel.sides[1].id === viewerId}
+          activePlayers={activePlayers?.get(duel.sides[1].id)}
         />
 
         <ChevronRight size={16} className="-mr-1 shrink-0 text-faint" />
@@ -84,6 +95,19 @@ export function DuelCard({
   )
 }
 
+/**
+ * One manager's half of the card.
+ *
+ * **`n im Einsatz` is the third line**, and only ever appears while a match is
+ * being played and this manager has somebody in it. It answers the question a
+ * live duel list raises and the score alone cannot: 40 points behind with
+ * eight players still on the pitch is not the same position as 40 behind with
+ * none. Managers with nobody playing get nothing rather than a `0` — the line
+ * is news, and a row of zeroes is noise.
+ *
+ * It sits *under* the points rather than beside them: at 360px a card leaves
+ * roughly 110px per side, and "978 Pkt · 8 im Einsatz" does not fit in it.
+ */
 function Side({
   side,
   align,
@@ -91,6 +115,7 @@ function Side({
   isFinished,
   isLeader,
   isViewer,
+  activePlayers,
 }: {
   side: DuelSide
   align: 'left' | 'right'
@@ -98,6 +123,8 @@ function Side({
   isFinished: boolean
   isLeader: boolean
   isViewer: boolean
+  /** On the pitch right now. Absent while unknown, `0` when nobody is. */
+  activePlayers?: number
 }) {
   const isRight = align === 'right'
 
@@ -121,6 +148,25 @@ function Side({
           isFinished={isFinished}
           isLeader={isLeader}
         />
+        {activePlayers !== undefined && activePlayers > 0 && (
+          <p
+            className={cn(
+              'flex items-center gap-1 text-[0.6875rem] text-accent',
+              isRight && 'flex-row-reverse',
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent"
+            />
+            <span aria-hidden="true" className="nums truncate">
+              {activePlayers} im Einsatz
+            </span>
+            <span className="sr-only">
+              {activePlayers} Spieler in laufenden Spielen
+            </span>
+          </p>
+        )}
       </div>
     </div>
   )

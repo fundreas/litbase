@@ -2,6 +2,7 @@ import { Swords } from 'lucide-react'
 import { useMemo } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 
+import { useActivePlayerCounts } from '@/api/hooks/useActivePlayerCounts'
 import { useDuels } from '@/api/hooks/useDuels'
 import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import { matchdayState, type Duel } from '@/api/models'
@@ -61,6 +62,26 @@ export function DuelsPage() {
       ? list
       : [...mine, ...list.filter((duel) => !isMine(duel))]
   }, [duels.data, user])
+
+  /**
+   * How many players each manager has on the pitch **right now**.
+   *
+   * Asked for every manager on the page at once, and only while a match is
+   * actually running — see
+   * [`useActivePlayerCounts`](../api/hooks/useActivePlayerCounts.ts), which is
+   * where the cost of that is reasoned about. `ordered` is memoised, so the id
+   * list is stable between the once-a-minute polls.
+   */
+  const managerIds = useMemo(
+    () => ordered.flatMap((duel) => duel.sides.map((side) => side.id)),
+    [ordered],
+  )
+  const activePlayers = useActivePlayerCounts(
+    leagueId,
+    competitionId,
+    selectedDay,
+    managerIds,
+  )
 
   if (schedule.isPending || duels.isPending) {
     return (
@@ -141,6 +162,7 @@ export function DuelsPage() {
               hasStarted={hasStarted}
               isFinished={state === 'finished'}
               viewerId={user?.id}
+              activePlayers={activePlayers}
             />
           ))}
         </ul>

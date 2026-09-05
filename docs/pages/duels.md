@@ -20,6 +20,7 @@ Every manager's head-to-head for one matchday. **Duel leagues only** — see
   ┌────────────────────────────────────────────┐
   │ (A) Peterpan007    ⚔     Danger du     (A) │  ← accent border: your duel
   │     978 Pkt                    834 Pkt     │
+  │     ● 8 im Einsatz        ● 3 im Einsatz   │  ← only while a match runs
   ├────────────────────────────────────────────┤
   │ (A) Max            ⚔          Olaf     (A) │
   │     ✓ 948 Pkt                  906 Pkt     │
@@ -71,6 +72,56 @@ as `duelResultOf()` does on the ranking page — not by reading `hhmp`. See
 [Which field is the duel points](ranking.md#which-field-is-the-duel-points).
 Before kick-off both sides are level at `0`, so `duelLeader()` returns nothing
 and the card must gate on `hasStarted` before reading "level" as a draw.
+
+## Players on the pitch
+
+While a match is actually being played, each manager gets a third line under
+their score: **`● 8 im Einsatz`**, in accent, behind the same pulsing dot every
+live surface in the app uses.
+
+It answers the question a live duel list raises and the score alone cannot: 40
+points behind with eight players still on the pitch is not the same position as
+40 behind with none. The [detail page](duel-detail.md) says the same thing
+about *matches* (`n laufend · n offen`); here it is about **players**, because
+that is the finer-grained figure and the list has room for exactly one line of
+it.
+
+**Only managers with somebody playing get the line.** A `0` is not news, and a
+column of zeroes between the blocks would be noise — which is also why the
+line disappears entirely once every match of the moment has finished.
+
+It sits *under* the points rather than beside them: at 360px a card leaves
+roughly 110px per side, and `978 Pkt · 8 im Einsatz` does not fit in that.
+
+### What it costs
+
+[`useActivePlayerCounts(leagueId, competitionId, day, userIds)`](../../src/api/hooks/useActivePlayerCounts.ts)
+→ one `managers/{userId}/squad` per manager. There is no bulk source of who is
+fielded, so a page of five duels is ten requests — and the gate is what makes
+that acceptable:
+
+- **Nothing is fetched unless a fixture is actually running.** Not "the
+  matchday is live": between the Saturday blocks every match is either
+  finished or still to come, nothing is on the pitch, and the answer is zero
+  for everybody without asking.
+- **The squads are held, not polled.** Kickbase locks a lineup at the first
+  kick-off, so `lo` cannot change while the matchday runs. Five minutes, the
+  same as [`useManagerSquad`](../../src/api/hooks/useDuelRosters.ts) — and the
+  *same query key*, so opening a duel from this list finds both managers'
+  squads in cache already.
+
+A player counts when he is **fielded** (`lo !== undefined`, tested against
+`undefined` because `0` is the goalkeeper) and his club is in a running
+fixture. Bench players are in the stadium too but cannot move the duel. Which
+fixtures are running comes from the matchday list the picker already loaded,
+via `fixtureState()` against the clock — so a match kicking off starts counting
+at the next of the page's once-a-minute renders, with no extra request.
+
+A manager whose squad has not arrived yet is **absent from the map**, not zero,
+so the card shows nothing rather than briefly claiming he has nobody playing.
+
+The "Ohne Gegner" managers do not get the line — they have no duel for the
+number to qualify.
 
 ## The matchday picker
 
@@ -174,9 +225,12 @@ schedule before asking for it.
 
 ## Data
 
-One hook, one request:
+One request builds the whole list:
 [`useDuels(leagueId, day, { isLive })`](../../src/api/hooks/useDuels.ts) →
-`/v4/leagues/{leagueId}/ranking?dayNumber={day}`.
+`/v4/leagues/{leagueId}/ranking?dayNumber={day}`. The only thing on top of it
+is the per-manager squad fan-out behind
+[`n im Einsatz`](#players-on-the-pitch), which stays asleep unless a match is
+being played.
 
 **There is no duel endpoint.** `?dayNumber=` on the standings is the whole
 source — probed, with `/duels`, `/duels/{day}`, `/ranking/{day}`,
