@@ -215,15 +215,32 @@ returns the same payload.
 | ----- | ---- | ----------- |
 | `eti` | number | Event **type** id, on the big [`/v4/live/eventtypes`](matches.md#get-v4liveeventtypes) scale — *not* the `ke` scale. This is the join that catalogue exists for |
 | `p` | number | Points this action was worth |
-| `ke` | number | The small-scale kind, for the kinds that have one |
+| `ke` | number | The small-scale kind, on structural events only — see below |
 | `mt` | number | The minute |
 | `ddp` | object | Template data for the sub-line, e.g. `{ "goalBy": "Schick" }` |
-| `ddi` | string | Which template — the key into `dds` on `/v4/live/eventtypes` |
+| `ddi` | string | Which template — the key into `dds` on `/v4/live/eventtypes`. Observed `"100"` on a goal, resolving against that object |
+
+**The breakdown is complete**, not a selection: the `p` values sum **exactly**
+to the payload's own `p` — 129 entries totalling 239 against a stated `p: 239`.
+So a "why did he score 239?" sheet can be built from it with no remainder row
+and no rounding to explain.
 
 **Any player, owned or not.** The match's scorer, whom nobody in the probed
 league owned, answered `p: 180` with 45 breakdown entries. That is what makes it
 usable for the [match lineup](../pages/match-detail.md), where most of the
 twenty-two belong to nobody.
+
+> **Negative `eti` are the match's own structure**, not the player's doing —
+> kick-off, the halves, added time, full time — and they are the one place the
+> two event scales meet: they carry a `ke` on the small scale alongside, which is
+> what identified those codes. See
+> [Match-level `ke`](codes.md#match-level-ke-pi-0).
+>
+> **Resolve them by `ke`, not by looking `eti` up.** The catalogue is an
+> incomplete index of the negatives: it names `-17` as the end of the second
+> half, but the real full-time event carried `eti: -12`, which is not in the
+> catalogue at all. A lookup miss there means the catalogue is short, not that
+> the event is unknown.
 
 ### Which one wins
 

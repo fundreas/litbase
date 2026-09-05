@@ -907,15 +907,27 @@ export interface PlayerCenterResponse {
  * **`eti` is on the big `/v4/live/eventtypes` scale**, not the `ke` scale a
  * match's event feed uses — see [Codes](../../docs/api/codes.md). `ke`, when
  * present, is on the small one.
+ *
+ * The breakdown is **complete**: the `p` values sum exactly to
+ * {@link PlayerCenterResponse.p} — 129 entries totalling 239 against a stated
+ * `239` — so anything rendering it needs no remainder row.
  */
 export interface PlayerCenterEvent {
   /** Event id. */
   ei?: string
-  /** Event **type** id, on the `/v4/live/eventtypes` scale. */
+  /**
+   * Event **type** id, on the `/v4/live/eventtypes` scale.
+   *
+   * **Negative values are the match's own structure** — kick-off, the halves,
+   * added time, full time — and carry a {@link ke} alongside. Read those by
+   * `ke`: the catalogue is an incomplete index of the negatives (full time
+   * arrived as `-12`, which is not in it at all), so a lookup miss means the
+   * catalogue is short rather than the event unknown.
+   */
   eti?: number
   /** Points this action was worth. */
   p?: number
-  /** Event kind on the small `ke` scale, for the kinds that have one. */
+  /** Event kind on the small `ke` scale, on structural events. */
   ke?: number
   /** The minute. */
   mt?: number
