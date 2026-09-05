@@ -35,6 +35,14 @@ import { cn } from '@/lib/cn'
  * down, so the pitch inside measures the screen minus the bar and sizes its
  * portraits to it. That is what makes this worth having at all — the same eleven
  * at twice the size, not a scaled screenshot.
+ *
+ * **The pitch is moved into here, not copied**, which is what
+ * [`usePitchBox`](../squad/pitchMetrics.ts) had to be taught: React mounts a
+ * fresh element for the new parent, and a `ResizeObserver` bound once to the
+ * first one goes on watching a node that is no longer in the tree. It measured
+ * the detached element at `0 × 0`, the sizing fell to its floor, and full screen
+ * drew *smaller* portraits than the page it came from. It uses a callback ref
+ * now, so the observer follows the element.
  */
 export function FullscreenPane({
   open,

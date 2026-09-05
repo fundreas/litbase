@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { PositionKey } from '@/api/models'
 
@@ -201,24 +201,49 @@ export interface PitchFitOptions {
  *
  * Measured rather than guessed at, so the avatars scale with whatever height
  * the flex chain actually hands the pitch.
+ *
+ * ## A callback ref, because the element it watches is replaced
+ *
+ * This was a `useRef` observed once from a `[]`-dependency effect, which is the
+ * usual shape and is wrong the moment the measured element can be **swapped for
+ * a different one while the component stays mounted**. That is exactly what
+ * [full screen](../ui/FullscreenPane.tsx) does: the pitch moves from the page
+ * into the dialog, React mounts a new grid `div`, `ref.current` points at it —
+ * and the observer is still watching the old, detached node. It then reports
+ * `0 × 0` for the node being removed, `fitPitchMetrics` falls back to its floor,
+ * and every portrait collapses to 26px on the one screen with room to spare.
+ *
+ * A callback ref is called with the new node (and with `null` for the old one),
+ * so the observer follows the element instead of the first element.
+ *
+ * **Zero-area measurements are ignored.** An element on its way out of the tree
+ * reports `0 × 0`, and acting on that would flash a pitch of floor-sized
+ * portraits between the two layouts. Keeping the last real size costs nothing:
+ * a pitch with no area is not on screen to be wrong.
  */
 export function usePitchBox(): {
-  ref: React.RefObject<HTMLDivElement | null>
+  ref: React.RefCallback<HTMLDivElement>
   box: PitchBox
 } {
-  const ref = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState<PitchBox>({ width: 0, height: 0 })
+  const observer = useRef<ResizeObserver | null>(null)
 
-  useEffect(() => {
-    const element = ref.current
-    if (element === null) return
-    const observer = new ResizeObserver((entries) => {
+  const ref = useCallback((element: HTMLDivElement | null) => {
+    observer.current?.disconnect()
+    if (element === null) {
+      observer.current = null
+      return
+    }
+
+    observer.current = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect
       if (!rect) return
       const next = {
         width: Math.round(rect.width),
         height: Math.round(rect.height),
       }
+      // An element being detached measures `0 × 0`. See the note above.
+      if (next.width === 0 || next.height === 0) return
       // Rounded, and only when it actually moved: a resize observer that
       // re-renders on sub-pixel noise is one step from an infinite loop.
       setBox((current) =>
@@ -227,11 +252,17 @@ export function usePitchBox(): {
           : next,
       )
     })
-    observer.observe(element)
-    return () => {
-      observer.disconnect()
-    }
+    observer.current.observe(element)
   }, [])
+
+  // The callback ref is called with `null` on unmount, which covers the normal
+  // path; this is the backstop for a React that skips it.
+  useEffect(
+    () => () => {
+      observer.current?.disconnect()
+    },
+    [],
+  )
 
   return { ref, box }
 }
