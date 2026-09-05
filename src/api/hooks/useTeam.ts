@@ -307,25 +307,26 @@ export function useTeamPoints(
 /**
  * Fold one player's whole season into the club's per-matchday totals.
  *
- * `ph` is **newest first** and indexed off the payload's own `day`, which is
- * the trap [`matchdayEntry`](./useMatchdayPoints.ts) exists to hold in one
- * place — so the days are walked through that function rather than by reading
- * the array directly. Getting it off by one here would be invisible: every
- * matchday would still have a plausible total, just the wrong one.
+ * `ph` is **newest first** and indexed off the array's own length, which is the
+ * trap [`matchdayEntry`](./useMatchdayPoints.ts) exists to hold in one place —
+ * so the days are walked through that function rather than by reading the array
+ * directly. Getting it off by one here would be invisible: every matchday would
+ * still have a plausible total, just the wrong one.
  *
- * A matchday a player missed carries `hp: false` and no `p`, and contributes
- * nothing rather than a zero.
+ * A matchday a player missed carries no `p` and contributes nothing rather than
+ * a zero. `hp` is deliberately not consulted, for the reason the points hook
+ * gives: the presence of the score is the better test of whether there is one.
  */
 function addSeasonPoints(
   totals: Map<number, number>,
   detail: PlayerDetailResponse,
 ): void {
-  const latest = detail.day ?? detail.ph?.length
+  const latest = detail.ph?.length ?? detail.day
   if (latest === undefined) return
 
   for (let day = 1; day <= latest; day += 1) {
-    const entry = matchdayEntry(detail, day)
-    if (entry?.hp !== true || entry.p === undefined) continue
-    totals.set(day, (totals.get(day) ?? 0) + entry.p)
+    const points = matchdayEntry(detail, day)?.p
+    if (points === undefined) continue
+    totals.set(day, (totals.get(day) ?? 0) + points)
   }
 }

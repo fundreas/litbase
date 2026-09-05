@@ -16,10 +16,10 @@ import type { PlayerDetailResponse, PlayerMatchdayPoints } from '@/api/types'
 /**
  * One matchday's entry out of a player's points history.
  *
- * **`ph` is newest first**, and `ph[0]` is the matchday the response itself is
- * current for — `day` on the payload — whether or not that match has been
- * played. So the index counts *back* from there, and a matchday older than the
- * array reaches past its end and reads `undefined`.
+ * **`ph` is newest first**, and it is **dense**: one entry per matchday from
+ * the first up to the one the response is current for, so a player who missed
+ * a matchday — or whose club has not kicked off — still has an entry. The
+ * index therefore counts *back* from the front.
  *
  * This was `ph[day - 1]` until 2026-09-05, on a documented but wrong reading of
  * the array as oldest-first. It agreed with the truth for exactly one matchday
@@ -33,9 +33,26 @@ import type { PlayerDetailResponse, PlayerMatchdayPoints } from '@/api/types'
  * | Vermeeren, MD2 not kicked off | `[{hp:false},{hp:true,p:25}]` | MD1 25 |
  *
  * Vermeeren is the one that settles it: his club had not played matchday 2 and
- * he still has an entry for it, at the **front**. Every payload probed carried
- * exactly `day` entries, so `ph.length` is the fallback when `day` is missing —
- * the same arithmetic, from the array instead of the field.
+ * he still has an entry for it, at the **front**.
+ *
+ * ## The anchor is the array's own length, not `day`
+ *
+ * Given density, `ph.length` **is** the matchday the array is current for, so
+ * the entry for matchday `d` sits at `length - d` and no other field is needed.
+ * The first version of this fix anchored on `detail.day` instead and fell back
+ * to the length — which is the same arithmetic whenever the two agree, and
+ * every payload probed had them agree.
+ *
+ * They are not the same when they *dis*agree, and that is the whole reason
+ * this changed. `detail.day` is one endpoint's notion of "current matchday"
+ * being compared against the **competition's** notion, which is where `day`
+ * comes from on every page that calls this. Two endpoints, two clocks: if the
+ * player payload's is even one behind — which is exactly what a matchday that
+ * has started but not finished invites — the index goes negative and *every
+ * player on the page reads `–`*, which is a far worse failure than being one
+ * matchday stale. Anchoring on the array removes the cross-endpoint dependency
+ * altogether; `detail.day` stays only as the fallback for a payload whose
+ * length lands out of range.
  *
  * Exported so that nothing has to re-derive it. The
  * [team roster](./useTeam.ts) reads the same `ph` across a whole season to add
@@ -48,8 +65,17 @@ export function matchdayEntry(
 ): PlayerMatchdayPoints | undefined {
   const history = detail.ph
   if (history === undefined) return undefined
-  const index = (detail.day ?? history.length) - day
-  return index < 0 ? undefined : history[index]
+
+  // Both readings of "which matchday is the front of this array", best first.
+  // Whichever lands inside it wins; identical whenever the payload is
+  // self-consistent, which is every payload observed.
+  for (const anchor of [history.length, detail.day]) {
+    if (anchor === undefined) continue
+    const index = anchor - day
+    if (index >= 0 && index < history.length) return history[index]
+  }
+
+  return undefined
 }
 
 /** The little a caller has to know about a player to ask for their points. */
@@ -211,12 +237,23 @@ export function useMatchdayPoints(
     const ownerId = toOwnerId(detail.oui)
     if (ownerId !== undefined) ownerIdByPlayerId.set(detail.i, ownerId)
     if (day === undefined) continue
-    // A player who missed the matchday carries `hp: false` with no `p`, which
-    // must stay absent from the map rather than becoming `0`.
+    /*
+     * **The score is `p`, and `hp` is not asked about.** A player who missed
+     * the matchday carries `hp: false` with no `p` at all, so the presence of
+     * `p` already answers the question `hp` was being tested for — and it
+     * answers it about the field actually being read.
+     *
+     * `hp` is "has played", which is a claim about a *finished* match. Nothing
+     * says it is raised for a player who is on the pitch right now, and if it
+     * is not, requiring it means every live score is discarded on the one
+     * afternoon the number matters most. Requiring both was strictly the
+     * narrower test with nothing to show for it.
+     *
+     * A missing `p` stays out of the map rather than becoming `0`, which would
+     * claim the player featured and scored nothing.
+     */
     const entry = matchdayEntry(detail, day)
-    if (entry?.hp === true && entry.p !== undefined) {
-      byPlayerId.set(detail.i, entry.p)
-    }
+    if (entry?.p !== undefined) byPlayerId.set(detail.i, entry.p)
   }
 
   return {
