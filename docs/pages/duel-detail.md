@@ -13,7 +13,7 @@ player ranking.
   (A) Danger du        :        GOATstaller (A)
       834                              824
       4 laufend · 2 offen      3 laufend · 1 offen
-  1. Spieltag · Live                      [👕|≡]
+  1. Spieltag · Live
 
   ┌──────────────────────────────────────────┐
   │ (A) Danger du            ← whose half    │
@@ -38,6 +38,11 @@ player ranking.
   │ (a) Karaman  🪑│     │ (a) Führich 92 │
   │ (a) Burkardt 4 │     │ (a) Grimaldo 🪑│
   └────────────────┘     └────────────────┘
+
+  ┌──────────────────────────────────────────┐
+  │      👕                    🏆            │   the bottom tab bar
+  │  Aufstellung            Rangliste        │
+  └──────────────────────────────────────────┘
 ```
 
 **One pitch, two elevens facing each other.** The first manager's keeper is at
@@ -138,12 +143,30 @@ convention as the [squad page](squad.md), for the same reason: each is linkable
 and survives a refresh. Switching uses `replace`, so back leaves the page
 rather than walking through every visit.
 
-**The control is a one-button, two-glyph toggle**, not a tab bar — the same
-control the Kader view uses for list/grid, for the same reasons: two triggers
-take twice the width to say one thing, and a lone glyph cannot answer "is this
-where I am or where I would go?". It sits on the right of the matchday line,
-and it still navigates, which is what keeps the two views linkable. `Tabs` is
-gone from this page.
+**The control is a [`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx)**,
+the app's control for views of one page — the same bar the
+[squad](squad.md#the-bottom-bar) and [match detail](match-detail.md) pages
+carry. It replaced a one-button, two-glyph toggle in the header, which was the
+right control while these were two *readings* of one screen and the wrong one
+once they became two sub-pages: the bar names both destinations instead of
+leaving one to a tooltip, and it sits where a thumb already is on a screen you
+scroll.
+
+The toggle did not disappear so much as move down a level — the
+[Rangliste](#the-ranking-tab) now uses one for its own two arrangements. Which
+is the division this page should have had all along: **the bar for where you
+are, a toggle for how it is arranged.**
+
+`?day=` is on **both tab links**, not just the current URL. A tab that dropped
+it would land on the competition's current matchday while the reader was
+looking at another one — the same duel id, a different week, and no visible
+sign of the switch.
+
+**The page owes the bar a full-height column.** The content between the
+scoreline and the bar sits in a `min-h-0 flex-1` box, because sticky only pins
+an element that would otherwise be off screen: without it the bar sat at the
+bottom on the pitch tab (which fills the well) and halfway up the screen on a
+short ranking, appearing to move as you switched.
 
 `duelId` is **both manager ids sorted and joined with `-`** — the same string
 the list page uses as a React key, so the URL needs no lookup table and a link
@@ -608,15 +631,41 @@ where a player was rather than what he did.
 
 ## The ranking tab
 
-Every player from both sides in one list, best first, each row carrying the
-**owning manager's avatar** next to the score — the only thing distinguishing
-otherwise identical rows, and the whole point of the view: seeing whose players
-occupy the top of a combined table says more than two separate lists do.
+Every player of the duel, best first, benches included — in either of **two
+readings**, switched by a [`PairToggle`](../../src/components/ui/PairToggle.tsx)
+above the list. The same two the [match ranking](match-detail.md#two-readings-one-toggle)
+offers, for the same reasons, and now the same control.
 
-**Bench players are included**, tagged `Bank`. They scored what they scored, it
-just did not count, and omitting them would make this tab disagree with the
-lineup tab about who exists. Players with no points yet sort **last** rather
-than as zero — not knowing is not the same as nothing.
+| Reading | What it is for |
+| ------- | -------------- |
+| ***Gemeinsam*** (default) | The two squads **interleaved**. Whose players occupy the top of a combined table says more about how a duel is going than two separate lists can — it is the one arrangement that makes the comparison itself visible. Each row carries the owning manager's avatar next to the score, the only thing telling otherwise identical rows apart |
+| ***Nach Manager*** | Split, first manager above second, **each numbered from 1**. The reading for "who carried my team today" — a question the combined list buries as soon as the other side has run away with the matchday |
+
+**The restarting numbers are the point of the split.** A player carrying `14`
+because thirteen of the *opponent's* outscored him answers a different question
+from the one this reading is opened for. It is the same reasoning the match
+ranking's per-club split rests on.
+
+**No manager avatar on the rows in the split reading.** In the combined list it
+is the only thing distinguishing two rows; under a heading that already names
+the manager it is one fact repeated down a whole column.
+
+Each section's total is `totalPoints` — **Kickbase's own figure from the
+standings, not the sum of the rows beneath it.** That is deliberate: it is the
+number the page header shows and the number the duel is decided on, so the two
+cannot drift apart while the rows fill in, and a sum of a list that includes the
+bench would be neither.
+
+The choice is remembered in `localStorage` and deliberately **not** in the URL —
+a preference, not a place, so a shared link opens in the reader's own reading
+rather than the sender's. It keeps its own key rather than sharing the match
+ranking's: the two views are alike, but a habit on one need not follow to the
+other.
+
+**Bench players are included** in both, tagged `Bank`. They scored what they
+scored, it just did not count, and omitting them would make this tab disagree
+with the lineup tab about who exists. Players with no points yet sort **last**
+rather than as zero — not knowing is not the same as nothing.
 
 ## States
 

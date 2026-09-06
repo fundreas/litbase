@@ -1,11 +1,5 @@
-import { List, Shirt } from 'lucide-react'
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router'
+import { Shirt, Trophy } from 'lucide-react'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router'
 
 import { useDuelRosters } from '@/api/hooks/useDuelRosters'
 import { useDuels } from '@/api/hooks/useDuels'
@@ -20,6 +14,7 @@ import { useAuth } from '@/auth/useAuth'
 import { DuelLineupTab } from '@/components/duels/DuelLineupTab'
 import { DuelRankingTab } from '@/components/duels/DuelRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
+import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
@@ -31,15 +26,23 @@ const TABS = { lineup: 'lineup', ranking: 'ranking' } as const
 type TabValue = (typeof TABS)[keyof typeof TABS]
 
 /**
- * One duel, in detail: both elevens and a combined player ranking.
+ * One duel, in detail: both elevens, and every player of the two ranked.
  *
  *   /leagues/:leagueId/duels/:duelId         → Aufstellung
  *   /leagues/:leagueId/duels/:duelId/ranking → Rangliste
  *
+ * Two routes, one component — the view is read out of the segment, so each is
+ * linkable and survives a refresh, and they are switched by a
+ * [`BottomTabBar`](../components/ui/BottomTabBar.tsx), the app's control for
+ * views of one page. The scoreline above them belongs to neither and does not
+ * move when the tab changes, exactly as on
+ * [match detail](./MatchDetailPage.tsx) and the squad.
+ *
  * `duelId` is both manager ids joined with `-`, which is what the list page
  * already uses as a React key — so the URL needs no lookup table and a shared
  * link resolves for anyone in the league. The matchday rides along in `?day=`,
- * exactly as on the list.
+ * exactly as on the list, and **on both tab links**, so switching views cannot
+ * quietly drop you onto the current matchday.
  *
  * The pairing itself is read from `useDuels`, the same query the list page
  * ran, so arriving here costs nothing extra for the duel — only the rosters
@@ -51,7 +54,6 @@ export function DuelDetailPage() {
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const location = useLocation()
-  const navigate = useNavigate()
 
   const schedule = useSeasonSchedule(competitionId)
 
@@ -87,12 +89,27 @@ export function DuelDetailPage() {
 
   const backTo = `/leagues/${leagueId}/duels?day=${String(selectedDay ?? '')}`
 
-  const handleTabChange = (next: string) => {
-    const base = `/leagues/${leagueId}/duels/${duelId ?? ''}`
-    const to = next === TABS.ranking ? `${base}/${TABS.ranking}` : base
-    // `replace` so flicking between tabs does not fill the history stack.
-    void navigate(`${to}?day=${String(selectedDay ?? '')}`, { replace: true })
-  }
+  /*
+   * The matchday rides along in `?day=` on both tabs, so switching views never
+   * drops it — a tab that landed on the current matchday instead of the one
+   * being looked at would be a quiet way to show the wrong duel.
+   */
+  const base = `/leagues/${leagueId}/duels/${duelId ?? ''}`
+  const day = `?day=${String(selectedDay ?? '')}`
+  const tabs: BottomTab[] = [
+    {
+      value: TABS.lineup,
+      label: 'Aufstellung',
+      icon: Shirt,
+      to: `${base}${day}`,
+    },
+    {
+      value: TABS.ranking,
+      label: 'Rangliste',
+      icon: Trophy,
+      to: `${base}/${TABS.ranking}${day}`,
+    },
+  ]
 
   if (schedule.isPending || duels.isPending) {
     return <SkeletonList rows={8} />
@@ -170,92 +187,62 @@ export function DuelDetailPage() {
           />
         </div>
 
-        <div className="mt-1 flex items-center justify-between gap-3">
-          <p className="nums truncate text-xs text-muted">
-            {String(selectedDay)}. Spieltag
-            {state === 'live' && ' · Live'}
-            {state === 'finished' && ' · Beendet'}
-            {state === 'upcoming' && ' · Noch nicht angepfiffen'}
-          </p>
-          <ViewToggle tab={tab} onChange={handleTabChange} />
-        </div>
+        <p className="nums mt-1 truncate text-xs text-muted">
+          {String(selectedDay)}. Spieltag
+          {state === 'live' && ' · Live'}
+          {state === 'finished' && ' · Beendet'}
+          {state === 'upcoming' && ' · Noch nicht angepfiffen'}
+        </p>
       </div>
 
-      {rosters.isPending ? (
-        <SkeletonList rows={8} />
-      ) : rosters.isError ? (
-        <ErrorState error={rosters.error} onRetry={rosters.refetch} />
-      ) : rosters.isEmpty ? (
-        /* The snapshot endpoint answers 200 with empty lists for a matchday it
-           has nothing for — one before the league existed, most often. That is
-           not an error and not an empty team, so it gets its own message
-           rather than two blank rosters. */
-        <EmptyState
-          title="Keine Aufstellung für diesen Spieltag"
-          description="Kickbase hat für diesen Spieltag keine Kader — vermutlich lag er vor der Gründung der Liga."
-        />
-      ) : rosters.data === undefined ? null : tab === TABS.ranking ? (
-        <DuelRankingTab rosters={rosters.data} />
-      ) : (
-        <DuelLineupTab
-          rosters={rosters.data}
-          viewerId={user?.id}
-          summary={<DuelSummary sides={duel.sides} hasStarted={hasStarted} />}
-        />
-      )}
+      {/* `min-h-0 flex-1` so the tab bar below is pushed to the bottom of the
+          well on the ranking tab too, where the content is short — sticky only
+          pins something that would otherwise be off screen, and without this
+          the bar sat under the last row on one tab and at the bottom on the
+          other, appearing to move as you switched. */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {rosters.isPending ? (
+          <SkeletonList rows={8} />
+        ) : rosters.isError ? (
+          <ErrorState error={rosters.error} onRetry={rosters.refetch} />
+        ) : rosters.isEmpty ? (
+          /* The snapshot endpoint answers 200 with empty lists for a matchday
+             it has nothing for — one before the league existed, most often.
+             That is not an error and not an empty team, so it gets its own
+             message rather than two blank rosters. */
+          <EmptyState
+            title="Keine Aufstellung für diesen Spieltag"
+            description="Kickbase hat für diesen Spieltag keine Kader — vermutlich lag er vor der Gründung der Liga."
+          />
+        ) : rosters.data === undefined ? null : tab === TABS.ranking ? (
+          <DuelRankingTab rosters={rosters.data} />
+        ) : (
+          <DuelLineupTab
+            rosters={rosters.data}
+            viewerId={user?.id}
+            summary={<DuelSummary sides={duel.sides} hasStarted={hasStarted} />}
+          />
+        )}
+      </div>
+
+      <BottomTabBar tabs={tabs} active={tab} ariaLabel="Duell-Ansicht" />
     </div>
   )
 }
 
-/**
- * Pitch or ranked list, as **one button carrying both symbols** — the control
- * the squad page uses for list/grid, for the same reasons: two triggers would
- * take twice the width to say one thing, and a single glyph cannot answer "is
- * this where I am or where I would go?". The lit symbol is the current view.
+/*
+ * `ViewToggle` used to live here: the two-glyph `PairToggle`-shaped button in
+ * the header, which navigated between the two routes. It was the right control
+ * while these were two readings of one screen, and the wrong one once they
+ * became two sub-pages — a bar at the bottom is where the app switches *views
+ * of a page* (the squad's three, the match's three), it names both destinations
+ * instead of leaving one to a tooltip, and it sits where a thumb already is.
  *
- * It still **navigates**, because these two views are routes: `/duels/:id` and
- * `…/ranking`. That is what keeps each linkable and refresh-safe, and it is
- * why this replaced a `Tabs` component rather than becoming local state.
+ * The toggle is not gone, it moved: the ranking now uses one for its own two
+ * readings, combined and per manager. Which is the arrangement this page should
+ * have had all along — the bar for *where you are*, a toggle for *how it is
+ * arranged*.
  */
-function ViewToggle({
-  tab,
-  onChange,
-}: {
-  tab: TabValue
-  onChange: (next: string) => void
-}) {
-  const next: TabValue = tab === TABS.lineup ? TABS.ranking : TABS.lineup
-  const label =
-    next === TABS.ranking ? 'Zur Punkte-Rangliste' : 'Zur Aufstellung'
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        onChange(next)
-      }}
-      title={label}
-      aria-label={label}
-      className={cn(
-        'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2',
-        'transition-colors hover:border-accent/40 hover:bg-surface-2',
-        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-      )}
-    >
-      <Shirt
-        size={15}
-        aria-hidden="true"
-        className={tab === TABS.lineup ? 'text-accent' : 'text-faint'}
-      />
-      <span aria-hidden="true" className="h-4 w-px bg-line" />
-      <List
-        size={15}
-        aria-hidden="true"
-        className={tab === TABS.ranking ? 'text-accent' : 'text-faint'}
-      />
-    </button>
-  )
-}
 
 /**
  * The duel in one line, for the bar of the [full-screen
