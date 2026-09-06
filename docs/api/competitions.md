@@ -78,12 +78,14 @@ chips on [Join a league](../pages/join-league.md).
 > [`teamprofile`](#get-v4competitionscompetitionidteamsteamidteamprofile),
 > which serves the whole squad in one response.
 >
-> #### It ignores every parameter
+> #### It ignores every parameter *except its own two*
 >
-> `?dayNumber=2`, `?matchId=11947` and `?mi=11947` were each probed on
-> 2026-09-06 and each answered the **identical 25 rows**. There is no way to
-> ask it for a past matchday: it is always the competition's current one, which
-> is what `day` on the response reports.
+> This page said "every parameter" until 2026-09-06, on the strength of
+> `?dayNumber=`, `?matchId=` and `?mi=` all being swallowed. The spec's own
+> `position` and `sorting` had never been tried, and **both work** — see
+> [Query parameters](#query-parameters) below. What stays true is that there
+> is **no way to ask it for a past matchday**: it is always the competition's
+> current one, which is what `day` on the response reports.
 
 This is the one endpoint whose published documentation the project was
 originally seeded from.
@@ -99,24 +101,71 @@ originally seeded from.
 ### Query parameters
 
 Both are declared "required" by the spec and both are sent empty in its own
-example; the app omits them and gets the list.
+example; the app omits them and gets the default list. Probed live
+2026-09-06, competition `1`, matchday 2 settled.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| `position` | ? | **?** Filter by position. Presumably the [`pos` codes](codes.md#position-pos); not probed |
-| `sorting` | ? | **?** Sort order. The response arrives sorted by points descending, so the default is presumably "points". The accepted values are **✗** |
+| `position` | number | **Filters by position**, on the [`pos` codes](codes.md#position-pos) — `1` keeper, `2` defender, `3` midfielder, `4` striker. Each answers that position's own top 25. Out-of-range values (`0`, `5`) fall back to the unfiltered list |
+| `sorting` | number | `1` switches the list to **season points**; every other value probed (`0`, `2`–`10`, `-1`, `mv`, `points`) gives the default, the current matchday |
 
-**Scoping parameters do nothing.** `dayNumber`, `matchId` and `mi` were each
-tried and each returned the identical body, so an unrecognised parameter is
-silently ignored rather than rejected — do not read a `200` here as
-confirmation that a parameter was understood.
+They **compose**: `?position=1&sorting=1` is the season's twenty best keepers.
+
+#### `position` is the way past 25
+
+The response is capped at 25 and there is no way to raise it — `max`, `limit`,
+`start`, `count`, `size`, `top`, `page`, `offset` and `n` were each tried and
+each answered the identical 25 rows. But the cap applies **per filtered
+list**, so the four positions are four separate top-25s:
+
+| `position` | Matchday rows | Season rows |
+| ---------- | ------------- | ----------- |
+| *(none)* | 25 | 25 |
+| `1` keeper | 18 | 20 |
+| `2` defender | 25 | 25 |
+| `3` midfielder | 25 | 25 |
+| `4` striker | 25 | 25 |
+
+Four requests therefore yield **93 distinct players** where one yields 25, and
+the union is a strict superset of the unfiltered list. The keeper counts are
+below the cap because they are the whole population, not a slice: 18 keepers
+scored on a 9-fixture matchday, exactly one per club.
+
+#### `sorting=1` is season points, verified
+
+Kimmich came back with `p: 556` under `sorting=1`; his
+[performance](#get-v4competitionscompetitionidplayersplayeridperformance)
+`ph` for 26/27 reads `303` on day 1 and `253` on day 2, which sums to exactly
+that. The `sorting=1` rows also **drop `mi` and `ot`** — there is no one
+fixture for a season total to point at — so a consumer must not assume those
+fields are present.
+
+**Scoping parameters still do nothing.** `dayNumber`, `matchId`, `mi`, `day`,
+`md`, `matchDay`, `matchday`, `d` and `dn` were each tried and each returned
+the identical body, so an unrecognised parameter is silently ignored rather
+than rejected — do not read a `200` here as confirmation that a parameter was
+understood.
+
+#### There is no bulk source for a *past* matchday
+
+Nothing else in the API serves one either:
+[`teamprofile`](#get-v4competitionscompetitionidteamsteamidteamprofile) carries
+`ap`, a season average, and no per-matchday score;
+[`/v4/matches/{mi}/details`](matches.md) carries the real starting elevens with
+**no points on them at all**. A past matchday's top scorers can only be
+assembled per player, from
+[`playercenter`](#get-v4competitionscompetitionidplayercenterplayerid)`?dayNumber=`
+or from the `ph` of the performance endpoint — the fan-out
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) already pays
+for a single squad, which over a whole competition would be several hundred
+requests.
 
 ### Response `200`
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `it` | array | The 25 best players of `day`, points descending |
-| `day` | number | The matchday the list is for — always the competition's current one |
+| `it` | array | The 25 best players, points descending — of `day` by default, of the season under `sorting=1`, and of one position under `position=` |
+| `day` | number | The matchday the list is for — always the competition's current one. Present under `sorting=1` too, where it does not scope the points |
 | `sn` | string | **?** Season label |
 | `mdsn` | string | **?** Short matchday label, e.g. `"#1"` |
 | `spr` | object | **?** A sponsor block — `{ url, lf, durl }`, as on the market-value response. Not rendered |
@@ -132,7 +181,7 @@ are season totals.
 | `pi` | string | Player id |
 | `n` | string | Last name |
 | `tid` | string | Club id |
-| `mi` | string | Match id of the current/next fixture |
+| `mi` | string | Match id of the current/next fixture. **Absent under `sorting=1`** |
 | `p` | number | Points |
 | `pos` | number | Position — see [Codes](codes.md#position-pos) |
 | `st` | number | Availability — see [Codes](codes.md#availability-st-and-the-entries-of-stl). The spec's example shows `5` here, which is a *match-involvement* value, so this field may be on the other scale (**?**) |
@@ -142,7 +191,7 @@ are season totals.
 | `cs` | number | Clean sheets |
 | `pes` | number | **?** Penalties — same unresolved question as on [player detail](players.md) |
 | `pim` | string | Portrait, CDN-relative |
-| `ot` | object | The opponent club of that fixture — `{ i, tim }` |
+| `ot` | object | The opponent club of that fixture — `{ i, tim }`. **Absent under `sorting=1`** |
 
 **No market value and no first name.** For either, the player has to be fetched
 individually.
@@ -159,6 +208,14 @@ is what makes that view cost one small request where
 needed one per player across nine fixtures. Polled at the
 [live rate](../api-layer.md) while a matchday runs; between matchdays it cannot
 move at all.
+
+**One correction the code still needs**, not made here — the app sends neither
+parameter today:
+[`MatchdayRankingTab`](../../src/components/matchday/MatchdayRankingTab.tsx)'s
+doc comment says "there is no known way to ask for the twenty-sixth". That is
+no longer true: `position=` reaches 93. (`CompetitionPlayer` in
+[`types.ts`](../../src/api/types.ts) already has `mi` and `ot` optional, so a
+`sorting=1` call would type-check as it stands.)
 
 ---
 
