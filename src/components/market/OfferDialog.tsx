@@ -121,7 +121,9 @@ function StepButton({
          *Bieten*. A tinted edge and the sign are enough to tell the rows
          apart at a glance. */
       className={cn(
-        'nums h-10 rounded-xl border text-sm font-semibold select-none',
+        // `flex-1 min-w-0` so the four share their row evenly and a long
+        // label (`+100k`) shrinks rather than pushing its neighbours out.
+        'nums h-10 min-w-0 flex-1 rounded-xl border text-sm font-semibold select-none',
         'bg-surface transition-colors',
         // Holding is a gesture, and a text cursor mid-hold looks like a bug.
         'touch-none',
@@ -313,21 +315,32 @@ export function OfferDialog({
           marketValue={listing.marketValue}
         />
 
-        {/* Four columns, two rows: the same steps up and down, lined up
-            column by column so a finger that has learnt where `+1k` is finds
-            `−1k` directly under it. */}
-        <div className="grid grid-cols-4 gap-2">
-          {([1, -1] as const).map((sign) =>
-            STEPS.map((step) => (
+        {/*
+          **One row per direction**: every `+` together, every `−` under it,
+          the steps in the same order both times — so a finger that has learnt
+          where `+1k` is finds `−1k` directly beneath.
+
+          Two flex rows rather than one grid of eight. A grid gets the same
+          picture out of `grid-cols-4`, and did until the fourth step was
+          added, but it makes the rows an artefact of a column count: the
+          buttons are one flat list and the layout is the only thing saying
+          which of them mean *up*. Here the row **is** the group, which is what
+          it looks like — and it cannot silently collapse to one button per
+          line if that single utility ever fails to reach the stylesheet, which
+          is exactly how this was found.
+        */}
+        {([1, -1] as const).map((sign) => (
+          <div key={String(sign)} className="flex gap-2">
+            {STEPS.map((step) => (
               <StepButton
-                key={`${String(sign)}-${String(step)}`}
+                key={String(step)}
                 amount={step}
                 sign={sign}
                 onStep={stepBy}
               />
-            )),
-          )}
-        </div>
+            ))}
+          </div>
+        ))}
       </div>
     </ConfirmDialog>
   )

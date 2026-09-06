@@ -88,7 +88,12 @@ does — the same number under two labels invites a hunt for a difference that i
 not there.
 
 Eight shortcut buttons step the amount by ±1, ±1 000, ±10 000 and ±100 000, in
-two rows of four so the same step up and down line up column by column. A
+**two rows of four** — every `+` together, every `−` beneath it, the steps in
+the same order both times, so a finger that has learnt where `+1k` is finds
+`−1k` directly under it. Two flex rows rather than one eight-cell grid: the row
+*is* the group, which is what it looks like, and it cannot collapse to one
+button per line if a single column-count utility fails to reach the stylesheet.
+A
 hundred thousand is the unit market values move in overnight; ten thousand is
 what you reach for when a hundred overshoots and a thousand takes ten taps,
 which is most of the time; a thousand is haggling range; and one euro exists
