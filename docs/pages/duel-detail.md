@@ -162,11 +162,10 @@ it would land on the competition's current matchday while the reader was
 looking at another one — the same duel id, a different week, and no visible
 sign of the switch.
 
-**The page owes the bar a full-height column.** The content between the
-scoreline and the bar sits in a `min-h-0 flex-1` box, because sticky only pins
-an element that would otherwise be off screen: without it the bar sat at the
-bottom on the pitch tab (which fills the well) and halfway up the screen on a
-short ranking, appearing to move as you switched.
+The bar is **fixed to the viewport**, so it is on screen wherever the page is
+scrolled to — see [It is fixed, not sticky](squad.md#it-is-fixed-not-sticky) for
+what that replaced. The content between the scoreline and the bar still sits in
+a `min-h-0 flex-1` box, but for the pitch's sake now rather than the bar's.
 
 `duelId` is **both manager ids sorted and joined with `-`** — the same string
 the list page uses as a React key, so the URL needs no lookup table and a link

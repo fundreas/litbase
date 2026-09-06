@@ -218,8 +218,8 @@ export function TeamDetailPage() {
 
   return (
     /* `min-h-0` down the whole chain so the Live tab's pitch can claim the
-       height the page has left — and so the bottom bar stays at the bottom on
-       the short tabs too. See `BottomTabBar`. */
+       height the page has left. The bottom bar looks after itself — it is
+       fixed to the viewport, see `BottomTabBar`. */
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <TeamHeader
         team={teams.data?.get(teamId ?? '')}

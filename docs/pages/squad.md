@@ -56,9 +56,7 @@ This is not a return of the global bottom tab bar that
 [Navigation](../routing-and-layout.md#navigation) describes removing — that one
 duplicated the drawer and cost a row of height on every screen. This one
 switches between views of the page you are already on, exists only while
-that page is open, and sits where a thumb already is. It is `sticky` rather
-than `fixed`, the mirror of the header's `sticky top-0`, so at `lg` and up it
-stays inside the content column instead of lying across the sidebar.
+that page is open, and sits where a thumb already is.
 
 Each tab is a real `<Link>`, so every view is linkable and middle-clickable.
 
@@ -67,17 +65,38 @@ being played, and it is **appended** rather than inserted between the two
 permanent tabs — a tab that appears is easy to ignore, but two tabs that slide
 sideways under a thumb which had learned where they are is not.
 
-**The page owes the bar a full-height column.** Sticky only pins an element
-that would otherwise be off-screen, so the content between the heading and the
-bar sits in a `min-h-0 flex-1` box. Without it the bar appeared to *move*
-between the two views: the lineup already grew to fill the well and pinned the
-bar properly, while a short Kader list left it sitting directly under the last
-row, halfway up the screen.
+### It is fixed, not sticky
 
-The bar also carries `bleed-pb-safe`, which cancels the content well's own
-`pb-safe`. Both have bottom padding for the notch, and stacked they let the bar
-lift by that padding at the very end of the scroll — the one point where sticky
-hands back to static positioning.
+It was `sticky bottom-0`, and it was **reported scrolling out of view**.
+
+Sticky only holds an element against the viewport while its containing block
+still reaches past it, so it is never more reliable than the height chain above
+it — and this one is unusually tangled: `min-h-dvh` on
+[`AppShell`](../../src/components/layout/AppShell.tsx)'s root over a
+`min-h-0 flex-1` row, then a well each page subdivides with more of the same.
+Which link gives way was not run down. What settled it is that a bar whose
+visibility depends on six ancestors agreeing about their heights is the wrong
+shape of answer to "always on screen".
+
+Loosening the chain is not available anyway: that `min-h-0` is what lets a pitch
+size itself *down* to the window, which is most of what the lineup views are. So
+the bar stops depending on the chain at all.
+
+**It no longer asks anything of the page.** The old arrangement carried a
+contract — wrap the content in a `min-h-0 flex-1` box or the bar sits halfway up
+a short screen — which every page using it had to remember. The bar now reserves
+its own footprint in the flow with a spacer, so the last row of a list clears it
+and a short page still gets the bar at the bottom. The pages keep their
+`min-h-0 flex-1` boxes because the *pitches* need them, not because the bar does.
+
+At `lg` and up a fixed bar would lie across the [sidebar](../routing-and-layout.md#navigation),
+so it starts where that column ends (`lg:left-64`) and centres its own contents
+at the well's `max-w-3xl`, which lines the tabs up with the page above them at
+every width.
+
+The spacer carries `bleed-pb-safe`, which cancels the content well's own
+`pb-safe`: the fixed bar covers that strip itself, and counting it twice would
+leave a gap under the last row.
 
 ## Header — Kader only
 

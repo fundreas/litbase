@@ -153,8 +153,9 @@ export function PlayerDetailPage() {
         leagueId={leagueId}
       />
 
-      {/* Claims the leftover height so the bottom bar stays at the bottom on
-          a short tab as well as a long one — see `BottomTabBar`. */}
+      {/* Claims the leftover height, so a short tab fills the well rather
+          than leaving it half empty. The bottom bar asks nothing of this any
+          more — it is fixed to the viewport, see `BottomTabBar`. */}
       <div className="flex min-h-0 flex-1 flex-col">
         {tab === PLAYER_TABS.details && (
           <PlayerDetailsTab
