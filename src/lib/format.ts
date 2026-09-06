@@ -44,6 +44,22 @@ export function moneyDelta(value: number | null | undefined): string {
   return `${value > 0 ? '+' : '−'}${formatted}`
 }
 
+/**
+ * `+150.000 €`, `−1.200.000 €` — the same signed figure, **to the euro**.
+ *
+ * For a difference the reader is actively steering: the
+ * [offer dialog](../components/market/OfferDialog.tsx) adjusts a bid in steps
+ * of one euro, and {@link moneyDelta}'s compact form would round the whole
+ * bottom two rows of that keypad into no visible change at all. Same reason the
+ * dialog's bounds are spelled out — see {@link moneyExact}.
+ */
+export function moneyDeltaExact(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '–'
+  const formatted = fullEuro.format(Math.abs(value))
+  if (value === 0) return formatted
+  return `${value > 0 ? '+' : '−'}${formatted}`
+}
+
 export function points(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '–'
   return decimal.format(value)

@@ -6,7 +6,7 @@ import { offerBaseline, type MarketListing } from '@/api/models'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
-import { money, moneyDelta, moneyExact } from '@/lib/format'
+import { money, moneyDelta, moneyDeltaExact, moneyExact } from '@/lib/format'
 import {
   checkOffer,
   maximumOffer,
@@ -18,13 +18,15 @@ import {
  * The steps the shortcut row offers, coarsest first so the two rows line up
  * column by column.
  *
- * A hundred thousand is the unit market values actually move in overnight; a
- * thousand is haggling range; one euro exists because a tie goes to the higher
- * bid, and outbidding someone by a single euro is a real move.
+ * A hundred thousand is the unit market values actually move in overnight; ten
+ * thousand is the one you reach for when a hundred overshoots and a thousand
+ * takes ten taps, which is most of the time; a thousand is haggling range; one
+ * euro exists because a tie goes to the higher bid, and outbidding someone by a
+ * single euro is a real move.
  */
-const STEPS = [100_000, 1_000, 1] as const
+const STEPS = [100_000, 10_000, 1_000, 1] as const
 
-/** `+100k`, `−1k`, `+1` — compact enough for a six-button grid. */
+/** `+100k`, `−10k`, `+1k`, `+1` — compact enough for an eight-button grid. */
 function stepLabel(amount: number, sign: 1 | -1): string {
   const prefix = sign > 0 ? '+' : '−'
   if (amount >= 1_000) return `${prefix}${String(amount / 1_000)}k`
@@ -113,8 +115,8 @@ function StepButton({
     <button
       type="button"
       {...handlers}
-      /* Direction is carried by the border, not by a fill: six solid green and
-         red blocks would read as six warnings, and these are the least
+      /* Direction is carried by the border, not by a fill: eight solid green
+         and red blocks would read as eight warnings, and these are the least
          consequential controls in the dialog — nothing is written until
          *Bieten*. A tinted edge and the sign are enough to tell the rows
          apart at a glance. */
@@ -306,7 +308,15 @@ export function OfferDialog({
           }
         />
 
-        <div className="grid grid-cols-3 gap-2">
+        <MarketValueDelta
+          offer={amount === '' ? undefined : value}
+          marketValue={listing.marketValue}
+        />
+
+        {/* Four columns, two rows: the same steps up and down, lined up
+            column by column so a finger that has learnt where `+1k` is finds
+            `−1k` directly under it. */}
+        <div className="grid grid-cols-4 gap-2">
           {([1, -1] as const).map((sign) =>
             STEPS.map((step) => (
               <StepButton
@@ -340,6 +350,64 @@ function boundsLabel(
   if (minimum !== undefined) return `Mindestens ${moneyExact(minimum)}`
   if (maximum !== undefined) return `Höchstens ${moneyExact(maximum)}`
   return undefined
+}
+
+/**
+ * **How far the bid sits from the market value**, under the field that sets it.
+ *
+ * The one figure the dialog could not previously answer without arithmetic. The
+ * market value is in the description at the top and the bid is in the field, and
+ * the gap between them is the whole question a bid is — but they are seven-digit
+ * numbers ten lines apart, and nobody subtracts those in their head while a
+ * listing is counting down.
+ *
+ * **It is not in the field's `hint`, deliberately.** That line is replaced by the
+ * error when a bid breaks one of the [rules](../../lib/offerRules.ts) — and a bid
+ * rejected for being under the 90 % floor is exactly when *how far under* is the
+ * thing you want to read. So it gets its own row and is always there.
+ *
+ * Exact to the euro, like the bounds above it: the bottom row of the keypad
+ * steps by one, and a compact figure would round that into no change at all.
+ *
+ * **The sign carries the meaning and the colour reinforces it** — the rule
+ * every other two-way mark in the app follows, because a green/red pair alone
+ * is unreadable to about one man in twelve. Green above the market value, red
+ * below; a bid *at* it is neither and stays quiet.
+ *
+ * `offer` is `undefined` while the field is empty, which happens constantly —
+ * clearing it to retype is the natural way to change a seven-digit number. The
+ * row keeps its place and shows a dash rather than reading `−4.500.000 €` at a
+ * reader who is mid-keystroke.
+ */
+function MarketValueDelta({
+  offer,
+  marketValue,
+}: {
+  offer: number | undefined
+  marketValue: number
+}) {
+  const delta =
+    offer === undefined || !Number.isFinite(offer)
+      ? undefined
+      : offer - marketValue
+
+  return (
+    <p className="flex items-baseline justify-between gap-2 text-xs">
+      <span className="text-faint">Differenz zum Marktwert</span>
+      <span
+        className={cn(
+          'nums font-semibold',
+          delta === undefined || delta === 0
+            ? 'text-muted'
+            : delta > 0
+              ? 'text-positive'
+              : 'text-negative',
+        )}
+      >
+        {delta === undefined ? '–' : moneyDeltaExact(delta)}
+      </span>
+    </p>
+  )
 }
 
 /** The overnight move, beside the market value it moved. */

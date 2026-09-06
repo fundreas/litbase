@@ -87,14 +87,42 @@ when it differs** from the market value, which on a computer listing it never
 does — the same number under two labels invites a hunt for a difference that is
 not there.
 
-Six shortcut buttons step the amount by ±1, ±1 000 and ±100 000 — a hundred
-thousand is the unit market values move in overnight, a thousand is haggling
-range, and one euro exists because a tie goes to the higher bid. They **repeat
-while held**, like a keyboard key: 400 ms before the first repeat, then every
-60 ms. Reaching a five-figure adjustment a euro per tap is not something to ask
-of anyone. The step goes through the functional form of `setAmount`, because
-the interval is installed once per press and a captured amount would add the
-same step to the same number for as long as the finger stayed down.
+Eight shortcut buttons step the amount by ±1, ±1 000, ±10 000 and ±100 000, in
+two rows of four so the same step up and down line up column by column. A
+hundred thousand is the unit market values move in overnight; ten thousand is
+what you reach for when a hundred overshoots and a thousand takes ten taps,
+which is most of the time; a thousand is haggling range; and one euro exists
+because a tie goes to the higher bid.
+
+They **repeat while held**, like a keyboard key: 400 ms before the first repeat,
+then every 60 ms. Reaching a five-figure adjustment a euro per tap is not
+something to ask of anyone. The step goes through the functional form of
+`setAmount`, because the interval is installed once per press and a captured
+amount would add the same step to the same number for as long as the finger
+stayed down.
+
+### The difference from the market value
+
+Between the field and the keypad, one line: **how far the bid sits from the
+market value**, green above and red below.
+
+It is the whole question a bid *is*, and the dialog could not previously answer
+it without arithmetic — the market value is in the description at the top, the
+bid is in the field, and they are seven-digit numbers ten lines apart. Nobody
+subtracts those in their head while a listing counts down.
+
+**It is not in the field's hint line**, which is where it would naturally go.
+That line is replaced by the error when a bid breaks one of the rules below —
+and a bid rejected for being under the 90 % floor is exactly the moment *how far
+under* is worth reading. So it gets a row of its own and is always there.
+
+Exact to the euro, like the bounds above it: the bottom row of the keypad steps
+by one, and a compact figure would round that into no visible change at all.
+The **sign carries the meaning and the colour reinforces it**, the rule every
+two-way mark in the app follows — a green/red pair alone is unreadable to about
+one man in twelve. A bid *at* the market value is neither and stays quiet, and
+an empty field shows a dash rather than reading `−4.500.000 €` at someone
+mid-keystroke.
 
 Three ways out, and they differ:
 
