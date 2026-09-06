@@ -4,9 +4,10 @@ import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import {
   toPosition,
-  type CompetitionPlayerSummary,
+  type MatchdayTopScorers,
   type TableRow,
 } from '@/api/models'
+import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type {
   CompetitionPlayersResponse,
@@ -16,45 +17,75 @@ import type {
 const HOUR = 60 * 60_000
 
 /**
- * **One fixture's players — not the competition's**, whatever the path says.
+ * **The matchday's twenty-five best players**, points descending.
  *
- * Probed live 2026-09-05 against Bundesliga matchday 2: 25 rows across exactly
- * two clubs, every one carrying the same `mi`. The published documentation
- * calls it "every player in a competition" and this comment did too, which is
- * how the [club page](../../../docs/pages/team.md) came to build a squad by
- * filtering it on `tid` — and got nothing at all for seventeen clubs out of
- * eighteen.
+ * Not "every player in a competition", which is what the published
+ * documentation calls it — but not "one fixture's players" either, which is
+ * what this comment claimed until 2026-09-06 and what the endpoint looks like
+ * if you probe it at the wrong moment.
  *
- * **For a club's squad use [`useTeamProfile`](./useTeam.ts)**, which serves the
- * whole thing in one request. There is currently no known endpoint that lists a
- * competition's players; `/players/search` answers 200 and is unprobed.
+ * The earlier reading came from a probe taken *mid-matchday*, when exactly one
+ * fixture had been played: all 25 rows carried that one `mi`, across its two
+ * clubs, because those were the only players who had scored anything yet. Read
+ * back the morning after the same matchday it spans **seven matches and nine
+ * clubs**, still 25 rows, still sorted by points. The list was never scoped to
+ * a fixture; it was scoped to *having points*, and early on a matchday that is
+ * nearly the same thing.
  *
- * Left in place for the [All players](../../../docs/pages/players.md) stub,
- * which is the only consumer and now knows what it is holding.
+ * What the old reading got right is that **it is not a way to enumerate a
+ * club's squad** — filtering it on `tid` is what gave the
+ * [club page](../../../docs/pages/team.md) an empty Kader for seventeen clubs
+ * out of eighteen. A top-25 list simply does not contain most players. For a
+ * club's squad use [`useTeamProfile`](./useTeam.ts).
+ *
+ * **It ignores every parameter.** `?dayNumber=`, `?matchId=` and `?mi=` were
+ * each probed and each answered the identical 25 rows, so the list is always
+ * the competition's *current* matchday — there is no way to ask it for a past
+ * one. That is why the [matchday page](../../../docs/pages/matchday.md) shows
+ * its Rangliste for the current matchday only, and says so when another is
+ * picked, rather than silently labelling one matchday's list with another's
+ * number.
+ *
+ * `day` is returned alongside the players for exactly that reason: the caller
+ * needs the endpoint's own answer to "which matchday is this", not the
+ * schedule's.
+ *
+ * Polls at the live rate while a matchday is running — it is one small
+ * response, and it is the only bulk source of matchday points in the API, so
+ * the ranking moves without the per-player fan-out
+ * [`useMatchdayPoints`](./useMatchdayPoints.ts) pays for.
  */
 export function useCompetitionPlayers(
   competitionId: string | undefined,
-): UseQueryResult<CompetitionPlayerSummary[]> {
+  { isLive = false }: { isLive?: boolean } = {},
+): UseQueryResult<MatchdayTopScorers> {
   return useQuery({
     queryKey: qk.competitionPlayers(competitionId ?? 'none'),
     enabled: competitionId !== undefined,
-    staleTime: HOUR,
+    // While a matchday runs the list reorders every few minutes; between
+    // matchdays it cannot change at all until the next one kicks off.
+    staleTime: isLive ? 0 : HOUR,
+    refetchInterval: isLive ? LIVE_POLL_MS : (false as const),
     queryFn: async () => {
       const data = await get<CompetitionPlayersResponse>(
         endpoints.competitions.players(competitionId as string),
       )
-      return (data.it ?? []).map((player) => ({
-        id: player.pi,
-        lastName: player.n,
-        teamId: player.tid,
-        position: toPosition(player.pos),
-        points: player.p,
-        minutesPlayed: player.mt ?? 0,
-        goals: player.g ?? 0,
-        assists: player.a ?? 0,
-        isInjured: player.il ?? false,
-        image: player.pim,
-      })) satisfies CompetitionPlayerSummary[]
+      return {
+        day: data.day,
+        players: (data.it ?? []).map((player) => ({
+          id: player.pi,
+          lastName: player.n,
+          teamId: player.tid,
+          position: toPosition(player.pos),
+          points: player.p,
+          minutesPlayed: player.mt ?? 0,
+          goals: player.g ?? 0,
+          assists: player.a ?? 0,
+          isInjured: player.il ?? false,
+          image: player.pim,
+          matchId: player.mi,
+        })),
+      } satisfies MatchdayTopScorers
     },
   })
 }

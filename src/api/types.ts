@@ -1276,7 +1276,14 @@ export interface ManagerSquadPlayer {
 }
 
 export interface CompetitionPlayersResponse {
+  /** The 25 best players of the matchday, points descending. */
   it: CompetitionPlayer[]
+  /** The matchday the list is for. Always the competition's current one. */
+  day: number
+  /** Season label, e.g. `"26/27"`. */
+  sn?: string
+  /** Short matchday label, e.g. `"2"`. */
+  mdsn?: string
 }
 
 export interface CompetitionPlayer {
@@ -1356,10 +1363,10 @@ export interface CompetitionTableRow {
  * until it was found.
  *
  * **`/v4/competitions/{competitionId}/players` is not that source**, whatever
- * its name and its published documentation say. It returns **one fixture's**
- * players — 25 rows across exactly two clubs, all sharing a single `mi` — so
- * every club not playing in it resolves to nothing at all. That is what made
- * the club page's Kader render empty for seventeen clubs out of eighteen.
+ * its name and its published documentation say. It returns the matchday's
+ * **twenty-five best players**, points descending, so a club with nobody in
+ * that top 25 resolves to nothing at all. That is what made the club page's
+ * Kader render empty for seventeen clubs out of eighteen.
  *
  * ## Two spellings, and only one of them knows your league
  *

@@ -1402,6 +1402,21 @@ export interface CompetitionPlayerSummary {
   assists: number
   isInjured: boolean
   image?: string
+  /** The fixture these points were scored in. */
+  matchId?: string
+}
+
+/**
+ * The matchday's best players, best first.
+ *
+ * `day` travels with the list rather than being read off the season schedule,
+ * because it is the *endpoint's* notion of "current matchday" and only it can
+ * say which matchday these points belong to. The two agree in practice and the
+ * page shows the number, so a disagreement would be visible rather than silent.
+ */
+export interface MatchdayTopScorers {
+  day: number
+  players: CompetitionPlayerSummary[]
 }
 
 export interface TableRow {
@@ -1768,7 +1783,8 @@ export function teamStanding(
  * optional. It was very nearly all optional, back when this was assembled from
  * the competition's player list plus a request per player; that arrangement was
  * both twenty-six times more expensive and, as it turned out, broken, because
- * the list it started from is one fixture's players rather than a competition's.
+ * the list it started from is the matchday's twenty-five best players rather
+ * than a competition's.
  */
 export interface TeamSquadPlayer {
   id: string

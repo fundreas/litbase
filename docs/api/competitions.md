@@ -51,26 +51,39 @@ chips on [Join a league](../pages/join-league.md).
 
 > ### ⚠ Not what its name says
 >
-> **This returns one _fixture's_ players, not a competition's.** Probed live on
-> 2026-09-05 against Bundesliga matchday 2: **25 rows, across exactly two clubs
-> (Stuttgart and Köln), every one of them carrying the same `mi`.** The other
-> sixteen clubs appear nowhere in it.
+> **This returns the current matchday's twenty-five best players**, points
+> descending — not "every player in a competition", which is what the published
+> documentation calls it.
 >
-> The published documentation calls it "every player in a competition", this
-> page said so too, and the [All players](../pages/players.md) stub was written
-> around "expect several hundred". All three were wrong, and nothing caught it
-> because the only consumer was a stub that printed a row count — 25 looks like
-> a perfectly plausible number until you ask which clubs are in it.
+> #### It is not "one fixture's players" either
 >
-> It was found when the [club page](../pages/team.md) filtered this list by
-> `tid` to build a squad and got an empty Kader for seventeen clubs out of
-> eighteen. **For a club's players use
-> [`teamprofile`](#get-v4competitionscompetitionidteamsteamidteamprofile)**,
+> This page said that from 2026-09-05 to 2026-09-06, and it was wrong. The
+> claim came from a probe taken **mid-matchday**, when exactly one fixture had
+> been played: all 25 rows carried that one `mi`, across Stuttgart and Köln,
+> and it read like a per-fixture list. Read back the next morning, the same
+> matchday's response spans **seven matches and nine clubs** — still 25 rows,
+> still sorted by points.
+>
+> The list was never scoped to a fixture. It is scoped to *having points*, and
+> early on a matchday those are nearly the same set. A probe taken while the
+> data is still filling in can support a rule that the data will contradict
+> within hours.
+>
+> #### What the old reading got right
+>
+> **It is not a way to enumerate a club's squad.** Filtering it by `tid` is
+> what gave the [club page](../pages/team.md) an empty Kader for seventeen
+> clubs out of eighteen — a top-25 list simply does not contain most players.
+> That fix stands: for a club's players use
+> [`teamprofile`](#get-v4competitionscompetitionidteamsteamidteamprofile),
 > which serves the whole squad in one response.
 >
-> Which fixture it picks is **✗** — presumably the current or next one, but a
-> single observation cannot separate "the current match" from "the match this
-> account last looked at". Whatever the rule, it is not a competition-wide list.
+> #### It ignores every parameter
+>
+> `?dayNumber=2`, `?matchId=11947` and `?mi=11947` were each probed on
+> 2026-09-06 and each answered the **identical 25 rows**. There is no way to
+> ask it for a past matchday: it is always the competition's current one, which
+> is what `day` on the response reports.
 
 This is the one endpoint whose published documentation the project was
 originally seeded from.
@@ -86,19 +99,24 @@ originally seeded from.
 ### Query parameters
 
 Both are declared "required" by the spec and both are sent empty in its own
-example; the app omits them and gets the full list.
+example; the app omits them and gets the list.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | `position` | ? | **?** Filter by position. Presumably the [`pos` codes](codes.md#position-pos); not probed |
-| `sorting` | ? | **?** Sort order. The unfiltered response arrives sorted by points descending, so the default is presumably "points". The accepted values are **✗** |
+| `sorting` | ? | **?** Sort order. The response arrives sorted by points descending, so the default is presumably "points". The accepted values are **✗** |
+
+**Scoping parameters do nothing.** `dayNumber`, `matchId` and `mi` were each
+tried and each returned the identical body, so an unrecognised parameter is
+silently ignored rather than rejected — do not read a `200` here as
+confirmation that a parameter was understood.
 
 ### Response `200`
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `it` | array | The players |
-| `day` | number | Current matchday |
+| `it` | array | The 25 best players of `day`, points descending |
+| `day` | number | The matchday the list is for — always the competition's current one |
 | `sn` | string | **?** Season label |
 | `mdsn` | string | **?** Short matchday label, e.g. `"#1"` |
 | `spr` | object | **?** A sponsor block — `{ url, lf, durl }`, as on the market-value response. Not rendered |
@@ -132,8 +150,15 @@ individually.
 ### Used by
 
 [`useCompetitionPlayers`](../../src/api/hooks/useCompetition.ts) → the
-[All players](../pages/players.md) stub, which is the only thing that can
-honestly be built on it until the scoping rule above is understood.
+**Rangliste** view of the [matchday page](../pages/matchday.md#rangliste), and
+the [All players](../pages/players.md) stub.
+
+It is **the only bulk source of per-player matchday points in the API**, which
+is what makes that view cost one small request where
+[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) would have
+needed one per player across nine fixtures. Polled at the
+[live rate](../api-layer.md) while a matchday runs; between matchdays it cannot
+move at all.
 
 ---
 

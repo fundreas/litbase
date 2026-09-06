@@ -141,7 +141,7 @@ is what makes them safe to call before context has resolved.
 | `useSquad(id)` | `/leagues/{id}/squad` | 2 min (default) |
 | `useMarket(id)` | `/leagues/{id}/market` | 30 s |
 | `useCompetitionTable(cid)` | `/competitions/{cid}/table` | 10 min |
-| `useCompetitionPlayers(cid)` | `/competitions/{cid}/players` | 1 hour |
+| `useCompetitionPlayers(cid)` | `/competitions/{cid}/players` | 1 hour — 0 + 10 s poll while a matchday runs |
 | `useRecommendedLeagues()` | `/leagues/recommended` | 5 min |
 | `useJoinableLeagues(f)` | `/leagues/list` | 2 min |
 | `useCompetitions()` | `/competitions` | 1 hour |
@@ -152,13 +152,13 @@ is what makes them safe to call before context has resolved.
 | `useMatchdayLineups(…)` | same endpoint × one per manager — league-wide ownership | 5 min |
 | `useLiveMatches(…)` | `/matches/{matchId}/details` × N | ∞ once over, 0 + 10 s poll while playing |
 | `useMatchDetails(match)` | `/matches/{matchId}/details` | as above, plus 5 min before kick-off |
-
-Every live rate is the one constant in [`polling.ts`](../src/api/polling.ts) —
-**10 s** — gated per running subject (a match, a player) rather than per page.
-The season fixture list is the deliberate exception at 60 s: it is the whole
-season fetched for one boolean, `st`.
 | `useMatchdayPoints(…)` | `/leagues/{id}/players/{pid}` × N | ∞ once settled, 0 + 10 s poll while playing |
 | `useMatchLineup(…)` | `useMatchdayLineups` + `useMatchdayPoints` + `useRanking` | — composes the three |
+
+Every live rate is the one constant in [`polling.ts`](../src/api/polling.ts) —
+**10 s** — gated per running subject (a match, a player, the matchday ranking)
+rather than per page. The season fixture list is the deliberate exception at
+60 s: it is the whole season fetched for one boolean, `st`.
 
 `useMatchdaySquad` is the API's only **historical** source: a manager's squad
 and lineup as they stood on a given matchday, for any manager in the league.

@@ -4,3 +4,8 @@ node_modules
 
 # Tooling-owned config — written by Claude Code, not ours to format.
 .claude
+
+# Captured API responses. Verbatim is the point: they are the evidence behind
+# the docs, and reformatting them would make a diff against a fresh capture
+# unreadable.
+test-data

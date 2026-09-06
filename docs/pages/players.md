@@ -10,18 +10,27 @@ Every player in the competition — the scouting view, as opposed to
 
 ## ⚠ The endpoint is not what this page assumed
 
-**`/v4/competitions/{competitionId}/players` returns one _fixture's_ players,
-not a competition's.** Probed 2026-09-05: 25 rows across exactly two clubs, all
-sharing one `mi`. See
+**`/v4/competitions/{competitionId}/players` returns the current matchday's
+twenty-five best players**, points descending — not a competition's players.
+See
 [the warning on the endpoint](../api/competitions.md#get-v4competitionscompetitionidplayers).
+
+> An earlier reading of the same probe called it "one fixture's players",
+> because it was taken mid-matchday when only one fixture had been played and
+> all 25 rows shared its `mi`. That was wrong and is corrected on the endpoint
+> page; what survives is that it is **not** a list of everybody.
 
 That invalidates most of what follows. "Expect several hundred" was a guess
 that nobody checked, and the row count this stub prints — 25 — looks perfectly
-reasonable until you ask *which* clubs are in it. The size problem this page was
-designed around therefore does not exist yet, and neither does the page's own
-premise: there is currently **no known endpoint that lists a competition's
+reasonable until you ask *which* players are in it. The size problem this page
+was designed around therefore does not exist yet, and neither does the page's
+own premise: there is currently **no known endpoint that lists a competition's
 players**. `/v4/competitions/{id}/players/search` answers 200 and is unprobed;
 that is where to look first.
+
+The endpoint did find a home in the meantime — it is what the matchday page's
+[Rangliste](matchday.md#rangliste) is built on, which is the view it was always
+shaped for.
 
 What *is* now available is a club's whole squad in one request —
 [`teamprofile`](../api/competitions.md#get-v4competitionscompetitionidteamsteamidteamprofile),

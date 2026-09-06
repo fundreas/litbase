@@ -48,10 +48,10 @@ const STALE_MS = 30 * 60_000
  *
  *  - **The filter matched nothing for seventeen clubs out of eighteen.** That
  *    endpoint is not "every player in a competition" despite its name and its
- *    published documentation. Probed live, it returned **25 players across
- *    exactly two clubs, all sharing one `mi`** — it is *one fixture's* players.
- *    So the Kader rendered empty for every club not in that fixture, which is
- *    how it was found.
+ *    published documentation: it is the matchday's **twenty-five best
+ *    players**, points descending — see
+ *    [`useCompetitionPlayers`](./useCompetition.ts). A club with nobody in the
+ *    top 25 resolves to nothing at all, which is how it was found.
  *  - **The fan-out was twenty-six requests for what one answers.** Nothing but
  *    the 24-hour change (`tfhmvt`) still needs a per-player response, and that
  *    one column is not worth twenty-six requests — the profile's seven-day

@@ -242,13 +242,17 @@ What it was doing before: filtering `/v4/competitions/{id}/players` by `tid` for
 the roster, then fanning out one request per player for the values and owners.
 Both halves were wrong.
 
-**The list it filtered is not a competition's players.** Probed live, that
-endpoint returns **25 rows across exactly two clubs, all sharing one `mi`** — it
-is *one fixture's* players. Its published documentation says otherwise, this
-project's own API notes said otherwise, and nothing caught it because the only
-consumer was a stub that printed a row count. Open Leipzig on a matchday
-Stuttgart are playing and the filter matches zero rows. See
+**The list it filtered is not a competition's players.** That endpoint returns
+**the matchday's twenty-five best**, points descending — so filtering it by
+`tid` matches zero rows for any club without a player in the top 25, which on a
+given matchday is most of them. Its published documentation says otherwise,
+this project's own API notes said otherwise, and nothing caught it because the
+only consumer was a stub that printed a row count. See
 [the warning](../api/competitions.md#get-v4competitionscompetitionidplayers).
+
+> The first diagnosis here read the endpoint as *one fixture's* players, from a
+> probe taken mid-matchday when only one fixture had been played. Wrong reason,
+> right conclusion: a top-25 list is no way to enumerate a squad either.
 
 **And the fan-out was twenty-six requests for what one answers.** `teamprofile`
 carries the market value, the seven-day change, the probability tier, the

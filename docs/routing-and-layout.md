@@ -29,6 +29,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          │  └─ :duelId          both manager ids joined with "-"
          │     └─ ranking       second tab of the same component
          ├─ matchday   ?day=N — every fixture of one matchday
+         │  ├─ ranking          the matchday's 25 best players
          │  └─ :matchId         one match; the matchday is looked up from it
          │     └─ lineup        second tab of the same component
          ├─ table       the Bundesliga table's old URL, kept as a redirect

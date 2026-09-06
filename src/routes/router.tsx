@@ -49,6 +49,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/squad/lineup        the pitch, under the squad
  *   /leagues/:leagueId/squad/live          the running matchday, while it runs
  *   /leagues/:leagueId/matchday            every fixture of a matchday
+ *   /leagues/:leagueId/matchday/ranking    the matchday's 25 best players
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
  *   /leagues/:leagueId/players/:playerId   one player, three tabs
  *   /leagues/:leagueId/teams               every club, as a table
@@ -133,6 +134,11 @@ export const router = createBrowserRouter(
                 // the season's fixture list, so a link cannot carry a `?day=`
                 // that disagrees with the match it names.
                 { path: 'matchday', element: <MatchdayPage /> },
+                // Declared before `:matchId` for readability only — React
+                // Router ranks a static segment above a dynamic one whatever
+                // the array order, and match ids are numeric, so `ranking`
+                // can never be mistaken for one.
+                { path: 'matchday/ranking', element: <MatchdayPage /> },
                 { path: 'matchday/:matchId', element: <MatchDetailPage /> },
                 {
                   path: 'matchday/:matchId/lineup',

@@ -11,7 +11,7 @@ export function PlayersPage() {
       title="Alle Spieler"
       hookName="useCompetitionPlayers(competitionId)"
       isPending={query.isPending}
-      itemCount={query.data?.length}
+      itemCount={query.data?.players.length}
       error={query.error}
       onRetry={() => {
         void query.refetch()
