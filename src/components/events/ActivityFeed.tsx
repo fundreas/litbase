@@ -16,8 +16,7 @@ import { Link, useNavigate } from 'react-router'
 
 import { useAchievement } from '@/api/hooks/useAchievements'
 import { useActivities } from '@/api/hooks/useActivities'
-import { useSeasonSchedule } from '@/api/hooks/useMatchday'
-import { useMatchdayRanking } from '@/api/hooks/useMatchdayRanking'
+import { useMatchdayStandings } from '@/api/hooks/useDuels'
 import { useRanking } from '@/api/hooks/useRanking'
 import type { LeagueActivity, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
@@ -32,7 +31,6 @@ import { Card } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState, ErrorState } from '@/components/ui/States'
-import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
 import { nowMs } from '@/lib/clock'
 import {
@@ -80,11 +78,6 @@ import {
 export function ActivityFeed({ leagueId }: { leagueId: string }) {
   const query = useActivities(leagueId)
   const ranking = useRanking(leagueId)
-  const { competitionId } = useActiveLeague()
-  // Only to tell a settled matchday from the running one, which is what picks
-  // the ranking's source. Cached an hour and already fetched by every other
-  // page that shows a matchday.
-  const schedule = useSeasonSchedule(competitionId)
   const { user } = useAuth()
   const navigate = useNavigate()
   const now = nowMs()
@@ -147,8 +140,6 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
                 key={activity.id}
                 activity={activity}
                 leagueId={leagueId}
-                competitionId={competitionId}
-                currentDay={schedule.data?.currentDay}
                 now={now}
                 managersByName={managersByName}
                 onOpen={open}
@@ -274,17 +265,12 @@ function LoadMore({
 function ActivityRow({
   activity,
   leagueId,
-  competitionId,
-  currentDay,
   now,
   managersByName,
   onOpen,
 }: {
   activity: LeagueActivity
   leagueId: string
-  competitionId: string | undefined
-  /** The competition's current matchday — picks the ranking's source. */
-  currentDay: number | undefined
   now: number
   managersByName: Map<string, RankedManager>
   onOpen: (activity: LeagueActivity) => void
@@ -356,8 +342,7 @@ function ActivityRow({
       return (
         <MatchdayRow
           activity={activity}
-          competitionId={competitionId}
-          currentDay={currentDay}
+          leagueId={leagueId}
           when={when}
           onOpen={onOpen}
         />
@@ -406,43 +391,70 @@ function ActivityRow({
 /* -------------------------------------------------------------------------- */
 
 /**
- * A matchday that has been scored, led by **the player who scored most that
- * day, wearing a crown**.
+ * A matchday that has been scored, led by **the manager who won it, wearing a
+ * crown**.
  *
- * The feed entry itself names nobody — it carries the matchday and the
- * reader's own placement and stops there. But a matchday's headline is who
- * ran away with it, and the app already knows: the same ranking the
- * [matchday page](../../pages/MatchdayPage.tsx) draws, which for any settled
- * matchday is a **static file** under `data/` rather than a request to
- * Kickbase. So the portrait is close to free, and the row gains the one face
- * that makes it worth looking at.
+ * The feed entry names nobody — it carries the matchday and the reader's own
+ * placement and stops there. But the question a settled matchday raises in a
+ * league is who took it, so the row answers that with the winner's face.
  *
- * The flag stands in until it lands, and stays if the matchday has no file
- * seeded yet.
+ * The standings come from `?dayNumber=`, which is **the same cache entry the
+ * sheet this row opens reads** — and the same one the
+ * [duels page](../../pages/DuelsPage.tsx) fills. So the row pays for the
+ * request the sheet would have made anyway, and opening it after seeing the
+ * crown costs nothing.
+ *
+ * A flag stands in while it loads. It also stays when **nobody scored** —
+ * a matchday every manager sat out sorts alphabetically, and crowning the
+ * first name in the alphabet would be inventing a winner.
+ *
+ * ## Where the reader's own placement comes from
+ *
+ * `mdpl` in these standings, not `pl` on the feed entry — because the
+ * standings are here anyway and `pl` cannot be trusted to a place. It counts
+ * **from zero** where every other placement in this API counts from one, which
+ * is a difference no payload states and which cost a wrong number on this row
+ * until Andreas caught it against his own league.
+ *
+ * Reading `mdpl` retires the question: it is Kickbase's own placement, it is
+ * what the sheet this row opens shows, so the two can no longer disagree. `pl`
+ * is the fallback for the moment before the standings land, and is the one
+ * place the zero-based reading survives.
  */
 function MatchdayRow({
   activity,
-  competitionId,
-  currentDay,
+  leagueId,
   when,
   onOpen,
 }: {
   activity: Extract<LeagueActivity, { kind: 'matchday' }>
-  competitionId: string | undefined
-  currentDay: number | undefined
+  leagueId: string
   when: ReactNode
   onOpen: (activity: LeagueActivity) => void
 }) {
-  const ranking = useMatchdayRanking({
-    competitionId: activity.day > 0 ? competitionId : undefined,
-    day: activity.day,
-    currentDay,
-    position: undefined,
-    // Nothing here polls. The row describes a matchday Kickbase has already
-    // declared over, so a live rate would be re-reading a settled number.
-    isLive: false,
-  })
-  const top = ranking.data?.players[0]
+  const { user } = useAuth()
+
+  // `mapStandings` sorts on the matchday's points, so the winner is the head
+  // of the list. Day `0` is the viewer having sat the matchday out, and
+  // `?dayNumber=0` answers a ranking with every per-matchday field stripped —
+  // so it is not asked for.
+  const standings = useMatchdayStandings(
+    leagueId,
+    activity.day > 0 ? activity.day : undefined,
+  )
+  const winner = standings.data?.managers[0]
+  const top =
+    winner !== undefined && winner.matchdayPoints > 0 ? winner : undefined
+
+  const mine = standings.data?.managers.find(
+    (manager) => manager.id === user?.id,
+  )
+  const myPlacement =
+    mine !== undefined && mine.matchdayPlacement > 0
+      ? mine.matchdayPlacement
+      : activity.placement === undefined
+        ? undefined
+        : activity.placement + 1
 
   return (
     <Row
@@ -451,15 +463,9 @@ function MatchdayRow({
           <IconDisc icon={Flag} />
         ) : (
           <span className="relative shrink-0">
-            <Avatar
-              src={top.image}
-              name={top.lastName}
-              size={36}
-              className="bg-surface-2"
-            />
-            {/* The crown sits half off the portrait's top-left, where a
-                Kickbase cutout has only background — a badge centred on the
-                corner would cover the face at this size. */}
+            <Avatar src={top.image} name={top.name} size={36} />
+            {/* The crown sits half off the avatar's top-left rather than
+                centred on the corner, which at 36px would cover a face. */}
             <span
               aria-hidden="true"
               className={cn(
@@ -478,11 +484,11 @@ function MatchdayRow({
         </>
       }
       detail={
-        activity.placement === undefined
+        myPlacement === undefined
           ? top === undefined
             ? undefined
-            : `${top.lastName} · ${points(top.points)} Pkt`
-          : `Du wurdest ${placement(activity.placement + 1)}`
+            : `${top.name} · ${points(top.matchdayPoints)} Pkt`
+          : `Du wurdest ${placement(myPlacement)}`
       }
       when={when}
       // A matchday the viewer sat out arrives with an empty payload and so no

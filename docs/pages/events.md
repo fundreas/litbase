@@ -70,7 +70,7 @@ a row or by the sheet it opens.
 | ---- | --- | ----------- | ------- | --- |
 | Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | **Buy**: a sheet — see below. **Sale**: player page |
 | Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | — |
-| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | **The day's top scorer, in a crown.** Flag until it lands | Duel league: `/duels?day=N`. Otherwise a sheet with the matchday's manager ranking |
+| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | **The manager who won the matchday, in a crown.** Flag until it lands | Duel league: `/duels?day=N`. Otherwise a sheet with the matchday's manager ranking |
 | Achievement | **Tormaschine** | `+250.000 €` in green, when it paid anything | Trophy, accent | A sheet: description, reward, how often earned |
 | Login bonus | **Auflaufprämie** kassiert | Amount · day | Gift, accent — from the spec, never seen live | — |
 | Founded | Liga **JSG Königslutter** gegründet | — | Tag | — |
@@ -166,29 +166,32 @@ meant to write, which is the only honest test it was ever going to get.
 
 Posting invalidates the feed, because the entry's own `coc` moves with it.
 
-### The crowned portrait on a matchday row
+### The crowned face on a matchday row
 
 The feed entry names nobody — it carries the matchday and your own placement
-and stops. But the headline of a matchday is who ran away with it, so the row
-leads with **the player who scored most that day, wearing a crown**.
+and stops. But the question a settled matchday raises in a league is who took
+it, so the row leads with **the winning manager, wearing a crown**.
 
-It costs almost nothing.
-[`useMatchdayRanking`](../../src/api/hooks/useMatchdayRanking.ts) is the same
-hook the [matchday page](matchday.md) uses, and for any *settled* matchday it
-reads a **static file** under `data/rankings/` rather than calling Kickbase —
-see the [seed script](../../scripts/build-matchday-rankings.mjs). The running
-matchday is the one exception and comes from the live endpoint, shared with
-whatever else has already asked for it.
+It is free. The standings come from `/ranking?dayNumber=`, which is the **same
+cache entry** the sheet that row opens reads, and the same one the
+[duels page](duels.md) fills. So the row pays for a request the sheet would
+have made anyway, and opening the sheet afterwards costs nothing.
 
-A matchday with no file seeded yet keeps the flag. Nothing polls: the row
-describes a matchday Kickbase has already declared over.
+The flag stays when nobody scored: a matchday every manager sat out sorts
+alphabetically, and crowning the first name in the alphabet would be inventing
+a winner.
 
-> **The placement is off by one on the wire.** `pl` on a type-`17` entry counts
-> from zero — `0` is first — so the row renders `pl + 1`. This is Andreas's
-> reading from his own league; the single entry in the test league is
-> consistent with either, because it was written an hour before that matchday's
-> points settled. If a row and the ranking sheet it opens ever disagree by one,
-> the sheet is right and this is the line to revisit.
+### Your placement comes from the standings, not the feed
+
+`pl` on a matchday entry counts **from zero**, where every other placement in
+this API counts from one. Nothing in the payload says so, and it cost a wrong
+number on this row until it was caught against a real league.
+
+Rather than trust a `+1`, the row reads `mdpl` out of the standings it is
+already loading for the crown. That is Kickbase's own placement and it is
+exactly what the sheet shows, so the row and the sheet can no longer disagree.
+The zero-based `pl` survives only as the fallback for the moment before the
+standings land.
 
 ### The achievement's money is a second request
 
