@@ -101,9 +101,20 @@ has since left keeps initials. A sale is always *to Kickbase* — the API has
 never shown a manager-to-manager sale — so there is one manager per row.
 
 **A purchase opens a sheet** with the player, the fee, the manager who won him,
-a link to his page — and **what you bid**, when the API still knows. That last
-line is why the sheet exists: it is the only thing about a transfer that is not
+**what you bid** when the API still knows, and **the comment thread**. The bid
+is why the sheet exists: it is the only thing about a transfer that is not
 already on the row, and the question a feed of other people's purchases raises.
+
+**The player's face and name are the link to his page.** There was a *Zum
+Spieler* row at the foot of the sheet, which put the way out as far as possible
+from the thing it was about and spent a line saying what a tap on a portrait
+says for free. Everywhere else in the app a player's picture is how you reach a
+player.
+
+**The sheet has no close button** — see
+[`InfoDialog`](../../src/components/ui/InfoDialog.tsx). A sheet that asks
+nothing has nothing to dismiss: tapping outside closes it, so does Escape, so
+does the back gesture.
 
 The bid comes from
 [`usePlayerOffers`](../../src/api/hooks/usePlayerOffers.ts) reading
@@ -124,6 +135,36 @@ player, and a feed of transfers would otherwise fan out over every one of them.
 
 A **sale** opens the player's page instead. It was a sale to Kickbase, so there
 was no contest and no bid of yours to report.
+
+### The comment thread
+
+Kickbase's feed carries a chat thread per entry and the app has never shown one.
+The purchase sheet does now: the comments, and a box that posts on Enter.
+
+**It is fetched only when the entry says it has comments.** `coc` reads `0` on
+all 620 entries across both probed leagues, so fetching on open would be one
+request per sheet to be told "none" every time. Writing one turns it on for that
+sheet, because by then there is something to read.
+
+> **The comment's shape is a guess, and the app says so when the guess misses.**
+> Nobody has ever commented in either league and the published spec leaves the
+> item schema empty (`items: {}`), so there are two sources and neither knows.
+> [`toActivityComment`](../../src/api/hooks/useActivityComments.ts) reads the
+> spellings this API uses for the same things elsewhere — `comm` for the text,
+> because that is what the `POST` body calls it, then `c` and `cmt`, with
+> `unm`/`uim`/`dt` for the author and the time. A field that matches nothing is
+> simply not drawn, so a miss costs a line rather than the sheet; and when rows
+> arrive whose text it could not find, the thread says that in words instead of
+> showing a column of blanks. **One real comment settles all of it.**
+
+**The `POST` has never been fired.** `{ comm }` is Kickbase's own published body,
+not a measurement, and it stayed that way deliberately: a comment lands in a
+real league in front of real people, `OPTIONS` answers `allow: GET, POST`, and
+there is no `DELETE` and no single-comment route — a probe would have been
+permanent. So the first real exercise of it is somebody writing a comment they
+meant to write, which is the only honest test it was ever going to get.
+
+Posting invalidates the feed, because the entry's own `coc` moves with it.
 
 ### The crowned portrait on a matchday row
 

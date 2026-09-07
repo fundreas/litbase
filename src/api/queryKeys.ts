@@ -125,6 +125,13 @@ export const qk = {
    */
   activities: (leagueId: string) =>
     [...qk.league(leagueId), 'activities'] as const,
+  /**
+   * One feed entry's comment thread. Hung under {@link activities}, so
+   * invalidating the feed drops every thread read from it — which is what
+   * posting a comment wants, since the entry's own count moves with it.
+   */
+  activityComments: (leagueId: string, activityId: string) =>
+    [...qk.activities(leagueId), activityId, 'comments'] as const,
   /** One of the viewer's achievements in this league, by type code. */
   achievement: (leagueId: string, type: number) =>
     [...qk.league(leagueId), 'achievement', type] as const,

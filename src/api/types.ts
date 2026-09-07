@@ -1820,6 +1820,48 @@ export interface ActivityItem {
 }
 
 /**
+ * `GET /v4/leagues/{leagueId}/activitiesFeed/{activityId}/comments`.
+ *
+ * The envelope is measured — `{"coc": 0, "it": []}` on every entry of both
+ * probed leagues. What is *inside* `it` is not, and could not be: nobody has
+ * ever commented in either league, and the published spec leaves the item
+ * schema empty (`items: {}`).
+ */
+export interface ActivityCommentsResponse {
+  /** Comment count, the same figure the feed entry carries as `coc`. */
+  coc?: number
+  it?: ActivityCommentItem[]
+}
+
+/**
+ * One comment — **every field here is a guess**, and marked so.
+ *
+ * There is no live example and no schema. The spellings below are the ones
+ * this API uses for the same things everywhere else: `comm` is the field name
+ * the `POST` body takes for the text, and `ui`/`unm`/`uim`/`dt` are how a user
+ * and a timestamp are named on the ranking, the feed and the chat payloads
+ * alike. [`toActivityComment`](./hooks/useActivityComments.ts) reads several
+ * spellings per field rather than betting on one.
+ *
+ * Delete this hedging the moment a real comment is seen.
+ */
+export interface ActivityCommentItem {
+  /** **?** Comment id. */
+  i?: string
+  /** **?** The text. `comm` is what the `POST` body calls it. */
+  comm?: string
+  /** **?** Other spellings seen for a message body elsewhere in this API. */
+  c?: string
+  cmt?: string
+  /** **?** Author id, name and avatar. */
+  ui?: string
+  unm?: string
+  uim?: string
+  /** **?** Written at, ISO 8601. */
+  dt?: string
+}
+
+/**
  * `GET /v4/leagues/{leagueId}/players/{playerId}/transfers` — the player's
  * market state and **the viewer's own bid on him**.
  *

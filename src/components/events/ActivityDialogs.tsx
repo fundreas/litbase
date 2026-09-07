@@ -1,7 +1,12 @@
-import { ArrowRight, ChevronRight, Trophy } from 'lucide-react'
+import { ArrowRight, ChevronRight, SendHorizontal, Trophy } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { useAchievement } from '@/api/hooks/useAchievements'
+import {
+  useActivityComments,
+  usePostActivityComment,
+} from '@/api/hooks/useActivityComments'
 import { useMatchdayStandings } from '@/api/hooks/useDuels'
 import { usePlayerOffers } from '@/api/hooks/usePlayerOffers'
 import type { LeagueActivity, RankedManager } from '@/api/models'
@@ -9,9 +14,10 @@ import { ManagerRankingTab } from '@/components/ranking/ManagerRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
 import { InfoDialog } from '@/components/ui/InfoDialog'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { money, moneyDelta } from '@/lib/format'
+import { money, moneyDelta, relativeTime } from '@/lib/format'
 
 /**
  * What a **purchase** opens: who bought whom for how much, and — the reason
@@ -115,7 +121,159 @@ export function TransferDialog({
           </span>
         </div>
       ) : null}
+
+      <ActivityCommentThread
+        leagueId={leagueId}
+        activityId={activity.id}
+        commentCount={activity.commentCount}
+      />
     </InfoDialog>
+  )
+}
+
+/**
+ * **The chat thread on a feed entry**, and the box to add to it.
+ *
+ * Kickbase's feed carries comments and the app has never shown one. The count
+ * is on every entry; this is what is behind it.
+ *
+ * **The thread is only fetched when the entry says it has one.** `coc` is `0`
+ * on every entry of both probed leagues, so opening a sheet would otherwise be
+ * a request to be told "none" every single time. Writing one flips it on,
+ * because by then there is something to read.
+ *
+ * ## The honest caveat
+ *
+ * Nobody has ever commented in either league, and Kickbase's own spec leaves
+ * the comment's shape undescribed — so the field names
+ * [the mapper](../../api/hooks/useActivityComments.ts) reads are educated
+ * guesses at this API's own vocabulary. A guess that misses costs a missing
+ * line, not a broken sheet, and the note below says so when it happens rather
+ * than leaving a row mysteriously blank. The first real comment settles it.
+ */
+function ActivityCommentThread({
+  leagueId,
+  activityId,
+  commentCount,
+}: {
+  leagueId: string
+  activityId: string
+  commentCount: number
+}) {
+  const [draft, setDraft] = useState('')
+  // Written one this session? Then there is a thread to read even if the entry
+  // arrived saying there was none.
+  const [hasPosted, setHasPosted] = useState(false)
+
+  const comments = useActivityComments(leagueId, activityId, {
+    enabled: commentCount > 0 || hasPosted,
+  })
+  const postComment = usePostActivityComment(leagueId, activityId)
+
+  const rows = comments.data ?? []
+  /* Rows arrived but none of them had text under any name this knows: the
+     guess missed, and saying so is more use than a column of empty lines. */
+  const isUnreadable =
+    rows.length > 0 && rows.every((r) => r.text === undefined)
+
+  const submit = () => {
+    const text = draft.trim()
+    if (text === '' || postComment.isPending) return
+    postComment.mutate(text, {
+      onSuccess: () => {
+        setDraft('')
+        setHasPosted(true)
+      },
+    })
+  }
+
+  return (
+    <section className="flex flex-col gap-2 border-t border-line pt-3">
+      {comments.isPending && (commentCount > 0 || hasPosted) ? (
+        <Skeleton className="h-10" />
+      ) : isUnreadable ? (
+        <p className="text-xs text-muted">
+          Kickbase liefert {rows.length}{' '}
+          {rows.length === 1 ? 'Kommentar' : 'Kommentare'} in einem Format, das
+          die App noch nicht lesen kann.
+        </p>
+      ) : (
+        rows.map((comment) => (
+          <div key={comment.id} className="flex items-start gap-2">
+            <Avatar
+              src={comment.authorImage}
+              name={comment.authorName ?? '?'}
+              size={24}
+              className="mt-0.5 shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-baseline gap-1.5">
+                {comment.authorName !== undefined && (
+                  <span className="truncate text-xs font-semibold text-ink">
+                    {comment.authorName}
+                  </span>
+                )}
+                {comment.at !== undefined && (
+                  <span className="shrink-0 text-[0.6875rem] text-faint">
+                    {relativeTime(comment.at)}
+                  </span>
+                )}
+              </p>
+              <p className="text-sm break-words text-muted">{comment.text}</p>
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* A form, so Enter submits without a key handler having to say so — and
+          so the phone keyboard offers a send key rather than a newline. */}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          submit()
+        }}
+        className="flex items-center gap-2"
+      >
+        <input
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value)
+          }}
+          placeholder="Kommentieren …"
+          aria-label="Kommentar schreiben"
+          disabled={postComment.isPending}
+          /* 16px so iOS Safari does not zoom the sheet on focus, the same
+             floor the app's `Input` sets for the reason. */
+          className={cn(
+            'h-10 min-w-0 flex-1 rounded-xl border border-line bg-surface-2 px-3 text-base text-ink',
+            'placeholder:text-faint focus:border-accent focus:outline-none',
+            'disabled:opacity-60',
+          )}
+        />
+        <button
+          type="submit"
+          disabled={draft.trim() === '' || postComment.isPending}
+          aria-label="Kommentar senden"
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+            'bg-accent text-accent-ink transition-opacity',
+            'disabled:pointer-events-none disabled:opacity-40',
+          )}
+        >
+          {postComment.isPending ? (
+            <Spinner size={16} />
+          ) : (
+            <SendHorizontal size={17} aria-hidden="true" />
+          )}
+        </button>
+      </form>
+
+      {postComment.isError && (
+        <p role="alert" className="text-xs text-negative">
+          {postComment.error.message}
+        </p>
+      )}
+    </section>
   )
 }
 

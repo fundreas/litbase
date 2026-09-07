@@ -296,6 +296,27 @@ export const endpoints = {
     activity: (leagueId: string, activityId: string) =>
       `/v4/leagues/${leagueId}/activitiesFeed/${activityId}`,
     /**
+     * **The chat thread hanging off one feed entry.** `GET` reads it, `POST`
+     * adds to it, body `{ comm }`.
+     *
+     * `GET` answers `{ coc, it }` — the count and the comments — and takes
+     * `start` and `max`, which the published spec marks required and the live
+     * endpoint does not: without either it answers the whole thread.
+     *
+     * **What is inside `it[]` is not established.** Nobody in either probed
+     * league has ever commented — `coc` is `0` on every entry of both feeds —
+     * and the spec leaves the item schema empty, so there is no source for the
+     * field names. [`useActivityComments`](./hooks/useActivityComments.ts)
+     * reads the plausible spellings and says so.
+     *
+     * **The `POST` body is the spec's, not a measurement.** `{ comm: string }`
+     * is what Kickbase documents; it has deliberately not been fired, because
+     * a comment lands in a real league in front of real people and **there is
+     * no `DELETE`** — the surface here is `GET` and `POST` and nothing else.
+     */
+    activityComments: (leagueId: string, activityId: string) =>
+      `/v4/leagues/${leagueId}/activitiesFeed/${activityId}/comments`,
+    /**
      * **The viewer's** achievements in this league — all 46 Kickbase knows,
      * each with whether it is earned (`ise`) and how often (`ac`). Names are
      * localised by `Accept-Language`. Unused; {@link achievement} is what the
