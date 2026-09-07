@@ -113,5 +113,14 @@ probe against `localStorage` succeeded at module load.
 
 - Handle Kickbase's MFA fields (`mfacp` appears in the login response but is
   empty for accounts without it — untested).
+- **Tell an SSO-only account apart from a wrong password.** Both are `401
+  AccessDenied` today, and no authenticated endpoint names the linked provider.
+  But `POST /v4/user/forgotpassword` answers `NotFound` for an address Kickbase
+  does not know, so the 401 panel could offer a "is this address even
+  registered?" check and, on `NotFound`, explain that the account was probably
+  created with Google, Facebook or Apple. Careful: a *known* address makes
+  Kickbase send that person a password-reset mail, so it needs an explicit tap,
+  never an automatic probe. See
+  [Authentication](../api/authentication.md#can-an-account-created-with-sso-get-a-password-later).
 - Rate-limit feedback: a 429 currently shows the generic
   *"Too many requests"* copy.

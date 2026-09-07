@@ -237,16 +237,70 @@ so **`/v4` is the only version live**.
 > it" as saying nothing whatsoever about the app's behaviour — the only
 > reliable source for this question is the app itself.
 
+### Can an account created with SSO get a password later?
+
+**Yes — but Kickbase does it by hand, not the user.** Every article on the
+subject, across both providers, ends at the support inbox. The clearest is the
+archived Facebook one, whose whole body is:
+
+> "Ja, wir können deine Login-Methode von Facebook auf eine E-Mail-Adresse
+> ändern. Bitte sende uns hierfür eine E-Mail mit deiner Manager-ID und der
+> gewünschten E-Mail-Adresse, die du zukünftig zum Einloggen nutzen möchtest."
+>
+> — [archived 2024-06-22](http://web.archive.org/web/20240622144017/https://kickbase-faq.groovehq.com/help/ich-logge-mich-uber-facebook-ein-jetzt-mochte-ich-meinen-facebook-account-loschen-was-nun)
+
+The [Apple ID equivalent](https://help.kickbase.com/help/wie-kann-ich-meinen-login-von-apple-id-auf-eine-e-mail-adresse-andern)
+is still live and says the same thing: mail `help@kickbase.com` with your
+Manager ID and the address to put on file.
+
+**The API explains why it has to be manual.** No endpoint can add a *first*
+password to an account:
+
+| Endpoint | Body | Why it doesn't help |
+| -------- | ---- | ------------------- |
+| `POST /v4/user/password` | `{ npass, pass }` — **both required** | `pass` is the *old* password. An SSO account has none, so there is nothing to authenticate the change with |
+| `PUT /v4/user/settings` | `{ em, unm }` | Changes the email address and username. **No password field at all** |
+
+So the account can acquire an email address self-service, and a password never.
+That gap is exactly the shape of the support request.
+
+**One possible loophole, unverified.**
+`POST /v4/user/forgotpassword` takes only `{ em }` — no old password — and it
+**distinguishes known from unknown addresses**: a well-formed address belonging
+to nobody answers `500 {"err":2,"errMsg":"NotFound"}` (probed with an
+`@example.com` address, which cannot receive mail). If an SSO-created account
+carries a usable address — the Google or Facebook one, or Apple's
+`@privaterelay.appleid.com` relay, which forwards — then the reset link would
+set a password and convert the account without support. Whether Kickbase's
+backend allows a reset against an account that has no password credential is
+**untested**, and the fact that they route everyone to support suggests it does
+not. Testing it needs a throwaway SSO account; **don't test it against a real
+address**, since a success sends that person a password-reset mail.
+
+That `NotFound` is also a small account-existence oracle, and the one bit of it
+litbase could use honestly: on a `401` the login form could offer to check
+whether the address is known to Kickbase at all, which separates "wrong
+password" from "no account here / you signed up with SSO". See
+[Login](../pages/login.md#possible-extensions).
+
 ### The consequence for litbase
 
 An account created with Google, Facebook or Apple ID **has no password**, so
 litbase's login form cannot work for it at all — the API will answer
-`401 AccessDenied` forever, no matter what the user types. Those users have two
-routes, both outside litbase: set a password in the official app's
-*Einstellungen → Dein Account → Passwort-Einstellungen*, or ask
-`help@kickbase.com` to move the login onto an email address. Worth saying
-plainly on the [Login page](../pages/login.md) if anyone ever reports "my
-password is right and it still fails".
+`401 AccessDenied` forever, no matter what the user types. The fix is outside
+litbase and, per the section above, outside the app too: mail
+`help@kickbase.com` with the Manager ID and the address to switch to.
+
+**litbase cannot detect the case, either.** Neither
+[`/v4/user/me`](user.md) nor `/v4/user/settings` returns anything naming a
+linked provider — `me` gives `email`, `vemail`, `perms`, `mfacp`, `flags` and
+`hums`, `settings` gives only `i`/`em`/`unm`/`uim`. (`flags`, an unexplained
+bitfield observed as `32`, is the only candidate, and nothing confirms it.) And
+both need a token, which is the thing an SSO user cannot get. So a wrong
+password and an SSO-only account are **indistinguishable** from here: same
+`401`, same `AccessDenied`. All litbase can do is say so in the copy — worth it
+on the [Login page](../pages/login.md) the moment anyone reports "my password
+is right and it still fails".
 
 ### Not a login method: `auth.kickbase.com`
 
