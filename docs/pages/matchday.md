@@ -30,8 +30,10 @@ around. Stacking them would have meant one heading sitting above two lists that
 disagree about what they are ordered by.
 
 The view is a **path segment**, as on the squad and duel-detail pages, so each
-is linkable and survives a refresh. `?day=` rides along on the tab links, so
-switching views keeps the matchday you were looking at.
+is linkable and survives a refresh. `?day=` and `?pos=` ride along on the tab
+links, so switching views keeps both the matchday you were looking at and the
+[position chip](#the-position-chips-are-five-requests-not-one-filter) you had
+picked.
 
 ## The matchday lives in the URL
 
@@ -108,7 +110,7 @@ played reads as "these three are on" in one look rather than one dot at a time.
 | ---- | ---------- | ---- |
 | The fixtures | `useMatchdayMatches(cid, day)` → `/competitions/{cid}/matchdays` | **Nothing new** — a third `select` on the season payload the squad page, the duel picker and the player pages already share |
 | The live score and minute | `useLiveMatches(matches)` → `/matches/{mi}/details` × N | One request per **started** match; a finished one is fetched once and held, only a running one polls |
-| The ranking | `useCompetitionPlayers(cid)` → `/competitions/{cid}/players` | **One request**, and only on the Rangliste view — the Spiele view is the front door and does not pay for a list it never renders |
+| The ranking | `useCompetitionPlayers(cid, { position })` → `/competitions/{cid}/players` | **One request per position chip**, cached per chip, and only on the Rangliste view — the Spiele view is the front door and does not pay for a list it never renders |
 | The clubs in it | `useTeamDirectory(cid)` → `/competitions/{cid}/table` | Shared cache entry with the [Teams](teams.md) page; club names for the ranking's second line |
 | Who owns them | `useRanking(id)` + `useMatchdayLineups(id, day, managerIds)` | One cached request for the managers, then **one per manager** — the same fan-out and the same cache entries the [match lineup](match-detail.md) uses |
 
@@ -132,6 +134,8 @@ is what lets a fixture *list* drive it as naturally as a player's fixtures do.
 ## Rangliste
 
 ```
+  ( Alle )  ( TW )  ( ABW )  ( MF )  ( ANG )
+
   1  [img] Maza                    319
         MF · Leverkusen
   2  [img] Vagnoman        (ᴍ)     290
@@ -191,16 +195,42 @@ nine fixtures. It polls at the live rate while the matchday runs.
 
 ### Twenty-five is the API's number
 
-Not a `.slice()` taken here. The endpoint returns exactly that many and there
-is no known way to ask for the twenty-sixth, which is why the subtitle says
-"die 25 besten" rather than leaving a round number to imply a local limit
-somebody could talk us out of.
+Not a `.slice()` taken here. The endpoint returns exactly that many, and no
+parameter raises the cap — `max`, `limit`, `start`, `count`, `size`, `top`,
+`page`, `offset` and `n` were each probed and each answered the identical rows.
+That is why the subtitle says "die 25 besten" rather than leaving a round
+number to imply a local limit somebody could talk us out of.
+
+### The position chips are five requests, not one filter
+
+*Alle · TW · ABW · MF · ANG*, above the list. `?position=` is the one
+parameter the endpoint honours, and the twenty-five cap applies to **each
+filtered list separately**. So *ABW* is not the defenders out of the overall
+twenty-five — it is the top twenty-five defenders, most of whom the *Alle*
+list has no room for. Between them the chips reach **93 distinct players**
+where the unfiltered call reaches 25, which is what makes them worth a request
+rather than a `.filter()` over the list already in hand.
+
+Each chip is its own cache entry, so a filter looked at once comes straight
+back, and only the one on screen polls. Where the chips sit is deliberate:
+**inside the ranking, above the rows they change** — not up in the page head
+beside the matchday picker, which this list has nothing to do with.
+
+**A short list is not a truncated one.** *TW* comes back with 18 rows on a
+nine-fixture matchday, because that is every keeper who played rather than a
+slice of them. The subtitle drops the count when a chip is active for exactly
+that reason: "die 25 besten" over 18 rows would read as a bug in the list.
+
+The chip lives in the URL as `?pos=`, beside `?day=` and for the same reasons —
+*Rangliste, Torwarte* is worth linking to, and it survives a refresh and a trip
+to the fixtures and back. An unrecognised value falls back to *Alle*.
 
 ### The current matchday only
 
-The endpoint **ignores every scoping parameter** — `dayNumber`, `matchId` and
-`mi` were each probed and each answered the identical rows. So the ranking is
-always the competition's current matchday, and two things follow:
+The endpoint takes a position but **no matchday at all** — `dayNumber`,
+`matchId`, `mi` and six more spellings were each probed and each answered the
+identical rows. So the ranking is always the competition's current matchday,
+and two things follow:
 
 - **The picker is hidden on this view.** A control that visibly does nothing is
   worse than its absence, because it would imply the list below had followed.

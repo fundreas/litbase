@@ -119,8 +119,13 @@ export const qk = {
 
   competition: (competitionId: string) =>
     ['competition', competitionId] as const,
-  competitionPlayers: (competitionId: string) =>
-    [...qk.competition(competitionId), 'players'] as const,
+  /**
+   * The position is part of the key, not a `select`: each filter is a separate
+   * request answering a separate top-25, so five entries is exactly right —
+   * switching back to a chip already looked at is instant and costs nothing.
+   */
+  competitionPlayers: (competitionId: string, position: string = 'all') =>
+    [...qk.competition(competitionId), 'players', position] as const,
   competitionTable: (competitionId: string) =>
     [...qk.competition(competitionId), 'table'] as const,
   competitionMatchdays: (competitionId: string) =>

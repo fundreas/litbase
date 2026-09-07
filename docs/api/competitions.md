@@ -209,13 +209,12 @@ needed one per player across nine fixtures. Polled at the
 [live rate](../api-layer.md) while a matchday runs; between matchdays it cannot
 move at all.
 
-**One correction the code still needs**, not made here — the app sends neither
-parameter today:
-[`MatchdayRankingTab`](../../src/components/matchday/MatchdayRankingTab.tsx)'s
-doc comment says "there is no known way to ask for the twenty-sixth". That is
-no longer true: `position=` reaches 93. (`CompetitionPlayer` in
+**`position` is sent**, from the chip row on the
+[Rangliste](../pages/matchday.md#the-position-chips-are-five-requests-not-one-filter)
+— one cache entry per chip, so the five lists coexist. **`sorting` is not**:
+nothing in the app wants a season leaderboard yet. `CompetitionPlayer` in
 [`types.ts`](../../src/api/types.ts) already has `mi` and `ot` optional, so a
-`sorting=1` call would type-check as it stands.)
+`sorting=1` call would type-check as it stands.
 
 ---
 

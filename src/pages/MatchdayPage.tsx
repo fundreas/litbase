@@ -8,7 +8,13 @@ import {
 } from '@/api/hooks/useCompetition'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayMatches, useSeasonSchedule } from '@/api/hooks/useMatchday'
-import { matchdayState, type MatchdayMatch } from '@/api/models'
+import {
+  matchdayState,
+  POSITION_LABEL,
+  POSITION_NAME_PLURAL,
+  type MatchdayMatch,
+  type PositionKey,
+} from '@/api/models'
 import { MatchCard } from '@/components/matchday/MatchCard'
 import { MatchdayRankingTab } from '@/components/matchday/MatchdayRankingTab'
 import { MatchdayPicker } from '@/components/MatchdayPicker'
@@ -23,6 +29,17 @@ import { kickoff as kickoffLabel } from '@/lib/format'
 /** The page's two views, and the URL segment each one is reached by. */
 const VIEWS = { matches: 'matchday', ranking: 'ranking' } as const
 type ViewValue = (typeof VIEWS)[keyof typeof VIEWS]
+
+/**
+ * `?pos=` → the position the ranking is filtered to, or `undefined` for the
+ * unfiltered list. Anything else in the slot — a typo, an old link — falls
+ * back to *Alle* rather than erroring, the same rule `?day=` follows.
+ */
+function toRankingPosition(raw: string | null): PositionKey | undefined {
+  return raw !== null && raw in POSITION_LABEL
+    ? (raw as PositionKey)
+    : undefined
+}
 
 /**
  * Every match of one matchday, live while they are being played.
@@ -94,8 +111,9 @@ export function MatchdayPage() {
 
   /*
    * The ranking is the *current* matchday's and can be nothing else: every
-   * scoping parameter probed (`dayNumber`, `matchId`, `mi`) is ignored by the
-   * endpoint. So it is requested only on the view that shows it, and only when
+   * matchday parameter probed (`dayNumber`, `matchId`, `mi`, and six more
+   * spellings) is ignored by the endpoint — `position` is the only one it
+   * honours. So it is requested only on the view that shows it, and only when
    * the picked day is the one it can answer for — passing `undefined` leaves
    * the hook idle, the same way every hook in the app waits for its id.
    *
@@ -106,8 +124,18 @@ export function MatchdayPage() {
     selectedDay !== undefined && selectedDay === schedule.data?.currentDay
   const rankingId =
     view === VIEWS.ranking && isCurrentDay ? competitionId : undefined
+
+  /*
+   * The position filter lives in the query string beside `?day=`, not in
+   * component state, for the reason everything else on this page does: a
+   * *Rangliste, Torhüter* is a thing worth linking to, and a refresh should
+   * land on the list you were reading. It is a separate request per position —
+   * see `useCompetitionPlayers` — so this is also the query key.
+   */
+  const rankingPosition = toRankingPosition(searchParams.get('pos'))
   const ranking = useCompetitionPlayers(rankingId, {
     isLive: state === 'live',
+    position: rankingPosition,
   })
   const teams = useTeamDirectory(rankingId)
 
@@ -146,10 +174,31 @@ export function MatchdayPage() {
     )
   }
 
-  // `?day=` rides along, so switching views keeps the matchday you were
-  // looking at rather than snapping back to the current one.
+  /*
+   * `?day=` and `?pos=` ride along, so switching views keeps the matchday you
+   * were looking at rather than snapping back to the current one, and keeps
+   * the Rangliste's position filter across a trip to the fixtures and back.
+   */
+  const linkQuery = new URLSearchParams()
+  if (selectedDay !== undefined) linkQuery.set('day', String(selectedDay))
+  if (rankingPosition !== undefined) linkQuery.set('pos', rankingPosition)
   const base = `/leagues/${leagueId}/${VIEWS.matches}`
-  const suffix = selectedDay === undefined ? '' : `?day=${String(selectedDay)}`
+  const query = linkQuery.toString()
+  const suffix = query === '' ? '' : `?${query}`
+
+  /**
+   * Change one parameter and keep the rest — the day picker must not silently
+   * clear the position filter, and the chips must not clear the day.
+   *
+   * `replace` keeps the back button meaning "leave the page" rather than
+   * walking back through every matchday and every chip that was tapped.
+   */
+  const patchParams = (key: string, value: string | undefined) => {
+    const next = new URLSearchParams(searchParams)
+    if (value === undefined) next.delete(key)
+    else next.set(key, value)
+    setSearchParams(next, { replace: true })
+  }
   const tabs: BottomTab[] = [
     {
       value: VIEWS.matches,
@@ -171,7 +220,14 @@ export function MatchdayPage() {
         title="Spieltag"
         subtitle={
           view === VIEWS.ranking
-            ? 'Die 25 besten Spieler des Spieltags'
+            ? /* No count in the filtered wording. Each position is its own
+                 top 25, but the keepers come back short — 18, two per fixture,
+                 the whole population — and a heading promising 25 above 18
+                 rows would read as a bug in the list rather than as the shape
+                 of the data. */
+              rankingPosition === undefined
+              ? 'Die 25 besten Spieler des Spieltags'
+              : `Die besten ${POSITION_NAME_PLURAL[rankingPosition]} des Spieltags`
             : state === 'live'
               ? 'Live-Ergebnisse, minütlich aktualisiert'
               : state === 'finished'
@@ -180,18 +236,19 @@ export function MatchdayPage() {
         }
       />
 
-      {/* The picker belongs to the fixtures alone. The ranking endpoint ignores
-          every scoping parameter it was offered, so a picker above it would be
-          a control that visibly does nothing — worse than its absence, because
-          it would imply the list below had followed. */}
+      {/* The picker belongs to the fixtures alone. The ranking endpoint takes
+          `position` but no matchday at all, so a picker above it would be a
+          control that visibly does nothing — worse than its absence, because
+          it would imply the list below had followed. The one filter the
+          ranking *does* honour sits inside the ranking, next to the rows it
+          changes, rather than up here beside a control it has nothing to do
+          with. */}
       {view === VIEWS.matches && (
         <MatchdayPicker
           schedule={schedule.data}
           selectedDay={selectedDay as number}
           onSelect={(day) => {
-            // `replace` keeps the back button meaning "leave the page" rather
-            // than walking back through every matchday that was looked at.
-            setSearchParams({ day: String(day) }, { replace: true })
+            patchParams('day', String(day))
           }}
         />
       )}
@@ -205,6 +262,10 @@ export function MatchdayPage() {
               leagueId={leagueId}
               viewerId={user?.id}
               isPending={ranking.isPending}
+              position={rankingPosition}
+              onPositionChange={(next) => {
+                patchParams('pos', next)
+              }}
             />
           ) : (
             /* Not an error and not an empty list: the data exists, it just
@@ -220,10 +281,7 @@ export function MatchdayPage() {
                   type="button"
                   className="mt-1 rounded-lg px-3 py-1.5 text-sm font-medium text-accent hover:bg-surface-2"
                   onClick={() => {
-                    setSearchParams(
-                      { day: String(schedule.data.currentDay) },
-                      { replace: true },
-                    )
+                    patchParams('day', String(schedule.data.currentDay))
                   }}
                 >
                   Zu Spieltag {schedule.data.currentDay}

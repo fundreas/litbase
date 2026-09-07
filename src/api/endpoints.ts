@@ -303,9 +303,32 @@ export const endpoints = {
   competitions: {
     /** All competitions (Bundesliga, La Liga, MLS, …). */
     all: '/v4/competitions',
-    /** All players in a competition ("1" = Bundesliga). */
-    players: (competitionId: string) =>
-      `/v4/competitions/${competitionId}/players`,
+    /**
+     * **The current matchday's twenty-five best players**, points descending —
+     * not "all players in a competition", which is what the published
+     * documentation calls it. See
+     * [`useCompetitionPlayers`](./hooks/useCompetition.ts).
+     *
+     * `position` is one of the [`PLAYER_POSITION`](./types.ts) codes and is
+     * the **only** parameter that scopes this endpoint. It answers that
+     * position's own top 25, so the four together reach 93 players where the
+     * unfiltered call reaches 25 — the twenty-sixth striker is out of reach
+     * either way, because the cap applies per list and cannot be raised
+     * (`max`, `limit`, `start`, `count`, `size`, `top`, `page`, `offset` and
+     * `n` were each probed and each answered the identical rows).
+     *
+     * Keepers come back **below** the cap — 18 on a nine-fixture matchday —
+     * because that is the whole population rather than a slice of it.
+     *
+     * The spec's other parameter, `sorting=1`, switches the list to *season*
+     * points and drops `mi`/`ot` from the rows. Unused here: this endpoint is
+     * only ever asked for a matchday. Every scoping parameter that would
+     * select a *past* matchday is silently ignored — see
+     * [docs/api/competitions.md](../../docs/api/competitions.md#get-v4competitionscompetitionidplayers).
+     */
+    players: (competitionId: string, position?: number) =>
+      `/v4/competitions/${competitionId}/players` +
+      (position === undefined ? '' : `?position=${String(position)}`),
     /** Real-world league table. */
     table: (competitionId: string) => `/v4/competitions/${competitionId}/table`,
     /**

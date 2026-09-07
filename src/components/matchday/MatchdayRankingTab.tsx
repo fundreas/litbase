@@ -4,14 +4,32 @@ import { Link } from 'react-router'
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { useMatchdayLineups } from '@/api/hooks/useMatchdaySquad'
 import { useRanking } from '@/api/hooks/useRanking'
-import type { MatchdayTopScorers, MatchPlayerOwner } from '@/api/models'
-import { POSITION_LABEL } from '@/api/models'
+import type {
+  MatchdayTopScorers,
+  MatchPlayerOwner,
+  PositionKey,
+} from '@/api/models'
+import { POSITION_LABEL, POSITION_NAME } from '@/api/models'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { Avatar } from '@/components/ui/Avatar'
+import { FilterChip } from '@/components/ui/FilterChip'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
+
+/**
+ * The chip row, left to right. `undefined` is *Alle* — the unfiltered call —
+ * and the four that follow are in the order a lineup is read in, which is the
+ * order they appear in everywhere else in the app.
+ */
+const FILTERS: { key: PositionKey | undefined; label: string }[] = [
+  { key: undefined, label: 'Alle' },
+  { key: 'gk', label: POSITION_LABEL.gk },
+  { key: 'def', label: POSITION_LABEL.def },
+  { key: 'mid', label: POSITION_LABEL.mid },
+  { key: 'fwd', label: POSITION_LABEL.fwd },
+]
 
 /**
  * The matchday's best players, best first — and **who in the league owns
@@ -25,9 +43,24 @@ import { points } from '@/lib/format'
  *
  * **Twenty-five is the API's number, not a slice taken here.** Nothing is
  * dropped and there is no "show more" behind it: the endpoint returns exactly
- * that many and there is no known way to ask for the twenty-sixth. The heading
- * says so, because a list that stops at a round number invites the reader to
- * assume a local `.slice()` they could talk us out of.
+ * that many, and no parameter raises the cap.
+ *
+ * ## The position chips are five requests, not one filter
+ *
+ * `?position=` is the one parameter the endpoint honours, and the cap applies
+ * to **each filtered list separately**. So *ABW* is not the defenders out of
+ * the overall twenty-five — it is the top twenty-five defenders, most of whom
+ * the *Alle* list has no room for. Between them the five chips reach 93
+ * distinct players.
+ *
+ * That is why this is not a `.filter()` over the list already in hand, which
+ * would have been free and would have shown four or five names per position.
+ * It costs one request per chip, cached per chip, so a filter looked at once
+ * comes straight back.
+ *
+ * **A short list is not a truncated one.** *TW* comes back with 18 rows on a
+ * nine-fixture matchday, because that is every keeper who played — the cap is
+ * simply above the population. Nothing here pads it or explains it away.
  *
  * ## The badge is the point
  *
@@ -64,12 +97,16 @@ export function MatchdayRankingTab({
   leagueId,
   viewerId,
   isPending,
+  position,
+  onPositionChange,
 }: {
   data: MatchdayTopScorers | undefined
   teams: Map<string, TeamSummary> | undefined
   leagueId: string
   viewerId: string | undefined
   isPending: boolean
+  position: PositionKey | undefined
+  onPositionChange: (position: PositionKey | undefined) => void
 }) {
   /*
    * Ownership is asked one manager at a time — there is no bulk source, see
@@ -110,19 +147,45 @@ export function MatchdayRankingTab({
     }
   }
 
-  if (isPending) return <SkeletonList rows={10} />
+  /*
+   * The chips render above whatever the list is doing — skeleton, empty state
+   * or rows. Returning early past them would make the control disappear on the
+   * tap that changes it and come back when the request lands, which reads as
+   * the page having lost the filter rather than as it fetching one.
+   */
+  const chips = (
+    <div
+      className="no-scrollbar flex gap-2 overflow-x-auto"
+      role="group"
+      aria-label="Position"
+    >
+      {FILTERS.map((filter) => (
+        <FilterChip
+          key={filter.key ?? 'all'}
+          isActive={position === filter.key}
+          onClick={() => {
+            onPositionChange(filter.key)
+          }}
+        >
+          {filter.label}
+        </FilterChip>
+      ))}
+    </div>
+  )
 
-  if (data === undefined || data.players.length === 0) {
-    return (
-      <EmptyState
-        icon={<Trophy size={22} />}
-        title="Keine Wertung"
-        description="Für diesen Spieltag hat noch kein Spieler gepunktet."
-      />
-    )
-  }
-
-  return (
+  const list = isPending ? (
+    <SkeletonList rows={10} />
+  ) : data === undefined || data.players.length === 0 ? (
+    <EmptyState
+      icon={<Trophy size={22} />}
+      title="Keine Wertung"
+      description={
+        position === undefined
+          ? 'Für diesen Spieltag hat noch kein Spieler gepunktet.'
+          : `Für diesen Spieltag hat noch kein ${POSITION_NAME[position]} gepunktet.`
+      }
+    />
+  ) : (
     <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
       {data.players.map((player, index) => {
         const team = teams?.get(player.teamId)
@@ -181,5 +244,12 @@ export function MatchdayRankingTab({
         )
       })}
     </ol>
+  )
+
+  return (
+    <div className="flex flex-col gap-3">
+      {chips}
+      {list}
+    </div>
   )
 }

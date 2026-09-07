@@ -59,9 +59,33 @@ export const POSITION_NAME: Record<PositionKey, string> = {
   fwd: 'Stürmer',
 }
 
+/**
+ * The same names in the plural, for prose about a group of them. Three of the
+ * four are unchanged, which is exactly why they are written out rather than
+ * derived — a rule that appends nothing three times and "e" once is a rule
+ * about German, and this file is not the place to keep one.
+ */
+export const POSITION_NAME_PLURAL: Record<PositionKey, string> = {
+  gk: 'Torwarte',
+  def: 'Verteidiger',
+  mid: 'Mittelfeldspieler',
+  fwd: 'Stürmer',
+}
+
 export function toPosition(code: number): PositionKey {
   return POSITION_BY_CODE[code] ?? 'mid'
 }
+
+/**
+ * The other direction — for the handful of endpoints that take a position as a
+ * query parameter rather than returning one.
+ *
+ * Derived from {@link POSITION_BY_CODE} rather than written out a second time,
+ * so the two cannot drift apart.
+ */
+export const POSITION_CODE = Object.fromEntries(
+  Object.entries(POSITION_BY_CODE).map(([code, key]) => [key, Number(code)]),
+) as Record<PositionKey, number>
 
 /* -------------------------------------------------------------------------- */
 
