@@ -100,11 +100,11 @@ probe against `localStorage` succeeded at module load.
   they go and that there is no intermediary server.
 - The form is uncontrolled by nothing — all four fields are React state. No
   form library.
-- **Email and password is not the only way into a Kickbase account.** The
-  official app also offers *Sign in with Apple*, and older accounts may have
-  been created with Facebook. Such an account has no password, so this form
-  can only ever return `401` for it, no matter what the user types. There is no
-  endpoint litbase could call instead — see
+- **Email and password is not the only way into a Kickbase account, and is
+  probably the minority one.** The official app also offers Google, Facebook
+  and — on iOS — *Sign in with Apple*. An account created with any of those has
+  no password, so this form can only ever return `401` for it, no matter what
+  the user types. There is no endpoint litbase could call instead — see
   [Login methods the official app offers](../api/authentication.md#login-methods-the-official-app-offers).
   If someone reports "my credentials are right and it still fails", this is the
   first thing to ask about.

@@ -178,62 +178,75 @@ starts by telling you to tap it.
 
 | Method | Status | Evidence |
 | ------ | ------ | -------- |
-| Email + password | Current | `POST /v4/user/login`, above |
-| **Apple ID** ("Sign in with Apple") | Current | Three live help-centre articles, below |
-| **Facebook** | Legacy — old accounts still exist, the button appears to be gone | Named as a login method in a live article; its own article is unpublished |
-| Google, Microsoft, GitHub, Twitter/X, Discord | **Not offered** | No mention anywhere in the help centre, the app listings or either community spec |
+| Email + password | Current, both platforms | `POST /v4/user/login`, above |
+| **Google** | Current — button present on Android | Seen in the app, 2026-09-07 |
+| **Facebook** | Current — button present on Android | Seen in the app, 2026-09-07 |
+| **Apple ID** ("Sign in with Apple") | Current — **iOS, presumed iOS-only** | Three live help-centre articles; see below |
 
-Apple ID is beyond doubt. Kickbase publishes three articles about it —
+Four methods, not one. Google and Facebook are confirmed by looking at the
+Android app; Apple ID by Kickbase's own documentation —
 [unlinking your Apple ID](https://help.kickbase.com/help/wie-kann-ich-die-verknupfung-meiner-apple-id-bei-kickbase-aufheben),
 [switching your login from Apple ID to an email address](https://help.kickbase.com/help/wie-kann-ich-meinen-login-von-apple-id-auf-eine-e-mail-adresse-andern),
 and a section of
-[Login-Probleme](https://help.kickbase.com/help/passwortvergessen) that reads
+[Login-Probleme](https://help.kickbase.com/help/passwortvergessen) reading
 "Wenn du dich ursprünglich über deine Apple ID angemeldet hast, wurde
 automatisch ein eigener Account erstellt."
 
-Facebook is the interesting one.
-["Ich habe mich eingeloggt und bin auf einmal in einer ganz anderen Liga"](https://help.kickbase.com/help/ich-habe-mich-eingeloggt-und-bin-auf-einmal-in-einer-ganz-anderen-liga)
-still names it — "eine andere Login-Methode (z. B. Apple ID oder Facebook)" —
-but the article dedicated to it,
-`/help/wie-kann-ich-meinen-login-von-facebook-auf-eine-e-mail-adresse-andern`,
-now serves a **200 with an empty body**: the page shell renders and the article
-is gone. Search engines still index it, the help centre no longer publishes it.
-Read that as a retired method whose accounts were never migrated, and the live
-mention as a leftover.
+**Why Apple ID is almost certainly on iOS and not Android.** iOS has no choice
+about it: [App Store Review Guideline 4.8](https://developer.apple.com/app-store/review/guidelines/#login-services)
+requires that an app using Google or Facebook login for the primary account
+*also* offer a login service that limits data collection to name and email and
+allows the address to be hidden — Sign in with Apple is how apps satisfy it.
+Kickbase offers Google and Facebook, so the iOS build must carry Apple too.
+Nothing imposes the reverse on Android: Sign in with Apple there means driving
+`appleid.apple.com/auth/authorize` through a web view by hand, real work for a
+provider almost no Android user asks for. The unlinking article reinforces it —
+every step is in *iPhone* Settings, and it ends by telling you to log in with
+an email address afterwards. **Not verified**, though: it would take a look at
+the Android login screen, or the app binary, to close.
+
+If that presumption holds, an account created with Apple ID **cannot be reached
+from Android at all** — which is one plausible reading of the complaints behind
+["suddenly in a different league"](https://help.kickbase.com/help/ich-habe-mich-eingeloggt-und-bin-auf-einmal-in-einer-ganz-anderen-liga):
+a user who cannot use their original method registers again and lands in a
+fresh, empty account.
 
 ### Why litbase cannot offer any of them
 
-**There is no endpoint to call.** Neither published spec has one — the
+**There is no endpoint to call — and no way to find one from outside.** Neither
+published spec documents a social login: the
 [apidog doc](https://share.apidog.com/bca1f84a-99d7-4f8f-96a5-5e084ee24fe3/)
 (149 paths) and
 [kevinskyba/kickbase-api-doc](https://github.com/kevinskyba/kickbase-api-doc)
-(147 paths, "all currently known endpoints") both list exactly five under
+(147 paths, "all currently known endpoints") list exactly five under
 `/v4/user/` that touch credentials: `login`, `register`, `forgotpassword`,
-`password`, `refreshtokens`. Nothing social, nothing OAuth.
+`password`, `refreshtokens`.
 
-Probing did not find one either. Around fifty SSO-shaped paths under
-`/v4/user/` all return `404` — `loginapple`, `applelogin`, `login/apple`,
-`signinwithapple`, `siwa`, `appleauth`, and the same spellings for Google and
-Facebook — and so do `/v1`, `/v2`, `/v3`, `/api` and `/api/v1` prefixes, even
-for plain `user/login`, so **`/v4` is the only version live**.
+Probing found nothing either. Around fifty SSO-shaped paths under `/v4/user/`
+return `404` — `loginapple`, `applelogin`, `login/apple`, `signinwithapple`,
+`siwa`, `appleauth`, and the same spellings for Google and Facebook — as do the
+`/v1`, `/v2`, `/v3`, `/api` and `/api/v1` prefixes even for plain `user/login`,
+so **`/v4` is the only version live**.
 
-That last result is the one to remember: **every Apple spelling 404s too, and
-Apple login demonstrably works.** So the 404s are evidence about *path naming*,
-not about which providers exist — most likely Apple's identity token rides on
-`/v4/user/login` in a field neither spec captured, since both specs are derived
-from email-login traffic. Don't cite the 404 sweep as proof that Google login
-is absent; the help centre's silence is the real evidence, and it is
-circumstantial.
+> **Both specs and the help centre are silent on three login methods that
+> exist.** Both specs are derived from captured email-login traffic, so they
+> only ever describe email login; the help centre documents Apple ID and
+> nothing else. Whatever the three providers post to, it is either
+> `/v4/user/login` with fields nobody has captured or a path no wordlist
+> guesses. Treat "it isn't in the spec" and "the help centre doesn't mention
+> it" as saying nothing whatsoever about the app's behaviour — the only
+> reliable source for this question is the app itself.
 
 ### The consequence for litbase
 
-An account created with Apple ID (or, historically, Facebook) **has no
-password**, so litbase's login form cannot work for it at all — the API will
-answer `401 AccessDenied` forever. Those users have two routes, both outside
-litbase: set a password in the official app's *Einstellungen → Dein Account →
-Passwort-Einstellungen*, or ask `help@kickbase.com` to move the login onto an
-email address. Worth saying plainly on the [Login page](../pages/login.md) if
-anyone ever reports "my password is right and it still fails".
+An account created with Google, Facebook or Apple ID **has no password**, so
+litbase's login form cannot work for it at all — the API will answer
+`401 AccessDenied` forever, no matter what the user types. Those users have two
+routes, both outside litbase: set a password in the official app's
+*Einstellungen → Dein Account → Passwort-Einstellungen*, or ask
+`help@kickbase.com` to move the login onto an email address. Worth saying
+plainly on the [Login page](../pages/login.md) if anyone ever reports "my
+password is right and it still fails".
 
 ### Not a login method: `auth.kickbase.com`
 
