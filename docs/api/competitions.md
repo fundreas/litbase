@@ -181,7 +181,7 @@ browser would be several hundred calls to render one list.
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `it` | array | The 25 best players, points descending — of `day` by default, of the season under `sorting=1`, and of one position under `position=` |
-| `day` | number | The matchday the list is for — always the competition's current one. Present under `sorting=1` too, where it does not scope the points |
+| `day` | number | The matchday the list is for. **Not the same as the fixture list's `day`**: probed 2026-09-07 this read `2` where [`/matchdays`](#get-v4competitionscompetitionidmatchdays) already said `3`, so it tracks the last matchday *with points* rather than the next to be played. Present under `sorting=1` too, where it does not scope the points |
 | `sn` | string | **?** Season label |
 | `mdsn` | string | **?** Short matchday label, e.g. `"#1"` |
 | `spr` | object | **?** A sponsor block — `{ url, lf, durl }`, as on the market-value response. Not rendered |
@@ -225,17 +225,20 @@ needed one per player across nine fixtures. Polled at the
 [live rate](../api-layer.md) while a matchday runs; between matchdays it cannot
 move at all.
 
-**`position` is sent**, from the
-[chip row](../pages/matchday.md#the-position-chips-are-five-lists--made-two-different-ways)
-on the Rangliste — one cache entry per chip, and only the one on screen polls.
+**Both parameters are sent, from two different pages.** `position` comes from
+the chip row on either Rangliste — one cache entry per chip, and only the one on
+screen polls. `sorting=1` is what makes the
+[Saison page's Rangliste](../pages/season.md#rangliste) a season list rather
+than a matchday one.
 
-**`sorting` is not.** A season leaderboard was built onto that screen and taken
-off again: it is about one matchday at a time, and a second scope on it
-answered a question the screen was not asking. The path builder still takes the
-parameter and the reading above is verified, so wiring it back up somewhere it
-belongs is a parameter rather than a re-probe. `CompetitionPlayer` in
-[`types.ts`](../../src/api/types.ts) already has `mi` and `ot` optional, which
-is what would make those rows safe to map with the same code.
+They are two pages rather than a toggle on one because the scope is what the
+page *is*: [Spieltag](../pages/matchday.md) is one weekend,
+[Saison](../pages/season.md) is everything up to now. A `sorting` switch on the
+matchday page was built and removed for exactly that reason.
+
+`CompetitionPlayer` in [`types.ts`](../../src/api/types.ts) has `mi` and `ot`
+optional, which is what makes the `sorting=1` rows safe to map with the same
+code — a season row has neither.
 
 ---
 
@@ -380,7 +383,7 @@ Probed live 2026-09-05, looking for a payload carrying goals **for** and
 | `/v4/competitions/1/table?full=true` | the **same 12 fields** — the parameter is ignored |
 
 So `gd` is all the table has, and `14:11` and `5:2` are the same `+3` to it.
-The [Teams page](../pages/teams.md) needs the split, and gets it by summing
+The [Saison page](../pages/season.md) needs the split, and gets it by summing
 [`matchdays`](#get-v4competitionscompetitionidmatchdays) — one payload the app
 already caches, so the page costs no extra request.
 
@@ -406,7 +409,7 @@ disagree the server is the authority.
 ### Used by
 
 [`useCompetitionTable`](../../src/api/hooks/useCompetition.ts) → the
-[Teams](../pages/teams.md) page, together with
+[Saison](../pages/season.md) page, together with
 [`useSeasonRecords`](../../src/api/hooks/useMatchday.ts) for the goal split.
 [`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) reads the same cache
 entry for club names and crests.
@@ -469,5 +472,5 @@ fetched for its smallest fact. The live score comes from
 [Matchday](../pages/matchday.md), [Match detail](../pages/match-detail.md), the
 fixture chips on [Squad](../pages/squad.md) and [Market](../pages/market.md),
 and — via `useSeasonRecords` — the goals column on
-[Teams](../pages/teams.md), which the
+[Saison](../pages/season.md), which the
 [table](#get-v4competitionscompetitionidtable) cannot serve.

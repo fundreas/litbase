@@ -19,7 +19,26 @@ import type {
 const HOUR = 60 * 60_000
 
 /**
- * **The current matchday's twenty-five best players**, points descending.
+ * Which points the ranking is of — one matchday's, or the whole season's.
+ *
+ * `'season'` is the endpoint's `sorting=1`. It is not a *sort* of the matchday
+ * list despite the parameter's name: it is a different set of players ranked by
+ * a different number.
+ *
+ * The two live on different **pages** — the matchday's on
+ * [Spieltag](../../../docs/pages/matchday.md), the season's on
+ * [Saison](../../../docs/pages/season.md). They were briefly a toggle on one
+ * screen and that was the mistake: a page about one matchday should not also be
+ * a page about the season.
+ */
+export type RankingScope = 'matchday' | 'season'
+
+/** `sorting=1` is season totals; the default, unsent, is the matchday. */
+const SORTING_SEASON = 1
+
+/**
+ * **The twenty-five best players**, points descending — of the current
+ * matchday, or of the season.
  *
  * Not "every player in a competition", which is what the published
  * documentation calls it — but not "one fixture's players" either, which is
@@ -65,35 +84,41 @@ const HOUR = 60 * 60_000
  * fixture — because that is every keeper who played, not a slice of them. So a
  * list under 25 rows is not a signal that anything was truncated or dropped.
  *
- * The endpoint's other parameter, `sorting=1`, swaps the matchday for **season
- * totals**. It is not sent: the Rangliste is about one matchday at a time, and
- * a season leaderboard was tried there and removed for saying something the
- * screen was not asking. The path builder still takes it, and
- * [docs/api/competitions.md](../../../docs/api/competitions.md) records what it
- * does, so wiring it back up is a parameter rather than a re-probe.
+ * **`sorting=1` swaps the matchday for the season** — {@link RankingScope}
+ * `'season'`. Same shape, same cap, different question. Verified against a
+ * player's own `ph`: Kimmich's season `p` is exactly the sum of his two
+ * matchdays.
+ *
+ * Season rows carry **no `mi` and no `ot`**: there is no one fixture for a
+ * season total to point at. `matchId` on the mapped player is therefore
+ * `undefined` throughout a season list, which every consumer already allows
+ * for.
  *
  * ## Cost
  *
  * Polls at the live rate while a matchday is running — it is one small
  * response, and it is the only bulk source of matchday points in the API, so
  * the ranking moves without the per-player fan-out
- * [`useMatchdayPoints`](./useMatchdayPoints.ts) pays for.
+ * [`useMatchdayPoints`](./useMatchdayPoints.ts) pays for. Season totals move
+ * live too, since they accumulate as the matchday runs.
  *
- * Only the position on screen polls; the other four sit in the cache going
- * stale, and are refetched on the tap that brings one back.
+ * Only the scope-and-position combination on screen polls; the other nine sit
+ * in the cache going stale, and are refetched on the tap that brings one back.
  */
 export function useCompetitionPlayers(
   competitionId: string | undefined,
   {
     isLive = false,
     position,
+    scope = 'matchday',
   }: {
     isLive?: boolean
     position?: PositionKey
+    scope?: RankingScope
   } = {},
 ): UseQueryResult<MatchdayTopScorers> {
   return useQuery({
-    queryKey: qk.competitionPlayers(competitionId ?? 'none', position),
+    queryKey: qk.competitionPlayers(competitionId ?? 'none', scope, position),
     enabled: competitionId !== undefined,
     // While a matchday runs the list reorders every few minutes; between
     // matchdays it cannot change at all until the next one kicks off.
@@ -104,6 +129,7 @@ export function useCompetitionPlayers(
         endpoints.competitions.players(competitionId as string, {
           position:
             position === undefined ? undefined : POSITION_CODE[position],
+          sorting: scope === 'season' ? SORTING_SEASON : undefined,
         }),
       )
       return {

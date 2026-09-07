@@ -19,9 +19,9 @@ import {
   PlayerDetailPage,
   PlayersPage,
   RankingPage,
+  SeasonPage,
   SquadPage,
   TeamDetailPage,
-  TeamsPage,
 } from '@/routes/lazyPages'
 
 /**
@@ -50,9 +50,12 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/squad/live          the running matchday, while it runs
  *   /leagues/:leagueId/matchday            every fixture of a matchday
  *   /leagues/:leagueId/matchday/ranking    the matchday's 25 best players
+ *   /leagues/:leagueId/duels               the matchday's duels
+ *   /leagues/:leagueId/duels/ranking       the matchday's manager standings
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
  *   /leagues/:leagueId/players/:playerId   one player, three tabs
- *   /leagues/:leagueId/teams               every club, as a table
+ *   /leagues/:leagueId/teams               the season: every club, as a table
+ *   /leagues/:leagueId/teams/ranking       the season's 25 best players
  *   /leagues/:leagueId/teams/:teamId       one club, four tabs
  *
  * The league id lives in the path, not in context alone, so a refresh, a
@@ -154,18 +157,36 @@ export const router = createBrowserRouter(
                 // not play duels, so the URL is a dead end exactly where the
                 // drawer entry is missing.
                 { path: 'duels', element: <DuelsPage /> },
+                // The matchday's standings — the same page, its other view.
+                // Declared before `:duelId` for readability only: React Router
+                // ranks a static segment above a dynamic one whatever the
+                // array order, and a duel id is two user ids joined with `-`,
+                // so `ranking` can never be mistaken for one. Same
+                // arrangement as `matchday/ranking` above.
+                { path: 'duels/ranking', element: <DuelsPage /> },
                 // `:duelId` is both manager ids joined with `-`. Two routes, one
                 // component — the tab comes from the segment, so each view is
                 // linkable and survives a refresh, as on the squad page.
                 { path: 'duels/:duelId', element: <DuelDetailPage /> },
                 { path: 'duels/:duelId/ranking', element: <DuelDetailPage /> },
                 // The competition's clubs as a table, and one club in detail.
-                // The list is the **parent** of the detail route rather than a
-                // sibling of it, so `isNavItemActive`'s prefix test keeps
-                // *Teams* lit when you tap into a club — and a club page
-                // reached from a crest elsewhere now lights an entry at all,
-                // which it never did while it had no list above it.
-                { path: 'teams', element: <TeamsPage /> },
+                // **Saison** — the table and the season's player ranking, two
+                // views of one page as on the matchday and squad pages.
+                //
+                // The path is still `teams` after the page was renamed,
+                // because the club page lives *under* it: moving the parent
+                // would have meant either orphaning `/teams/:teamId` or
+                // rewriting every crest link in the app for a word in the
+                // drawer. The list being the **parent** of the detail route
+                // rather than a sibling is also what keeps `isNavItemActive`'s
+                // prefix test lighting *Saison* when you tap into a club.
+                //
+                // `teams/ranking` is registered before `teams/:teamId` for
+                // readability only — React Router ranks a static segment above
+                // a dynamic one however they are ordered, the same arrangement
+                // `matchday/ranking` and `matchday/:matchId` already rely on.
+                { path: 'teams', element: <SeasonPage /> },
+                { path: 'teams/ranking', element: <SeasonPage /> },
                 // `/table` was the Bundesliga-table stub's own route until the
                 // page was built as `/teams` — the same table, finally
                 // rendered, plus the Kickbase-points view and a way into each

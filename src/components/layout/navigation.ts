@@ -73,8 +73,8 @@ export function isNavItemActive(
  * `PagePlaceholder` stub, and offering it in the drawer promises a screen that
  * is not there. Its route is untouched, so a direct URL still opens the stub —
  * add the entry back here when the page exists and it reappears. `table` was
- * the other one; it is now the built *Teams* page below, and `/table` redirects
- * onto it.
+ * the other one; it is now the table view of the *Saison* page below, and
+ * `/table` redirects onto it.
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
@@ -99,10 +99,11 @@ export const NAV_ITEMS: NavItem[] = [
   // the match detail page at `/matchday/:matchId`, so it needs no
   // `alsoMatches` — tapping into a match keeps *Spieltag* lit.
   { to: 'matchday', label: 'Spieltag', icon: CalendarDays },
-  // Every club in the competition, as a table. `isNavItemActive`'s prefix test
-  // covers the club page at `/teams/:teamId` for free, so tapping a row keeps
-  // *Teams* lit — and so does arriving at a club from a crest on some other
-  // page, which used to light nothing at all.
-  { to: 'teams', label: 'Teams', icon: Shield },
+  // The season as a whole: the league table, and the season's best players.
+  // Still `/teams` — the club page lives under it, and moving the parent for
+  // the sake of a word in this list would orphan `/teams/:teamId`. The prefix
+  // test covers that child for free, so tapping a row keeps *Saison* lit, and
+  // so does arriving at a club from a crest on some other page.
+  { to: 'teams', label: 'Saison', icon: Shield },
   { to: 'duels', label: 'Duelle', icon: Swords, requiresDuelMode: true },
 ]

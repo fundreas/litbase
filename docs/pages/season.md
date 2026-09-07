@@ -1,25 +1,56 @@
-# Teams
+# Saison
 
-[← Back to index](../README.md) · Route `/leagues/:leagueId/teams` ·
-[`src/pages/TeamsPage.tsx`](../../src/pages/TeamsPage.tsx)
+[← Back to index](../README.md) ·
+Routes `/leagues/:leagueId/teams` · `/leagues/:leagueId/teams/ranking` ·
+[`src/pages/SeasonPage.tsx`](../../src/pages/SeasonPage.tsx)
 
-Every club in the competition, as a table — the real Bundesliga one, or the
-same eighteen reordered by what their players have scored in the game. Tapping
-a row opens that [club's page](team.md).
+**The season so far**, in two views: the eighteen clubs as a table, and the
+players who have scored the most across all of it. Tapping a table row opens
+that [club's page](team.md).
 
-This is the real-world table, as opposed to the fantasy
-[Ranking](ranking.md) of managers.
+Both are about the real-world competition rather than your league, which is
+what separates this page from the fantasy [Rangliste](ranking.md) of managers —
+and from [Spieltag](matchday.md), which asks the same two questions of *one*
+weekend.
 
-> **This page replaces the `/table` stub.** It is the Bundesliga table that page
-> was always going to be, plus the Kickbase-points view and a way into each
-> club. `/leagues/:leagueId/table` now **redirects** here, so old bookmarks
-> still land on it — the same treatment `/lineup` got when the pitch moved under
-> `/squad`.
+> **The page was called *Teams*** and was the table alone. The season player
+> ranking briefly lived on the matchday page as a *Saison* toggle, which was
+> the wrong home: a screen built around one selected matchday should not also
+> answer a question that has nothing to do with which matchday you picked. Here
+> it has a sibling that shares its scope.
+>
+> **It also replaces the `/table` stub.** `/leagues/:leagueId/table` still
+> **redirects** here, so old bookmarks land on it — the same treatment
+> `/lineup` got when the pitch moved under `/squad`.
+
+## Two views
+
+A bottom tab bar, the same
+[`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx) the matchday, squad
+and duel pages dock:
+
+| Tab | What |
+| --- | ---- |
+| **Tabelle** | The clubs — everything below |
+| **Rangliste** | The season's [25 best players](#rangliste) |
+
+The view is a **path segment**, so each is linkable and survives a refresh, and
+`?pos=` rides along on the tab link so the position filter survives a trip to
+the table and back.
+
+**The path stayed `/teams`** when the page was renamed, because the club page
+lives *under* it at `/teams/:teamId`. Moving the parent would have meant either
+orphaning that child or rewriting every crest link in the app for the sake of a
+word in the drawer. It is also what keeps *Saison* lit when you tap into a
+club: the drawer's match is a prefix one, and the list is the detail route's
+parent rather than its sibling.
 
 ## The two tables
 
 The toggle in the heading — a [`PairToggle`](../routing-and-layout.md), the
-app's standard two-way control — switches the whole view, not just a column:
+app's standard two-way control — switches the whole view, not just a column. It
+belongs to the table and is **absent on the ranking**, rather than sitting
+there inert:
 
 | | Ranked by | Columns |
 | --- | --------- | ------- |
@@ -178,12 +209,56 @@ content rather than a decorative header row.
 **The whole row is the link**, not just the name: the row is what a reader aims
 at, and on a phone a tap target the width of a club name is a target you miss.
 
+## Rangliste
+
+```
+  ( Alle )  ( TW )  ( ABW )  ( MF )  ( ANG )
+
+  1  [img] Kimmich                 557
+        MF · Bayern
+  2  [img] Upamecano       (ᴍ)     489
+        ABW · Bayern
+  3  [img] Matanović               487
+        ANG · Freiburg
+
+  Kickbase liefert die besten 25 je Kategorie.
+```
+
+The season's twenty-five best players, points descending — the same
+[`PlayerRankingTab`](../../src/components/ranking/PlayerRankingTab.tsx) the
+[matchday page](matchday.md#rangliste) renders, with the same position chips
+and the same owner badges. One list, two pages: the scope is the only
+difference, and it is a `sorting=1` on one request.
+
+`?sorting=1` is a different **question**, not a different sort: different
+players, ranked by a different number. Verified against a player's own `ph` —
+Kimmich's `557` is exactly the `303` and `254` of the two matchdays played.
+
+**No archive and none needed.** The season ranking is the one list Kickbase
+serves that is not tied to a matchday, so it answers directly and there is
+nothing for [`data/rankings/`](../../data/README.md) to fill in. The 25-row cap
+is Kickbase's; the chips are the way past it, four more requests reaching 93
+players between them, exactly as on the matchday page.
+
+**The owner badge here is the most recent matchday's**, which is as close to
+*now* as one request gets. `day` on the response is the endpoint's own notion
+of where the season has got to, and it is **not** the fixture list's
+`currentDay`: probed on 2026-09-07 it read `2` where the schedule already said
+`3`, so it tracks the last matchday with points rather than the next one to be
+played. That is the lineup worth asking about — the badge answers "whose team
+was he in last weekend", not "who owned him for the goals that got him up
+here". No season-long ownership history exists in the API to offer instead.
+
+**It does not poll.** A season total does move while a matchday runs, but this
+is not the screen anyone watches it move on — a request every ten seconds for a
+number nobody is staring at. [Spieltag](matchday.md) is where live belongs.
+
 ## Navigation
 
-`Teams` in the drawer, between *Spieltag* and *Duelle*, with a shield.
+`Saison` in the drawer, between *Spieltag* and *Duelle*, with a shield.
 
 The list is the **parent** of the club route rather than a sibling, so
-`isNavItemActive`'s prefix test keeps *Teams* lit when you tap into a club — and
-a club page reached from a crest somewhere else now lights an entry at all,
-which it never did while it had no list above it. See
-[Navigation](../routing-and-layout.md#navigation).
+`isNavItemActive`'s prefix test keeps *Saison* lit when you tap into a club, and
+for the Rangliste view too — and a club page reached from a crest somewhere else
+now lights an entry at all, which it never did while it had no list above it.
+See [Navigation](../routing-and-layout.md#navigation).

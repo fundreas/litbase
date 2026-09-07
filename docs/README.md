@@ -31,14 +31,17 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/squad/live` | [Squad — live tab](pages/squad.md#live-tab) | Implemented — only while a matchday runs |
 | `/leagues/:leagueId/ranking` | [Ranking](pages/ranking.md) | Implemented |
 | `/leagues/:leagueId/duels` | [Duels](pages/duels.md) | Implemented — duel leagues only |
+| `/leagues/:leagueId/duels/ranking` | [Duels — Rangliste](pages/duels.md#rangliste) | Implemented — duel leagues only |
 | `/leagues/:leagueId/duels/:duelId` | [Duel detail](pages/duel-detail.md) | Implemented — duel leagues only |
 | `/leagues/:leagueId/matchday` | [Matchday](pages/matchday.md) | Implemented |
+| `/leagues/:leagueId/matchday/ranking` | [Matchday — Rangliste](pages/matchday.md#rangliste) | Implemented |
 | `/leagues/:leagueId/matchday/:matchId` | [Match detail](pages/match-detail.md) | Implemented |
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Implemented |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
 | `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |
-| `/leagues/:leagueId/teams` | [Teams](pages/teams.md) | Implemented |
-| `/leagues/:leagueId/table` | → redirects to [Teams](pages/teams.md) | Implemented |
+| `/leagues/:leagueId/teams` | [Saison — Tabelle](pages/season.md) | Implemented |
+| `/leagues/:leagueId/teams/ranking` | [Saison — Rangliste](pages/season.md#rangliste) | Implemented |
+| `/leagues/:leagueId/table` | → redirects to [Saison](pages/season.md) | Implemented |
 | `/leagues/:leagueId/teams/:teamId` | [Club](pages/team.md) | Implemented |
 | `/leagues/:leagueId/teams/:teamId/squad` | [Club — Kader](pages/team.md#kader) | Implemented |
 | `/leagues/:leagueId/teams/:teamId/matches` | [Club — Spiele](pages/team.md#spiele) | Implemented |
@@ -55,7 +58,7 @@ Neither are the two **detail** pages, and for a different reason: a player and
 a club have no single subject a drawer entry could name. They are reached by
 tapping the thing that names them — a squad row for a player, a **crest** for a
 club, on the player header and on either side of a match's scoreline, or a row
-on [Teams](pages/teams.md). The club page does now light an entry, since
+on [Saison](pages/season.md). The club page does now light an entry, since
 *Teams* is its parent route and the drawer's match is a prefix one; the player
 page still borrows *Mannschaft*.
 

@@ -35,7 +35,8 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          ├─ table       the Bundesliga table's old URL, kept as a redirect
          ├─ players
          │  └─ :playerId        one player; three tabs from the segment
-         └─ teams       every club, as a table; league or Kickbase points
+         └─ teams       the season: every club as a table
+            └─ ranking  the season's 25 best players
             └─ :teamId          one club; four tabs from the segment
                ├─ squad
                ├─ matches
@@ -255,7 +256,8 @@ the pattern to copy for any future league-dependent page.
 in the drawer promises a screen that is not there. Its **route is untouched** —
 a direct URL still opens the stub — so it comes back by adding its entry here
 once the page exists. `table` (*Bundesliga-Tabelle*) was the other stub; it is
-now the built [Teams](pages/teams.md) page, and `/table` redirects onto it.
+now the table view of the [Saison](pages/season.md) page, and `/table`
+redirects onto it.
 
 **Detail routes keep their page lit.** `isNavItemActive()` matches a nav item's
 segment exactly *or* as a path prefix, so `/duels/3212306-2857817` and its
@@ -282,9 +284,9 @@ in the [player header](pages/player-detail.md) and either crest on a
 [match](pages/match-detail.md)'s scoreline.
 
 It does now **light an entry**, though, because it has a list above it.
-[Teams](pages/teams.md) is registered as `/teams` with the club page at
+[Saison](pages/season.md) is registered as `/teams` with the club page at
 `/teams/:teamId` **beneath** it rather than beside it, so the prefix rule above
-keeps **Teams** highlighted for the club page and all four of its tabs —
+keeps **Saison** highlighted for the club page and all four of its tabs —
 however the reader got there. That was the one case the rule did not cover, and
 the fix was giving the detail page a parent rather than giving it a flag.
 

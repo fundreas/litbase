@@ -113,7 +113,7 @@ played reads as "these three are on" in one look rather than one dot at a time.
 | The live score and minute | `useLiveMatches(matches)` → `/matches/{mi}/details` × N | One request per **started** match; a finished one is fetched once and held, only a running one polls |
 | The ranking, matchday being played | `useMatchdayRanking(…)` → `/competitions/{cid}/players` | **One request per position chip**, cached per chip, and only on the Rangliste view — the Spiele view is the front door and does not pay for a list it never renders |
 | The ranking, any earlier matchday | `useMatchdayRanking(…)` → `data/rankings/{cid}/matchday-{day}.json` | **One static file**, cached forever, holding every player who scored that day — the position chips are slices of it rather than four more fetches |
-| The clubs in it | `useTeamDirectory(cid)` → `/competitions/{cid}/table` | Shared cache entry with the [Teams](teams.md) page; club names for the ranking's second line |
+| The clubs in it | `useTeamDirectory(cid)` → `/competitions/{cid}/table` | Shared cache entry with the [Saison](season.md) page; club names for the ranking's second line |
 | Who owns them | `useRanking(id)` + `useMatchdayLineups(id, day, managerIds)` | One cached request for the managers, then **one per manager** — the same fan-out and the same cache entries the [match lineup](match-detail.md) uses |
 
 So an upcoming matchday costs **zero** requests beyond the cached season list,
@@ -208,12 +208,12 @@ boxes across the top of a page read as a toolbar; two ghost arrows either side
 of a title read as a title.
 
 > **There was a *Spieltag* | *Saison* toggle here** for a day, `?scope=season`
-> onto the endpoint's `sorting=1`. It went: this screen is about one matchday
-> at a time, and a second scope on it answered a question the screen was not
-> asking. What `sorting=1` does is still recorded in
-> [the API notes](../api/competitions.md#query-parameters) and the path builder
-> still takes it, so wiring it back up somewhere it belongs is a parameter
-> rather than a re-probe.
+> onto the endpoint's `sorting=1`. It moved to
+> [Saison](season.md#rangliste), where it is a sibling of the league table
+> rather than a second scope bolted onto a screen built around one selected
+> matchday. Same component, same chips, one parameter's difference — see
+> [`PlayerRankingTab`](../../src/components/ranking/PlayerRankingTab.tsx),
+> which is now shared between the two pages.
 
 The top three carry the accent colour and nothing else does. A podium reads as
 a podium without medal glyphs, and three tinted rows in twenty-five stay

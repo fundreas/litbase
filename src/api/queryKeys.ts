@@ -120,12 +120,16 @@ export const qk = {
   competition: (competitionId: string) =>
     ['competition', competitionId] as const,
   /**
-   * The position is part of the key, not a `select`: each filter is a separate
-   * request answering a separate top-25, so five entries is exactly right —
-   * going back to a chip already looked at is instant and costs nothing.
+   * The scope and the position are part of the key, not a `select`: each
+   * combination is a separate request answering a separate top-25, so ten
+   * entries is exactly right — going back to one already looked at is instant
+   * and costs nothing.
    */
-  competitionPlayers: (competitionId: string, position: string = 'all') =>
-    [...qk.competition(competitionId), 'players', position] as const,
+  competitionPlayers: (
+    competitionId: string,
+    scope: string,
+    position: string = 'all',
+  ) => [...qk.competition(competitionId), 'players', scope, position] as const,
   /**
    * One archived matchday-ranking file. Not keyed by position: the file holds
    * every player who scored that day, so the position lists are slices of one

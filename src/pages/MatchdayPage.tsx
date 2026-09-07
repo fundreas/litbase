@@ -13,7 +13,7 @@ import {
   type PositionKey,
 } from '@/api/models'
 import { MatchCard } from '@/components/matchday/MatchCard'
-import { MatchdayRankingTab } from '@/components/matchday/MatchdayRankingTab'
+import { PlayerRankingTab } from '@/components/ranking/PlayerRankingTab'
 import { MatchdayPicker } from '@/components/MatchdayPicker'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -326,12 +326,13 @@ export function MatchdayPage() {
               }
             />
           ) : (
-            <MatchdayRankingTab
+            <PlayerRankingTab
               data={ranking.data}
               teams={teams.data}
               leagueId={leagueId}
               viewerId={user?.id}
               isPending={ranking.isPending}
+              scope="matchday"
               source={ranking.source}
               position={rankingPosition}
               onPositionChange={(next) => {

@@ -188,7 +188,7 @@ function selectSeasonSchedule(data: MatchdaysResponse): SeasonSchedule {
  * are the same `+3` to it, and no other endpoint serves the split — see the
  * probe table in [the API docs](../../../docs/api/competitions.md). The fixture
  * list does, and it is already cached for every other page, so the
- * [Teams page](../../../docs/pages/teams.md) pays no request for its goals
+ * [Saison page](../../../docs/pages/season.md) pays no request for its goals
  * column.
  *
  * It groups the season by club and hands each group to
@@ -480,7 +480,7 @@ export function useTeamSeason(
  *
  * {@link useTeamSeason} answers "how has *this* club done"; this answers it for
  * all of them at once, which is what a table needs. Reads the same cache entry
- * as the other four, so the [Teams page](../../../docs/pages/teams.md) adds no
+ * as the other four, so the [Saison page](../../../docs/pages/season.md) adds no
  * request to a session that has already opened any other page.
  *
  * See {@link selectSeasonRecords} for why the goals are derived at all, and why

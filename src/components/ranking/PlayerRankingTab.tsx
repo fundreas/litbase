@@ -1,7 +1,7 @@
 import { Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 
-import type { TeamSummary } from '@/api/hooks/useCompetition'
+import type { RankingScope, TeamSummary } from '@/api/hooks/useCompetition'
 import {
   ARCHIVE_LIMIT,
   type RankingSource,
@@ -39,11 +39,13 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * The competition's best players, best first — and **who in the league owns
  * them**.
  *
- * Of one matchday, from Kickbase or from the app's own archive — `source` says
- * which, and nothing else here branches on it, because
- * [`useMatchdayRanking`](../../api/hooks/useMatchdayRanking.ts) hands over one
- * shape whichever side answered. This component is deliberately not the place
- * where the two sources are told apart.
+ * **One list, three callers.** It is the Rangliste of
+ * [Spieltag](../../pages/MatchdayPage.tsx) — for the matchday being played, and
+ * for any earlier one out of the app's own archive — and the Rangliste of
+ * [Saison](../../pages/SeasonPage.tsx). `scope` and `source` say which; nothing
+ * else here branches on either, because the hooks hand over one shape whichever
+ * side answered. This component is deliberately not the place where the sources
+ * are told apart.
  *
  * **What differs is the row count, and that is on purpose.** Kickbase caps its
  * ranking at 25 and no parameter raises it; our own files hold every player who
@@ -63,6 +65,10 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * holds every player of that matchday, so there is no cap to get past and four
  * more fetches would buy nothing.
  *
+ * Live, the chips **compose with the scope**, so a season list has its own five
+ * cache entries and the matchday's five are not disturbed by a trip to the
+ * other page.
+ *
  * **A short list is not a truncated one.** *TW* comes back with 18 rows on a
  * live nine-fixture matchday, because that is every keeper who played — the cap
  * is simply above the population. Nothing here pads it or explains it away.
@@ -71,7 +77,7 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  *
  * The right-hand slot used to carry the player's club crest, which was already
  * redundant: the club is named on the line under his name. It now carries the
- * **owning manager's avatar**, the same [`OwnerBadge`](./OwnerBadge.tsx) the
+ * **owning manager's avatar**, the same [`OwnerBadge`](../matchday/OwnerBadge.tsx) the
  * match lineup uses, and that turns a list of strangers into a list about the
  * league — *these two in the top ten are somebody's, and one of them is mine.*
  * The viewer's own players take the accent ring; a manager who owned a player
@@ -89,25 +95,36 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * The league standings (one cached request, shared with every page that names
  * a manager) plus the [matchday-lineup fan-out](../../api/hooks/useMatchdaySquad.ts)
  * — one request per manager. That is the same fan-out the
- * [match lineup](./MatchLineupTab.tsx) pays and it shares the same cache
+ * [match lineup](../matchday/MatchLineupTab.tsx) pays and it shares the same cache
  * entries, so a manager already looked at this session is free.
  *
  * It is deliberately **mounted, not gated**: this component only exists while
  * the Rangliste view is open, so the fan-out is scoped by the view existing
  * rather than by a flag somebody has to remember to pass.
  *
- * **The badge follows the matchday, not the calendar**, which is worth saying
- * because it is the one thing on this screen that could quietly have been
- * "now" instead: the fan-out reads `teamcenter?dayNumber=` for `data.day`, the
- * lineup *as it stood*, so a row from matchday 1 shows who fielded him on
- * matchday 1 rather than who happens to own him today.
+ * **On a matchday list the badge follows that matchday, not the calendar**,
+ * which is worth saying because it is the one thing on the screen that could
+ * quietly have been "now" instead: the fan-out reads `teamcenter?dayNumber=`
+ * for `data.day`, the lineup *as it stood*, so a row from matchday 1 shows who
+ * fielded him on matchday 1 rather than who happens to own him today.
+ *
+ * **On the season list it is the most recent matchday's**, which is the closest
+ * thing to "now" that costs no extra request. `data.day` under `sorting=1` is
+ * the endpoint's own notion of where the season has got to — probed 2026-09-07
+ * it read `2` while the fixture list's `currentDay` was already `3`, so it
+ * tracks the last matchday with points rather than the next one to be played,
+ * which is exactly the lineup worth asking about. A season row therefore says
+ * *this is whose team he was in last weekend*, not *somebody had him for the
+ * goals that got him up here* — and no season-long ownership history exists in
+ * the API to offer instead.
  */
-export function MatchdayRankingTab({
+export function PlayerRankingTab({
   data,
   teams,
   leagueId,
   viewerId,
   isPending,
+  scope,
   source,
   position,
   onPositionChange,
@@ -117,6 +134,7 @@ export function MatchdayRankingTab({
   leagueId: string
   viewerId: string | undefined
   isPending: boolean
+  scope: RankingScope
   source: RankingSource
   position: PositionKey | undefined
   onPositionChange: (position: PositionKey | undefined) => void
@@ -192,7 +210,7 @@ export function MatchdayRankingTab({
     <EmptyState
       icon={<Trophy size={22} />}
       title="Keine Wertung"
-      description={`Für diesen Spieltag hat noch ${position === undefined ? 'kein Spieler' : `kein ${POSITION_NAME[position]}`} gepunktet.`}
+      description={`${scope === 'season' ? 'In dieser Saison' : 'Für diesen Spieltag'} hat noch ${position === undefined ? 'kein Spieler' : `kein ${POSITION_NAME[position]}`} gepunktet.`}
     />
   ) : (
     <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
