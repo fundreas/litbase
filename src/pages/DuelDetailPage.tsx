@@ -221,6 +221,8 @@ export function DuelDetailPage() {
             rosters={rosters.data}
             viewerId={user?.id}
             summary={<DuelSummary sides={duel.sides} hasStarted={hasStarted} />}
+            day={selectedDay}
+            leagueId={leagueId}
           />
         )}
       </div>

@@ -2,6 +2,7 @@ import { ChevronDown, Footprints, Shirt, Volleyball } from 'lucide-react'
 import { useState } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
+import { breakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
 import {
   pointsScaleFor,
   type PlayerMatch,
@@ -107,13 +108,12 @@ export function PlayerPerformanceTab({
       {openMatch !== undefined && (
         <PlayerMatchEventsDialog
           key={openMatch.matchId}
-          match={openMatch}
+          fixture={breakdownFixture(openMatch, teams)}
           playerId={playerId}
           playerName={playerName}
           leagueId={leagueId}
           seasonId={isRunningSeason ? undefined : selected.id}
-          teams={teams}
-          matchTo={
+          to={
             isRunningSeason && leagueId !== undefined
               ? `/leagues/${leagueId}/matchday/${openMatch.matchId}`
               : undefined

@@ -258,6 +258,24 @@ Each portrait carries three things and no more:
 - a **swap arrow**, top-right, when the event feed says he was substituted —
   green or red, and which one it can be depends on the arrangement below.
 
+### The action breakdown
+
+**A portrait is a button now, where it used to be a link to the player's page.**
+It opens the [breakdown](player-detail.md#the-match-breakdown) of the number on
+its plate — every action Kickbase credited him with in this match, and what each
+was worth.
+
+The plate's figure was the one thing on this screen nothing explained, and on a
+page opened to read a *match* the actions come before the profile. The player's
+page has not gone anywhere: it is the dialog's header, one tap on. That is the
+same choice the [duel lineup](duel-detail.md#the-action-breakdown) makes and the
+opposite of the [squad's live view](squad.md#live-tab), which links to the match
+— each links to whatever its own screen has not already answered.
+
+The dialog opens for **any** player on the pitch, owned or not, because
+`/playercenter/{pid}` answers for any player — which is what made this possible
+here at all.
+
 ### The pitch follows the substitutions — while the match is running
 
 A player who is taken off drops to the bottom of his club's bench; the man who

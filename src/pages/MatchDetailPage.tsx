@@ -258,6 +258,8 @@ function SquadsView({
       leagueId={leagueId}
       isPointsPending={lineup.isPending}
       summary={summary}
+      day={day}
+      fixtures={fixtures.data}
     />
   )
 }

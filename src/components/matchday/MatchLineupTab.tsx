@@ -1,9 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
+import { breakdownFixtureFrom } from '@/api/hooks/usePlayerMatchEvents'
 import {
   MATCH_EVENT_LABEL,
   MATCH_ROLE_LABEL,
+  type MatchdayFixture,
   type MatchLineup,
   type MatchPlayer,
   type PlayerFigure,
@@ -18,6 +20,7 @@ import {
   figureLabel,
   isScore,
 } from '@/components/player/playerFigure'
+import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { MatchRoleMark, SwapMark } from '@/components/player/statGlyphs'
 import { Pitch } from '@/components/squad/Pitch'
 import {
@@ -144,8 +147,10 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  * event gets a full row. The **substitutes** underneath do get names, because a
  * row has the width for one.
  *
- * A portrait is a link to the player's own page, where the per-match detail
- * lives. The players the pitch cannot place — no `pos` on the match payload and
+ * A portrait opens that player's
+ * [action breakdown](../player/PlayerMatchEventsDialog.tsx) — the actions the
+ * number on his plate is made of — with his own page one tap further on, in the
+ * dialog's header. The players the pitch cannot place — no `pos` on the match payload and
  * no detail response yet — are counted under it rather than dropped silently or
  * defaulted into midfield.
  *
@@ -161,6 +166,8 @@ export function MatchLineupTab({
   leagueId,
   isPointsPending,
   summary,
+  day,
+  fixtures,
 }: {
   home: MatchLineup
   away: MatchLineup
@@ -169,9 +176,23 @@ export function MatchLineupTab({
   isPointsPending: boolean
   /** Drawn in the full-screen bar in place of the app's header. */
   summary?: ReactNode
+  /** The matchday, which with the player addresses his action breakdown. */
+  day: number
+  /**
+   * The matchday's fixtures by club id — the same map the points fan-out
+   * measures against, passed down so a portrait's breakdown can be addressed.
+   *
+   * The match payload names two clubs and their goals; this names *the
+   * opponent* and *goals for* per club, which is the side of it a player's
+   * dialog header shows. The page already holds it either way.
+   */
+  fixtures: Map<string, MatchdayFixture> | undefined
 }) {
   const { ref, box } = usePitchBox()
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [openPlayer, setOpenPlayer] = useState<MatchPlayer | undefined>(
+    undefined,
+  )
 
   /**
    * The busiest band across **both** halves — five defenders on either side
@@ -228,7 +249,7 @@ export function MatchLineupTab({
                 players={home.starters.filter((p) => p.position === position)}
                 metrics={metrics}
                 side="home"
-                leagueId={leagueId}
+                onOpen={setOpenPlayer}
               />
             ))}
             {ROW_ORDER.map((position) => (
@@ -237,7 +258,7 @@ export function MatchLineupTab({
                 players={away.starters.filter((p) => p.position === position)}
                 metrics={metrics}
                 side="away"
-                leagueId={leagueId}
+                onOpen={setOpenPlayer}
               />
             ))}
           </>
@@ -255,6 +276,28 @@ export function MatchLineupTab({
     </Pitch>
   )
 
+  /* The breakdown for whichever portrait was tapped, mounted in both layouts —
+     a portrait is tappable full screen too. Its header links to the **player**,
+     because this screen is already the match: the question a match page leaves
+     open is who the man is, not which fixture it was. */
+  const openFixture =
+    openPlayer === undefined ? undefined : fixtures?.get(openPlayer.teamId)
+
+  const breakdownDialog =
+    openPlayer === undefined || openFixture === undefined ? null : (
+      <PlayerMatchEventsDialog
+        key={openPlayer.id}
+        fixture={breakdownFixtureFrom(openFixture, day, openPlayer.points)}
+        playerId={openPlayer.id}
+        playerName={openPlayer.name}
+        leagueId={leagueId}
+        to={`/leagues/${leagueId}/players/${openPlayer.id}`}
+        onClose={() => {
+          setOpenPlayer(undefined)
+        }}
+      />
+    )
+
   if (isFullscreen) {
     /* The benches stay behind, as on the duel pitch: they are rows of names,
        which the page underneath already does well, and this screen exists to
@@ -267,6 +310,7 @@ export function MatchLineupTab({
         summary={summary}
       >
         {pitch}
+        {breakdownDialog}
       </FullscreenPane>
     )
   }
@@ -299,6 +343,8 @@ export function MatchLineupTab({
         <BenchColumn lineup={home} side="home" leagueId={leagueId} />
         <BenchColumn lineup={away} side="away" leagueId={leagueId} />
       </div>
+
+      {breakdownDialog}
     </div>
   )
 }
@@ -312,12 +358,12 @@ function PitchBand({
   players,
   metrics,
   side,
-  leagueId,
+  onOpen,
 }: {
   players: MatchPlayer[]
   metrics: PlayerMetrics
   side: Side
-  leagueId: string
+  onOpen: (player: MatchPlayer) => void
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
@@ -331,7 +377,7 @@ function PitchBand({
           player={player}
           metrics={metrics}
           side={side}
-          leagueId={leagueId}
+          onOpen={onOpen}
         />
       ))}
     </div>
@@ -344,17 +390,24 @@ function PitchBand({
  * The owner badge takes the **top-left** corner, which is where the squad
  * page's pitch puts its availability mark — the corner that reads most easily
  * against the grass, and the one the eye sweeps first down a band.
+ *
+ * **A button now, where it used to be a link to the player's page.** The
+ * plate's number was the one thing on this screen nothing explained, and a tap
+ * opens the [breakdown](../player/PlayerMatchEventsDialog.tsx) behind it — the
+ * actions that add up to it. The player's page has not gone anywhere: it is the
+ * dialog's header, one tap on. On a screen opened to read a *match*, the
+ * actions come before the profile.
  */
 function PitchPlayer({
   player,
   metrics,
   side,
-  leagueId,
+  onOpen,
 }: {
   player: MatchPlayer
   metrics: PlayerMetrics
   side: Side
-  leagueId: string
+  onOpen: (player: MatchPlayer) => void
 }) {
   const figure = matchPlayerFigure(player)
   const owned = player.owner
@@ -362,12 +415,18 @@ function PitchPlayer({
   const swap = pitchSwap(player)
 
   return (
-    <Link
-      to={`/leagues/${leagueId}/players/${player.id}`}
+    <button
+      type="button"
+      onClick={() => {
+        onOpen(player)
+      }}
       title={label}
       aria-label={label}
       style={{ width: metrics.width }}
-      className="flex shrink-0 flex-col items-center rounded-lg p-1 transition-colors hover:bg-black/20"
+      className={cn(
+        'flex shrink-0 flex-col items-center rounded-lg p-1 transition-colors',
+        'hover:bg-black/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+      )}
     >
       <span className="relative">
         <Avatar
@@ -416,7 +475,7 @@ function PitchPlayer({
       >
         {figureLabel(figure)}
       </span>
-    </Link>
+    </button>
   )
 }
 

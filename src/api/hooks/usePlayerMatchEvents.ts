@@ -2,6 +2,13 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
+import type { TeamSummary } from '@/api/hooks/useCompetition'
+import {
+  liveScoreFor,
+  type LiveMatch,
+  type MatchdayFixture,
+  type PlayerMatch,
+} from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type {
   LiveEventTypesResponse,
@@ -21,6 +28,105 @@ const CATALOGUE_STALE_MS = 24 * 60 * 60_000
  * enough to pick that up, long enough that reopening the dialog is free.
  */
 const BREAKDOWN_STALE_MS = 5 * 60_000
+
+/**
+ * One fixture, from the subject player's side — everything the dialog's header
+ * needs and the pair that addresses the breakdown.
+ *
+ * Deliberately **not** one of the app's fixture models. Four screens open this
+ * dialog and each holds a different one: the player page has a `PlayerMatch`,
+ * the duel and live pitches a `MatchdayFixture`, and the match lineup has no
+ * fixture at all — only the two clubs off the match payload. They agree on
+ * exactly these facts, so this is the shape they agree on rather than a
+ * conversion every caller has to get right.
+ *
+ * `opponentName` is whatever the caller can resolve: a club name where a
+ * directory is in hand, the three-letter symbol where only a fixture is.
+ */
+export interface BreakdownFixture {
+  /** The matchday, which with the season addresses the breakdown. */
+  day: number
+  /** The fixture, for the `mi` check that guards against a wrong answer. */
+  matchId: string
+  isHome: boolean
+  opponentName?: string
+  opponentImage?: string
+  /** Goals, already resolved to this player's side. */
+  goalsFor?: number
+  goalsAgainst?: number
+  /** The API's own word on whether it was played to the end. */
+  isFinished: boolean
+  /** Kick-off, ISO 8601 — with `isFinished`, whether it has begun. */
+  kickoff?: string
+  /** The total to show until the breakdown's own arrives. */
+  points?: number
+}
+
+/**
+ * A {@link BreakdownFixture} out of a player page's match row.
+ *
+ * The one caller that needs a conversion, because `PlayerMatch` is the only
+ * model here that names the opponent by id and leaves the lookup to a
+ * directory.
+ */
+export function breakdownFixture(
+  match: PlayerMatch,
+  teams: Map<string, TeamSummary> | undefined,
+): BreakdownFixture {
+  return {
+    day: match.day,
+    matchId: match.matchId,
+    isHome: match.isHome,
+    opponentName: teams?.get(match.opponentId)?.name ?? match.opponentId,
+    opponentImage: match.opponentImage,
+    goalsFor: match.goalsFor,
+    goalsAgainst: match.goalsAgainst,
+    isFinished: match.isFinished,
+    kickoff: match.kickoff,
+    points: match.points,
+  }
+}
+
+/**
+ * A {@link BreakdownFixture} out of the fixture the live pages carry.
+ *
+ * `MatchdayFixture` already holds every field under a different name, and its
+ * `opponentSymbol` is the best name those pages have — they resolve no club
+ * directory, and three letters beside the crest is what their own rows show.
+ */
+export function breakdownFixtureFrom(
+  fixture: MatchdayFixture,
+  day: number,
+  points: number | undefined,
+  /**
+   * The match as it stands, where the caller has it.
+   *
+   * The fixture's own goals come off the season list, which during a live
+   * matchday is re-read once a minute — fine for most things and not for a
+   * scoreline sitting on top of a page that refreshes its own every ten
+   * seconds. Where a live source is in hand it wins, the same precedence
+   * [`MatchStateBadge`](../../components/player/MatchStateBadge.tsx) uses.
+   */
+  live?: { match: LiveMatch | undefined; teamId: string },
+): BreakdownFixture {
+  const goals =
+    live?.match === undefined
+      ? { for: fixture.goalsFor, against: fixture.goalsAgainst }
+      : liveScoreFor(live.match, live.teamId)
+
+  return {
+    day,
+    matchId: fixture.matchId,
+    isHome: fixture.isHome,
+    opponentName: fixture.opponentSymbol,
+    opponentImage: fixture.opponentImage,
+    goalsFor: goals.for,
+    goalsAgainst: goals.against,
+    isFinished: fixture.isFinished,
+    kickoff: fixture.kickoff,
+    points,
+  }
+}
 
 /** One scoring action, resolved and ready to draw. */
 export interface PlayerMatchEvent {

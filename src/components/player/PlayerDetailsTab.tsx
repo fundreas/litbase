@@ -2,6 +2,7 @@ import { House, Info, PlaneTakeoff, Shirt, Timer } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
+import { breakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
 import {
   type PlayerDetail,
   type PlayerFixture,
@@ -174,12 +175,11 @@ export function PlayerDetailsTab({
       {openMatch !== undefined && (
         <PlayerMatchEventsDialog
           key={openMatch.matchId}
-          match={openMatch}
+          fixture={breakdownFixture(openMatch, teams)}
           playerId={player.id}
           playerName={player.fullName}
           leagueId={leagueId}
-          teams={teams}
-          matchTo={
+          to={
             leagueId === undefined
               ? undefined
               : `/leagues/${leagueId}/matchday/${openMatch.matchId}`

@@ -2234,6 +2234,24 @@ export function didPlay(role: PlayerMatchRole): boolean {
 /** How one of the club's matches went, from this player's point of view. */
 export type MatchOutcome = 'win' | 'draw' | 'loss'
 
+/**
+ * Win, draw or loss from the goals **already resolved to this side** — which
+ * every fixture model in the app does for its own club, so there is never a
+ * `t1`/`t2` question to get wrong here.
+ *
+ * `undefined` when either figure is missing, which is a match that has not
+ * kicked off rather than a goalless draw.
+ */
+export function matchOutcome(
+  goalsFor: number | undefined,
+  goalsAgainst: number | undefined,
+): MatchOutcome | undefined {
+  if (goalsFor === undefined || goalsAgainst === undefined) return undefined
+  if (goalsFor > goalsAgainst) return 'win'
+  if (goalsFor < goalsAgainst) return 'loss'
+  return 'draw'
+}
+
 export interface PlayerMatch {
   matchId: string
   day: number

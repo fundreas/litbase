@@ -1,3 +1,4 @@
+import { breakdownFixtureFrom } from '@/api/hooks/usePlayerMatchEvents'
 import {
   playerFigure,
   TEAM_SHEET_ROLE_LABEL,
@@ -11,6 +12,7 @@ import {
   figureLabel,
   isScore,
 } from '@/components/player/playerFigure'
+import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import {
   TeamSheetCorner,
   TeamSheetMark,
@@ -79,15 +81,23 @@ export function DuelLineupTab({
   rosters,
   viewerId,
   summary,
+  day,
+  leagueId,
 }: {
   rosters: [DuelRoster, DuelRoster]
   viewerId?: string
   /** Drawn in the full-screen bar in place of the app's header. */
   summary?: ReactNode
+  /** The matchday, which with the player addresses his action breakdown. */
+  day: number | undefined
+  leagueId: string | undefined
 }) {
   const [top, bottom] = rosters
   const { ref, box } = usePitchBox()
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [openPlayer, setOpenPlayer] = useState<DuelPlayer | undefined>(
+    undefined,
+  )
 
   /**
    * The busiest band across **both** halves — five defenders on either side
@@ -146,6 +156,7 @@ export function DuelLineupTab({
             players={top.lineup.filter((p) => p.position === position)}
             metrics={metrics}
             side="top"
+            onOpen={setOpenPlayer}
           />
         ))}
         {ROW_ORDER.map((position) => (
@@ -154,6 +165,7 @@ export function DuelLineupTab({
             players={bottom.lineup.filter((p) => p.position === position)}
             metrics={metrics}
             side="bottom"
+            onOpen={setOpenPlayer}
           />
         ))}
       </div>
@@ -164,6 +176,40 @@ export function DuelLineupTab({
         isViewer={bottom.manager.id === viewerId}
       />
     </Pitch>
+  )
+
+  /* Mounted in both layouts — a portrait is tappable full screen too, and the
+     dialog sits above the pane at its own z-index. */
+  const breakdownDialog = (
+    <>
+      {/* The breakdown for whichever portrait was tapped. Its header links to
+          the **player**, not the match: a duel is read to find out whose
+          players are carrying it, so the next question is about the man rather
+          than the fixture — the opposite of the squad's live view, where you
+          already know the men and want the match. */}
+      {openPlayer?.fixture !== undefined && day !== undefined && (
+        <PlayerMatchEventsDialog
+          key={openPlayer.id}
+          fixture={breakdownFixtureFrom(
+            openPlayer.fixture,
+            day,
+            openPlayer.points,
+            { match: openPlayer.live, teamId: openPlayer.teamId },
+          )}
+          playerId={openPlayer.id}
+          playerName={openPlayer.name}
+          leagueId={leagueId}
+          to={
+            leagueId === undefined
+              ? undefined
+              : `/leagues/${leagueId}/players/${openPlayer.id}`
+          }
+          onClose={() => {
+            setOpenPlayer(undefined)
+          }}
+        />
+      )}
+    </>
   )
 
   if (isFullscreen) {
@@ -178,6 +224,7 @@ export function DuelLineupTab({
         summary={summary}
       >
         {pitch}
+        {breakdownDialog}
       </FullscreenPane>
     )
   }
@@ -197,6 +244,8 @@ export function DuelLineupTab({
         <BenchColumn roster={top} side="top" />
         <BenchColumn roster={bottom} side="bottom" />
       </div>
+
+      {breakdownDialog}
     </div>
   )
 }
@@ -210,10 +259,12 @@ function PitchBand({
   players,
   metrics,
   side,
+  onOpen,
 }: {
   players: DuelPlayer[]
   metrics: PlayerMetrics
   side: Side
+  onOpen: (player: DuelPlayer) => void
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
@@ -227,6 +278,7 @@ function PitchBand({
           player={player}
           metrics={metrics}
           side={side}
+          onOpen={onOpen}
         />
       ))}
     </div>
@@ -254,19 +306,49 @@ function PitchPlayer({
   player,
   metrics,
   side,
+  onOpen,
 }: {
   player: DuelPlayer
   metrics: PlayerMetrics
   side: Side
+  onOpen: (player: DuelPlayer) => void
 }) {
   const isRunning = player.status === 'playing'
   const figure = playerFigure(player)
 
+  /*
+   * A portrait is a **button, not a link**, and that is the change worth
+   * noting: these plates carried nothing but a number, and the number was the
+   * one thing on the page that could not be explained. A tap now opens the
+   * [breakdown](../player/PlayerMatchEventsDialog.tsx) — the actions behind
+   * that figure — and the player's own page is a tap further on, from the
+   * dialog's header. A duel is read to find out where the points came from, so
+   * the answer belongs in front of the detour rather than behind it.
+   *
+   * There is nothing to open without a fixture: a player whose club has no
+   * match that matchday has no actions and no breakdown to address.
+   */
+  const canOpen = player.fixture !== undefined
+
+  const Shell = canOpen ? 'button' : 'span'
+
   return (
-    <span
+    <Shell
+      {...(canOpen
+        ? {
+            type: 'button' as const,
+            onClick: () => {
+              onOpen(player)
+            },
+          }
+        : {})}
       title={`${player.name}: ${figureDescription(figure)}`}
       style={{ width: metrics.width }}
-      className="flex shrink-0 flex-col items-center p-1"
+      className={cn(
+        'flex shrink-0 flex-col items-center rounded-lg p-1',
+        canOpen &&
+          'transition-colors hover:bg-black/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+      )}
     >
       <span className="relative">
         <Avatar
@@ -299,7 +381,7 @@ function PitchPlayer({
       >
         {figureLabel(figure)}
       </span>
-    </span>
+    </Shell>
   )
 }
 

@@ -6,8 +6,8 @@ import {
   usePlayerMatchEvents,
   type PlayerMatchEvent,
 } from '@/api/hooks/usePlayerMatchEvents'
-import type { TeamSummary } from '@/api/hooks/useCompetition'
-import type { PlayerMatch } from '@/api/models'
+import type { BreakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
+import { fixtureState, matchOutcome } from '@/api/models'
 import { Scoreline } from '@/components/player/PlayerMatchRow'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
@@ -48,33 +48,39 @@ import { delta, points as formatPoints } from '@/lib/format'
  * overlap: one navigates, one closes.
  */
 export function PlayerMatchEventsDialog({
-  match,
+  fixture,
   playerId,
   playerName,
   leagueId,
   seasonId,
-  teams,
-  matchTo,
+  to,
   onClose,
 }: {
-  match: PlayerMatch
+  fixture: BreakdownFixture
   playerId: string
   playerName: string
   leagueId: string | undefined
   /** The season the match belongs to. Omitted for the running one. */
   seasonId?: string
-  /** Team id → name, for the opponent. The crest comes off the match itself. */
-  teams: Map<string, TeamSummary> | undefined
   /** Where the header goes, when there is somewhere for it to go. */
-  matchTo?: string
+  to?: string
   onClose: () => void
 }) {
+  const match = fixture
   const breakdown = usePlayerMatchEvents(leagueId, playerId, {
     day: match.day,
     seasonId,
   })
 
-  const opponent = teams?.get(match.opponentId)?.name ?? match.opponentId
+  const opponent = match.opponentName ?? '–'
+  const outcome = matchOutcome(match.goalsFor, match.goalsAgainst)
+  // No `kickoff` means nothing is known about the clock, so lean on the API's
+  // own word: not finished and no time is treated as still to come.
+  const hasKickedOff =
+    fixtureState({
+      isFinished: match.isFinished,
+      kickoff: match.kickoff ?? '',
+    }) !== 'upcoming'
   const Venue = match.isHome ? House : PlaneTakeoff
   /*
    * The breakdown's own total, not the row's. They are the same number for a
@@ -120,7 +126,7 @@ export function PlayerMatchEventsDialog({
             <Scoreline
               goalsFor={match.goalsFor}
               goalsAgainst={match.goalsAgainst}
-              outcome={match.outcome}
+              outcome={outcome}
             />
           </span>
         </Dialog.Title>
@@ -166,13 +172,13 @@ export function PlayerMatchEventsDialog({
           )}
         >
           <div className="flex shrink-0 items-center gap-2 border-b border-line p-3">
-            {matchTo === undefined ? (
+            {to === undefined ? (
               <div className="flex min-w-0 flex-1 items-center gap-2.5">
                 {header}
               </div>
             ) : (
               <Link
-                to={matchTo}
+                to={to}
                 onClick={onClose}
                 title={`${spoken} – Spiel öffnen`}
                 className={cn(
@@ -216,11 +222,15 @@ export function PlayerMatchEventsDialog({
                 Für dieses Spiel liefert Kickbase keine Einzelaktionen.
               </p>
             ) : breakdown.data.events.length === 0 ? (
-              /* A real case, not an error: a substitute who came on and did
-                 not touch the score has a payload of nothing but the match's
-                 own structure, all of it worth zero. */
+              /* Two different nothings, and saying which is the whole value of
+                 the message: a match that has not begun has nothing *yet*, and
+                 a substitute who came on without touching the score has a
+                 payload of nothing but the fixture's own structure. Both are
+                 real, neither is an error. */
               <p className="py-6 text-center text-sm text-muted">
-                Keine punktewirksamen Aktionen in diesem Spiel.
+                {hasKickedOff
+                  ? 'Keine punktewirksamen Aktionen in diesem Spiel.'
+                  : 'Das Spiel hat noch nicht begonnen.'}
               </p>
             ) : (
               <EventList events={breakdown.data.events} />

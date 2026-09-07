@@ -5,13 +5,13 @@ import { endpoints } from '@/api/endpoints'
 import {
   didPlay,
   toEventTallies,
+  matchOutcome,
   toOwnerId,
   toPosition,
   toStartProbability,
   toTrend,
   type MarketValueDay,
   type MarketValueHistory,
-  type MatchOutcome,
   type PlayerDetail,
   type PlayerFixture,
   type PlayerMatch,
@@ -182,16 +182,6 @@ function toMinutes(minutes: string | undefined): number {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
-function toOutcome(
-  goalsFor: number | undefined,
-  goalsAgainst: number | undefined,
-): MatchOutcome | undefined {
-  if (goalsFor === undefined || goalsAgainst === undefined) return undefined
-  if (goalsFor > goalsAgainst) return 'win'
-  if (goalsFor < goalsAgainst) return 'loss'
-  return 'draw'
-}
-
 /**
  * Which side of a fixture the player's club was on.
  *
@@ -246,7 +236,7 @@ function mapSeason(
         opponentImage: isHome ? match.t2im : match.t1im,
         goalsFor: isFinished ? goalsFor : undefined,
         goalsAgainst: isFinished ? goalsAgainst : undefined,
-        outcome: isFinished ? toOutcome(goalsFor, goalsAgainst) : undefined,
+        outcome: isFinished ? matchOutcome(goalsFor, goalsAgainst) : undefined,
         role: toRole(match),
         points: match.p,
         minutes: toMinutes(match.mp),

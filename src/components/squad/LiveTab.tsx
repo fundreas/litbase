@@ -6,6 +6,7 @@ import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
 import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
+import { breakdownFixtureFrom } from '@/api/hooks/usePlayerMatchEvents'
 import { teamSheetRole, useTeamSheets } from '@/api/hooks/useTeamSheets'
 import {
   areFixturesSettled,
@@ -27,6 +28,7 @@ import {
   figureLabel,
   isScore,
 } from '@/components/player/playerFigure'
+import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { TeamSheetCorner } from '@/components/player/TeamSheetMark'
 import { Pitch } from '@/components/squad/Pitch'
 import {
@@ -81,8 +83,14 @@ const VIEW_STORAGE_KEY = 'litbase.squad.live.view'
  * seconds while the snapshot arrives.
  *
  * **Read-only.** Kickbase locks the lineup at the first kick-off, so there is
- * nothing here to edit: no rail, no swap dialog, no save. Tapping a player
- * opens his own page, which is where the per-match detail lives.
+ * nothing here to edit: no rail, no swap dialog, no save.
+ *
+ * **Tapping a portrait opens the actions behind its number** — see
+ * [`PlayerMatchEventsDialog`](../player/PlayerMatchEventsDialog.tsx). That
+ * dialog's header links on to the **match**, not the player: this is your own
+ * eleven, so the men are the one thing you already know, and what you do not is
+ * what is happening in the fixture. The Rangliste's rows still go to the player
+ * pages, so nothing became unreachable.
  *
  * The players are modelled as {@link DuelPlayer}, the duel page's row model,
  * because a live squad *is* one side of a duel with the opponent left out —
@@ -106,6 +114,9 @@ export function LiveTab({
   day: number
 }) {
   const [view, setView] = useLiveView()
+  const [openPlayer, setOpenPlayer] = useState<DuelPlayer | undefined>(
+    undefined,
+  )
   const fixtures = useMatchdayFixtures(competitionId, day)
 
   /**
@@ -283,9 +294,33 @@ export function LiveTab({
       />
 
       {view === 'pitch' ? (
-        <LivePitch lineup={lineup} leagueId={leagueId} />
+        <LivePitch lineup={lineup} onOpen={setOpenPlayer} />
       ) : (
         <LiveRanking players={ranked} leagueId={leagueId} />
+      )}
+
+      {/* The breakdown for whichever portrait was tapped. Its header links to
+          the **match**, not the player: you already know your own eleven, so
+          the question a live squad leaves open is what is happening in the
+          fixture — the opposite of the duel and match pitches, where the man
+          is the unknown. */}
+      {openPlayer?.fixture !== undefined && (
+        <PlayerMatchEventsDialog
+          key={openPlayer.id}
+          fixture={breakdownFixtureFrom(
+            openPlayer.fixture,
+            day,
+            openPlayer.points,
+            { match: openPlayer.live, teamId: openPlayer.teamId },
+          )}
+          playerId={openPlayer.id}
+          playerName={openPlayer.name}
+          leagueId={leagueId}
+          to={`/leagues/${leagueId}/matchday/${openPlayer.fixture.matchId}`}
+          onClose={() => {
+            setOpenPlayer(undefined)
+          }}
+        />
       )}
     </div>
   )
@@ -448,10 +483,10 @@ function LiveViewToggle({
  */
 function LivePitch({
   lineup,
-  leagueId,
+  onOpen,
 }: {
   lineup: DuelPlayer[]
-  leagueId: string
+  onOpen: (player: DuelPlayer) => void
 }) {
   const { ref, box } = usePitchBox()
 
@@ -483,7 +518,7 @@ function LivePitch({
               key={position}
               players={lineup.filter((player) => player.position === position)}
               metrics={metrics}
-              leagueId={leagueId}
+              onOpen={onOpen}
             />
           ))
         )}
@@ -495,11 +530,11 @@ function LivePitch({
 function LivePitchRow({
   players,
   metrics,
-  leagueId,
+  onOpen,
 }: {
   players: DuelPlayer[]
   metrics: PlayerMetrics
-  leagueId: string
+  onOpen: (player: DuelPlayer) => void
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden`, as on the editor's pitch: wrapping
@@ -512,7 +547,7 @@ function LivePitchRow({
           key={player.id}
           player={player}
           metrics={metrics}
-          leagueId={leagueId}
+          onOpen={onOpen}
         />
       ))}
     </div>
@@ -541,25 +576,39 @@ function LivePitchRow({
 function LivePitchPlayer({
   player,
   metrics,
-  leagueId,
+  onOpen,
 }: {
   player: DuelPlayer
   metrics: PlayerMetrics
-  leagueId: string
+  onOpen: (player: DuelPlayer) => void
 }) {
   const isRunning = player.status === 'playing'
   const figure = playerFigure(player)
+  // Nothing to open without a fixture: no match that matchday, no actions.
+  const canOpen = player.fixture !== undefined
+  const Shell = canOpen ? 'button' : 'span'
 
   return (
-    <Link
-      to={`/leagues/${leagueId}/players/${player.id}`}
-      title={`${player.name} – Spielerseite öffnen`}
+    <Shell
+      {...(canOpen
+        ? {
+            type: 'button' as const,
+            onClick: () => {
+              onOpen(player)
+            },
+          }
+        : {})}
+      title={`${player.name} – Aktionen ansehen`}
       // Spelled out rather than left to the two lines of the plate, which read
       // as "Kane 215" — a number with no unit and no idea whether the match is
       // over.
       aria-label={`${player.name}: ${figureDescription(figure)}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}${player.sheet === undefined ? '' : `, ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
       style={{ width: metrics.width }}
-      className="flex shrink-0 flex-col items-center rounded-lg p-1 transition-colors hover:bg-black/20"
+      className={cn(
+        'flex shrink-0 flex-col items-center rounded-lg p-1',
+        canOpen &&
+          'transition-colors hover:bg-black/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+      )}
     >
       <span className="relative">
         <Avatar
@@ -570,7 +619,7 @@ function LivePitchPlayer({
         />
         {/* Sized from the portrait, like every other corner mark in the app, so
             it stays legible from a 40px phone avatar up to a 96px desktop one.
-            The link already spells the role out, so the badge itself is
+            The button already spells the role out, so the badge itself is
             decorative here. */}
         {player.sheet !== undefined && (
           <TeamSheetCorner
@@ -606,7 +655,7 @@ function LivePitchPlayer({
           {figureLabel(figure)}
         </span>
       </span>
-    </Link>
+    </Shell>
   )
 }
 

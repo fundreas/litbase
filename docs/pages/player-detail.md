@@ -313,6 +313,20 @@ The same rows appear on the [Details tab](#details-tab)'s *Spiele* card and
 behave identically there, because they are the same component and a match should
 not be a different kind of thing depending on the tab it was found on.
 
+**And the dialog is now shared with three pitches.** Tapping a portrait on
+[duel detail](duel-detail.md#the-action-breakdown), the
+[match lineup](match-detail.md#the-action-breakdown) or the
+[squad's live view](squad.md#live-tab) opens the same breakdown of the same
+endpoint. What differs is only where the header goes, and it goes to whatever
+the screen has not already answered:
+
+| Opened from | The header links to | Because |
+| ----------- | ------------------- | ------- |
+| Player page | the **match** | you are on the man; the fixture is the unknown |
+| Duel lineup | the **player** | you are on the duel, and the question is whose players are carrying it |
+| Match lineup | the **player** | you are already in the match |
+| Squad live view | the **match** | it is your own eleven, so the men are the one thing you know |
+
 ### The season picker
 
 The header is the control, as on the [duels page](duels.md#the-matchday-picker):

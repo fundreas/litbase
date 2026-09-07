@@ -70,6 +70,29 @@ the pitch has to stack them *top and bottom* — something has to bridge those
 two arrangements, and a legend would cost a row of height the pitch cannot
 spare.
 
+### The action breakdown
+
+**Tapping a portrait opens the actions behind its number** — the same
+[breakdown](player-detail.md#the-match-breakdown) the player page draws, from
+`events[]` on the player centre.
+
+It is the answer to what these plates always begged: they carry a points figure
+and nothing else, and a duel is read precisely to find out where those points
+came from. A tap now says *Tor (ABW) +100, Ballverlust −1, Minutenbonus +10*
+rather than leaving 239 to stand there unexplained. It works mid-match too —
+the endpoint serves the running tally with its events, so the list grows as the
+match does.
+
+**The header links to the player**, not the match: on a duel the fixture is
+usually beside the point and the man is not. That is the opposite of the
+[squad's live view](squad.md#live-tab), which links to the match, and the
+reasoning is the same both times — link to whatever the screen has not already
+told you.
+
+Portraits were not tappable at all before this, so nothing was taken away. A
+player whose club has no match that matchday has no actions to show and stays
+inert.
+
 ### This replaced two stacked lists
 
 The lineup view used to be two `RosterCard`s: a header per manager over eleven

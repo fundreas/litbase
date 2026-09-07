@@ -1086,6 +1086,13 @@ say, never `0` for a player who has not scored. See
 grass that distinction is the difference between *hasn't kicked off* and
 *played and scored nothing*.
 
+**Tapping a portrait opens the actions behind its number** — the same
+[breakdown](player-detail.md#the-match-breakdown) the player page and the two
+match pitches draw. Here the header links to the **match**, not the player: this
+is your own eleven, so the men are the one thing you already know, and what you
+do not is what is happening in the fixture. The Rangliste's rows still go to the
+player pages, so nothing became unreachable.
+
 **The corner carries the club's team sheet** while one is out and the match has
 not started, and nothing at all outside that hour: a green check for the
 starting eleven, an armchair for the club's bench, a red cross for a player who
