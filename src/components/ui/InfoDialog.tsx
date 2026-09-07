@@ -1,14 +1,21 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import type { ReactNode } from 'react'
 
-import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 
 /**
  * A sheet that shows something and asks nothing — the read-only counterpart of
  * [`ConfirmDialog`](./ConfirmDialog.tsx), with the same chrome: bottom sheet in
- * thumb reach on a phone, centred from `sm` up, one *Schließen* and no
- * decision.
+ * thumb reach on a phone, centred from `sm` up.
+ *
+ * **No close button.** It had a full-width *Schließen* at the foot, and a sheet
+ * that asks nothing has nothing to dismiss: tapping outside closes it, so does
+ * Escape, and so does the back gesture on a phone. The button was a row of
+ * height spent restating what the overlay already offers — which matters most
+ * on the one sheet here that is long enough to scroll, where it pushed the
+ * content up for no answer of its own. `ConfirmDialog` keeps its two buttons
+ * because there a tap outside and a tap on *Abbrechen* are the same decision
+ * and the other button is a different one.
  *
  * The body is capped and scrolls, so a long list (a matchday's ranking) stays
  * inside the sheet rather than growing it past the screen.
@@ -69,12 +76,6 @@ export function InfoDialog({
               {children}
             </div>
           )}
-
-          <Dialog.Close asChild>
-            <Button variant="secondary" fullWidth className="mt-1">
-              Schließen
-            </Button>
-          </Dialog.Close>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
