@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import {
   matchdayState,
@@ -48,15 +48,35 @@ const STATE_CLASS: Record<MatchdayState, string> = {
  * The list still opens in a drawer on the **right**. Left belongs to the app's
  * navigation, and two drawers arriving from the same edge read as the same
  * surface.
+ *
+ * ## `variant`
+ *
+ * `card` is the control as it appears *inside* a page, under that page's
+ * heading — a tile between two tiles. [Duels](../../docs/pages/duels.md) uses
+ * it.
+ *
+ * `heading` is the control *as* the page heading, which the
+ * [Matchday](../../docs/pages/matchday.md) page needed once both of its views
+ * were about one selected matchday and nothing else. The title takes the
+ * `h1`'s own size and weight, the tiles come off the arrows, and a rule under
+ * the row separates it from the content — so the page reads as a heading with
+ * a chevron rather than a toolbar bolted above a list. That the paragraph
+ * above already claimed the heading *is* the control is what makes this a
+ * variant rather than a second design: it is the same idea, finally drawn.
+ *
+ * **Only one `h1` per page**, so `heading` renders one and `card` does not.
+ * The two are otherwise the same markup.
  */
 export function MatchdayPicker({
   schedule,
   selectedDay,
   onSelect,
+  variant = 'card',
 }: {
   schedule: SeasonSchedule
   selectedDay: number
   onSelect: (day: number) => void
+  variant?: 'card' | 'heading'
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const selected = schedule.matchdays.find((entry) => entry.day === selectedDay)
@@ -75,9 +95,22 @@ export function MatchdayPicker({
       ? schedule.matchdays[index + 1]
       : undefined
 
+  const isHeading = variant === 'heading'
+
   return (
     <>
-      <div className="flex items-stretch gap-2">
+      <div
+        className={cn(
+          'flex items-stretch',
+          isHeading
+            ? // Full-bleed rule: the content well pads by `px-3`, so the row
+              // pulls out to the edges and pads itself back in. A separator
+              // stopping short of the screen edge reads as a card's top border
+              // rather than as the end of the header.
+              '-mx-3 gap-1 border-b border-line px-3 pb-3'
+            : 'gap-2',
+        )}
+      >
         <StepButton
           direction="previous"
           label={
@@ -86,37 +119,77 @@ export function MatchdayPicker({
               : `${String(previous.day)}. Spieltag`
           }
           disabled={previous === undefined}
+          variant={isHeading ? 'ghost' : 'card'}
           onClick={() => {
             if (previous !== undefined) onSelect(previous.day)
           }}
         />
 
-        <button
-          type="button"
-          onClick={() => {
-            setIsOpen(true)
-          }}
-          aria-haspopup="dialog"
-          className={cn(
-            'flex min-w-0 flex-1 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left',
-            'transition-colors hover:border-accent/40 hover:bg-surface-2',
-          )}
-        >
-          <span className="min-w-0 flex-1">
-            <span className="flex items-baseline gap-2">
-              <span className="nums truncate text-base font-bold text-ink">
-                {selectedDay}. Spieltag
+        {/* **The heading wraps the button, not the other way round.** A page
+            needs its `h1` and this control is it — but a heading is flow
+            content and a button may only hold phrasing, so nesting them the
+            intuitive way is invalid markup. Wrapping is the accordion pattern
+            and costs nothing: one level-1 heading whose text is the button's
+            own label, and still one tap target. */}
+        <Trigger isHeading={isHeading}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(true)
+            }}
+            aria-haspopup="dialog"
+            className={cn(
+              'flex min-w-0 items-center text-left transition-colors',
+              isHeading
+                ? 'w-full gap-2 rounded-xl px-2 hover:bg-surface-2'
+                : 'flex-1 gap-3 rounded-card border border-line bg-surface px-4 py-3 hover:border-accent/40 hover:bg-surface-2',
+            )}
+          >
+            <span className="min-w-0 flex-1">
+              <span className="flex items-baseline gap-1.5">
+                <span
+                  className={cn(
+                    'nums truncate font-bold text-ink',
+                    isHeading ? 'text-xl tracking-tight' : 'text-base',
+                  )}
+                >
+                  {selectedDay}. Spieltag
+                </span>
+                {/* In the heading the chevron rides with the title — that is
+                    the word you tap, and parking the glyph at the far right
+                    would put it next to the step arrow and read as a third
+                    direction. The state moves down to the date line to make
+                    room, where the two together read as one caption. */}
+                {isHeading ? (
+                  <ChevronDown
+                    size={18}
+                    className="shrink-0 translate-y-0.5 text-faint"
+                  />
+                ) : (
+                  selected !== undefined && <StateChip matchday={selected} />
+                )}
               </span>
-              {selected !== undefined && <StateChip matchday={selected} />}
+              <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                <span className="truncate">
+                  {selected === undefined
+                    ? 'Kein Spielplan'
+                    : dateRange(selected.start, selected.end)}
+                </span>
+                {isHeading && selected !== undefined && (
+                  <>
+                    <span aria-hidden="true" className="text-line">
+                      ·
+                    </span>
+                    <StateChip matchday={selected} />
+                  </>
+                )}
+              </span>
             </span>
-            <span className="mt-0.5 block truncate text-xs text-muted">
-              {selected === undefined
-                ? 'Kein Spielplan'
-                : dateRange(selected.start, selected.end)}
-            </span>
-          </span>
-          <ChevronDown size={20} className="shrink-0 text-faint" />
-        </button>
+            {!isHeading && (
+              <ChevronDown size={20} className="shrink-0 text-faint" />
+            )}
+          </button>
+        </Trigger>
 
         <StepButton
           direction="next"
@@ -126,6 +199,7 @@ export function MatchdayPicker({
               : `${String(next.day)}. Spieltag`
           }
           disabled={next === undefined}
+          variant={isHeading ? 'ghost' : 'card'}
           onClick={() => {
             if (next !== undefined) onSelect(next.day)
           }}
@@ -156,6 +230,26 @@ export function MatchdayPicker({
       </Drawer>
     </>
   )
+}
+
+/**
+ * The `h1` around the trigger in the `heading` variant, and nothing at all in
+ * `card`.
+ *
+ * It carries the flex sizing the button would otherwise own, so the row layout
+ * is the same either way — the wrapper is a box in the flex line, not a
+ * `display: contents` sleight of hand that would leave the button's `flex-1`
+ * measuring against the wrong parent.
+ */
+function Trigger({
+  isHeading,
+  children,
+}: {
+  isHeading: boolean
+  children: ReactNode
+}) {
+  if (!isHeading) return children
+  return <h1 className="flex min-w-0 flex-1">{children}</h1>
 }
 
 function MatchdayRow({

@@ -324,13 +324,19 @@ export const endpoints = {
      *    nine-fixture matchday — because that is the whole population rather
      *    than a slice of it.
      *  - **`sorting=1`**, which switches the list from the current matchday
-     *    to **season totals**. Verified: Kimmich's `p` of 556 is exactly the
-     *    303 and 253 his `ph` holds for the two matchdays played. These rows
+     *    to **season totals**. Verified: Kimmich's `p` of 557 is exactly the
+     *    303 and 254 his `ph` holds for the two matchdays played. These rows
      *    **drop `mi` and `ot`** — there is no one fixture for a season total
      *    to point at.
      *
      * The two compose, so `{ position: 1, sorting: 1 }` is the season's best
      * keepers.
+     *
+     * **Nothing sends `sorting` today.** A season leaderboard was built onto
+     * the Rangliste and taken off again: that screen is about one matchday at
+     * a time, and a second scope on it answered a question it was not asking.
+     * The parameter stays because what it does is *known* — re-probing it
+     * would cost more than the branch does.
      */
     players: (
       competitionId: string,

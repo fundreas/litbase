@@ -1,10 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-import {
-  useCompetitionPlayers,
-  type RankingScope,
-} from '@/api/hooks/useCompetition'
+import { useCompetitionPlayers } from '@/api/hooks/useCompetition'
 import type {
   CompetitionPlayerSummary,
   MatchdayTopScorers,
@@ -164,13 +161,14 @@ export interface MatchdayRankingResult {
  *
  * | Selection | Source | Rows | Position filter |
  * | --------- | ------ | ---- | --------------- |
- * | The current matchday | Kickbase, live | 25 | a request per position |
+ * | The matchday being played | Kickbase, live | 25 | a request per position |
  * | Any earlier matchday | `data/`, ours | 100 | a slice of one fetch |
- * | The season | Kickbase, live | 25 | a request per position |
  *
- * The season scope has no archive and needs none: `sorting=1` is the one
- * ranking Kickbase serves that is not tied to a matchday, so it answers
- * whatever day is selected.
+ * **The current matchday always comes from Kickbase**, whether it is under way
+ * or already played out. It is the one matchday the API can answer for, it is
+ * the only source that moves while matches are running, and no file is written
+ * for it — the [seed script](../../../scripts/build-matchday-rankings.mjs)
+ * stops at `currentDay - 1` precisely so nothing can shadow the live list.
  *
  * **Both queries are always mounted, one of them idle**, because hooks cannot
  * be called conditionally. The idle one is passed `undefined` for its id, which
@@ -187,14 +185,12 @@ export function useMatchdayRanking({
   competitionId,
   day,
   currentDay,
-  scope,
   position,
   isLive,
 }: {
   competitionId: string | undefined
   day: number | undefined
   currentDay: number | undefined
-  scope: RankingScope
   position: PositionKey | undefined
   isLive: boolean
 }): MatchdayRankingResult {
@@ -205,15 +201,13 @@ export function useMatchdayRanking({
    * live, which is the source that can always answer.
    */
   const source: RankingSource =
-    scope === 'season' || day === undefined || currentDay === undefined
+    day === undefined || currentDay === undefined || day === currentDay
       ? 'live'
-      : day === currentDay
-        ? 'live'
-        : 'archive'
+      : 'archive'
 
   const live = useCompetitionPlayers(
     source === 'live' ? competitionId : undefined,
-    { isLive, position, scope },
+    { isLive, position },
   )
   const archive = useArchivedRanking(
     source === 'archive' ? competitionId : undefined,

@@ -62,6 +62,14 @@ node --env-file=.env.local scripts/build-matchday-rankings.mjs
 
 The sweep rebuilds **every** settled matchday of the season, not just the last
 one — each player's history answers the whole season in one response, so there
-is no incremental state to get wrong and re-running is idempotent. Options and
-the reasoning are in
+is no incremental state to get wrong.
+
+That is not only convenience: **a settled matchday's points can still move.**
+Kimmich's matchday 2 read `253` on 2026-09-07 and `254` a day later, with his
+season total moving from `556` to `557` to match, so this is Kickbase revising
+a score rather than two endpoints disagreeing. Rebuilding everything means a
+revision lands in the old file too, where appending only the newest matchday
+would leave it behind.
+
+Options and the reasoning are in
 [`scripts/build-matchday-rankings.mjs`](../scripts/build-matchday-rankings.mjs).

@@ -133,12 +133,19 @@ scored on a 9-fixture matchday, exactly one per club.
 
 #### `sorting=1` is season points, verified
 
-Kimmich came back with `p: 556` under `sorting=1`; his
+Kimmich came back with `p: 556` under `sorting=1` on 2026-09-06; his
 [performance](#get-v4competitionscompetitionidplayersplayeridperformance)
-`ph` for 26/27 reads `303` on day 1 and `253` on day 2, which sums to exactly
+`ph` for 26/27 read `303` on day 1 and `253` on day 2, which summed to exactly
 that. The `sorting=1` rows also **drop `mi` and `ot`** — there is no one
 fixture for a season total to point at — so a consumer must not assume those
 fields are present.
+
+> **A settled matchday's points can still move.** Read back on 2026-09-07 the
+> same two numbers were `303` and `254`, against a season total of `557` — the
+> pair stayed consistent, so this is Kickbase revising a score after the fact
+> rather than a disagreement between endpoints. It is the reason
+> [the seed script](../../scripts/build-matchday-rankings.mjs) rebuilds the
+> whole season on every run instead of appending the newest matchday.
 
 **Scoping parameters still do nothing.** `dayNumber`, `matchId`, `mi`, `day`,
 `md`, `matchDay`, `matchday`, `d` and `dn` were each tried and each returned
@@ -155,10 +162,19 @@ Nothing else in the API serves one either:
 **no points on them at all**. A past matchday's top scorers can only be
 assembled per player, from
 [`playercenter`](#get-v4competitionscompetitionidplayercenterplayerid)`?dayNumber=`
-or from the `ph` of the performance endpoint — the fan-out
-[`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) already pays
-for a single squad, which over a whole competition would be several hundred
-requests.
+or from the `ph` of the performance endpoint.
+
+**So the app assembles them offline.**
+[`scripts/build-matchday-rankings.mjs`](../../scripts/build-matchday-rankings.mjs)
+does exactly that sweep — 18 `teamprofile` calls for the players, then one
+`performance` call each, which is ~470 requests and answers *every* matchday of
+the season at once — and commits the result under
+[`data/rankings/`](../../data/README.md) for the app to `fetch`. Verified
+against this endpoint: on 2026-09-07 all 25 rows of the `sorting=1` list were
+exactly the sum of the two matchday files.
+
+That is a build step precisely because it cannot be a request. Doing it in the
+browser would be several hundred calls to render one list.
 
 ### Response `200`
 
@@ -209,17 +225,17 @@ needed one per player across nine fixtures. Polled at the
 [live rate](../api-layer.md) while a matchday runs; between matchdays it cannot
 move at all.
 
-**Both parameters are sent**, from two controls on the
-[Rangliste](../pages/matchday.md#rangliste): `sorting=1` from the
-[scope toggle](../pages/matchday.md#the-scope-toggle-is-the-heading) that stands
-where the page heading used to, `position` from the
-[chip row](../pages/matchday.md#the-position-chips-are-five-requests-not-one-filter)
-above the rows. They compose, so there are ten lists and ten cache entries, and
-only the one on screen polls.
+**`position` is sent**, from the
+[chip row](../pages/matchday.md#the-position-chips-are-five-lists--made-two-different-ways)
+on the Rangliste — one cache entry per chip, and only the one on screen polls.
 
-`CompetitionPlayer` in [`types.ts`](../../src/api/types.ts) has `mi` and `ot`
-optional, which is what makes the `sorting=1` rows safe to map with the same
-code — a season row has neither.
+**`sorting` is not.** A season leaderboard was built onto that screen and taken
+off again: it is about one matchday at a time, and a second scope on it
+answered a question the screen was not asking. The path builder still takes the
+parameter and the reading above is verified, so wiring it back up somewhere it
+belongs is a parameter rather than a re-probe. `CompetitionPlayer` in
+[`types.ts`](../../src/api/types.ts) already has `mi` and `ot` optional, which
+is what would make those rows safe to map with the same code.
 
 ---
 

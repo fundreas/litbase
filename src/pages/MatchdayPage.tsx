@@ -2,7 +2,7 @@ import { CalendarDays, ListOrdered, Swords } from 'lucide-react'
 import { useMemo } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
 
-import { useTeamDirectory, type RankingScope } from '@/api/hooks/useCompetition'
+import { useTeamDirectory } from '@/api/hooks/useCompetition'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayMatches, useSeasonSchedule } from '@/api/hooks/useMatchday'
 import { useMatchdayRanking } from '@/api/hooks/useMatchdayRanking'
@@ -15,13 +15,11 @@ import {
 import { MatchCard } from '@/components/matchday/MatchCard'
 import { MatchdayRankingTab } from '@/components/matchday/MatchdayRankingTab'
 import { MatchdayPicker } from '@/components/MatchdayPicker'
-import { PageHeading } from '@/components/PageHeading'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useAuth } from '@/auth/useAuth'
 import { useActiveLeague } from '@/league/useActiveLeague'
-import { cn } from '@/lib/cn'
 import { kickoff as kickoffLabel } from '@/lib/format'
 
 /** The page's two views, and the URL segment each one is reached by. */
@@ -37,82 +35,6 @@ function toRankingPosition(raw: string | null): PositionKey | undefined {
   return raw !== null && raw in POSITION_LABEL
     ? (raw as PositionKey)
     : undefined
-}
-
-/**
- * `?scope=season` → the season ranking. Anything else, the absent case
- * included, is the matchday — so the default costs no parameter and a
- * hand-edited value cannot produce a broken page.
- */
-function toRankingScope(raw: string | null): RankingScope {
-  return raw === 'season' ? 'season' : 'matchday'
-}
-
-/**
- * The Rangliste's scope, **in place of the page heading**.
- *
- * On this view the heading was doing the toggle's job badly: a title reading
- * *Spieltag* and a subtitle reading *die 25 besten Spieler des Spieltags* said
- * the same thing twice and left the season ranking — the other half of what
- * this endpoint can answer — with nowhere to live. Two labelled segments say
- * which list you are reading *and* that there is another one, in the space the
- * title had.
- *
- * Labelled rather than the icon-only [`PairToggle`](../components/ui/PairToggle.tsx):
- * that control is for a display preference where both states show the same
- * data. These two are **different data**, and which one you are looking at has
- * to be readable at a glance rather than inferred from which glyph is lit.
- *
- * The visual language is [`Tabs`](../components/ui/Tabs.tsx)' — same tray, same
- * accent-filled active segment — but built from buttons with `aria-pressed`
- * rather than Radix tabs, because there are no panels here: both segments
- * render the same component with a different scope.
- *
- * **The matchday segment carries no number.** It said *Spieltag 2* while the
- * ranking could only ever be the current matchday; now the picker below it
- * names the day, and two labels disagreeing about which matchday you are on —
- * which they would, the moment you stepped back one — is worse than one label
- * saying less.
- */
-function RankingScopeToggle({
-  scope,
-  onChange,
-}: {
-  scope: RankingScope
-  onChange: (scope: RankingScope) => void
-}) {
-  const options: { value: RankingScope; label: string }[] = [
-    { value: 'matchday', label: 'Spieltag' },
-    { value: 'season', label: 'Saison' },
-  ]
-
-  return (
-    <div
-      className="flex w-full gap-1 rounded-xl border border-line bg-surface p-1"
-      role="group"
-      aria-label="Wertung"
-    >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={scope === option.value}
-          onClick={() => {
-            onChange(option.value)
-          }}
-          className={cn(
-            'flex h-10 flex-1 items-center justify-center rounded-lg px-2',
-            'text-sm whitespace-nowrap transition-colors',
-            scope === option.value
-              ? 'bg-accent font-semibold text-accent-ink'
-              : 'font-medium text-muted hover:text-ink',
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 /**
@@ -147,11 +69,23 @@ function RankingScopeToggle({
  * with the grouping-by-kick-off the first is built around.
  *
  * The view comes from the **path segment**, as on the squad, duel-detail and
- * match-detail pages, so each is linkable and survives a refresh. `?day=`,
- * `?scope=` and `?pos=` ride along with it, and **both views now carry the
- * matchday picker**: the ranking was pinned to the current matchday only while
- * Kickbase was its only source, and earlier matchdays now come from the app's
- * own files — see
+ * match-detail pages, so each is linkable and survives a refresh. `?day=` and
+ * `?pos=` ride along with it.
+ *
+ * ## The picker is the page heading
+ *
+ * Both views are about one selected matchday and nothing else, so a title
+ * reading *Spieltag* above a control reading *2. Spieltag* was the same word
+ * twice with the useful half in the smaller type. The
+ * [picker](../components/MatchdayPicker.tsx) takes the `h1`'s size and weight
+ * and a rule under it does the separating, which is what its own doc comment
+ * has claimed all along — *the heading of the page is itself the control*.
+ *
+ * They do not offer the **same** matchdays. The fixtures exist for all 34; a
+ * ranking exists from kick-off onwards, so the Rangliste is handed a schedule
+ * narrowed to the matchdays that have one, and steps and drawer alike cannot
+ * reach past it. The matchday being played comes from Kickbase live, and
+ * everything before it from the app's own files — see
  * [`useMatchdayRanking`](../api/hooks/useMatchdayRanking.ts).
  */
 export function MatchdayPage() {
@@ -181,27 +115,59 @@ export function MatchdayPage() {
   /** Fresh score and minute per match — nothing for one that has not started. */
   const liveByMatchId = useLiveMatches(matches.data)
 
-  const matchday = schedule.data?.matchdays.find(
-    (entry) => entry.day === selectedDay,
-  )
-  const state = matchday === undefined ? undefined : matchdayState(matchday)
-
   /*
-   * The ranking's scope and position filter live in the query string beside
-   * `?day=`, not in component state, for the reason everything else on this
-   * page does: a *Saison, Torwarte* is a thing worth linking to, and a refresh
-   * should land on the list you were reading. Each combination is its own
-   * request — see `useCompetitionPlayers` — so these are also the query key.
+   * The position filter lives in the query string beside `?day=`, not in
+   * component state, for the reason everything else on this page does: a
+   * *Torwarte, 2. Spieltag* is a thing worth linking to, and a refresh should
+   * land on the list you were reading. Each position is its own request — see
+   * `useCompetitionPlayers` — so it is also the query key.
    */
-  const rankingScope = toRankingScope(searchParams.get('scope'))
   const rankingPosition = toRankingPosition(searchParams.get('pos'))
 
   /*
+   * **A matchday only has a ranking once it has started.** The Rangliste
+   * therefore offers the played matchdays and the one being played, and
+   * nothing further ahead: a picker that stepped to an unplayed matchday would
+   * be offering an empty list as if it were a result.
+   *
+   * The narrowed schedule is what the picker is handed, so the steppers and
+   * the drawer cannot disagree with each other about what is reachable.
+   */
+  const rankedDays = useMemo(() => {
+    const matchdays = (schedule.data?.matchdays ?? []).filter(
+      (entry) => matchdayState(entry) !== 'upcoming',
+    )
+    return { currentDay: schedule.data?.currentDay ?? 0, matchdays }
+  }, [schedule.data])
+
+  /*
+   * `?day=` is shared with the fixtures, which *can* be read for a matchday
+   * that has not kicked off. Arriving on the Rangliste with one of those
+   * selected falls back to the newest matchday that does have a ranking,
+   * rather than rendering a picker whose label is not in its own list.
+   */
+  const latestRankedDay = rankedDays.matchdays.at(-1)?.day
+  const rankingDay = rankedDays.matchdays.some(
+    (entry) => entry.day === selectedDay,
+  )
+    ? selectedDay
+    : latestRankedDay
+
+  /*
+   * Polling follows the matchday the *ranking* is showing, which is not always
+   * the one `?day=` names — arriving from an unplayed fixture list falls back
+   * to the newest played one, and that one may well be under way.
+   */
+  const rankingIsLive = rankedDays.matchdays.some(
+    (entry) => entry.day === rankingDay && matchdayState(entry) === 'live',
+  )
+
+  /*
    * Kickbase's ranking is the *current* matchday's and can be nothing else —
-   * every matchday parameter probed is swallowed. Anything earlier comes from
-   * the app's own files under `data/`, and `useMatchdayRanking` is the seam
-   * between the two; it is the only thing on this page that knows there are
-   * two sources at all.
+   * every matchday parameter probed is swallowed. So the matchday being played
+   * comes from the API, live, and everything before it from the app's own
+   * files under `data/`. `useMatchdayRanking` is the seam, and the only thing
+   * on this page that knows there are two sources at all.
    *
    * Gating on the view matters: the Spiele view is the page's front door and
    * should not pay for a request it never renders. Passing `undefined` leaves
@@ -211,11 +177,10 @@ export function MatchdayPage() {
 
   const ranking = useMatchdayRanking({
     competitionId: rankingId,
-    day: selectedDay,
+    day: rankingDay,
     currentDay: schedule.data?.currentDay,
-    scope: rankingScope,
     position: rankingPosition,
-    isLive: state === 'live',
+    isLive: rankingIsLive,
   })
   const teams = useTeamDirectory(rankingId)
 
@@ -237,7 +202,12 @@ export function MatchdayPage() {
   if (schedule.isPending) {
     return (
       <div className="flex flex-col gap-4">
-        <PageHeading title="Spieltag" />
+        {/* The heading is the picker, and the picker cannot be drawn without a
+            schedule — so the placeholder is the shape it will take rather than
+            a title that is about to be replaced by something else. */}
+        <div className="-mx-3 border-b border-line px-3 pb-3">
+          <div className="h-11 w-40 animate-pulse rounded-xl bg-surface-2" />
+        </div>
         <SkeletonList rows={9} />
       </div>
     )
@@ -255,14 +225,12 @@ export function MatchdayPage() {
   }
 
   /*
-   * `?day=`, `?scope=` and `?pos=` ride along, so switching views keeps the
-   * matchday you were looking at rather than snapping back to the current one,
-   * and keeps the Rangliste's scope and position filter across a trip to the
-   * fixtures and back.
+   * `?day=` and `?pos=` ride along, so switching views keeps the matchday you
+   * were looking at rather than snapping back to the current one, and keeps
+   * the Rangliste's position filter across a trip to the fixtures and back.
    */
   const linkQuery = new URLSearchParams()
   if (selectedDay !== undefined) linkQuery.set('day', String(selectedDay))
-  if (rankingScope === 'season') linkQuery.set('scope', rankingScope)
   if (rankingPosition !== undefined) linkQuery.set('pos', rankingPosition)
   const base = `/leagues/${leagueId}/${VIEWS.matches}`
   const query = linkQuery.toString()
@@ -270,8 +238,7 @@ export function MatchdayPage() {
 
   /**
    * Change one parameter and keep the rest — the day picker must not silently
-   * clear the position filter, and neither the chips nor the scope toggle must
-   * clear the day.
+   * clear the position filter, and the chips must not clear the day.
    *
    * `replace` keeps the back button meaning "leave the page" rather than
    * walking back through every matchday and every chip that was tapped.
@@ -299,47 +266,26 @@ export function MatchdayPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {view === VIEWS.ranking ? (
-        <>
-          {/* The toggle is the heading here, so the page still needs one for
-              anything that navigates by them. Visually hidden rather than
-              shown small: two of them, one above the other, would be the
-              duplication the toggle replaced. */}
-          <h1 className="sr-only">Spieltag — Rangliste</h1>
-          <RankingScopeToggle
-            scope={rankingScope}
-            onChange={(next) => {
-              patchParams('scope', next === 'season' ? next : undefined)
-            }}
-          />
-        </>
+      {/* **The picker is the page heading**, on both views and on the one
+          `?day=`. Everything either view shows is about one selected matchday,
+          so a title reading *Spieltag* above a control reading *2. Spieltag*
+          was the same word twice with the useful half in the smaller type. The
+          rule under it does the separating a heading's whitespace used to.
+
+          The two views hand it **different matchdays to offer**: the fixtures
+          exist for all 34, a ranking only from kick-off onwards. */}
+      {view === VIEWS.ranking && rankingDay === undefined ? (
+        // Before the season's first kick-off there is no matchday to pick and
+        // no ranking to show. A picker over an empty range would be a heading
+        // reading "undefined. Spieltag".
+        <h1 className="text-xl font-bold tracking-tight text-ink">Rangliste</h1>
       ) : (
-        <PageHeading
-          title="Spieltag"
-          subtitle={
-            state === 'live'
-              ? 'Live-Ergebnisse, minütlich aktualisiert'
-              : state === 'finished'
-                ? 'Endergebnisse des Spieltags'
-                : 'Noch nicht angepfiffen'
-          }
-        />
-      )}
-
-      {/* **The same picker on both views, and the same `?day=` behind it.**
-          It was hidden on the Rangliste while Kickbase's ranking could only be
-          the current matchday — a control that visibly does nothing is worse
-          than its absence. Now that earlier matchdays are served from `data/`
-          it does something on both, and stepping back a matchday keeps
-          whichever view you were reading.
-
-          Not on the season scope, though: a season total is not scoped to a
-          matchday, so the picker would be back to implying a list had followed
-          when it had not. */}
-      {(view === VIEWS.matches || rankingScope === 'matchday') && (
         <MatchdayPicker
-          schedule={schedule.data}
-          selectedDay={selectedDay as number}
+          variant="heading"
+          schedule={view === VIEWS.ranking ? rankedDays : schedule.data}
+          selectedDay={
+            (view === VIEWS.ranking ? rankingDay : selectedDay) as number
+          }
           onSelect={(day) => {
             patchParams('day', String(day))
           }}
@@ -348,7 +294,13 @@ export function MatchdayPage() {
 
       <div className="flex flex-col">
         {view === VIEWS.ranking ? (
-          ranking.isError ? (
+          rankingDay === undefined ? (
+            <EmptyState
+              icon={<ListOrdered size={22} />}
+              title="Noch kein Spieltag gespielt"
+              description="Sobald der erste Spieltag angepfiffen ist, steht hier die Wertung."
+            />
+          ) : ranking.isError ? (
             <ErrorState error={ranking.error} onRetry={ranking.refetch} />
           ) : ranking.isMissing ? (
             /* Not an error and not an empty list: this matchday simply has no
@@ -358,17 +310,19 @@ export function MatchdayPage() {
             <EmptyState
               icon={<ListOrdered size={22} />}
               title="Noch nicht archiviert"
-              description={`Für Spieltag ${String(selectedDay)} liegt noch keine gespeicherte Rangliste vor. Kickbase liefert nur Spieltag ${String(schedule.data.currentDay)} — ältere werden mit "npm run data:rankings" erzeugt.`}
+              description={`Für Spieltag ${String(rankingDay)} liegt noch keine gespeicherte Rangliste vor. Kickbase liefert nur Spieltag ${String(schedule.data.currentDay)} — ältere werden mit "npm run data:rankings" erzeugt.`}
               action={
-                <button
-                  type="button"
-                  className="mt-1 rounded-lg px-3 py-1.5 text-sm font-medium text-accent hover:bg-surface-2"
-                  onClick={() => {
-                    patchParams('day', String(schedule.data.currentDay))
-                  }}
-                >
-                  Zu Spieltag {schedule.data.currentDay}
-                </button>
+                latestRankedDay === undefined ? undefined : (
+                  <button
+                    type="button"
+                    className="mt-1 rounded-lg px-3 py-1.5 text-sm font-medium text-accent hover:bg-surface-2"
+                    onClick={() => {
+                      patchParams('day', String(latestRankedDay))
+                    }}
+                  >
+                    Zu Spieltag {latestRankedDay}
+                  </button>
+                )
               }
             />
           ) : (
@@ -378,7 +332,6 @@ export function MatchdayPage() {
               leagueId={leagueId}
               viewerId={user?.id}
               isPending={ranking.isPending}
-              scope={rankingScope}
               source={ranking.source}
               position={rankingPosition}
               onPositionChange={(next) => {

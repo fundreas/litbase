@@ -1,7 +1,7 @@
 import { Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 
-import type { RankingScope, TeamSummary } from '@/api/hooks/useCompetition'
+import type { TeamSummary } from '@/api/hooks/useCompetition'
 import {
   ARCHIVE_LIMIT,
   type RankingSource,
@@ -39,11 +39,10 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * The competition's best players, best first — and **who in the league owns
  * them**.
  *
- * Of one matchday or of the whole season, from Kickbase or from the app's own
- * archive: `scope` and `source` say which. Everything below is identical in all
- * four combinations, because
+ * Of one matchday, from Kickbase or from the app's own archive — `source` says
+ * which, and nothing else here branches on it, because
  * [`useMatchdayRanking`](../../api/hooks/useMatchdayRanking.ts) hands over one
- * shape whichever side answered — this component is deliberately not the place
+ * shape whichever side answered. This component is deliberately not the place
  * where the two sources are told apart.
  *
  * **What differs is the row count, and that is on purpose.** Kickbase caps its
@@ -97,17 +96,11 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * the Rangliste view is open, so the fan-out is scoped by the view existing
  * rather than by a flag somebody has to remember to pass.
  *
- * **On an archived matchday the badge is historically correct**, which is worth
- * saying because nothing else on the screen is fetched per matchday: the
- * fan-out reads `teamcenter?dayNumber=`, the lineup *as it stood*, so a row
- * from matchday 1 shows who fielded him on matchday 1.
- *
- * **In the season list it means something else**, and it is worth being clear
- * about what: ownership is read for the *current* matchday, so a season row
- * says "somebody has him now", not "somebody had him for the goals that got him
- * up here". The current holder is the useful reading — it is the
- * one that tells you whose bench a season-long scorer is sitting on — and the
- * API has no per-matchday ownership history to offer instead.
+ * **The badge follows the matchday, not the calendar**, which is worth saying
+ * because it is the one thing on this screen that could quietly have been
+ * "now" instead: the fan-out reads `teamcenter?dayNumber=` for `data.day`, the
+ * lineup *as it stood*, so a row from matchday 1 shows who fielded him on
+ * matchday 1 rather than who happens to own him today.
  */
 export function MatchdayRankingTab({
   data,
@@ -115,7 +108,6 @@ export function MatchdayRankingTab({
   leagueId,
   viewerId,
   isPending,
-  scope,
   source,
   position,
   onPositionChange,
@@ -125,7 +117,6 @@ export function MatchdayRankingTab({
   leagueId: string
   viewerId: string | undefined
   isPending: boolean
-  scope: RankingScope
   source: RankingSource
   position: PositionKey | undefined
   onPositionChange: (position: PositionKey | undefined) => void
@@ -201,7 +192,7 @@ export function MatchdayRankingTab({
     <EmptyState
       icon={<Trophy size={22} />}
       title="Keine Wertung"
-      description={`${scope === 'season' ? 'In dieser Saison' : 'Für diesen Spieltag'} hat noch ${position === undefined ? 'kein Spieler' : `kein ${POSITION_NAME[position]}`} gepunktet.`}
+      description={`Für diesen Spieltag hat noch ${position === undefined ? 'kein Spieler' : `kein ${POSITION_NAME[position]}`} gepunktet.`}
     />
   ) : (
     <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
