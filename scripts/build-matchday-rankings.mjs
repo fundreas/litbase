@@ -39,6 +39,20 @@
  *
  *   KB_TOKEN=<bearer> npm run data:rankings
  *
+ * or, for something that survives a token expiring — which they do, in about a
+ * week, and this is a job that runs every matchday:
+ *
+ *   # .env.local, gitignored like every other .env here
+ *   KB_EMAIL=…
+ *   KB_PASSWORD=…
+ *
+ *   node --env-file=.env.local scripts/build-matchday-rankings.mjs
+ *
+ * A token, when given, wins — signing in is the fallback, not the default, so
+ * a run can always be pointed at a token taken from a browser session without
+ * credentials being anywhere near the machine. Neither is written to disk and
+ * neither is echoed.
+ *
  * Options, all optional:
  *
  *   --competition=1     Competition id (default 1, Bundesliga)
@@ -46,9 +60,6 @@
  *   --out=data          Output root
  *   --concurrency=8     Requests in flight
  *   --dry-run           Fetch and report, write nothing
- *
- * The token is a normal Kickbase bearer — the one the app itself signs in for.
- * It is read from the environment and never written to disk.
  */
 
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -145,6 +156,43 @@ async function get(path, token, attempt = 1) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * A bearer token, from the environment or by signing in.
+ *
+ * The login call must go out **without** an `Authorization` header — a stale
+ * token on it makes Kickbase reject the credentials, which reads as a wrong
+ * password and is not.
+ */
+async function resolveToken() {
+  if (env.KB_TOKEN !== undefined && env.KB_TOKEN !== '') return env.KB_TOKEN
+
+  const email = env.KB_EMAIL
+  const password = env.KB_PASSWORD
+  if (email === undefined || password === undefined) {
+    fail(
+      'No credentials.\n' +
+        '    Either KB_TOKEN=<bearer>, or KB_EMAIL and KB_PASSWORD — the latter\n' +
+        '    conveniently in a gitignored .env.local:\n' +
+        '      node --env-file=.env.local scripts/build-matchday-rankings.mjs',
+    )
+  }
+
+  const response = await fetch(`${API_BASE}/v4/user/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ em: email, pass: password, loy: false, rep: {} }),
+  })
+
+  if (!response.ok) {
+    fail(`Sign-in failed: HTTP ${response.status}.`)
+  }
+
+  const { tkn } = await response.json()
+  if (typeof tkn !== 'string') fail('Sign-in returned no token.')
+  console.log('  Signed in.')
+  return tkn
 }
 
 /** Map with a ceiling on requests in flight, preserving input order. */
@@ -253,15 +301,7 @@ function currentSeason(performance) {
 
 async function main() {
   const options = parseArgs(argv.slice(2))
-  const token = env.KB_TOKEN
-
-  if (token === undefined || token === '') {
-    fail(
-      'No KB_TOKEN in the environment.\n' +
-        '    Sign in to Kickbase, take the bearer token, and run:\n' +
-        '      KB_TOKEN=<token> npm run data:rankings',
-    )
-  }
+  const token = await resolveToken()
 
   const { competitionId, outDir, concurrency, isDryRun, days } = options
 

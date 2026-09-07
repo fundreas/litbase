@@ -52,6 +52,14 @@ After a matchday finishes:
 KB_TOKEN=<bearer> npm run data:rankings
 ```
 
+or, since tokens expire in about a week and this runs every matchday, put
+`KB_EMAIL` and `KB_PASSWORD` in a gitignored `.env.local` and let the script
+sign in for itself:
+
+```sh
+node --env-file=.env.local scripts/build-matchday-rankings.mjs
+```
+
 The sweep rebuilds **every** settled matchday of the season, not just the last
 one — each player's history answers the whole season in one response, so there
 is no incremental state to get wrong and re-running is idempotent. Options and
