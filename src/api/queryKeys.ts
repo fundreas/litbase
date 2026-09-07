@@ -113,6 +113,13 @@ export const qk = {
   eventTypes: () => ['eventTypes'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
   /**
+   * The league's event log, as an infinite query — one entry holds every page
+   * fetched so far. Not keyed by page: the pages are the entry's own
+   * structure, and `?start=` is the page parameter.
+   */
+  activities: (leagueId: string) =>
+    [...qk.league(leagueId), 'activities'] as const,
+  /**
    * One club's squad, in the context of a league.
    *
    * League-scoped rather than competition-scoped because the response carries

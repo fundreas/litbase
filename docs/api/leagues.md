@@ -17,6 +17,8 @@ league-scoped too and have their own pages:
 | `GET` | [`/v4/leagues/recommended`](#get-v4leaguesrecommended) | Bearer | Leagues Kickbase suggests |
 | `GET` | [`/v4/leagues/list`](#get-v4leagueslist) | Bearer | Browsable / searchable joinable leagues |
 | `POST` | [`/v4/leagues/{leagueId}/join`](#post-v4leaguesleagueidjoin) | Bearer | Join one |
+| `GET` | [`/v4/leagues/{leagueId}/activitiesFeed`](#get-v4leaguesleagueidactivitiesfeed) | Bearer | The league's event log — *Aktivitäten* |
+| `GET` | [`/v4/leagues/{leagueId}/activitiesFeed/{activityId}`](#get-v4leaguesleagueidactivitiesfeedactivityid) | Bearer | One entry, in full |
 
 ---
 
@@ -389,3 +391,198 @@ been probed (**✗**).
 
 [`useJoinLeague`](../../src/api/hooks/useJoinableLeagues.ts) →
 [Join a league](../pages/join-league.md).
+
+---
+
+## `GET /v4/leagues/{leagueId}/activitiesFeed`
+
+The league's event log — what the Kickbase app shows under **Aktivitäten**:
+players put up for sale, completed transfers, managers joining and leaving,
+matchdays being scored, and achievements. **Newest first**, back to the
+league's founding.
+
+Probed on 2026-09-07 against two leagues (131 and 489 entries), with every
+parameter spelling below tried against both.
+
+**Auth** Bearer.
+
+### Path parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `leagueId` | string | League id |
+
+### Query parameters
+
+All optional. The spec declares all three *required*; the bare path answers the
+first 25.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `start` | number | **Zero-based offset** of the first entry. `start=10&max=10` returns exactly entries 10–19 of `start=0&max=200`, and `start=5` the five-shifted window. Past the end → `200` with an empty `af` |
+| `max` | number | **Page size.** Default **25**. **No cap found**: `max=500` and `max=1000` both returned all 489 entries the larger league had, and `max=201` returned 201. `0` and `-1` answer one entry; a non-number is ignored |
+| `filter` | string | **The event type**, one code or a comma-separated list of codes — `filter=15` is transfers only, `filter=15,26` transfers and achievements. See [the type table](codes.md#activity-type-t) and the notes below |
+
+### What `filter` can and cannot do
+
+It filters on **`t` and nothing else**. Established by elimination:
+
+- **A list works, a repeat does not.** `filter=15,26` (or `15%2C26`) returns
+  both types; `filter=15&filter=26` keeps only the first. `filter=[15,26]` is
+  ignored.
+- **Codes that match nothing return an empty list**, not an error — `0`, `1`,
+  `2`, `4`, `8`, `22`, `-1`. Every integer 1–120, 200, 500 and 1000 was tried:
+  only the codes that actually occur in the feed return anything, plus one
+  oddity — **`filter=34` returns the type-`17` entries**, the same ids as
+  `filter=17`. Whether `34` is an alias or a category containing `17` is
+  unresolved (**?**).
+- **A non-numeric value is ignored** and returns the unfiltered feed — `all`,
+  `transfer`, `transfers`, `abc`. This is the failure mode to watch for: it
+  looks like a filter that "does not narrow much".
+- **There is no other filter.** Every spelling of a type filter (`type`,
+  `types`, `t`, `activityType`, `activityTypes`, `category`), of a manager
+  filter (`userId`, `managerId`, `user`, `uid`, `ui`, `byr`), of a date window
+  (`from`, `to`, `since`, `until`, `dateFrom`, `dateTo`, `startDate`,
+  `endDate`), of a cursor (`before`, `after`, `beforeId`, `lastId`) and of a
+  matchday (`dayNumber`, `matchday`, `day`) answered `200` with the identical
+  unfiltered first page. **Filtering by manager or by period has to happen on
+  the client**, over pages fetched with `start`/`max`.
+
+`OPTIONS` answers `405` with `allow: GET` — read-only.
+
+### Response `200`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `af` | array | The entries, newest first — "activities feed". Both `dt` and the numeric `i` are strictly descending in every page observed |
+| `onbft` | string | **✗** An image path, identical across both leagues |
+
+#### `af[]` — one entry
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `i` | string | Entry id |
+| `t` | number | Event type — see [Codes](codes.md#activity-type-t) |
+| `dt` | string | When, ISO 8601 |
+| `coc` | number | Comment count — `0` on all 620 entries observed. The comments live at `…/activitiesFeed/{activityId}/comments?start=&max=`, which answers `{ coc, it: [] }`; `POST` there with `{ comm }` adds one (declared by the spec, not tried) |
+| `data` | object | **Depends on `t`** — the shapes follow. `{}` on some entries |
+
+#### `data` by type
+
+**`3` — a player was listed** (both Kickbase's daily listings and managers')
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `pi` | string | Player id |
+| `tid` | string | Club id |
+| `fn` | string | First name. Present but **empty** for single-name players |
+| `ln` | string | Last name |
+| `nin` | string | Nickname, on the rare player who has one (`"Bernardo"`) |
+| `mv` | number | Market value at listing, in € |
+| `pim` | string | Portrait, CDN-relative |
+| `tim` | string | Club crest, CDN-relative. **Absent on about a quarter** of the entries |
+| `prurl` | string | **✗** `pool/players/{pi}.jpg` — a second portrait path, on some entries only |
+| `iposl` | boolean | **?** `false` throughout — as on the market listing |
+
+Nothing says *who* listed the player. A manager's listing and Kickbase's look
+the same here.
+
+**`15` — a transfer went through**
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `pi` | string | Player id |
+| `pn` | string | Player's **last name** only |
+| `tid` | string | Club id |
+| `t` | number | **Direction.** `1` a manager **bought** — `byr` is set, no `slr`. `2` a manager **sold back to Kickbase** — `slr` is set, no `byr`. 28 entries, 9 and 19, never both names |
+| `trp` | number | The fee, in € |
+| `byr` | string | Buyer's display name |
+| `slr` | string | Seller's display name |
+| `pim`, `tim` | string | Portrait and crest |
+
+A **manager-to-manager** sale has not been observed (**✗**) — presumably both
+names on one entry.
+
+**`5` — a manager joined** · **`13` — a manager left**
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `i` | string | User id |
+| `n` | string | Display name |
+| `uim` | string | Avatar, CDN-relative — only for users who have one |
+
+`13` as *left* is read off the membership: all three users carrying it in the
+test league had a `5` earlier and are absent from `/ranking` today, while every
+`5`-only user is a current member.
+
+**`17` — a matchday was scored.** The feed is **personalised** here: `data`
+describes the **viewer**.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `day` | number | Matchday |
+| `mdln` | string | `"Spieltag 2"` — already localised (`"2 Match Day"` in English) |
+| `i` | string | The **viewer's** user id |
+| `pl` | number | The viewer's placement on that matchday |
+
+**`data` is `{}`** when the viewer took no part — both entries in a league the
+account had joined without fielding a team.
+
+**`26` — the viewer earned an achievement.** Also personalised: the six
+entries in the test league are exactly the six achievements
+`/v4/leagues/{leagueId}/user/achievements` lists as earned (`ise: true`), and
+a league where the account has earned none shows no `26` at all. Other
+managers' achievements do not appear.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `t` | number | Achievement type — see [Codes](codes.md#achievement-type) |
+| `n` | string | Name — `"Spieltagssieger"`, localised by `Accept-Language` |
+| `d` | string | Description — `"Werde Spieltagssieger"` |
+
+**`28` — the league was founded.** The oldest entry of every feed.
+`{ lnm }`, the league name.
+
+**`16`** — one entry per league, `data: {}`, timestamped to the second with the
+viewer's first achievement (**✗**). **`22`** — the daily login bonus
+(*Auflaufprämie*) according to the spec's example for the single-entry
+endpoint, `{ bn: 10000, day: 1 }`; **not observed live** — the test account has
+never collected one, and `filter=22` is empty in both leagues (**?**). The
+bonus itself is claimed with `GET /v4/bonus/collect`, which answers one
+`{ li, lnm, v, day, b, lim }` per league — not called, because it is a write
+dressed as a `GET`.
+
+### Used by
+
+[`useActivities`](../../src/api/hooks/useActivities.ts) →
+[Dashboard](../pages/dashboard.md#aktivitäten), as an infinite query paged
+with `start`/`max` at 25 a page.
+
+---
+
+## `GET /v4/leagues/{leagueId}/activitiesFeed/{activityId}`
+
+One entry, with **more than the list carries** — and for some types nothing at
+all.
+
+**Auth** Bearer.
+
+### Response `200`
+
+`{ t, dt, data }` — no `i`, no `coc`. The `data` is the fuller reading:
+
+| `t` | What the single entry adds |
+| --- | -------------------------- |
+| `3` | The player's stats — `tp`, `ap`, `pos`, `st`, `shn`, `tfhmvt` (the 24-hour market-value change), `smc`/`ismc`/`smdc` (**✗**) — and `mv` as it stands **now**, not at listing |
+| `15` | `byr` becomes an object `{ i, n }`, plus `fn`, `ln`, `mv` (current), `isop` (**✗**) |
+| `17` | **The whole matchday table**: `us[]` of `{ i, n, pl, p }` — every manager's placement and points — and `fp` (**✗**, empty). Note it listed **four of the five** members; the one missing had joined the day before the matchday (**?**) |
+| `5` | `uc` (**✗** `5`), `spld` (**?** `1` — starting players dealt), `ibun` (**✗** the name again) |
+| `13` | `uc`, `ds` (**✗** `1`) |
+
+| `t` | Answer |
+| --- | ------ |
+| `26`, `28`, `16` | **`500 NotFound`** — there is no detail view for these |
+
+### Used by
+
+Nothing yet. The `17` reading is what a "matchday result" row would expand into.

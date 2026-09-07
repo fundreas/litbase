@@ -1761,6 +1761,157 @@ export interface TeamcenterPlayer {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Activities feed                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `t` on an activities-feed entry — what kind of event it records.
+ *
+ * Established 2026-09-07 from 620 entries across two leagues, each type's
+ * `data` read against what the league had actually done. Unlisted codes exist
+ * (`16` arrived with an empty `data`, and the spec's example shows `22`); the
+ * mapper hands them through as `unknown` and the UI skips them.
+ */
+export const ACTIVITY_TYPE = {
+  /** A player was put on the transfer market — by Kickbase or by a manager. */
+  PLAYER_LISTED: 3,
+  /** A manager joined the league. */
+  MANAGER_JOINED: 5,
+  /**
+   * A manager left the league. Every user carrying it had a `5` before and is
+   * missing from the current member list.
+   */
+  MANAGER_LEFT: 13,
+  /** A transfer went through — `data.t` says in which direction. */
+  TRANSFER: 15,
+  /** A matchday was scored. Carries the **viewer's** placement. */
+  MATCHDAY_FINISHED: 17,
+  /**
+   * The daily login bonus (*Auflaufprämie*), **from the spec's example
+   * only**: `{ bn: 10000, day: 1 }`. Never observed live — the test account
+   * has not collected one — so the reading is unconfirmed.
+   */
+  LOGIN_BONUS: 22,
+  /** The **viewer** earned an achievement. */
+  ACHIEVEMENT: 26,
+  /** The league was founded. The oldest entry of every feed. */
+  LEAGUE_FOUNDED: 28,
+} as const
+
+/** `GET /v4/leagues/{leagueId}/activitiesFeed`. */
+export interface ActivitiesFeedResponse {
+  /** The entries, **newest first**. `af` = activities feed. */
+  af: ActivityItem[]
+  /** An image path, identical across leagues. Purpose unknown. */
+  onbft?: string
+}
+
+export interface ActivityItem {
+  /** Entry id. Numeric strings, descending with `dt`. */
+  i: string
+  /** Event type — see {@link ACTIVITY_TYPE}. */
+  t: number
+  /** ISO 8601. */
+  dt: string
+  /** Comment count. `0` on every entry observed. */
+  coc?: number
+  /** Type-specific payload — see the `Activity*Data` shapes. Can be `{}`. */
+  data?: Record<string, unknown>
+}
+
+/** `data` on a `PLAYER_LISTED` entry. */
+export interface ActivityListingData {
+  /** Player id. */
+  pi: string
+  /** Club id. */
+  tid: string
+  /** First name. Present but empty for single-name players. */
+  fn?: string
+  /** Last name. */
+  ln: string
+  /** Nickname, on the rare player who has one (`"Bernardo"`). */
+  nin?: string
+  /** Market value at listing, in €. */
+  mv: number
+  /** Portrait, CDN-relative. */
+  pim?: string
+  /** Club crest, CDN-relative. Absent on about a quarter of entries. */
+  tim?: string
+}
+
+/** `data` on a `TRANSFER` entry. */
+export interface ActivityTransferData {
+  /** Player id. */
+  pi: string
+  /** Player's **last** name. */
+  pn: string
+  /** Club id. */
+  tid: string
+  /**
+   * Direction: `1` a manager **bought** (`byr` names them, no `slr`), `2` a
+   * manager **sold** back to Kickbase (`slr`, no `byr`). Only these two seen,
+   * and never both names on one entry.
+   */
+  t: number
+  /** Fee paid, in €. */
+  trp: number
+  /** Buyer's display name. */
+  byr?: string
+  /** Seller's display name. */
+  slr?: string
+  pim?: string
+  tim?: string
+}
+
+/** `data` on a `MANAGER_JOINED` or `MANAGER_LEFT` entry. */
+export interface ActivityManagerData {
+  /** User id. */
+  i: string
+  /** Display name. */
+  n: string
+  /** Avatar, CDN-relative. Only for users who have one. */
+  uim?: string
+}
+
+/**
+ * `data` on a `MATCHDAY_FINISHED` entry. **Empty** when the viewer took no
+ * part in the matchday (a league they joined without fielding a team).
+ */
+export interface ActivityMatchdayData {
+  day: number
+  /** `"Spieltag 2"` — already localised. */
+  mdln: string
+  /** The **viewer's** user id. */
+  i: string
+  /** The viewer's placement on that matchday. */
+  pl: number
+}
+
+/** `data` on an `ACHIEVEMENT` entry. */
+export interface ActivityAchievementData {
+  /** Achievement type, on the `/user/achievements` scale (`5`, `100`, `7502`). */
+  t: number
+  /** Name — `"Spieltagssieger"`. Localised by `Accept-Language`. */
+  n: string
+  /** Description — `"Werde Spieltagssieger"`. */
+  d: string
+}
+
+/** `data` on a `LOGIN_BONUS` entry — from the spec only, see {@link ACTIVITY_TYPE}. */
+export interface ActivityBonusData {
+  /** Bonus paid, in €. */
+  bn: number
+  /** Consecutive day. */
+  day: number
+}
+
+/** `data` on a `LEAGUE_FOUNDED` entry. */
+export interface ActivityLeagueData {
+  /** League name. */
+  lnm: string
+}
+
+/* -------------------------------------------------------------------------- */
 /* User                                                                      */
 /* -------------------------------------------------------------------------- */
 

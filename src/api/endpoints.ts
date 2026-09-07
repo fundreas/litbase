@@ -243,6 +243,40 @@ export const endpoints = {
     lineupOverview: (leagueId: string) =>
       `/v4/leagues/${leagueId}/lineup/overview`,
 
+    /**
+     * The league's event log — what the app calls *Aktivitäten*: listings,
+     * completed transfers, managers joining and leaving, matchday results and
+     * the viewer's achievements. **Newest first.**
+     *
+     * Probed 2026-09-07 against two leagues; see
+     * [docs/api/leagues.md](../../docs/api/leagues.md#get-v4leaguesleagueidactivitiesfeed).
+     *
+     *  - **`start`** is a zero-based offset and **`max`** the page size
+     *    (default 25). No cap was found — `max=500` answered all 489 entries a
+     *    league had.
+     *  - **`filter`** is the **only working filter**, and it filters on the
+     *    event type `t`: a single code or a comma-separated list
+     *    (`filter=15,26`). Repeating the parameter keeps only the first; an
+     *    unknown string is ignored and returns the unfiltered feed; a number
+     *    that matches no type returns an empty list.
+     *  - **There is no manager filter and no date filter.** `userId`,
+     *    `managerId`, `from`, `to`, `since`, `until`, `dayNumber` and a dozen
+     *    other spellings all answer `200` with the unfiltered feed.
+     *
+     * The feed is **personalised**: the matchday-result entry carries the
+     * viewer's own placement and the achievement entries are the viewer's own.
+     */
+    activitiesFeed: (leagueId: string) =>
+      `/v4/leagues/${leagueId}/activitiesFeed`,
+    /**
+     * One feed entry with the **fuller payload** the list omits — the whole
+     * matchday table on a result, the buyer as an object on a transfer, the
+     * player's stats on a listing. Achievement (`26`), founding (`28`) and
+     * type-`16` entries answer `500 NotFound` here. Unused so far.
+     */
+    activity: (leagueId: string, activityId: string) =>
+      `/v4/leagues/${leagueId}/activitiesFeed/${activityId}`,
+
     /* --- Joining ------------------------------------------------------- */
 
     /** Leagues Kickbase suggests. Different item shape to `list` — see types. */

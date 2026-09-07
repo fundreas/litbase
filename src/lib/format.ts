@@ -245,6 +245,40 @@ export function dateRange(
   return from === to ? from : `${from} – ${to}`
 }
 
+const relativeFormatter = new Intl.RelativeTimeFormat(LOCALE, {
+  numeric: 'auto',
+  style: 'short',
+})
+
+/**
+ * `vor 5 Min.`, `vor 3 Std.`, `gestern`, `Do, 3. Sep.` — how long ago, for a
+ * feed.
+ *
+ * Relative up to a day, because "vor 20 Min." is what a feed reader is asking
+ * — was that before or after I looked last. Beyond a day the exact weekday
+ * says more than "vor 4 Tagen" does, and it stops the whole log below the fold
+ * reading as a countdown. `numeric: 'auto'` is what turns one day into
+ * *gestern*.
+ */
+export function relativeTime(
+  iso: string | null | undefined,
+  now: number = nowMs(),
+): string {
+  if (!iso) return '–'
+  const parsed = Date.parse(iso)
+  if (Number.isNaN(parsed)) return '–'
+  const seconds = Math.round((parsed - now) / 1000)
+  const minutes = Math.round(seconds / 60)
+  const hours = Math.round(minutes / 60)
+  if (Math.abs(seconds) < 60) return 'gerade eben'
+  if (Math.abs(minutes) < 60) return relativeFormatter.format(minutes, 'minute')
+  if (Math.abs(hours) < 24) return relativeFormatter.format(hours, 'hour')
+  if (isSameDay(parsed, now - 86_400_000)) {
+    return relativeFormatter.format(-1, 'day')
+  }
+  return weekdayDateFormatter.format(parsed)
+}
+
 /** Up to two letters for avatar fallbacks. */
 export function initials(name: string | null | undefined): string {
   if (!name) return '?'

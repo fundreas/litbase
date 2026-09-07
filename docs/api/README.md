@@ -14,7 +14,7 @@ instance, the query hooks, the domain models — is
 | -------- | --------- | ------ |
 | [Authentication](authentication.md) | 2 | Sign in, register, the bearer token |
 | [User](user.md) | 2 | The signed-in account |
-| [Leagues](leagues.md) | 7 | Membership, metadata, standings, joining |
+| [Leagues](leagues.md) | 9 | Membership, metadata, standings, joining, the activity feed |
 | [Squad and lineup](squad-and-lineup.md) | 9 | Who you own, who you field, historical snapshots |
 | [Transfer market](market.md) | 5 | Listings, bids, withdrawals |
 | [Players](players.md) | 4 | One player: detail, history, market value, owners |
@@ -40,6 +40,8 @@ the two marked *none*.
 | `GET` | `/v4/leagues/{leagueId}/me` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidme) |
 | `GET` | `/v4/leagues/{leagueId}/overview` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidoverview) |
 | `GET` | `/v4/leagues/{leagueId}/ranking` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidranking) |
+| `GET` | `/v4/leagues/{leagueId}/activitiesFeed` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidactivitiesfeed) |
+| `GET` | `/v4/leagues/{leagueId}/activitiesFeed/{activityId}` | | [Leagues](leagues.md#get-v4leaguesleagueidactivitiesfeedactivityid) |
 | `GET` | `/v4/leagues/{leagueId}/squad` | ✔ | [Squad](squad-and-lineup.md#get-v4leaguesleagueidsquad) |
 | `GET` | `/v4/leagues/{leagueId}/managers/{userId}/squad` | ✔ | [Squad](squad-and-lineup.md#get-v4leaguesleagueidmanagersuseridsquad) |
 | `GET` | `/v4/leagues/{leagueId}/users/{userId}/teamcenter` | ✔ | [Squad](squad-and-lineup.md#get-v4leaguesleagueidusersuseridteamcenter) |
@@ -196,15 +198,16 @@ Money is in **euros as an integer**. Dates are **ISO 8601 with a `Z`**, except
 
 ## What the app does not use
 
-The published spec lists **149 paths**. This reference documents **35** — the
-26 the app actually calls, plus nine neighbours that are declared, adjacent or
+The published spec lists **149 paths**. This reference documents **37** — the
+27 the app actually calls, plus ten neighbours that are declared, adjacent or
 too useful to leave undescribed (each is marked *Used: no* on its page). The
 rest are whole
 product areas the app does not implement — `/v4/challenges/*` (Kickbase's
 solo/ladder mode, ~40 paths), `/v4/onboarding/*`, `/v4/products/*` and
-`/v4/promotion` (purchases), `/v4/chat/*`, `/v4/leagues/{id}/activitiesFeed`,
+`/v4/promotion` (purchases), `/v4/chat/*`,
+`/v4/leagues/{id}/activitiesFeed/{id}/comments` (the feed's comment threads),
 `/v4/leagues/{id}/scoutedplayers`, `/v4/leagues/{id}/settings` (admin only),
-`/v4/user/achievements`, `/v4/base/news/*` — plus a few that would fit and are
+`/v4/base/news/*` — plus a few that would fit and are
 simply unbuilt:
 
 | Path | Why it is interesting |
@@ -215,6 +218,8 @@ simply unbuilt:
 | `POST /v4/leagues/{id}/market/{playerId}/offers/{offerId}/accept` · `/decline` | Selling — accepting a bid on your own listing |
 | `POST /v4/leagues/{id}/market/{playerId}/sell` | Selling straight back to Kickbase |
 | `GET /v4/leagues/{id}/me/budget` | Budget on its own, without the rest of `/me` |
+| `GET /v4/leagues/{id}/user/achievements` · `/{type}` | The viewer's 46 achievements with earned flags, and one in detail with its reward and date. Probed; the type codes are in [Codes](codes.md#achievement-type) |
+| `GET /v4/bonus/collect` | Claims the daily login bonus (*Auflaufprämie*) for every league at once — a **write dressed as a `GET`**, so it was read from the spec and never called |
 | `GET /v4/config` | Client configuration. Probed once — it names no game modes, which is why [`GAME_PLAY_MODE`](codes.md#game-modes-gpm) had to be inferred |
 
 ## Adding an endpoint here

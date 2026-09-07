@@ -341,6 +341,71 @@ export interface LeagueRanking {
   managers: RankedManager[]
 }
 
+/* -------------------------------------------------------------------------- */
+/* Activities                                                                 */
+/* -------------------------------------------------------------------------- */
+
+interface ActivityBase {
+  id: string
+  /** ISO 8601. */
+  at: string
+}
+
+/**
+ * One entry of the league's event log — the *Aktivitäten* feed.
+ *
+ * A discriminated union rather than one shape with optional fields, because
+ * the seven kinds have almost nothing in common beyond a time and an id, and a
+ * component that renders a transfer should not have to check whether a
+ * matchday placement is set. `unknown` is the catch-all for codes the app has
+ * not decoded; the feed component skips those.
+ */
+export type LeagueActivity =
+  | (ActivityBase & {
+      kind: 'listed'
+      playerId: string
+      playerName: string
+      teamId: string
+      marketValue: number
+      playerImage?: string
+      teamImage?: string
+    })
+  | (ActivityBase & {
+      kind: 'transfer'
+      playerId: string
+      playerName: string
+      teamId: string
+      /** `'bought'` off the market, `'sold'` back to Kickbase. */
+      direction: 'bought' | 'sold'
+      /** Whoever acted — the buyer or the seller. */
+      managerName: string
+      price: number
+      playerImage?: string
+      teamImage?: string
+    })
+  | (ActivityBase & {
+      kind: 'joined' | 'left'
+      managerId: string
+      managerName: string
+      managerImage?: string
+    })
+  | (ActivityBase & {
+      kind: 'matchday'
+      day: number
+      /** `"Spieltag 2"`, from the API. */
+      label: string
+      /** The viewer's placement, when they took part. */
+      placement?: number
+    })
+  | (ActivityBase & {
+      kind: 'achievement'
+      title: string
+      description: string
+    })
+  | (ActivityBase & { kind: 'bonus'; amount: number; day: number })
+  | (ActivityBase & { kind: 'founded'; leagueName: string })
+  | (ActivityBase & { kind: 'unknown'; type: number })
+
 /**
  * The standings **of one matchday** — who scored what on that day, rather than
  * where the season stands.

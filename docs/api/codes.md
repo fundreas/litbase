@@ -147,6 +147,54 @@ Only these three have been observed. `1` and anything above `3` presumably
 exist — a sale back to the market is the obvious gap — so unknown values should
 render as a neutral "Wechsel" rather than be guessed at.
 
+## Activity type (`t`)
+
+On the [activities feed](leagues.md#get-v4leaguesleagueidactivitiesfeed), and
+the value its `filter` parameter takes. Decoded on 2026-09-07 from 620 entries
+across two leagues by reading each type's `data` against what the league had
+done; declared as `ACTIVITY_TYPE` in `types.ts`.
+
+| Value | Event | `data` | Evidence |
+| ----- | ----- | ------ | -------- |
+| `3` | A player was put on the market | player, club, `mv` | 570 of the 620 entries; roughly one an hour, which is the market's own listing rate |
+| `5` | A manager joined | `{ i, n, uim? }` | Every current member has one |
+| `13` | **?** A manager left | `{ i, n, uim? }` | All three carriers had a `5` before and are no longer members |
+| `15` | A transfer completed | player, `t` direction, `trp` fee, `byr` or `slr` | Matches the market page's observed sale to the second |
+| `16` | **✗** | `{}` | One per league, same second as the viewer's first achievement |
+| `17` | A matchday was scored | `{ day, mdln, i, pl }` — **the viewer's** placement | Timestamped the Monday after the matchday; `{}` where the viewer sat it out |
+| `22` | **?** Daily login bonus (*Auflaufprämie*) | `{ bn, day }` | **Spec example only**; never observed |
+| `26` | **The viewer** earned an achievement | `{ t, n, d }` | The set equals the account's earned achievements exactly |
+| `28` | The league was founded | `{ lnm }` | The oldest entry of every feed |
+| `34` | **?** | — | As a `filter` value it returns the `17` entries; never seen as a `t` |
+
+## Achievement type
+
+`t` on `/v4/leagues/{leagueId}/user/achievements` and inside a type-`26` feed
+entry. The names are Kickbase's own (German with `Accept-Language: de-DE`), the
+codes group by the hundred:
+
+| Range | Family | Members |
+| ----- | ------ | ------- |
+| `1`–`5` | Spieltagssieger | `5` Spieltagssieger · `1`/`2`/`3` Bronze/Silber/Gold · `4` The Special One |
+| `100`–`103` | Spieltagspunkte | Bronze · Silber · Gold · `103` Jahrhundertspiel |
+| `200`–`204` | Saisonpunkte | Bronze · Silber · Gold · Platin · `204` Weltpokalsieger |
+| `300`–`303` | A player's points | `300` Topscorer · Matchwinner · Weltklasse · Fussballgott |
+| `400`–`404` | Mannschaftswert | Bronze · Silber · Gold · Platin · `404` Die Galaktischen |
+| `500`–`504` | Transfers | `500` Erster Deal · Transferkönig Bronze/Silber/Gold · `504` F. Magath |
+| `600`–`603` | League level | Kreisliga · Regionalliga · 2. Liga · 1. Liga |
+| `700`–`704` | Transfer profit | Glückliches / Bronzenes / Silbernes / Goldenes Händchen · `704` Königstransfer |
+| `900` | Managerlizenz | |
+| `2001`, `2002` | Meister, Vizemeister | |
+| `3000` | Lange Bank | |
+| `4000`, `4001` | Panini, Choreo | |
+| `5001` | MVP | |
+| `7502` | Tormaschine | "Deine Spieler haben die meisten Tore deiner Liga erzielt" |
+
+The list endpoint answers `{ t, n, ac, ise }` per achievement — `ac` a counter,
+`ise` whether it is earned; `…/achievements/{type}` adds `d` (description),
+`er` (**?** the reward in €, `1000000` for Spieltagssieger), `dt` (when earned)
+and `isrp` (**✗**). `/v4/user/achievements` without a league is `404`.
+
 ## Match status (`st` on a fixture, `mst` on a match)
 
 | Value | Meaning | Seen on |

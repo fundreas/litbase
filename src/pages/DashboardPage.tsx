@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { useLeagueDetails, useLeagueManager } from '@/api/hooks/useLeague'
 import { useRanking } from '@/api/hooks/useRanking'
 import { useAuth } from '@/auth/useAuth'
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { PageHeading } from '@/components/PageHeading'
 import { Avatar } from '@/components/ui/Avatar'
 import { Card, CardHeader, StatTile } from '@/components/ui/Card'
@@ -145,6 +146,8 @@ export function DashboardPage() {
           </ul>
         )}
       </Card>
+
+      <ActivityFeed leagueId={leagueId} />
     </div>
   )
 }

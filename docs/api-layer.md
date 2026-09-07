@@ -142,6 +142,7 @@ is what makes them safe to call before context has resolved.
 | `useMatchdayStandings(id, day)` | same entry, mapped as a manager ranking | as above |
 | `useSquad(id)` | `/leagues/{id}/squad` | 2 min (default) |
 | `useMarket(id)` | `/leagues/{id}/market` | 30 s |
+| `useActivities(id)` | `/leagues/{id}/activitiesFeed?start=&max=` | 1 min — an **infinite query**, see below |
 | `useCompetitionTable(cid)` | `/competitions/{cid}/table` | 10 min |
 | `useCompetitionPlayers(cid)` | `/competitions/{cid}/players` | 1 hour — 0 + 10 s poll while a matchday runs |
 | `useRecommendedLeagues()` | `/leagues/recommended` | 5 min |
@@ -267,6 +268,15 @@ stepping through a season re-reads nothing.
 whom on the matchday, `useMatchdayPoints` for points and positions (and `oui` as
 a last-resort owner), `useRanking` for turning a manager id into a name and an
 avatar, and the match's own event feed for who came on and who went off.
+
+`useActivities` is the app's one **`useInfiniteQuery`**. The feed has no total
+and no cursor — just `start` and `max` — so the page parameter is the offset,
+the next offset is the count of entries fetched so far, and a page shorter than
+the page size (25, the API's default) ends the sequence. The cache entry is the
+list of raw pages under one key, `qk.activities(leagueId)`, and `select`
+flattens and maps them — module-level, as the rule below requires — so
+returning to the dashboard shows every page already loaded rather than the
+first one again. See [Dashboard](pages/dashboard.md#it-loads-as-you-scroll).
 
 Mutations:
 
