@@ -22,10 +22,10 @@ import {
   AchievementDialog,
   MatchdayDialog,
   TransferDialog,
-} from '@/components/dashboard/ActivityDialogs'
+} from '@/components/events/ActivityDialogs'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState, ErrorState } from '@/components/ui/States'
@@ -34,7 +34,7 @@ import { nowMs } from '@/lib/clock'
 import { money, moneyDelta, placement, relativeTime } from '@/lib/format'
 
 /**
- * **The league's event log** — Kickbase's *Aktivitäten* tab, on the dashboard.
+ * **The league's event log** — Kickbase's *Aktivitäten* tab, and the whole of the league's landing page.
  *
  * Every entry is one thing that happened in the league: a transfer, a manager
  * arriving or leaving, a matchday scored, an achievement earned. Newest first,
@@ -100,8 +100,8 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
 
   return (
     <Card>
-      <CardHeader title="Aktivitäten" />
-
+      {/* No card header: this is the whole page now, and the page's own
+          heading already names it. */}
       {query.isPending ? (
         <div className="flex flex-col gap-2 p-3">
           <Skeleton className="h-14" />

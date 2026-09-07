@@ -39,7 +39,7 @@ export function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   // Duel leagues get an extra page, and nothing in the URL says whether this
   // is one — it is read off the standings. That makes the navigation a
   // consumer of a query, which it otherwise would not be; the cost is one
-  // small request already shared with the dashboard and the ranking page.
+  // small request already shared with the events page and the ranking page.
   const { data: ranking } = useRanking(leagueId)
   const items = useMemo(
     () =>

@@ -1,6 +1,6 @@
 import {
   CalendarDays,
-  LayoutDashboard,
+  Newspaper,
   Shield,
   Store,
   Swords,
@@ -77,7 +77,15 @@ export function isNavItemActive(
  * `/table` redirects onto it.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { to: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
+  // The league's landing page. `dashboard` is the pre-rename URL and still
+  // resolves — kept in the match list so the redirect flashes this entry on
+  // its way through rather than lighting nothing.
+  {
+    to: 'events',
+    label: 'Aktivitäten',
+    icon: Newspaper,
+    alsoMatches: ['dashboard'],
+  },
   {
     to: 'squad',
     label: 'Mannschaft',

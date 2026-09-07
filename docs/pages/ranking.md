@@ -25,7 +25,8 @@ Full standings for every manager in the league.
 The row is a name over **two subtitles**: what the manager actually scored this
 matchday, then how the duel that fed into went. Team value used to sit here but
 was displaced — it is a standing figure that says nothing about the current
-round, and it is still on the [dashboard](dashboard.md).
+round. It was on the dashboard until that page became the
+[event feed](events.md); this table is now the only place it is shown.
 
 The placement number and the avatar form their own tight group, so the row's
 gap separates them from the text rather than pushing the number away from the
@@ -184,9 +185,9 @@ the honest response to that.
 [`useRanking(leagueId)`](../../src/api/hooks/useRanking.ts) →
 `/v4/leagues/{leagueId}/ranking`, mapped to `RankedManager[]`.
 
-Note this is the **same query** the [Dashboard](dashboard.md) uses for its
-top-three preview and its Punkte/Platz/Teamwert tiles. Navigating dashboard →
-ranking is therefore free: the cache is already warm and the list renders
+Note this is the **same query** the [Events](events.md) page uses to put a face
+on its transfer rows and to decide whether the league plays duels. Arriving
+here from it is therefore free: the cache is already warm and the list renders
 instantly.
 
 ## Unmapped fields available

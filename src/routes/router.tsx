@@ -8,9 +8,9 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { HomeRedirect } from '@/routes/HomeRedirect'
 import {
-  DashboardPage,
   DuelDetailPage,
   DuelsPage,
+  EventsPage,
   JoinLeaguePage,
   LeagueGate,
   MarketPage,
@@ -98,8 +98,17 @@ export const router = createBrowserRouter(
             {
               element: <AppShell />,
               children: [
-                { index: true, element: <Navigate to="dashboard" replace /> },
-                { path: 'dashboard', element: <DashboardPage /> },
+                { index: true, element: <Navigate to="events" replace /> },
+                { path: 'events', element: <EventsPage /> },
+                // The league's landing page was `/dashboard` until the stat
+                // tiles and the standings preview came off it and the event
+                // feed became the whole page. Kept as a redirect: it is the
+                // URL every bookmark, every shared link and the old
+                // league-switcher point at.
+                {
+                  path: 'dashboard',
+                  element: <Navigate to="../events" replace relative="path" />,
+                },
                 // Three routes, one component: the active view is derived from
                 // the segment, so each is linkable and refresh-safe. The pitch
                 // is nested **under** the squad rather than a sibling, which is
@@ -153,7 +162,7 @@ export const router = createBrowserRouter(
                 },
                 // Duel leagues only. The route is registered unconditionally —
                 // the table is built once, before any league is known — and the
-                // page itself redirects to the dashboard when the league does
+                // page itself redirects to the events page when the league does
                 // not play duels, so the URL is a dead end exactly where the
                 // drawer entry is missing.
                 { path: 'duels', element: <DuelsPage /> },

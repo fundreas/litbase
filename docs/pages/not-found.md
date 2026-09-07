@@ -31,7 +31,7 @@ sibling of `RequireAuth` rather than a child of it. Two consequences:
   there is no league context to populate them with.
 
 Note this only catches URLs that match nothing. A *valid* shape with a bad
-league id — `/leagues/999999/dashboard` — is handled by
+league id — `/leagues/999999/events` — is handled by
 [`LeagueProvider`](../../src/league/LeagueProvider.tsx) instead, which
 redirects to `/leagues` and forwards on to a real league. Users effectively
 never reach this page from a stale league bookmark.

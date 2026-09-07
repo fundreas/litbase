@@ -13,7 +13,7 @@ than asks.
    └─ useLeagues()
         ├─ pending          → LoadingState
         ├─ error            → ErrorState + retry (inside signed-in chrome)
-        ├─ leagues[0] exists → <Navigate replace> /leagues/{id}/dashboard
+        ├─ leagues[0] exists → <Navigate replace> /leagues/{id}/events
         └─ list empty       → "Keine Liga gefunden"
 ```
 

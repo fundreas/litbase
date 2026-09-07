@@ -44,7 +44,7 @@ export function LeagueGate() {
   // state — no length check needed.
   const firstLeague = leagues[0]
   if (firstLeague !== undefined) {
-    return <Navigate to={`/leagues/${firstLeague.id}/dashboard`} replace />
+    return <Navigate to={`/leagues/${firstLeague.id}/events`} replace />
   }
 
   return (

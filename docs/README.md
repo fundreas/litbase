@@ -25,7 +25,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/register` | [Register](pages/register.md) | Implemented |
 | `/leagues` | [League gate](pages/league-gate.md) | Implemented |
 | `/join` | [Join a league](pages/join-league.md) | Implemented |
-| `/leagues/:leagueId/dashboard` | [Dashboard](pages/dashboard.md) | Implemented |
+|  `/leagues/:leagueId/events` | [Events](pages/events.md) | Implemented |
 | `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |
 | `/leagues/:leagueId/squad/lineup` | [Squad — lineup tab](pages/squad.md#lineup-tab) | Implemented |
 | `/leagues/:leagueId/squad/live` | [Squad — live tab](pages/squad.md#live-tab) | Implemented — only while a matchday runs |

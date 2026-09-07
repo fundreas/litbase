@@ -228,7 +228,7 @@ export function DuelsPage() {
   // hides the entry; this is what makes a typed or bookmarked URL behave the
   // same way instead of rendering an empty screen.
   if (!duels.data.isDuelMode) {
-    return <Navigate to={`/leagues/${leagueId}/dashboard`} replace />
+    return <Navigate to={`/leagues/${leagueId}/events`} replace />
   }
 
   const hasStarted = state === 'live' || state === 'finished'

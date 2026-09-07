@@ -66,7 +66,7 @@ export function SquadPage() {
   const { user } = useAuth()
   const squad = useSquad(leagueId)
   // The budget is the manager's, not the squad's, so it is its own query —
-  // a small one the dashboard has usually filled already.
+  // a small one the events page has usually filled already.
   const manager = useLeagueManager(leagueId)
   /**
    * Is a matchday being played right now?

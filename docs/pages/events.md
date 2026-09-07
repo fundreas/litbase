@@ -1,35 +1,39 @@
-# Dashboard
+# Events
 
-[← Back to index](../README.md) · Route `/leagues/:leagueId/dashboard` ·
-[`src/pages/DashboardPage.tsx`](../../src/pages/DashboardPage.tsx)
+[← Back to index](../README.md) · Route `/leagues/:leagueId/events` ·
+[`src/pages/EventsPage.tsx`](../../src/pages/EventsPage.tsx)
 
-The league's landing page, and the **reference implementation** for the query
-pattern every other data page should follow.
+**The league's event log, and nothing else** — the landing page of a league.
+
+## What this page used to be
+
+It was the *Dashboard*: four stat tiles (budget, team value, points, placement)
+over a top-three preview of the standings, with the feed added underneath. All
+of it came off on 2026-09-07, because none of it was the only place to read
+what it said:
+
+| What it showed | Where it already was |
+| -------------- | -------------------- |
+| Budget, team value | The app header, on every page |
+| Points, placement | [Rangliste](ranking.md), in full and for everyone |
+| Squad size | A number nobody arrives asking for |
+| Top three | [Rangliste](ranking.md), one tap away |
+
+What was left was a summary of pages that summarise themselves. The feed is the
+one thing here that exists nowhere else: what has happened in the league since
+you last looked. So it *is* the page.
+
+The old URL `/leagues/:leagueId/dashboard` still resolves — it redirects, since
+it is what bookmarks and shared links point at. The drawer entry is
+*Aktivitäten*.
 
 ## Layout
 
 ```
   MADMASSCREM Sunday Leauge
-  Bundesliga · 4 Manager · seit 11. Aug. 2026
-
-  ┌──────────────┬──────────────┐
-  │ BUDGET       │ TEAMWERT     │
-  │ -23,8 Mio. € │ 194,4 Mio. € │
-  ├──────────────┼──────────────┤
-  │ PUNKTE       │ PLATZ        │
-  │ 2.074        │ 3.           │
-  │ Spieltag: 88 │ 20 Spieler…  │
-  └──────────────┴──────────────┘
+  Was in der Liga passiert ist
 
   ┌─────────────────────────────┐
-  │ Rangliste            Alle › │
-  │ 1.  (A) elias         755   │
-  │ 2.  (A) robidfl       612   │
-  │ 3.  (A) Danger  du    588   │
-  └─────────────────────────────┘
-
-  ┌─────────────────────────────┐
-  │ Aktivitäten                 │
   │ (🏆) Tormaschine            │
   │      +250.000 €  vor 5 Min. │
   │ (🏳) Spieltag 2 ist beendet │
@@ -43,58 +47,24 @@ pattern every other data page should follow.
   └─────────────────────────────┘
 ```
 
-## Data
+The heading is the **league's name**, not "Aktivitäten": this is the league's
+front door, and the drawer entry beside it already says what kind of page it
+is.
 
-Four queries, each loading independently so one slow request never blocks the
-rest of the page:
+## Data
 
 | Query | Supplies |
 | ----- | -------- |
-| [`useLeagueManager(leagueId)`](../../src/api/hooks/useLeague.ts) | Budget, squad size |
-| [`useLeagueDetails(leagueId)`](../../src/api/hooks/useLeague.ts) | Competition name, manager count, founding date — the subtitle |
-| [`useRanking(leagueId)`](../../src/api/hooks/useRanking.ts) | Team value, points, placement, and the top three |
 | [`useActivities(leagueId)`](../../src/api/hooks/useActivities.ts) | The event log, 25 entries a page |
+| [`useRanking(leagueId)`](../../src/api/hooks/useRanking.ts) | Manager avatars for the transfer rows, by name; and whether the league plays duels |
 | [`useAchievement(leagueId, type)`](../../src/api/hooks/useAchievements.ts) | Per achievement row: what it paid, how often it was earned |
 | [`useMatchdayStandings(leagueId, day)`](../../src/api/hooks/useDuels.ts) | The ranking sheet a matchday row opens |
+| [`usePlayerOffers(leagueId, playerId)`](../../src/api/hooks/usePlayerOffers.ts) | Your own bid, when a purchase sheet is opened |
 
-The signed-in user's own row is found by matching `manager.id` against
-`user?.id` from `useAuth()`, since `/leagues/{id}/me` does not itself carry
-points or team value — those only exist in the ranking payload.
+Only the first two load with the page. The other three are opened on demand, by
+a row or by the sheet it opens.
 
-## Stat tiles
-
-Four [`StatTile`](../../src/components/ui/Card.tsx) instances in a
-`grid-cols-2`. Two columns rather than four: at 390px wide, four tiles would
-truncate every value.
-
-| Tile | Value | Sub-line | Tone |
-| ---- | ----- | -------- | ---- |
-| Budget | `money(budget)` | — | Red when negative, green otherwise |
-| Teamwert | `money(teamValue)` | — | Neutral |
-| Punkte | `points(seasonPoints)` | Matchday points | Neutral |
-| Platz | `placement(seasonPlacement)` | Squad size | Neutral |
-
-Budget being negative is normal in Kickbase (managers borrow against team
-value), so it is tinted rather than flagged as an error.
-
-All figures use the `nums` utility for tabular figures, so digits line up
-between the two columns. Money is compact — `-23,8 Mio. €` rather than
-`-23.771.190 €` — because the full form does not fit a phone column. See
-[`lib/format.ts`](../../src/lib/format.ts).
-
-## Ranking preview
-
-The top three from the same `useRanking` data, so opening the dashboard and
-then the full [Ranking](ranking.md) page costs one request, not two. The *Alle*
-link routes to `/leagues/:leagueId/ranking`, and the user's own row is tagged
-`du` in the accent colour.
-
-## Aktivitäten
-
-The league's event log, below the ranking — Kickbase's own *Aktivitäten* tab.
-[`ActivityFeed`](../../src/components/dashboard/ActivityFeed.tsx) reads
-[`GET /leagues/{id}/activitiesFeed`](../api/leagues.md#get-v4leaguesleagueidactivitiesfeed)
-and renders one row per entry, newest first:
+## The rows
 
 | Type | Row | Detail line | Leading | Tap |
 | ---- | --- | ----------- | ------- | --- |
@@ -199,27 +169,32 @@ differently for every member of the same league.
 
 ## States
 
-- **Loading**: the tile grid is replaced by four `Skeleton` blocks, the
-  ranking card by three and the activity card by four, each section
-  independently. The heading renders immediately since the league name comes
-  from context, not a query.
-- **Error**: only `managerQuery` failing takes over the page — it is the one
-  query without which nothing meaningful remains. `detailsQuery` failing just
-  drops the subtitle; `rankingQuery` failing leaves the tiles' points and
-  placement blank (`–`, from the formatters' null handling); the activity card
-  shows its own error state with a retry, inside the card.
+The whole page is one card, so its states are the feed's:
 
-That asymmetry is deliberate: a partial dashboard beats an error page.
+- **Loading**: four `Skeleton` rows. The heading renders immediately — the
+  league name comes from context, not from a query.
+- **Error**: an `ErrorState` with a retry, inside the card. Nothing else on the
+  page can fail, since nothing else on the page loads.
+- **Empty**: *Noch nichts passiert*. A league founded minutes ago genuinely has
+  one entry, and after the type filter it can have none.
+
+The manager avatars are the deliberate soft edge: `useRanking` failing costs
+the transfer rows their faces and falls back to initials, and the feed reads
+correctly without it.
 
 ## Possible extensions
 
-- The `lp` array on each ranking user is points-per-matchday, oldest first,
-  with `null` for matchdays not played — enough for a sparkline without any
-  new request.
-- `useLeagueManager` also returns `tpc`, per-team player counts in the squad,
-  with club crest paths. A "your clubs" strip would need no new endpoint.
-- `unreadCount` is already mapped on both the manager and league models but is
-  not surfaced anywhere yet.
-- A matchday row could expand into the **whole matchday table**:
+- A **type filter** — chips for *Transfers* · *Spieltage* · *Erfolge* — maps
+  straight onto the API's `filter` parameter and would be one query key per
+  selection. The obvious next step, and the reason `FEED_TYPES` is a list
+  rather than a constant string.
+- A matchday row could expand into the **whole matchday table** without
+  `/ranking`:
   [`GET …/activitiesFeed/{activityId}`](../api/leagues.md#get-v4leaguesleagueidactivitiesfeedactivityid)
   answers every manager's placement and points for a type-`17` entry.
+- **Comment threads.** `coc` is rendered as a count and the threads behind it
+  are readable and writable — see
+  [the API notes](../api/leagues.md#get-v4leaguesleagueidactivitiesfeed).
+  Nothing in the app opens one.
+- `unreadCount` is mapped on both the manager and league models and is still
+  not surfaced anywhere.

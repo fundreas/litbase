@@ -442,7 +442,7 @@ Two fan-outs, both of which the two team-sheet tabs share:
 | ---- | -------- |
 | Points, per player | ~36 — twenty-two starters plus both benches, via [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts) |
 | Ownership, per manager | 10–20 — one matchday snapshot each, via [`useMatchdayLineups`](../../src/api/hooks/useMatchdaySquad.ts) |
-| The standings | 1, cached, shared with the dashboard and the ranking page |
+| The standings | 1, cached, shared with the events page and the ranking page |
 
 Neither has a bulk alternative that answers the right question.
 `/leagues/{id}/players`, `?ids=` and every other shape answer 404 for points;

@@ -54,7 +54,7 @@ export function LeagueProvider() {
         ? location.pathname.slice(prefix.length)
         : ''
       void navigate(
-        `/leagues/${nextLeagueId}${subPath === '' ? '/dashboard' : subPath}`,
+        `/leagues/${nextLeagueId}${subPath === '' ? '/events' : subPath}`,
         { replace: true },
       )
     },

@@ -67,7 +67,7 @@ export function MarketPage() {
   const { data, isPending, isError, error, refetch } = useMarket(leagueId)
   const matchday = useCurrentMatchday(competitionId)
   // For `upe` — whether this league lets a bid fall below the market value.
-  // Cached ten minutes and already fetched by the dashboard, so arriving from
+  // Cached ten minutes and already fetched by the events page, so arriving from
   // there costs nothing.
   const details = useLeagueDetails(leagueId)
   const listings = data?.listings

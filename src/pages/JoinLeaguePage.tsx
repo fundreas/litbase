@@ -391,7 +391,7 @@ function JoinConfirmation({
     join.mutate(league.id, {
       onSuccess: () => {
         onClose()
-        void navigate(`/leagues/${league.id}/dashboard`, { replace: true })
+        void navigate(`/leagues/${league.id}/events`, { replace: true })
       },
       onError: (caught) => {
         setError(

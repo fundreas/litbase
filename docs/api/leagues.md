@@ -122,7 +122,7 @@ League metadata, the member list, and — crucially — the **league rules**.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| `includeManagersAndBattles` | boolean | **?** Declared required by the published spec, and the app omits it and gets a usable response anyway. With `true` the spec's example additionally carries `us` (managers, spelled out) and `btls` (the league's award standings — "Matchday Master", "Transfer King", …). **Unused; a Dashboard extension is what would want it** |
+| `includeManagersAndBattles` | boolean | **?** Declared required by the published spec, and the app omits it and gets a usable response anyway. With `true` the spec's example additionally carries `us` (managers, spelled out) and `btls` (the league's award standings — "Matchday Master", "Transfer King", …). **Unused; a league-overview extension is what would want it** |
 
 ### Response `200`
 
@@ -555,7 +555,7 @@ dressed as a `GET`.
 ### Used by
 
 [`useActivities`](../../src/api/hooks/useActivities.ts) →
-[Dashboard](../pages/dashboard.md#aktivitäten), as an infinite query paged
+[Events](../pages/events.md), as an infinite query paged
 with `start`/`max` at 25 a page.
 
 ---
@@ -586,7 +586,7 @@ all.
 ### Used by
 
 Nothing yet. The `17` reading is what a "matchday result" row would expand into;
-the [dashboard](../pages/dashboard.md#aktivitäten) reads `/ranking?dayNumber=`
+the [events page](../pages/events.md) reads `/ranking?dayNumber=`
 for that instead, which has avatars.
 
 ### Where a bid of your own can be read back
@@ -624,5 +624,5 @@ listing stands and only inside a list of twenty.
 > **Whether a *losing* bid survives the sale is unresolved** (**?**). Every
 > completed transfer probed answered `ofs: []` — but the account had bid on
 > none of them, and producing a lost bid costs a listing's full run. The
-> [dashboard](../pages/dashboard.md#aktivitäten) asks anyway and renders the
+> [events page](../pages/events.md) asks anyway and renders the
 > answer when there is one.

@@ -315,7 +315,7 @@ A league that does not play duels has no duels page:
 - **The drawer entry is hidden.** `navigation.ts` marks it
   `requiresDuelMode: true` and `NavContent` filters on `useRanking`'s
   `isDuelMode`. See [Navigation](../routing-and-layout.md#navigation).
-- **The route redirects** to the dashboard. It has to be registered
+- **The route redirects** to the events page. It has to be registered
   unconditionally — the route table is built at module load, before any league
   is known — so the page itself is what makes the URL a dead end.
 
@@ -411,7 +411,7 @@ first.
 | ----- | --------- |
 | Loading (schedule or duels) | A picker-shaped placeholder plus `SkeletonList rows={6}` — the heading *is* the picker, so a title about to be replaced by something else would be the wrong placeholder |
 | Error | `ErrorState` with retry, whichever query failed |
-| Not a duel league | `<Navigate>` to the dashboard |
+| Not a duel league | `<Navigate>` to the events page |
 | No pairings for the matchday | `EmptyState` — "Für diesen Spieltag sind noch keine Paarungen ausgelost." |
 | Rangliste before the first kick-off | `EmptyState` — "Noch kein Spieltag gespielt", under a plain `Rangliste` heading |
 | Rangliste with no points in the payload | `EmptyState` — "Für diesen Spieltag liefert Kickbase keine Punkte." |

@@ -130,7 +130,7 @@ POST /v4/leagues/{leagueId}/join      (no request body)
 
 On success the mutation invalidates `qk.leagues.all` (membership changed) and
 `qk.joinable.all` (the browsable lists now contain a league the user is in),
-then the page navigates to `/leagues/{id}/dashboard` with `replace`.
+then the page navigates to `/leagues/{id}/events` with `replace`.
 
 Errors render inside the dialog rather than replacing the page, so the user
 keeps their place in the list. A league that has vanished comes back as

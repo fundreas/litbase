@@ -51,8 +51,23 @@ export function TransferDialog({
       title="Transfer"
     >
       {/* The player, at the size the market draws him — this sheet is about
-          one player and there is room for his face. */}
-      <div className="flex items-center gap-3">
+          one player and there is room for his face.
+
+          **The face and the name are the link to his page.** A *Zum Spieler*
+          row at the foot of the sheet used to carry it, which put the way out
+          as far as possible from the thing it was about and spent a line saying
+          what a tap on a portrait says for free. Everywhere else in the app a
+          player's picture is how you get to a player, so it is here too. */}
+      <Link
+        to={`/leagues/${leagueId}/players/${activity.playerId}`}
+        onClick={onClose}
+        title={`${activity.playerName} – Spielerseite öffnen`}
+        className={cn(
+          '-m-1 flex items-center gap-3 rounded-card p-1',
+          'transition-colors hover:bg-surface-2/60',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+        )}
+      >
         <Avatar
           src={activity.playerImage}
           name={activity.playerName}
@@ -65,7 +80,12 @@ export function TransferDialog({
           </p>
           <p className="nums text-sm text-muted">{money(activity.price)}</p>
         </div>
-      </div>
+        <ChevronRight
+          size={18}
+          aria-hidden="true"
+          className="shrink-0 text-faint"
+        />
+      </Link>
 
       <div className="flex items-center gap-2 rounded-card border border-line bg-surface-2/40 px-3 py-2.5">
         <ArrowRight size={16} aria-hidden="true" className="text-positive" />
@@ -95,15 +115,6 @@ export function TransferDialog({
           </span>
         </div>
       ) : null}
-
-      <Link
-        to={`/leagues/${leagueId}/players/${activity.playerId}`}
-        onClick={onClose}
-        className="flex items-center justify-center gap-0.5 text-sm font-medium text-accent"
-      >
-        Zum Spieler
-        <ChevronRight size={15} />
-      </Link>
     </InfoDialog>
   )
 }

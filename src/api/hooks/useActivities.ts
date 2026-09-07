@@ -60,7 +60,7 @@ const FEED_TYPES = [
  * An **infinite query**: `?start=` is the page parameter, the offset of the
  * first entry wanted, and the next offset is simply the number of entries
  * fetched so far. The cache entry is the pages themselves, so scrolling back
- * to the dashboard shows everything already loaded rather than the first page
+ * to the events page shows everything already loaded rather than the first page
  * again; `select` flattens and maps them, and — as everywhere — is a
  * module-level constant so it is memoised on identity.
  *

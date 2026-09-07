@@ -16,7 +16,7 @@ import type { PlayerOffersResponse } from '@/api/types'
  * all.
  *
  * `enabled` is the caller's, because the one caller is a dialog: the
- * [activity feed](../../components/dashboard/ActivityFeed.tsx) asks for this
+ * [activity feed](../../components/events/ActivityFeed.tsx) asks for this
  * when a transfer is opened, not for every transfer row on screen. Held for
  * five minutes — a bid does not change unless the viewer changes it, and the
  * market page invalidates its own key when they do.

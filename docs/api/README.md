@@ -220,7 +220,7 @@ simply unbuilt:
 | `POST /v4/leagues/{id}/market/{playerId}/offers/{offerId}/accept` · `/decline` | Selling — accepting a bid on your own listing |
 | `POST /v4/leagues/{id}/market/{playerId}/sell` | Selling straight back to Kickbase |
 | `GET /v4/leagues/{id}/me/budget` | Budget on its own, without the rest of `/me` |
-| `GET /v4/leagues/{id}/user/achievements` | The viewer's 46 achievements with earned flags — the list behind the `/{type}` detail the dashboard reads. Type codes in [Codes](codes.md#achievement-type) |
+| `GET /v4/leagues/{id}/user/achievements` | The viewer's 46 achievements with earned flags — the list behind the `/{type}` detail the events page reads. Type codes in [Codes](codes.md#achievement-type) |
 | `GET /v4/leagues/{id}/managers/{id}/transfer` | A manager's completed deals, `tty` 1 bought / 2 sold. Not their bids — see [Leagues](leagues.md#where-a-bid-of-your-own-can-be-read-back) |
 | `GET /v4/bonus/collect` | Claims the daily login bonus (*Auflaufprämie*) for every league at once — a **write dressed as a `GET`**, so it was read from the spec and never called |
 | `GET /v4/config` | Client configuration. Probed once — it names no game modes, which is why [`GAME_PLAY_MODE`](codes.md#game-modes-gpm) had to be inferred |

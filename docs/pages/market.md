@@ -236,7 +236,7 @@ and this is the one response the page already fetches that carries it.
 
 The league's underpay setting comes from a second query,
 [`useLeagueDetails`](../../src/api/hooks/useLeague.ts) → `/overview`, as
-`allowsUnderpay`. It is cached ten minutes and the dashboard has usually filled
+`allowsUnderpay`. It is cached ten minutes and the events page has usually filled
 it already; until it lands, the dialog enforces no underpay rule at all rather
 than guessing at one.
 

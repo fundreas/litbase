@@ -17,9 +17,7 @@ export function HomeRedirect() {
   return (
     <Navigate
       to={
-        lastLeagueId === null
-          ? '/leagues'
-          : `/leagues/${lastLeagueId}/dashboard`
+        lastLeagueId === null ? '/leagues' : `/leagues/${lastLeagueId}/events`
       }
       replace
     />

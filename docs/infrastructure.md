@@ -291,6 +291,6 @@ Two independent layers:
 ## Not yet done
 
 - **No tests.** `npm run check` is the current safety net.
-- Only Login, the League gate and Dashboard have been confirmed rendering in a
+- Only Login, the League gate and the Events page have been confirmed rendering in a
   browser. Everything else passes typecheck, lint and build but has not been
   exercised at runtime.

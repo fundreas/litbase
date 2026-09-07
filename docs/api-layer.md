@@ -277,8 +277,8 @@ the next offset is the count of entries fetched so far, and a page shorter than
 the page size (25, the API's default) ends the sequence. The cache entry is the
 list of raw pages under one key, `qk.activities(leagueId)`, and `select`
 flattens and maps them — module-level, as the rule below requires — so
-returning to the dashboard shows every page already loaded rather than the
-first one again. See [Dashboard](pages/dashboard.md#it-loads-as-you-scroll).
+returning to the events page shows every page already loaded rather than the
+first one again. See [Events](pages/events.md#it-loads-as-you-scroll).
 
 Mutations:
 

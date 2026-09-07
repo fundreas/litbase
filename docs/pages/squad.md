@@ -115,7 +115,7 @@ decisions they inform, which is the Kader view. The legend button was the one
 thing worth keeping and moves to the [bench heading](#lineup-tab).
 
 The **budget chip** is its own small query (`/leagues/{id}/me`), which the
-dashboard has usually filled already. Kickbase lets a budget go negative — an
+events page has usually filled already. Kickbase lets a budget go negative — an
 overdrawn manager pays interest — so the sign is a state worth seeing without
 reading the number, and it belongs next to the squad because every transfer
 decision starts here.
@@ -418,7 +418,7 @@ deliberately not reused here.
 | Error | `ErrorState` with a retry that refetches |
 | Empty | *Kein Spieler im Kader* — buy players on the market |
 
-Unlike [Dashboard](dashboard.md), this page has a single query, so an error
+Unlike [Events](events.md), this page has a single query, so an error
 takes over the whole page. There is no partial view to preserve.
 
 ## Data

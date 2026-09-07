@@ -17,15 +17,15 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
    ├─ /join                         browse and join leagues
    └─ /leagues/:leagueId            <LeagueProvider>
       └─                            <AppShell>
-         ├─ (index)                 → dashboard
-         ├─ dashboard
+         ├─ (index)                 → events
+         ├─ events
          ├─ squad     ┐ same component, tab from the segment
          │  ├─ lineup │
          │  └─ live   ┘ only while a matchday is being played, else → squad
          ├─ lineup      the pitch's old URL, kept as a redirect
          ├─ market
          ├─ ranking
-         ├─ duels      ?day=N — duel leagues only, else → dashboard
+         ├─ duels      ?day=N — duel leagues only, else → events
          │  └─ :duelId          both manager ids joined with "-"
          │     └─ ranking       second tab of the same component
          ├─ matchday   ?day=N — every fixture of one matchday
@@ -62,7 +62,7 @@ loading state — and redirects to it, or falls through to `/leagues`.
 
 **[`LeagueGate`](../src/pages/LeagueGate.tsx)** handles `/leagues`. It
 resolves rather than asks: fetch the league list, then `<Navigate>` to the
-first league's dashboard. It only renders a screen for the three cases where
+first league's events page. It only renders a screen for the three cases where
 there is nowhere to send the user — loading, error, or an account in no
 league. See [League gate](pages/league-gate.md).
 
@@ -73,7 +73,7 @@ league. See [League gate](pages/league-gate.md).
 These three cannot loop. The worst case is a stale remembered id:
 
 ```
-/  →  /leagues/999/dashboard  →  /leagues  →  /leagues/4127831/dashboard
+/  →  /leagues/999/events  →  /leagues  →  /leagues/4127831/events
       (stale, not in list)        (resolves)   (id taken from the live list)
 ```
 
@@ -117,7 +117,7 @@ const { league, leagueId, competitionId, leagues, switchLeague } =
    `['league', oldId]`).
 3. Navigates to **the equivalent page** in the new league —
    `/leagues/A/market` becomes `/leagues/B/market`, falling back to
-   `dashboard` when the sub-path cannot be determined.
+   `events` when the sub-path cannot be determined.
 
 The provider also writes the active league id to storage on every mount, which
 is what `HomeRedirect` reads.
@@ -228,7 +228,7 @@ Both surfaces read one config,
 [`navigation.ts`](../src/components/layout/navigation.ts):
 
 ```ts
-{ to: 'dashboard', label: 'Übersicht',    icon: … }
+{ to: 'events',    label: 'Aktivitäten', icon: … }
 { to: 'squad',     label: 'Mannschaft',   icon: …, alsoMatches: ['players', 'lineup'] }
 { to: 'market',    label: 'Transfermarkt', icon: … }
 { to: 'ranking',   label: 'Rangliste',    icon: … }
@@ -241,13 +241,13 @@ nothing in the URL says whether this is one — it is read off the standings
 (`hhpl`, see [Ranking](pages/ranking.md#duel-mode)). So `NavContent` calls
 `useRanking` and filters entries carrying `requiresDuelMode`. That makes the
 navigation a consumer of a query, which it otherwise would not be; the cost is
-one small request, already shared with the dashboard and the ranking page. The
+one small request, already shared with the events page and the ranking page. The
 entry is **hidden until the query resolves** rather than shown and withdrawn,
 which would flash an entry a normal league never has.
 
 Its **route is registered unconditionally** — the route table is built once, at
 module load, long before any league is known. [Duels](pages/duels.md) instead
-redirects to the dashboard when the league does not play duels, so a typed or
+redirects to the events page when the league does not play duels, so a typed or
 bookmarked URL is a dead end exactly where the drawer entry is missing. This is
 the pattern to copy for any future league-dependent page.
 

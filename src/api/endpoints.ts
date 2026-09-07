@@ -218,7 +218,7 @@ export const endpoints = {
      * **Whether a *losing* bid survives the sale is unverified** (**?**): every
      * completed transfer probed answered `ofs: []`, but the account had bid on
      * none of them, and a bid that loses takes a listing's full run to
-     * produce. So the [activity feed](../../docs/pages/dashboard.md#aktivitäten)
+     * produce. So the [activity feed](../../docs/pages/events.md#aktivitäten)
      * asks and renders the answer when there is one.
      */
     playerOffers: (leagueId: string, playerId: string) =>
