@@ -304,31 +304,47 @@ export const endpoints = {
     /** All competitions (Bundesliga, La Liga, MLS, …). */
     all: '/v4/competitions',
     /**
-     * **The current matchday's twenty-five best players**, points descending —
-     * not "all players in a competition", which is what the published
-     * documentation calls it. See
-     * [`useCompetitionPlayers`](./hooks/useCompetition.ts).
+     * **The twenty-five best players**, points descending — not "all players
+     * in a competition", which is what the published documentation calls it.
+     * See [`useCompetitionPlayers`](./hooks/useCompetition.ts).
      *
-     * `position` is one of the [`PLAYER_POSITION`](./types.ts) codes and is
-     * the **only** parameter that scopes this endpoint. It answers that
-     * position's own top 25, so the four together reach 93 players where the
-     * unfiltered call reaches 25 — the twenty-sixth striker is out of reach
-     * either way, because the cap applies per list and cannot be raised
-     * (`max`, `limit`, `start`, `count`, `size`, `top`, `page`, `offset` and
-     * `n` were each probed and each answered the identical rows).
-     *
-     * Keepers come back **below** the cap — 18 on a nine-fixture matchday —
-     * because that is the whole population rather than a slice of it.
-     *
-     * The spec's other parameter, `sorting=1`, switches the list to *season*
-     * points and drops `mi`/`ot` from the rows. Unused here: this endpoint is
-     * only ever asked for a matchday. Every scoping parameter that would
-     * select a *past* matchday is silently ignored — see
+     * It takes exactly **two** parameters, and they are the two the spec
+     * declares. Everything else is swallowed in silence, `dayNumber` and its
+     * eight other spellings included, so a `200` here is no evidence that a
+     * parameter was understood — see
      * [docs/api/competitions.md](../../docs/api/competitions.md#get-v4competitionscompetitionidplayers).
+     *
+     *  - **`position`**, one of the [`PLAYER_POSITION`](./types.ts) codes.
+     *    Answers that position's own top 25, so the four together reach 93
+     *    players where the unfiltered call reaches 25. The twenty-sixth
+     *    striker is out of reach either way: the cap applies per list and
+     *    cannot be raised (`max`, `limit`, `start`, `count`, `size`, `top`,
+     *    `page`, `offset` and `n` were each probed and each answered the
+     *    identical rows). Keepers come back **below** the cap — 18 on a
+     *    nine-fixture matchday — because that is the whole population rather
+     *    than a slice of it.
+     *  - **`sorting=1`**, which switches the list from the current matchday
+     *    to **season totals**. Verified: Kimmich's `p` of 556 is exactly the
+     *    303 and 253 his `ph` holds for the two matchdays played. These rows
+     *    **drop `mi` and `ot`** — there is no one fixture for a season total
+     *    to point at.
+     *
+     * The two compose, so `{ position: 1, sorting: 1 }` is the season's best
+     * keepers.
      */
-    players: (competitionId: string, position?: number) =>
-      `/v4/competitions/${competitionId}/players` +
-      (position === undefined ? '' : `?position=${String(position)}`),
+    players: (
+      competitionId: string,
+      { position, sorting }: { position?: number; sorting?: number } = {},
+    ) => {
+      const query = new URLSearchParams()
+      if (position !== undefined) query.set('position', String(position))
+      if (sorting !== undefined) query.set('sorting', String(sorting))
+      const suffix = query.toString()
+      return (
+        `/v4/competitions/${competitionId}/players` +
+        (suffix === '' ? '' : `?${suffix}`)
+      )
+    },
     /** Real-world league table. */
     table: (competitionId: string) => `/v4/competitions/${competitionId}/table`,
     /**

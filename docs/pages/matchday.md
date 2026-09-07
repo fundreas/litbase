@@ -21,7 +21,7 @@ match-detail pages dock:
 | Tab | What |
 | --- | ---- |
 | **Spiele** | The fixtures, grouped by kick-off — everything below |
-| **Rangliste** | The matchday's [25 best players](#rangliste) |
+| **Rangliste** | The [25 best players](#rangliste) of the matchday or of the season |
 
 Two questions, not one page scrolled twice. *Spiele* answers "how did the games
 go"; *Rangliste* answers "who actually scored", which is a competition-wide
@@ -110,7 +110,7 @@ played reads as "these three are on" in one look rather than one dot at a time.
 | ---- | ---------- | ---- |
 | The fixtures | `useMatchdayMatches(cid, day)` → `/competitions/{cid}/matchdays` | **Nothing new** — a third `select` on the season payload the squad page, the duel picker and the player pages already share |
 | The live score and minute | `useLiveMatches(matches)` → `/matches/{mi}/details` × N | One request per **started** match; a finished one is fetched once and held, only a running one polls |
-| The ranking | `useCompetitionPlayers(cid, { position })` → `/competitions/{cid}/players` | **One request per position chip**, cached per chip, and only on the Rangliste view — the Spiele view is the front door and does not pay for a list it never renders |
+| The ranking | `useCompetitionPlayers(cid, { scope, position })` → `/competitions/{cid}/players` | **One request per scope-and-position combination**, cached per combination, and only on the Rangliste view — the Spiele view is the front door and does not pay for a list it never renders |
 | The clubs in it | `useTeamDirectory(cid)` → `/competitions/{cid}/table` | Shared cache entry with the [Teams](teams.md) page; club names for the ranking's second line |
 | Who owns them | `useRanking(id)` + `useMatchdayLineups(id, day, managerIds)` | One cached request for the managers, then **one per manager** — the same fan-out and the same cache entries the [match lineup](match-detail.md) uses |
 
@@ -134,6 +134,10 @@ is what lets a fixture *list* drive it as naturally as a player's fixtures do.
 ## Rangliste
 
 ```
+  ┌──────────────────┬──────────────────┐
+  │   Spieltag 2     │      Saison      │
+  └──────────────────┴──────────────────┘
+
   ( Alle )  ( TW )  ( ABW )  ( MF )  ( ANG )
 
   1  [img] Maza                    319
@@ -144,13 +148,34 @@ is what lets a fixture *list* drive it as naturally as a player's fixtures do.
         MF · Bremen
 ```
 
-The matchday's **twenty-five best players**, points descending, each row a link
-to that player. Rank, portrait, name over position and club, score on the
+The competition's **twenty-five best players**, points descending, each row a
+link to that player. Rank, portrait, name over position and club, score on the
 right — deliberately the club page's *Punktesammler* row, because the same
 question in a different scope should not look like a different kind of list.
 The second line differs: there it is position and market value, here it is
 position and **club**, since a competition-wide list is the one place where
 "who does he play for" is not already answered by the surrounding screen.
+
+### The scope toggle is the heading
+
+*Spieltag 2* | *Saison*, in the place the page title used to be. On this view
+the heading was doing the toggle's job badly: a title reading **Spieltag** over
+a subtitle reading **die 25 besten Spieler des Spieltags** said the same thing
+twice, and left the season ranking — the other half of what this endpoint
+answers — with nowhere to live. Two labelled segments say which list you are
+reading *and* that there is another one, in the space the title had. The page
+keeps an `sr-only` `h1`, because two visible headings above each other would
+be the duplication the toggle just removed.
+
+`?scope=season` is the endpoint's `sorting=1`, and it is a different question
+rather than a different sort: **different players, ranked by a different
+number.** Verified against a player's own `ph` — Kimmich's season `p` of 556 is
+exactly the 303 and 253 of the two matchdays played.
+
+Labelled, not the icon-only [`PairToggle`](../../src/components/ui/PairToggle.tsx)
+the squad and match ranking use. That control is for a display preference where
+both states show the same data; which of *these* two you are looking at has to
+be readable at a glance rather than inferred from which glyph is lit.
 
 The top three carry the accent colour and nothing else does. A podium reads as
 a podium without medal glyphs, and three tinted rows in twenty-five stay
@@ -198,12 +223,13 @@ nine fixtures. It polls at the live rate while the matchday runs.
 Not a `.slice()` taken here. The endpoint returns exactly that many, and no
 parameter raises the cap — `max`, `limit`, `start`, `count`, `size`, `top`,
 `page`, `offset` and `n` were each probed and each answered the identical rows.
-That is why the subtitle says "die 25 besten" rather than leaving a round
-number to imply a local limit somebody could talk us out of.
+It holds for both scopes and for every position, which is why nothing on the
+screen promises a count: the chips and the toggle would each need their own
+caveat, and *TW* would be wrong either way.
 
 ### The position chips are five requests, not one filter
 
-*Alle · TW · ABW · MF · ANG*, above the list. `?position=` is the one
+*Alle · TW · ABW · MF · ANG*, above the list. `?position=` is the other
 parameter the endpoint honours, and the twenty-five cap applies to **each
 filtered list separately**. So *ABW* is not the defenders out of the overall
 twenty-five — it is the top twenty-five defenders, most of whom the *Alle*
@@ -211,32 +237,46 @@ list has no room for. Between them the chips reach **93 distinct players**
 where the unfiltered call reaches 25, which is what makes them worth a request
 rather than a `.filter()` over the list already in hand.
 
-Each chip is its own cache entry, so a filter looked at once comes straight
-back, and only the one on screen polls. Where the chips sit is deliberate:
-**inside the ranking, above the rows they change** — not up in the page head
-beside the matchday picker, which this list has nothing to do with.
+The chips compose with the scope, so there are **ten lists**, each its own
+cache entry: one looked at once comes straight back, and only the one on screen
+polls. Where the chips sit is deliberate: **inside the ranking, above the rows
+they change** — not up beside the scope toggle, which changes what the whole
+screen is about rather than which slice of it you see.
 
 **A short list is not a truncated one.** *TW* comes back with 18 rows on a
 nine-fixture matchday, because that is every keeper who played rather than a
-slice of them. The subtitle drops the count when a chip is active for exactly
-that reason: "die 25 besten" over 18 rows would read as a bug in the list.
+slice of them — 20 for the season, where a keeper who played only as a
+substitute still has a total.
 
-The chip lives in the URL as `?pos=`, beside `?day=` and for the same reasons —
-*Rangliste, Torwarte* is worth linking to, and it survives a refresh and a trip
-to the fixtures and back. An unrecognised value falls back to *Alle*.
+The chip lives in the URL as `?pos=`, beside `?day=` and `?scope=` and for the
+same reasons — *Saison, Torwarte* is worth linking to, and it survives a
+refresh and a trip to the fixtures and back. An unrecognised value falls back
+to *Alle*.
 
-### The current matchday only
+### The matchday scope is the current matchday only
 
-The endpoint takes a position but **no matchday at all** — `dayNumber`,
-`matchId`, `mi` and six more spellings were each probed and each answered the
-identical rows. So the ranking is always the competition's current matchday,
-and two things follow:
+The endpoint takes a position and a scope but **no matchday at all** —
+`dayNumber`, `matchId`, `mi` and six more spellings were each probed and each
+answered the identical rows. So three things follow:
 
 - **The picker is hidden on this view.** A control that visibly does nothing is
   worse than its absence, because it would imply the list below had followed.
 - **Picking another matchday and switching to Rangliste** gets an `EmptyState`
   naming the matchday that *can* be shown, with one tap to get there. Not an
   error and not an empty list: the data exists, it just cannot be asked for.
+- **The season scope has no such limit** and stays available whatever `?day=`
+  says, because it is not tied to a matchday in the first place. From that
+  empty state it is one tap away in the toggle directly above, which is why the
+  state says so rather than only offering the trip back to the current
+  matchday.
+
+### The owner badge in the season list
+
+It still reads the **current** matchday's lineups, so a season row says
+*somebody has him now* rather than *somebody had him for the goals that got him
+up here*. The current holder is the useful reading — whose bench a season-long
+scorer is sitting on — and there is no per-matchday ownership history in the
+API to offer instead.
 
 The matchday number travels **with the list** (`day` on the response) rather
 than being read off the season schedule, so the page shows the endpoint's own

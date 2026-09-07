@@ -59,19 +59,6 @@ export const POSITION_NAME: Record<PositionKey, string> = {
   fwd: 'Stürmer',
 }
 
-/**
- * The same names in the plural, for prose about a group of them. Three of the
- * four are unchanged, which is exactly why they are written out rather than
- * derived — a rule that appends nothing three times and "e" once is a rule
- * about German, and this file is not the place to keep one.
- */
-export const POSITION_NAME_PLURAL: Record<PositionKey, string> = {
-  gk: 'Torwarte',
-  def: 'Verteidiger',
-  mid: 'Mittelfeldspieler',
-  fwd: 'Stürmer',
-}
-
 export function toPosition(code: number): PositionKey {
   return POSITION_BY_CODE[code] ?? 'mid'
 }

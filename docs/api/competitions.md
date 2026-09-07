@@ -209,12 +209,17 @@ needed one per player across nine fixtures. Polled at the
 [live rate](../api-layer.md) while a matchday runs; between matchdays it cannot
 move at all.
 
-**`position` is sent**, from the chip row on the
-[Rangliste](../pages/matchday.md#the-position-chips-are-five-requests-not-one-filter)
-— one cache entry per chip, so the five lists coexist. **`sorting` is not**:
-nothing in the app wants a season leaderboard yet. `CompetitionPlayer` in
-[`types.ts`](../../src/api/types.ts) already has `mi` and `ot` optional, so a
-`sorting=1` call would type-check as it stands.
+**Both parameters are sent**, from two controls on the
+[Rangliste](../pages/matchday.md#rangliste): `sorting=1` from the
+[scope toggle](../pages/matchday.md#the-scope-toggle-is-the-heading) that stands
+where the page heading used to, `position` from the
+[chip row](../pages/matchday.md#the-position-chips-are-five-requests-not-one-filter)
+above the rows. They compose, so there are ten lists and ten cache entries, and
+only the one on screen polls.
+
+`CompetitionPlayer` in [`types.ts`](../../src/api/types.ts) has `mi` and `ot`
+optional, which is what makes the `sorting=1` rows safe to map with the same
+code — a season row has neither.
 
 ---
 

@@ -19,7 +19,19 @@ import type {
 const HOUR = 60 * 60_000
 
 /**
- * **The matchday's twenty-five best players**, points descending.
+ * Which points the ranking is of — one matchday's, or the whole season's.
+ *
+ * `'season'` is the endpoint's `sorting=1`. It is not a *sort* of the matchday
+ * list despite the parameter's name: it is a different set of players ranked
+ * by a different number.
+ */
+export type RankingScope = 'matchday' | 'season'
+
+/** `sorting=1` is season totals; the default, unsent, is the matchday. */
+const SORTING_SEASON = 1
+
+/**
+ * **The twenty-five best players**, points descending.
  *
  * Not "every player in a competition", which is what the published
  * documentation calls it — but not "one fixture's players" either, which is
@@ -40,10 +52,12 @@ const HOUR = 60 * 60_000
  * out of eighteen. A top-25 list simply does not contain most players. For a
  * club's squad use [`useTeamProfile`](./useTeam.ts).
  *
- * **It ignores every parameter it does not declare.** `?dayNumber=`,
- * `?matchId=` and `?mi=` were each probed and each answered the identical 25
- * rows, so the list is always the competition's *current* matchday — there is
- * no way to ask it for a past one. That is why the
+ * ## Two parameters, and nothing else gets through
+ *
+ * `?dayNumber=`, `?matchId=`, `?mi=` and six more spellings of "which
+ * matchday" were each probed and each answered the identical rows, so the
+ * matchday list is always the competition's *current* one — there is no way to
+ * ask it for a past one. That is why the
  * [matchday page](../../../docs/pages/matchday.md) shows its Rangliste for the
  * current matchday only, and says so when another is picked, rather than
  * silently labelling one matchday's list with another's number.
@@ -52,9 +66,9 @@ const HOUR = 60 * 60_000
  * needs the endpoint's own answer to "which matchday is this", not the
  * schedule's.
  *
- * ## `position` is the one parameter that bites
+ * The two that do get through are the two the spec declares:
  *
- * It filters, and the twenty-five cap applies to **each filtered list
+ * **`position` filters, and the twenty-five cap applies to each filtered list
  * separately** — so the four positions are four top-25s and reach 93 players
  * between them where the unfiltered call reaches 25. That is what the chips on
  * the Rangliste are: not a client-side filter over a list of 25, which would
@@ -65,22 +79,42 @@ const HOUR = 60 * 60_000
  * fixture — because that is every keeper who played, not a slice of them. So a
  * list under 25 rows is not a signal that anything was truncated or dropped.
  *
+ * **`sorting=1` swaps the matchday for the season** — {@link RankingScope}
+ * `'season'`. Same shape, same cap, different question, and it is the only
+ * ranking in the API that is not tied to a matchday at all, which is why the
+ * season scope stays available when a past `?day=` is selected and the
+ * matchday scope cannot answer.
+ *
+ * Season rows carry **no `mi` and no `ot`**: there is no one fixture for a
+ * season total to point at. `matchId` on the mapped player is therefore
+ * `undefined` throughout a season list, which every consumer already allows
+ * for.
+ *
+ * ## Cost
+ *
  * Polls at the live rate while a matchday is running — it is one small
  * response, and it is the only bulk source of matchday points in the API, so
  * the ranking moves without the per-player fan-out
- * [`useMatchdayPoints`](./useMatchdayPoints.ts) pays for. Only the filter
- * currently on screen polls; the other four sit in the cache going stale, and
- * are refetched on the tap that brings one back.
+ * [`useMatchdayPoints`](./useMatchdayPoints.ts) pays for. Season totals move
+ * live too, since they are accumulating as the matchday runs.
+ *
+ * Only the scope-and-position combination on screen polls; the other nine sit
+ * in the cache going stale, and are refetched on the tap that brings one back.
  */
 export function useCompetitionPlayers(
   competitionId: string | undefined,
   {
     isLive = false,
     position,
-  }: { isLive?: boolean; position?: PositionKey } = {},
+    scope = 'matchday',
+  }: {
+    isLive?: boolean
+    position?: PositionKey
+    scope?: RankingScope
+  } = {},
 ): UseQueryResult<MatchdayTopScorers> {
   return useQuery({
-    queryKey: qk.competitionPlayers(competitionId ?? 'none', position),
+    queryKey: qk.competitionPlayers(competitionId ?? 'none', scope, position),
     enabled: competitionId !== undefined,
     // While a matchday runs the list reorders every few minutes; between
     // matchdays it cannot change at all until the next one kicks off.
@@ -88,10 +122,11 @@ export function useCompetitionPlayers(
     refetchInterval: isLive ? LIVE_POLL_MS : (false as const),
     queryFn: async () => {
       const data = await get<CompetitionPlayersResponse>(
-        endpoints.competitions.players(
-          competitionId as string,
-          position === undefined ? undefined : POSITION_CODE[position],
-        ),
+        endpoints.competitions.players(competitionId as string, {
+          position:
+            position === undefined ? undefined : POSITION_CODE[position],
+          sorting: scope === 'season' ? SORTING_SEASON : undefined,
+        }),
       )
       return {
         day: data.day,

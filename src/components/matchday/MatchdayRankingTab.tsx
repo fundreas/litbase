@@ -1,7 +1,7 @@
 import { Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 
-import type { TeamSummary } from '@/api/hooks/useCompetition'
+import type { RankingScope, TeamSummary } from '@/api/hooks/useCompetition'
 import { useMatchdayLineups } from '@/api/hooks/useMatchdaySquad'
 import { useRanking } from '@/api/hooks/useRanking'
 import type {
@@ -32,8 +32,13 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
 ]
 
 /**
- * The matchday's best players, best first — and **who in the league owns
+ * The competition's best players, best first — and **who in the league owns
  * them**.
+ *
+ * Of one matchday or of the whole season: `scope` says which, and the toggle
+ * that sets it stands where the [page's](../../pages/MatchdayPage.tsx) heading
+ * used to. Everything below is identical either way, because the endpoint
+ * answers both in the same shape.
  *
  * **One request for the list.** `/v4/competitions/{id}/players` is the only
  * bulk source of per-player matchday points in the API and it answers the top
@@ -47,11 +52,11 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  *
  * ## The position chips are five requests, not one filter
  *
- * `?position=` is the one parameter the endpoint honours, and the cap applies
- * to **each filtered list separately**. So *ABW* is not the defenders out of
- * the overall twenty-five — it is the top twenty-five defenders, most of whom
- * the *Alle* list has no room for. Between them the five chips reach 93
- * distinct players.
+ * `?position=` is one of the two parameters the endpoint honours, and the cap
+ * applies to **each filtered list separately**. So *ABW* is not the defenders
+ * out of the overall twenty-five — it is the top twenty-five defenders, most of
+ * whom the *Alle* list has no room for. Between them the five chips reach 93
+ * distinct players, and they compose with the scope: ten lists in all.
  *
  * That is why this is not a `.filter()` over the list already in hand, which
  * would have been free and would have shown four or five names per position.
@@ -90,6 +95,13 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * It is deliberately **mounted, not gated**: this component only exists while
  * the Rangliste view is open, so the fan-out is scoped by the view existing
  * rather than by a flag somebody has to remember to pass.
+ *
+ * **The badge means the same thing in the season list**, and it is worth being
+ * clear about what that is: ownership is read for the *current* matchday, so a
+ * season row says "somebody has him now", not "somebody had him for the goals
+ * that got him up here". The current holder is the useful reading — it is the
+ * one that tells you whose bench a season-long scorer is sitting on — and the
+ * API has no per-matchday ownership history to offer instead.
  */
 export function MatchdayRankingTab({
   data,
@@ -97,6 +109,7 @@ export function MatchdayRankingTab({
   leagueId,
   viewerId,
   isPending,
+  scope,
   position,
   onPositionChange,
 }: {
@@ -105,6 +118,7 @@ export function MatchdayRankingTab({
   leagueId: string
   viewerId: string | undefined
   isPending: boolean
+  scope: RankingScope
   position: PositionKey | undefined
   onPositionChange: (position: PositionKey | undefined) => void
 }) {
@@ -179,11 +193,7 @@ export function MatchdayRankingTab({
     <EmptyState
       icon={<Trophy size={22} />}
       title="Keine Wertung"
-      description={
-        position === undefined
-          ? 'Für diesen Spieltag hat noch kein Spieler gepunktet.'
-          : `Für diesen Spieltag hat noch kein ${POSITION_NAME[position]} gepunktet.`
-      }
+      description={`${scope === 'season' ? 'In dieser Saison' : 'Für diesen Spieltag'} hat noch ${position === undefined ? 'kein Spieler' : `kein ${POSITION_NAME[position]}`} gepunktet.`}
     />
   ) : (
     <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
