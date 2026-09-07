@@ -166,6 +166,7 @@ export function PlayerDetailPage() {
             appearances={currentSeason?.appearances}
             pointsScale={pointsScale}
             isLoadingMatches={performance.isPending}
+            leagueId={leagueId}
           />
         )}
 
@@ -183,6 +184,9 @@ export function PlayerDetailPage() {
             <PlayerPerformanceTab
               seasons={performance.data}
               teams={teams.data}
+              playerId={playerId ?? ''}
+              playerName={player.data?.fullName ?? ''}
+              leagueId={leagueId}
             />
           ))}
 

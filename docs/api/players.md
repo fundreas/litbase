@@ -193,6 +193,17 @@ returns the same payload.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | `dayNumber` | number | The matchday. **Honoured** — verified: `?dayNumber=1` during matchday 2 returned matchday 1's fixture and its score. Omitted, the current matchday is served |
+| `seasonId` | string | **The season**, as `sid` on [`/performance`](#get-v4leaguesleagueidplayersplayeridperformance). Undocumented and honoured: `?dayNumber=1&seasonId=34` served the 2025/2026 opener while 2026/2027 was running. Omitted, the running season is served |
+
+> **`seasonId` opens the whole archive**, which is what makes a per-match
+> breakdown worth building: every season a player has appeared in resolves, back
+> to 2017/2018 in the squad probed. Cross-checked against `/performance`, which
+> states an `mi` and a `p` per fixture — season 34, matchday 1 answered
+> `mi: 8310, p: 39` from both, so the pair `(seasonId, dayNumber)` addresses
+> exactly the fixture a performance row represents.
+>
+> An out-of-range `dayNumber` is not an error: `?dayNumber=34` mid-season
+> returned that fixture with `mst: 0`, no `p` and no events.
 
 ### Response `200`
 
@@ -219,11 +230,36 @@ returns the same payload.
 | `mt` | number | The minute |
 | `ddp` | object | Template data for the sub-line, e.g. `{ "goalBy": "Schick" }` |
 | `ddi` | string | Which template — the key into `dds` on `/v4/live/eventtypes`. Observed `"100"` on a goal, resolving against that object |
+| `ei` | string | This entry's own id, unique within the match |
+| `cei` | string | **The `ei` this entry takes back** — see below |
+| `att` | number | **?** `0`, `1`, `2` or `3`, absent on structural entries. `0` on the great majority; the non-zero values cluster on the reversal pairs below, which suggests a revision pass rather than anything about the action. Nothing reads it |
+
+> **Kickbase re-scores by appending a reversal, not by editing.** When it
+> re-classifies an action it leaves the original entry alone and adds a new one
+> that repeats the `eti` with the sign of `p` flipped, pointing `cei` at the
+> entry it cancels. Measured on a settled match: five such pairs, every one an
+> exact negation, the ten members summing to zero.
+>
+> Read raw, a breakdown therefore says *Ball intercepted +5* and *Ball
+> intercepted −5* a line apart — Kickbase's revision history rather than an
+> account of the match. Netting the pairs out is safe precisely because they
+> negate exactly: 129 raw entries became 111 rows still summing to the stated
+> total. [`toPlayerMatchBreakdown`](../../src/api/hooks/usePlayerMatchEvents.ts)
+> does it, and only for pairs that cancel to the point.
 
 **The breakdown is complete**, not a selection: the `p` values sum **exactly**
-to the payload's own `p` — 129 entries totalling 239 against a stated `p: 239`.
-So a "why did he score 239?" sheet can be built from it with no remainder row
-and no rounding to explain.
+to the payload's own `p` — 129 entries totalling 239 against a stated `p: 239`
+during the matchday, and 131 totalling 238 against `238` once it had settled.
+So "why did he score 238?" has an answer with no remainder row and no rounding
+to explain, which is what the
+[player page's match breakdown](../pages/player-detail.md#the-match-breakdown)
+draws.
+
+**Every scoring event resolves against the catalogue.** All 121 of them in the
+probed match; only the negative structural ids miss, and those all carry
+`p: 0`. A player who came on and scored nothing has a payload of *nothing but*
+that structure — seven entries, all zero — which is a real case and not an
+error.
 
 **Any player, owned or not.** The match's scorer, whom nobody in the probed
 league owned, answered `p: 180` with 45 breakdown entries. That is what makes it

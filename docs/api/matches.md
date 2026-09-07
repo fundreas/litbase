@@ -8,7 +8,7 @@ is league-scoped.
 | Method | Path | Auth | Used |
 | ------ | ---- | ---- | ---- |
 | `GET` | [`/v4/matches/{matchId}/details`](#get-v4matchesmatchiddetails) | Bearer | yes |
-| `GET` | [`/v4/live/eventtypes`](#get-v4liveeventtypes) | Bearer | no |
+| `GET` | [`/v4/live/eventtypes`](#get-v4liveeventtypes) | Bearer | yes |
 
 ---
 
@@ -126,9 +126,12 @@ That gate is the one uncertain thing about it; see
 Names for every scoring event Kickbase knows — **621 of them**, ids `-17` to
 `4765`, from *Deadly Pass* to *Fouled in the opponent's half*.
 
-**Auth** Bearer. No parameters. **Unused — but no longer unusable:** it is the
-lookup table for `eti` on the player centre's `events[]`, which is the
-per-event points breakdown this endpoint was always waiting for. See
+**Auth** Bearer. No parameters. **Used** — it is the lookup table for `eti` on
+the player centre's `events[]`, and that join is what the
+[player page's match breakdown](../pages/player-detail.md#the-match-breakdown)
+is built on: it is what turns `eti: 4249` into *Goal conceded*. Read through
+[`useEventTypeNames`](../../src/api/hooks/usePlayerMatchEvents.ts), one request
+cached for a day, as a `Map` keyed by id. See
 [the join](#the-join-that-was-missing).
 
 > **It is not live, whatever the path says.** Polled seven times at 30-second
@@ -145,6 +148,13 @@ per-event points breakdown this endpoint was always waiting for. See
 | ----- | ---- | ----------- |
 | `lcud` | string | Last updated, ISO 8601. Moves when Kickbase revises its scoring, not per matchday |
 | `it` | array | `{ i, ti }` — event type id and human-readable title. 621 entries, **169 distinct titles** |
+
+> **`ti` is localised from `Accept-Language`.** The same id answers
+> *Ballverlust* to a `de-DE` request and *Possession lost* to an `en-US` one —
+> checked on `4240`, `4291` and `4237`. The app's [client](../../src/api/client.ts)
+> sends `de-DE,de;q=0.9`, so the breakdown reads German without translating
+> anything. Probes run with no `Accept-Language` get English, which is why the
+> earlier notes here quote English titles.
 | `dds` | object | Templates for an event card's sub-line, keyed `1`…`7`, `20`, `100`: `"Assist by {assistBy}"`, `"Goal by {goalBy}"`, `"Missed by {missedBy}"`, `"Suspended for next match day"`, `"-"`. **What indexes it is `ddi`** on a player-centre event — observed `ddi: "100"` on a goal, resolving to `dds["100"]`. These keys are *not* `ke` codes; do not join them to that scale |
 
 > **This is a different, much larger scale than the `ke` codes** on a match's

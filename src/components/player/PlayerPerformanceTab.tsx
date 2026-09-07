@@ -2,7 +2,12 @@ import { ChevronDown, Footprints, Shirt, Volleyball } from 'lucide-react'
 import { useState } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
-import { pointsScaleFor, type PlayerSeason } from '@/api/models'
+import {
+  pointsScaleFor,
+  type PlayerMatch,
+  type PlayerSeason,
+} from '@/api/models'
+import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { PlayerMatchRow } from '@/components/player/PlayerMatchRow'
 import { Drawer } from '@/components/ui/Drawer'
 import { StepButton } from '@/components/ui/StepButton'
@@ -22,16 +27,36 @@ import { points as formatPoints } from '@/lib/format'
  *
  * The rows are [`PlayerMatchRow`](./PlayerMatchRow.tsx), the same component the
  * Details tab uses for the handful of matches around the current matchday.
+ *
+ * **Tapping a match he played opens its
+ * [action breakdown](./PlayerMatchEventsDialog.tsx)** — every scoring action
+ * Kickbase credited him with in that fixture, and what each was worth. This is
+ * the tab it belongs on: a season of point totals is a list of unanswered
+ * questions, and each row now has its answer one tap behind it.
+ *
+ * **The archive is reachable too.** The breakdown endpoint takes a `seasonId`
+ * alongside the matchday, so a 2019 match answers as readily as last Saturday's
+ * — the `seasonId` is passed for every season but the running one, which the
+ * endpoint already defaults to. The one thing an archived season does not get
+ * is the header's link to the match page, which can only resolve a fixture from
+ * the current season.
  */
 export function PlayerPerformanceTab({
   seasons,
   teams,
+  playerId,
+  playerName,
+  leagueId,
 }: {
   /** Newest first. */
   seasons: PlayerSeason[]
   teams: Map<string, TeamSummary> | undefined
+  playerId: string
+  playerName: string
+  leagueId: string | undefined
 }) {
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
+  const [openMatch, setOpenMatch] = useState<PlayerMatch | undefined>(undefined)
   // Across every season, so switching seasons does not rescale the bars.
   const pointsScale = pointsScaleFor(seasons)
 
@@ -50,6 +75,10 @@ export function PlayerPerformanceTab({
     seasons.find((season) => season.id === selectedId) ?? seasons[0]
   if (selected === undefined) return null
 
+  // `seasons[0]` is the running one — the only season whose match ids the
+  // match page can resolve, and so the only one whose breakdown header links.
+  const isRunningSeason = selected.id === seasons[0]?.id
+
   return (
     <div className="flex flex-col gap-3">
       <SeasonPicker
@@ -65,10 +94,35 @@ export function PlayerPerformanceTab({
               match={match}
               teams={teams}
               pointsScale={pointsScale}
+              onOpen={() => {
+                setOpenMatch(match)
+              }}
             />
           </li>
         ))}
       </ul>
+
+      {/* Keyed by the match, so opening a second one after a first mounts a
+          fresh dialog rather than reusing the query state of the last. */}
+      {openMatch !== undefined && (
+        <PlayerMatchEventsDialog
+          key={openMatch.matchId}
+          match={openMatch}
+          playerId={playerId}
+          playerName={playerName}
+          leagueId={leagueId}
+          seasonId={isRunningSeason ? undefined : selected.id}
+          teams={teams}
+          matchTo={
+            isRunningSeason && leagueId !== undefined
+              ? `/leagues/${leagueId}/matchday/${openMatch.matchId}`
+              : undefined
+          }
+          onClose={() => {
+            setOpenMatch(undefined)
+          }}
+        />
+      )}
     </div>
   )
 }

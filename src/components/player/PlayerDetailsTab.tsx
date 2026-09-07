@@ -1,5 +1,5 @@
 import { House, Info, PlaneTakeoff, Shirt, Timer } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import {
@@ -8,6 +8,7 @@ import {
   type PlayerMatch,
   type PlayerOwnership,
 } from '@/api/models'
+import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { PlayerMatchRow } from '@/components/player/PlayerMatchRow'
 import {
   MarketValueCard,
@@ -41,6 +42,7 @@ export function PlayerDetailsTab({
   appearances,
   pointsScale,
   isLoadingMatches,
+  leagueId,
 }: {
   player: PlayerDetail
   /** Absent while loading, and for a player nobody owns. */
@@ -54,7 +56,11 @@ export function PlayerDetailsTab({
   /** Top of the scale for the bar under a match row — see `pointsScaleFor`. */
   pointsScale: number
   isLoadingMatches: boolean
+  /** For the match-breakdown dialog a played row opens, and its link out. */
+  leagueId: string | undefined
 }) {
+  const [openMatch, setOpenMatch] = useState<PlayerMatch | undefined>(undefined)
+
   return (
     <div className="flex flex-col gap-4">
       {player.statusText !== undefined && (
@@ -149,6 +155,9 @@ export function PlayerDetailsTab({
                         match={match}
                         teams={teams}
                         pointsScale={pointsScale}
+                        onOpen={() => {
+                          setOpenMatch(match)
+                        }}
                       />
                     )}
                   </li>
@@ -157,6 +166,28 @@ export function PlayerDetailsTab({
             </ul>
           )}
         </Card>
+      )}
+
+      {/* Every row here is this season's, so the breakdown needs no `seasonId`
+          and the match page can always resolve the fixture. Keyed by the match
+          so a second one mounts fresh rather than reusing the first's query. */}
+      {openMatch !== undefined && (
+        <PlayerMatchEventsDialog
+          key={openMatch.matchId}
+          match={openMatch}
+          playerId={player.id}
+          playerName={player.fullName}
+          leagueId={leagueId}
+          teams={teams}
+          matchTo={
+            leagueId === undefined
+              ? undefined
+              : `/leagues/${leagueId}/matchday/${openMatch.matchId}`
+          }
+          onClose={() => {
+            setOpenMatch(undefined)
+          }}
+        />
       )}
 
       {player.probabilitySource !== undefined && (

@@ -91,12 +91,26 @@ export const qk = {
   /**
    * One player in **one matchday's** match — the live score and its breakdown.
    *
-   * Keyed by the matchday, unlike {@link playerDetail}: this response describes
-   * a single fixture and `?dayNumber=` chooses which, so the entries cannot be
-   * shared across days.
+   * Keyed by the matchday *and the season*, unlike {@link playerDetail}: this
+   * response describes a single fixture, and `?dayNumber=` with `?seasonId=`
+   * is what chooses which, so the entries cannot be shared across either.
+   * `seasonId` is omitted for the running season, which is what the endpoint
+   * defaults to — so the key it produces is the one the live pages already use.
    */
-  playerCenter: (leagueId: string, playerId: string, day: number) =>
-    [...qk.playerDetail(leagueId, playerId), 'center', day] as const,
+  playerCenter: (
+    leagueId: string,
+    playerId: string,
+    day: number,
+    seasonId?: string,
+  ) =>
+    [
+      ...qk.playerDetail(leagueId, playerId),
+      'center',
+      day,
+      seasonId ?? 'current',
+    ] as const,
+  /** The scoring-event catalogue. Global — not scoped to a league or season. */
+  eventTypes: () => ['eventTypes'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
   /**
    * One club's squad, in the context of a league.

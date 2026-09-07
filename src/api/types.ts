@@ -935,6 +935,28 @@ export interface PlayerCenterEvent {
   ddp?: Record<string, string>
   /** Which template — the key into `dds` on `/v4/live/eventtypes`. */
   ddi?: string
+  /**
+   * **The event this one takes back**, as an {@link ei}.
+   *
+   * Kickbase re-classifies its own scoring while and after a match, and it
+   * does so by *appending a reversal* rather than editing the original: the
+   * new entry repeats the `eti` with the sign of `p` flipped and points `cei`
+   * at the entry it cancels. Measured on a settled match: five such pairs, all
+   * exact negations, the ten members summing to zero.
+   *
+   * So a breakdown read raw contains "Ball intercepted +5" and "Ball
+   * intercepted −5" a line apart. Netting the pairs out is what
+   * [`toPlayerMatchBreakdown`](./hooks/usePlayerMatchEvents.ts) does, and
+   * because they negate exactly, the total survives it.
+   */
+  cei?: string
+  /**
+   * **?** Seen as `0`, `1`, `2` and `3`, and absent on structural entries.
+   * `0` on the great majority; the non-zero values cluster on the reversal
+   * pairs above, which suggests a revision pass or attempt counter rather than
+   * anything about the action. Nothing reads it.
+   */
+  att?: number
 }
 
 /** One fixture in {@link PlayerDetailResponse.mdsum}. */

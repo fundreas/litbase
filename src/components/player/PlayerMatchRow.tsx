@@ -52,12 +52,22 @@ export function PlayerMatchRow({
   match,
   teams,
   pointsScale,
+  onOpen,
 }: {
   match: PlayerMatch
   /** Team id → name. Only this season's clubs resolve; the crest always does. */
   teams: Map<string, TeamSummary> | undefined
   /** Top of the bar's scale — see `pointsScaleFor`. */
   pointsScale: number
+  /**
+   * Open the [action breakdown](./PlayerMatchEventsDialog.tsx) for this match.
+   *
+   * Given, the row becomes a button — but **only for a match he actually
+   * played**. A fixture still to come has no actions in it, and one he sat out
+   * has nothing but the match's own structure, so a tappable row there would
+   * promise a list and deliver an empty state.
+   */
+  onOpen?: () => void
 }) {
   const opponent = teams?.get(match.opponentId)
   const Venue = match.isHome ? House : PlaneTakeoff
@@ -67,15 +77,32 @@ export function PlayerMatchRow({
       ? undefined
       : pointsColor(match.points, PLAYER_POINTS_BANDS)
 
+  const canOpen = onOpen !== undefined && match.isFinished && played
+  /*
+   * A button when there is a breakdown behind it, a plain block otherwise.
+   * The card is the target rather than an added chevron: the whole row is
+   * about this one match, so there is nothing on it a tap could mean instead.
+   */
+  const Shell = canOpen ? 'button' : 'div'
+
   return (
-    <div
+    <Shell
+      {...(canOpen
+        ? {
+            type: 'button' as const,
+            onClick: onOpen,
+            title: 'Aktionen dieses Spiels ansehen',
+          }
+        : {})}
       className={cn(
-        'flex flex-col overflow-hidden rounded-card border border-line bg-surface',
+        'flex w-full flex-col overflow-hidden rounded-card border border-line bg-surface text-left',
         // A fixture still to come is a placeholder, not a result.
         !match.isFinished && 'opacity-60',
+        canOpen &&
+          'transition-colors hover:border-accent/40 hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
       )}
     >
-      <div className="flex items-center gap-2.5 px-3 py-2">
+      <div className="flex w-full items-center gap-2.5 px-3 py-2">
         <span className="nums w-6 shrink-0 text-xs text-faint">
           {match.day}.
         </span>
@@ -163,7 +190,7 @@ export function PlayerMatchRow({
           />
         </span>
       )}
-    </div>
+    </Shell>
   )
 }
 

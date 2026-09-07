@@ -49,6 +49,8 @@ needs them.
 | `/v4/leagues/{lid}/players/{pid}/performance` | Details + Leistung | Every season, every fixture |
 | `/v4/leagues/{lid}/players/{pid}/marketvalue/365` | Details + Markt | A year of daily values, purchase price, profit/loss |
 | `/v4/leagues/{lid}/players/{pid}/transferHistory` | when owned | Who owns them, and since when |
+| `/v4/leagues/{lid}/playercenter/{pid}?dayNumber=&seasonId=` | on opening a [match breakdown](#the-match-breakdown) | Every scoring action of one match, and what each was worth |
+| `/v4/live/eventtypes` | with the first breakdown | Names for all 621 event types. One shared entry, cached for a day |
 
 The performance history is the page's largest response — a twelve-season career
 runs to about 110 kB uncompressed — and Details needs it for three things: the
@@ -223,6 +225,93 @@ the player's role, minutes, event badges, and points.
 Points read `–`, never `0`, for a match the player took no part in. `0` would
 claim they were on the pitch and scored nothing, which is a different — and
 much worse — thing to be told about your striker.
+
+### The match breakdown
+
+**Tapping a match he played opens every scoring action Kickbase credited him
+with in it**, and what each was worth —
+[`PlayerMatchEventsDialog`](../../src/components/player/PlayerMatchEventsDialog.tsx).
+
+This is the one number on the page that could never be explained. A defender's
+239 is arrived at through a hundred and eleven small things — a pass into the
+final third, a possession lost, a goal conceded, and once in a while the goal
+itself — and none of them were anywhere in the app. Kickbase serves the lot:
+`events[]` on the [player centre](../api/players.md#get-v4leaguesleagueidplayercenterplayerid),
+per action and per minute, named through the
+[event-type catalogue](../api/matches.md#get-v4liveeventtypes).
+
+```
+┌──────────────────────────────────────────┐
+│ (crest) ✈ Leipzig 1:3                 →  │  the header, a link to the match
+│         2. Spieltag · 238 Punkte     [✗] │
+├──────────────────────────────────────────┤
+│   0′  Startelf                       +5  │
+│   1′  Geklärt (außerhalb 16er)       +3  │  scrolls
+│   3′  Ballverlust                    −1  │
+│       Tor kassiert                   −5  │  ← minute printed once per moment
+│   5′  Pass gegn. Hälfte              +1  │
+│  94′  Tor (ABW)                    +100  │
+│  96′  Spiel verloren                −15  │
+│       Minutenbonus                  +10  │
+├──────────────────────────────────────────┤
+│  5 nachträgliche Korrekturen …           │
+└──────────────────────────────────────────┘
+```
+
+**The names arrive in German**, and for free: the catalogue is localised from
+the `Accept-Language` the [client](../../src/api/client.ts) already sends, so
+`4240` is *Ballverlust* here and *Possession lost* to an English client. Nothing
+in the app translates anything — worth knowing before someone starts a lookup
+table.
+
+**It adds up, exactly.** The rows sum to the total in the header — 111 rows
+against a stated 239, checked — which is what makes it worth drawing rather
+than a selection of highlights. Getting there takes three rules, all in
+[`toPlayerMatchBreakdown`](../../src/api/hooks/usePlayerMatchEvents.ts):
+
+1. **Reversals are netted out.** Kickbase re-scores by *appending a correction*
+   rather than editing, so a raw breakdown says *Ball intercepted +5* and *Ball
+   intercepted −5* a line apart — its revision history, not an account of the
+   match. Pairs are dropped **only when they negate exactly**, which is what
+   keeps the total provably unchanged; the footnote says how many went.
+2. **Zero-point entries go.** All eight in the probed match were the fixture's
+   own structure — kick-off, the halves, added time, full time, and whether he
+   started or sat on the bench. The row that opened the dialog already says how
+   he played.
+3. **Earliest first.** The payload is ordered by `ei` descending, which is
+   neither chronological nor anything else useful — minutes ran 1, 1, 1, 70, 96
+   in the first five entries. A finished match read afterwards is a report, so
+   it runs forwards.
+
+**The minute is printed only when it changes**, so a burst of actions in one
+minute reads as a single moment rather than five rows restating `45′`. That is
+what makes a hundred rows scannable: the gutter becomes a timeline instead of a
+repeated number.
+
+**The header is the way out, upwards.** It carries the result from this player's
+side and his total, and it links to [the match](match-detail.md) — the question
+this dialog answers ("what did *he* do") has an obvious next one ("what happened
+in the match"). The ✗ sits beside it rather than inside, so one target
+navigates and the other closes.
+
+The link is **only offered for the running season.** The match page resolves a
+fixture from the current season's list, so a 2019 match id lands on its "not
+found" state; an archived season's header is not a link at all rather than one
+that looks tappable and dead-ends.
+
+**The archive is reachable even so**, which is the find that made this worth
+building: `?seasonId=` alongside `dayNumber` serves any season the player has
+appeared in, back to 2017/2018 in the squad probed. So a breakdown opens on a
+2018 fixture as readily as on last Saturday's.
+
+**Only rows he played.** A fixture still to come has no actions in it, and one
+he sat out has nothing but the match's own structure — a tappable row there
+would promise a list and deliver an empty state. A substitute who came on and
+never touched the score *is* a real empty case, and says so in words.
+
+The same rows appear on the [Details tab](#details-tab)'s *Spiele* card and
+behave identically there, because they are the same component and a match should
+not be a different kind of thing depending on the tab it was found on.
 
 ### The season picker
 
