@@ -169,11 +169,92 @@ degrades into one extra request rather than a broken session.
 
 ---
 
+## Login methods the official app offers
+
+litbase only ever does email + password. The Kickbase app does more: its login
+screen is a **provider chooser**, and *Mit E-Mail fortfahren* ("continue with
+email") is one button among several — the help centre's own reset walkthrough
+starts by telling you to tap it.
+
+| Method | Status | Evidence |
+| ------ | ------ | -------- |
+| Email + password | Current | `POST /v4/user/login`, above |
+| **Apple ID** ("Sign in with Apple") | Current | Three live help-centre articles, below |
+| **Facebook** | Legacy — old accounts still exist, the button appears to be gone | Named as a login method in a live article; its own article is unpublished |
+| Google, Microsoft, GitHub, Twitter/X, Discord | **Not offered** | No mention anywhere in the help centre, the app listings or either community spec |
+
+Apple ID is beyond doubt. Kickbase publishes three articles about it —
+[unlinking your Apple ID](https://help.kickbase.com/help/wie-kann-ich-die-verknupfung-meiner-apple-id-bei-kickbase-aufheben),
+[switching your login from Apple ID to an email address](https://help.kickbase.com/help/wie-kann-ich-meinen-login-von-apple-id-auf-eine-e-mail-adresse-andern),
+and a section of
+[Login-Probleme](https://help.kickbase.com/help/passwortvergessen) that reads
+"Wenn du dich ursprünglich über deine Apple ID angemeldet hast, wurde
+automatisch ein eigener Account erstellt."
+
+Facebook is the interesting one.
+["Ich habe mich eingeloggt und bin auf einmal in einer ganz anderen Liga"](https://help.kickbase.com/help/ich-habe-mich-eingeloggt-und-bin-auf-einmal-in-einer-ganz-anderen-liga)
+still names it — "eine andere Login-Methode (z. B. Apple ID oder Facebook)" —
+but the article dedicated to it,
+`/help/wie-kann-ich-meinen-login-von-facebook-auf-eine-e-mail-adresse-andern`,
+now serves a **200 with an empty body**: the page shell renders and the article
+is gone. Search engines still index it, the help centre no longer publishes it.
+Read that as a retired method whose accounts were never migrated, and the live
+mention as a leftover.
+
+### Why litbase cannot offer any of them
+
+**There is no endpoint to call.** Neither published spec has one — the
+[apidog doc](https://share.apidog.com/bca1f84a-99d7-4f8f-96a5-5e084ee24fe3/)
+(149 paths) and
+[kevinskyba/kickbase-api-doc](https://github.com/kevinskyba/kickbase-api-doc)
+(147 paths, "all currently known endpoints") both list exactly five under
+`/v4/user/` that touch credentials: `login`, `register`, `forgotpassword`,
+`password`, `refreshtokens`. Nothing social, nothing OAuth.
+
+Probing did not find one either. Around fifty SSO-shaped paths under
+`/v4/user/` all return `404` — `loginapple`, `applelogin`, `login/apple`,
+`signinwithapple`, `siwa`, `appleauth`, and the same spellings for Google and
+Facebook — and so do `/v1`, `/v2`, `/v3`, `/api` and `/api/v1` prefixes, even
+for plain `user/login`, so **`/v4` is the only version live**.
+
+That last result is the one to remember: **every Apple spelling 404s too, and
+Apple login demonstrably works.** So the 404s are evidence about *path naming*,
+not about which providers exist — most likely Apple's identity token rides on
+`/v4/user/login` in a field neither spec captured, since both specs are derived
+from email-login traffic. Don't cite the 404 sweep as proof that Google login
+is absent; the help centre's silence is the real evidence, and it is
+circumstantial.
+
+### The consequence for litbase
+
+An account created with Apple ID (or, historically, Facebook) **has no
+password**, so litbase's login form cannot work for it at all — the API will
+answer `401 AccessDenied` forever. Those users have two routes, both outside
+litbase: set a password in the official app's *Einstellungen → Dein Account →
+Passwort-Einstellungen*, or ask `help@kickbase.com` to move the login onto an
+email address. Worth saying plainly on the [Login page](../pages/login.md) if
+anyone ever reports "my password is right and it still fails".
+
+### Not a login method: `auth.kickbase.com`
+
+`https://auth.kickbase.com` is a live [authentik](https://goauthentik.io/)
+instance, and its authentication flow does advertise a `google-login` OAuth
+source. It is **KKSTR's internal staff SSO**, not the game's — `app.kickbase.com`
+on the same domain answers with the bare string `KKSTR`, the company behind
+Kickbase. Nothing about player accounts goes through it. Noted here only so the
+next person who finds it doesn't mistake it for a Google login on the game.
+
+---
+
 ## Token lifetime
 
-There is **no refresh token**. `POST /v4/user/refreshtokens` exists in the
-published spec, and the app does not use it: renewal is a second login with the
-stored credentials, which the axios interceptor performs once on a `403` before
+There is **no refresh token** — not one litbase can reach. `POST
+/v4/user/refreshtokens` exists in the published spec and the route is live
+(an empty body gets `401 AccessDenied`, not `404`), and
+[kevinskyba's spec](https://github.com/kevinskyba/kickbase-api-doc) documents
+its body as `{ "rtkn": "…" }`. But **no login response observed here carries an
+`rtkn`**, so there is nothing to send it; presumably a newer or different client
+gets one. Renewal is therefore a second login with the stored credentials, which the axios interceptor performs once on a `403` before
 re-issuing the failed request. See
 [`client.ts`](../../src/api/client.ts) and [Authentication](../authentication.md).
 
