@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Crown,
   Flag,
   Gift,
   MessageCircle,
@@ -15,6 +16,8 @@ import { Link, useNavigate } from 'react-router'
 
 import { useAchievement } from '@/api/hooks/useAchievements'
 import { useActivities } from '@/api/hooks/useActivities'
+import { useSeasonSchedule } from '@/api/hooks/useMatchday'
+import { useMatchdayRanking } from '@/api/hooks/useMatchdayRanking'
 import { useRanking } from '@/api/hooks/useRanking'
 import type { LeagueActivity, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
@@ -29,12 +32,20 @@ import { Card } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState, ErrorState } from '@/components/ui/States'
+import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
 import { nowMs } from '@/lib/clock'
-import { money, moneyDelta, placement, relativeTime } from '@/lib/format'
+import {
+  money,
+  moneyDelta,
+  placement,
+  points,
+  relativeTime,
+} from '@/lib/format'
 
 /**
- * **The league's event log** — Kickbase's *Aktivitäten* tab, and the whole of the league's landing page.
+ * **The league's event log** — Kickbase's *Aktivitäten* tab, and the whole
+ * of the league's landing page.
  *
  * Every entry is one thing that happened in the league: a transfer, a manager
  * arriving or leaving, a matchday scored, an achievement earned. Newest first,
@@ -69,6 +80,11 @@ import { money, moneyDelta, placement, relativeTime } from '@/lib/format'
 export function ActivityFeed({ leagueId }: { leagueId: string }) {
   const query = useActivities(leagueId)
   const ranking = useRanking(leagueId)
+  const { competitionId } = useActiveLeague()
+  // Only to tell a settled matchday from the running one, which is what picks
+  // the ranking's source. Cached an hour and already fetched by every other
+  // page that shows a matchday.
+  const schedule = useSeasonSchedule(competitionId)
   const { user } = useAuth()
   const navigate = useNavigate()
   const now = nowMs()
@@ -131,6 +147,8 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
                 key={activity.id}
                 activity={activity}
                 leagueId={leagueId}
+                competitionId={competitionId}
+                currentDay={schedule.data?.currentDay}
                 now={now}
                 managersByName={managersByName}
                 onOpen={open}
@@ -256,12 +274,17 @@ function LoadMore({
 function ActivityRow({
   activity,
   leagueId,
+  competitionId,
+  currentDay,
   now,
   managersByName,
   onOpen,
 }: {
   activity: LeagueActivity
   leagueId: string
+  competitionId: string | undefined
+  /** The competition's current matchday — picks the ranking's source. */
+  currentDay: number | undefined
   now: number
   managersByName: Map<string, RankedManager>
   onOpen: (activity: LeagueActivity) => void
@@ -331,31 +354,12 @@ function ActivityRow({
       )
     case 'matchday':
       return (
-        <Row
-          leading={<IconDisc icon={Flag} />}
-          title={
-            <>
-              <span className="font-semibold">{activity.label}</span> ist
-              beendet
-            </>
-          }
-          detail={
-            activity.placement === undefined
-              ? undefined
-              : `Du wurdest ${placement(activity.placement)}`
-          }
+        <MatchdayRow
+          activity={activity}
+          competitionId={competitionId}
+          currentDay={currentDay}
           when={when}
-          // A matchday the viewer sat out arrives with an empty payload and so
-          // no day at all, and `?dayNumber=0` answers a ranking with every
-          // per-matchday field stripped — ten managers on nought points. There
-          // is nothing to open, so the row is not a button.
-          onClick={
-            activity.day > 0
-              ? () => {
-                  onOpen(activity)
-                }
-              : undefined
-          }
+          onOpen={onOpen}
         />
       )
     case 'achievement':
@@ -400,6 +404,101 @@ function ActivityRow({
 }
 
 /* -------------------------------------------------------------------------- */
+
+/**
+ * A matchday that has been scored, led by **the player who scored most that
+ * day, wearing a crown**.
+ *
+ * The feed entry itself names nobody — it carries the matchday and the
+ * reader's own placement and stops there. But a matchday's headline is who
+ * ran away with it, and the app already knows: the same ranking the
+ * [matchday page](../../pages/MatchdayPage.tsx) draws, which for any settled
+ * matchday is a **static file** under `data/` rather than a request to
+ * Kickbase. So the portrait is close to free, and the row gains the one face
+ * that makes it worth looking at.
+ *
+ * The flag stands in until it lands, and stays if the matchday has no file
+ * seeded yet.
+ */
+function MatchdayRow({
+  activity,
+  competitionId,
+  currentDay,
+  when,
+  onOpen,
+}: {
+  activity: Extract<LeagueActivity, { kind: 'matchday' }>
+  competitionId: string | undefined
+  currentDay: number | undefined
+  when: ReactNode
+  onOpen: (activity: LeagueActivity) => void
+}) {
+  const ranking = useMatchdayRanking({
+    competitionId: activity.day > 0 ? competitionId : undefined,
+    day: activity.day,
+    currentDay,
+    position: undefined,
+    // Nothing here polls. The row describes a matchday Kickbase has already
+    // declared over, so a live rate would be re-reading a settled number.
+    isLive: false,
+  })
+  const top = ranking.data?.players[0]
+
+  return (
+    <Row
+      leading={
+        top === undefined ? (
+          <IconDisc icon={Flag} />
+        ) : (
+          <span className="relative shrink-0">
+            <Avatar
+              src={top.image}
+              name={top.lastName}
+              size={36}
+              className="bg-surface-2"
+            />
+            {/* The crown sits half off the portrait's top-left, where a
+                Kickbase cutout has only background — a badge centred on the
+                corner would cover the face at this size. */}
+            <span
+              aria-hidden="true"
+              className={cn(
+                'absolute -top-1 -left-1 flex h-4 w-4 items-center justify-center',
+                'rounded-full bg-warning text-canvas ring-2 ring-surface',
+              )}
+            >
+              <Crown size={9} strokeWidth={2.5} />
+            </span>
+          </span>
+        )
+      }
+      title={
+        <>
+          <span className="font-semibold">{activity.label}</span> ist beendet
+        </>
+      }
+      detail={
+        activity.placement === undefined
+          ? top === undefined
+            ? undefined
+            : `${top.lastName} · ${points(top.points)} Pkt`
+          : `Du wurdest ${placement(activity.placement + 1)}`
+      }
+      when={when}
+      // A matchday the viewer sat out arrives with an empty payload and so no
+      // day at all, and `?dayNumber=0` answers a ranking with every
+      // per-matchday field stripped — ten managers on nought points. There is
+      // nothing to open, so the row is not a button.
+      onClick={
+        activity.day > 0
+          ? () => {
+              onOpen(activity)
+            }
+          : undefined
+      }
+    />
+  )
+}
 
 /**
  * A transfer, drawn like a market listing: the player's cutout flush on the

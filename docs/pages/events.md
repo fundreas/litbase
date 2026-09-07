@@ -70,7 +70,7 @@ a row or by the sheet it opens.
 | ---- | --- | ----------- | ------- | --- |
 | Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | **Buy**: a sheet — see below. **Sale**: player page |
 | Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | — |
-| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | Flag | Duel league: `/duels?day=N`. Otherwise a sheet with the matchday's manager ranking |
+| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | **The day's top scorer, in a crown.** Flag until it lands | Duel league: `/duels?day=N`. Otherwise a sheet with the matchday's manager ranking |
 | Achievement | **Tormaschine** | `+250.000 €` in green, when it paid anything | Trophy, accent | A sheet: description, reward, how often earned |
 | Login bonus | **Auflaufprämie** kassiert | Amount · day | Gift, accent — from the spec, never seen live | — |
 | Founded | Liga **JSG Königslutter** gegründet | — | Tag | — |
@@ -124,6 +124,30 @@ player, and a feed of transfers would otherwise fan out over every one of them.
 
 A **sale** opens the player's page instead. It was a sale to Kickbase, so there
 was no contest and no bid of yours to report.
+
+### The crowned portrait on a matchday row
+
+The feed entry names nobody — it carries the matchday and your own placement
+and stops. But the headline of a matchday is who ran away with it, so the row
+leads with **the player who scored most that day, wearing a crown**.
+
+It costs almost nothing.
+[`useMatchdayRanking`](../../src/api/hooks/useMatchdayRanking.ts) is the same
+hook the [matchday page](matchday.md) uses, and for any *settled* matchday it
+reads a **static file** under `data/rankings/` rather than calling Kickbase —
+see the [seed script](../../scripts/build-matchday-rankings.mjs). The running
+matchday is the one exception and comes from the live endpoint, shared with
+whatever else has already asked for it.
+
+A matchday with no file seeded yet keeps the flag. Nothing polls: the row
+describes a matchday Kickbase has already declared over.
+
+> **The placement is off by one on the wire.** `pl` on a type-`17` entry counts
+> from zero — `0` is first — so the row renders `pl + 1`. This is Andreas's
+> reading from his own league; the single entry in the test league is
+> consistent with either, because it was written an hour before that matchday's
+> points settled. If a row and the ranking sheet it opens ever disagree by one,
+> the sheet is right and this is the line to revisit.
 
 ### The achievement's money is a second request
 
