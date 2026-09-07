@@ -2,6 +2,10 @@ import { Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 
 import type { RankingScope, TeamSummary } from '@/api/hooks/useCompetition'
+import {
+  ARCHIVE_LIMIT,
+  type RankingSource,
+} from '@/api/hooks/useMatchdayRanking'
 import { useMatchdayLineups } from '@/api/hooks/useMatchdaySquad'
 import { useRanking } from '@/api/hooks/useRanking'
 import type {
@@ -35,37 +39,34 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * The competition's best players, best first — and **who in the league owns
  * them**.
  *
- * Of one matchday or of the whole season: `scope` says which, and the toggle
- * that sets it stands where the [page's](../../pages/MatchdayPage.tsx) heading
- * used to. Everything below is identical either way, because the endpoint
- * answers both in the same shape.
+ * Of one matchday or of the whole season, from Kickbase or from the app's own
+ * archive: `scope` and `source` say which. Everything below is identical in all
+ * four combinations, because
+ * [`useMatchdayRanking`](../../api/hooks/useMatchdayRanking.ts) hands over one
+ * shape whichever side answered — this component is deliberately not the place
+ * where the two sources are told apart.
  *
- * **One request for the list.** `/v4/competitions/{id}/players` is the only
- * bulk source of per-player matchday points in the API and it answers the top
- * 25 already sorted, so the ranking itself costs a single small response where
- * [`useMatchdayPoints`](../../api/hooks/useMatchdayPoints.ts) would have needed
- * one request per player across nine fixtures.
+ * **What differs is the row count, and that is on purpose.** Kickbase caps its
+ * ranking at 25 and no parameter raises it; our own files hold every player who
+ * scored, so an archived matchday shows 100. Padding the live list or trimming
+ * the archived one to match would be inventing a consistency the data does not
+ * have — so the footnote under the list says which you are reading instead.
  *
- * **Twenty-five is the API's number, not a slice taken here.** Nothing is
- * dropped and there is no "show more" behind it: the endpoint returns exactly
- * that many, and no parameter raises the cap.
+ * ## The position chips are five lists, and how they are made depends
  *
- * ## The position chips are five requests, not one filter
+ * Live, `?position=` is a **request**: it is the only way past the 25-row cap,
+ * because the cap applies per filtered list. *ABW* is then not the defenders
+ * out of the overall twenty-five but the top twenty-five defenders, most of
+ * whom the *Alle* list has no room for — a `.filter()` over the rows already in
+ * hand would have shown four or five names and called it a ranking.
  *
- * `?position=` is one of the two parameters the endpoint honours, and the cap
- * applies to **each filtered list separately**. So *ABW* is not the defenders
- * out of the overall twenty-five — it is the top twenty-five defenders, most of
- * whom the *Alle* list has no room for. Between them the five chips reach 93
- * distinct players, and they compose with the scope: ten lists in all.
- *
- * That is why this is not a `.filter()` over the list already in hand, which
- * would have been free and would have shown four or five names per position.
- * It costs one request per chip, cached per chip, so a filter looked at once
- * comes straight back.
+ * In the archive it *is* a filter, and for the mirror-image reason: the file
+ * holds every player of that matchday, so there is no cap to get past and four
+ * more fetches would buy nothing.
  *
  * **A short list is not a truncated one.** *TW* comes back with 18 rows on a
- * nine-fixture matchday, because that is every keeper who played — the cap is
- * simply above the population. Nothing here pads it or explains it away.
+ * live nine-fixture matchday, because that is every keeper who played — the cap
+ * is simply above the population. Nothing here pads it or explains it away.
  *
  * ## The badge is the point
  *
@@ -96,10 +97,15 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * the Rangliste view is open, so the fan-out is scoped by the view existing
  * rather than by a flag somebody has to remember to pass.
  *
- * **The badge means the same thing in the season list**, and it is worth being
- * clear about what that is: ownership is read for the *current* matchday, so a
- * season row says "somebody has him now", not "somebody had him for the goals
- * that got him up here". The current holder is the useful reading — it is the
+ * **On an archived matchday the badge is historically correct**, which is worth
+ * saying because nothing else on the screen is fetched per matchday: the
+ * fan-out reads `teamcenter?dayNumber=`, the lineup *as it stood*, so a row
+ * from matchday 1 shows who fielded him on matchday 1.
+ *
+ * **In the season list it means something else**, and it is worth being clear
+ * about what: ownership is read for the *current* matchday, so a season row
+ * says "somebody has him now", not "somebody had him for the goals that got him
+ * up here". The current holder is the useful reading — it is the
  * one that tells you whose bench a season-long scorer is sitting on — and the
  * API has no per-matchday ownership history to offer instead.
  */
@@ -110,6 +116,7 @@ export function MatchdayRankingTab({
   viewerId,
   isPending,
   scope,
+  source,
   position,
   onPositionChange,
 }: {
@@ -119,6 +126,7 @@ export function MatchdayRankingTab({
   viewerId: string | undefined
   isPending: boolean
   scope: RankingScope
+  source: RankingSource
   position: PositionKey | undefined
   onPositionChange: (position: PositionKey | undefined) => void
 }) {
@@ -256,10 +264,27 @@ export function MatchdayRankingTab({
     </ol>
   )
 
+  /*
+   * Where the numbers came from, and therefore why the list is as long as it
+   * is. Without it the 25 of a live matchday and the 100 of an archived one
+   * look like a bug in one of them — and the archived list is our arithmetic
+   * rather than Kickbase's, which a reader comparing it against the app is
+   * entitled to know.
+   */
+  const footnote =
+    data === undefined || data.players.length === 0
+      ? undefined
+      : source === 'archive'
+        ? `Eigene Auswertung aus den Spieltagsdaten — die besten ${String(ARCHIVE_LIMIT)} je Kategorie.`
+        : 'Kickbase liefert die besten 25 je Kategorie.'
+
   return (
     <div className="flex flex-col gap-3">
       {chips}
       {list}
+      {footnote !== undefined && (
+        <p className="px-0.5 text-[0.6875rem] text-faint">{footnote}</p>
+      )}
     </div>
   )
 }

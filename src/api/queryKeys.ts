@@ -130,6 +130,13 @@ export const qk = {
     scope: string,
     position: string = 'all',
   ) => [...qk.competition(competitionId), 'players', scope, position] as const,
+  /**
+   * One archived matchday-ranking file. Not keyed by position: the file holds
+   * every player who scored that day, so the position lists are slices of one
+   * fetch rather than five.
+   */
+  competitionRankingArchive: (competitionId: string, day: number) =>
+    [...qk.competition(competitionId), 'rankingArchive', day] as const,
   competitionTable: (competitionId: string) =>
     [...qk.competition(competitionId), 'table'] as const,
   competitionMatchdays: (competitionId: string) =>

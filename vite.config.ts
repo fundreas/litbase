@@ -1,8 +1,88 @@
+import { createReadStream } from 'node:fs'
+import { cp, stat } from 'node:fs/promises'
+import { join, resolve, sep } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
+
+/**
+ * Serve and ship the repo's `data/` folder at `/data/`.
+ *
+ * These are the **matchday-ranking files** — the app's own rankings for every
+ * matchday but the current one, since Kickbase serves only the current one.
+ * They are written by `scripts/build-matchday-rankings.mjs`, committed, and
+ * read back over `fetch` at runtime.
+ *
+ * Not `public/`, deliberately. `public/` is for things the *app* is made of —
+ * the icon, the manifest — copied in without anyone thinking about them. This
+ * is a data set with its own build step, its own refresh cadence and its own
+ * size, and burying it in `public/data/` would hide all three. A dozen lines
+ * here is the price of `data/` being a folder somebody can find.
+ *
+ * Copying in `closeBundle` rather than emitting rollup assets keeps the URLs
+ * literal: no content hash, no manifest, so the app can build the path for a
+ * matchday it has never seen. That is the whole point — a file added by
+ * tonight's run has to be reachable by a bundle built last week.
+ */
+function dataFolder(): Plugin {
+  let dataDir = ''
+  let outDir = ''
+
+  return {
+    name: 'litbase:data-folder',
+
+    configResolved(config) {
+      dataDir = resolve(config.root, 'data')
+      outDir = resolve(config.root, config.build.outDir)
+    },
+
+    configureServer(server) {
+      // Mounted on the prefix, so connect hands the handler a path already
+      // stripped of it — `/rankings/1/matchday-1.json`.
+      server.middlewares.use('/data', (request, response, next) => {
+        const path = (request.url ?? '/').split('?')[0]
+        const file = resolve(dataDir, `.${path}`)
+
+        // A `..` in the URL must not walk out of the folder. Everything under
+        // `data/` is public by construction; everything else is not ours to
+        // serve.
+        if (!file.startsWith(dataDir + sep)) {
+          next()
+          return
+        }
+
+        stat(file)
+          .then((stats) => {
+            if (!stats.isFile()) {
+              next()
+              return
+            }
+            response.setHeader(
+              'Content-Type',
+              'application/json; charset=utf-8',
+            )
+            createReadStream(file).pipe(response)
+          })
+          .catch(() => {
+            next()
+          })
+      })
+    },
+
+    async closeBundle() {
+      // A checkout with no rankings yet still builds — the app treats a
+      // missing file as "not seeded", which is the same thing it has to
+      // handle for a matchday nobody has run the script for.
+      try {
+        await cp(dataDir, join(outDir, 'data'), { recursive: true })
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -22,7 +102,7 @@ export default defineConfig(({ mode }) => {
   // anyone who wants to pin a particular matchday.
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), dataFolder()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
