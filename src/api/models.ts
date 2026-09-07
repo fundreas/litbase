@@ -341,6 +341,26 @@ export interface LeagueRanking {
   managers: RankedManager[]
 }
 
+/**
+ * The standings **of one matchday** — who scored what on that day, rather than
+ * where the season stands.
+ *
+ * The same payload {@link LeagueRanking} is mapped from, read under
+ * `?dayNumber=` and sorted by that matchday's points. Every per-matchday field
+ * on {@link RankedManager} (`matchdayPoints`, `matchdayPlacement`,
+ * `duelMatchdayPoints`, `duelOpponentId`) describes *this* matchday; the
+ * season fields describe the table as it stands now, whatever day is asked
+ * for.
+ */
+export interface MatchdayStandings {
+  /** The matchday the points belong to. */
+  day: number
+  /** False when the league does not play duels at all. */
+  isDuelMode: boolean
+  /** Sorted by that matchday's points, best first. */
+  managers: RankedManager[]
+}
+
 /* -------------------------------------------------------------------------- */
 /* Duels                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -373,6 +393,20 @@ export interface Duel {
    */
   id: string
   sides: [DuelSide, DuelSide]
+}
+
+/**
+ * A duel's id from the two managers in it — sorted, so the same pair yields
+ * the same string whichever side you start from.
+ *
+ * Both a React key and the detail route's path segment, which is why it is one
+ * function rather than a `join` in each of its callers: the
+ * [pairing mapper](../api/hooks/useDuels.ts) builds it from the standings, and
+ * the [matchday standings](../components/ranking/ManagerRankingTab.tsx) rebuild
+ * it from one manager plus their `hhoui` to link a row at its duel.
+ */
+export function duelIdOf(a: string, b: string): string {
+  return [a, b].sort((x, y) => x.localeCompare(y)).join('-')
 }
 
 /** Every duel of one matchday. */
@@ -1447,7 +1481,7 @@ export interface TableRow {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Which points the [Teams page](../../docs/pages/teams.md) is ranking by.
+ * Which points the [Saison page](../../docs/pages/season.md) is ranking by.
  *
  * `league` is the real Bundesliga table — three for a win. `kickbase` reorders
  * the same eighteen clubs by what their players have scored in the game, which

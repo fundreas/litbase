@@ -1,21 +1,44 @@
 # Duels — "Duelle"
 
-[← Back to index](../README.md) · Route `/leagues/:leagueId/duels?day=N` ·
+[← Back to index](../README.md) ·
+Routes `/leagues/:leagueId/duels?day=N` · `/leagues/:leagueId/duels/ranking?day=N` ·
 [`src/pages/DuelsPage.tsx`](../../src/pages/DuelsPage.tsx)
 
-Every manager's head-to-head for one matchday. **Duel leagues only** — see
+One matchday of the league, two ways: every manager's head-to-head, and the
+same managers ranked by what they scored. **Duel leagues only** — see
 [Availability](#availability).
+
+## Two views
+
+A bottom tab bar, the same
+[`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx) the matchday, squad
+and detail pages dock:
+
+| Tab | What |
+| --- | ---- |
+| **Duelle** | The pairings — everything below |
+| **Rangliste** | The [matchday's standings](#rangliste): every manager, best first |
+
+Two questions, not one page scrolled twice. *Duelle* answers "how is my duel
+going"; *Rangliste* answers "who won the weekend", which the pairings answer
+only two managers at a time. The second **re-orders the whole field**, which is
+exactly what the first does not do, so stacking them would have put one heading
+above two lists that disagree about what they are sorted by.
+
+The view is a **path segment**, as on the matchday, squad and duel-detail
+pages, so each is linkable and survives a refresh. `?day=` rides along on both
+tab links, so switching views keeps the matchday you were looking at rather
+than snapping back to the current one.
+
+They do not offer the **same** matchdays — see
+[The Rangliste stops at kick-off](#the-rangliste-stops-at-kick-off).
 
 ## Layout
 
 ```
-  Duelle
-  Live-Punkte, minütlich aktualisiert
-
-  ┌────────────────────────────────────────────┐
-  │ 2. Spieltag                    Live     ▾  │   ← the whole block is
-  │ Fr, 4. Sep. – So, 6. Sep.                  │     the matchday picker
-  └────────────────────────────────────────────┘
+  ‹   2. Spieltag ⌄                      ›     ← the picker IS the page
+      Fr, 4. Sep. – So, 6. Sep. · Live           heading, on both views
+  ─────────────────────────────────────────
 
   ┌────────────────────────────────────────────┐
   │ (A) Peterpan007    ⚔     Danger du     (A) │  ← accent border: your duel
@@ -25,6 +48,10 @@ Every manager's head-to-head for one matchday. **Duel leagues only** — see
   │ (A) Max            ⚔          Olaf     (A) │
   │     ✓ 948 Pkt                  906 Pkt     │
   └────────────────────────────────────────────┘
+
+  ┌───────────────────┬───────────────────┐
+  │   ⚔  Duelle       │  ☰  Rangliste     │       ← fixed to the viewport
+  └───────────────────┴───────────────────┘
 ```
 
 A duel card is **two mirrored halves** around a divider — avatar outside, text
@@ -129,6 +156,40 @@ The heading block *is* the control: tapping it opens a drawer listing all 34
 matchdays. A separate "Spieltag wählen" button beside a static label would
 spend a second row of a phone screen saying the same thing twice.
 
+### It is the page heading
+
+`variant="heading"` — the [shared picker](../../src/components/MatchdayPicker.tsx)
+takes the `h1`'s size and weight, on **both views**, exactly as on
+[Spieltag](matchday.md#the-picker-is-the-page-heading). **There is no page title
+above it and no subtitle beside it.** A title reading *Duelle* over a control
+reading *2. Spieltag* spent a row of a phone screen on the word already lit in
+the drawer, and everything either view shows is about the one selected matchday.
+
+The old subtitle — *Live-Punkte, minütlich aktualisiert* / *Endstand des
+Spieltags* / *Noch nicht angepfiffen* — said the same thing the picker's own
+caption already says: the date range, then **Live** / **Beendet** / **Offen**
+from [`matchdayState()`](#has-it-started). One line instead of two, and the
+state now sits next to the matchday it describes.
+
+### The Rangliste stops at kick-off
+
+Pairings are drawn for the whole season, so *Duelle* offers all 34 matchdays. A
+**ranking** of a matchday nobody has played is a column of zeroes presented as
+a result, so the Rangliste is handed a schedule narrowed to the matchdays that
+have kicked off — `matchdayState(entry) !== 'upcoming'` — and the steps and the
+drawer both read that narrowed list, so they cannot disagree about what is
+reachable.
+
+`?day=` is shared between the views, and it *can* name an unplayed matchday.
+Arriving on the Rangliste with one selected falls back to the **newest matchday
+that does have a ranking**, rather than rendering a picker whose label is not
+in its own list. Same rule and same reasoning as the matchday page's own
+[Rangliste](matchday.md#the-picker-is-on-both-views-now).
+
+Before the season's first kick-off there is nothing to pick: the Rangliste
+renders a plain *Rangliste* heading and an empty state, because a picker over
+an empty range would be a heading reading "undefined. Spieltag".
+
 The drawer opens from the **right**. Left belongs to the app's navigation, and
 two drawers arriving from the same edge read as the same surface.
 
@@ -193,6 +254,60 @@ While a matchday is `live` the duel query polls at the shared live rate
 (`refetchInterval`), and its `staleTime` drops to zero. A settled matchday
 cannot change and is held for five minutes.
 
+## Rangliste
+
+```
+  ‹   2. Spieltag ⌄                      ›
+      Fr, 4. Sep. – So, 6. Sep. · Beendet
+  ─────────────────────────────────────────
+
+  1.  (A) Peterpan007                  978
+          ✓ Gewonnen vs. Danger du   3 Duellpkt
+  2.  (A) Max                          948
+          ✓ Gewonnen vs. Olaf        3 Duellpkt
+  3.  (A) Olaf                         906
+          ✗ Verloren vs. Max         0 Duellpkt
+```
+
+[`ManagerRankingTab`](../../src/components/ranking/ManagerRankingTab.tsx) —
+every manager of the league, ordered by the points they scored **on the
+selected matchday** (`mdp`). The counterpart of the matchday page's
+[`PlayerRankingTab`](matchday.md#rangliste): that one ranks the competition's
+*players* for a matchday, this one ranks the league's *managers* for it.
+
+**Not the same table as [Rangliste](ranking.md).** That page is the league as
+it stands — cumulative, duel-table-ordered, unaffected by which matchday you
+were looking at. This is one matchday in isolation, which is the reading this
+page is already about.
+
+**The row is the duel.** Each one names the opponent, says how the duel went,
+and links to [that duel in detail](duel-detail.md) carrying `?day=` — the id is
+rebuilt from the pair with `duelIdOf()`, the same string
+[`mapDuels`](../../src/api/hooks/useDuels.ts) produces, so no lookup table is
+needed. A manager without an opponent (an odd-sized league) is a plain row:
+there is nothing to open. The outcome is resolved by `duelResultOf()`, on the
+matchday points both managers actually scored — see
+[Which field is the duel points](ranking.md#which-field-is-the-duel-points).
+
+**The outcome is only claimed once the matchday is over.** *Gewonnen* is past
+tense, and a duel under way has not been won by anybody — level at `0` in the
+third minute would read as *Remis*, which is the one thing it is not. While the
+matchday runs a row names the opponent and stops there; who is ahead is what
+the list's own order says, and the duel card on the other tab is where a live
+duel is meant to be read.
+
+The **duel points earned** (`hhmp`, 3 or 0) sit under the score as the second
+figure, and the matchday's own points are the headline, because that is what
+the list is ranked by.
+
+### The placement is Kickbase's where there is one
+
+`mdpl` is the API's own placement for the matchday, so it is preferred over
+counting rows: two managers level on points then share a place instead of being
+told apart by the sort. It reads `0` for a matchday nobody has scored in yet —
+the first minutes of a live one, most of all — and the row index stands in
+there, which keeps a ranking of zeroes numbered `1…10` rather than `0…0`.
+
 ## Availability
 
 A league that does not play duels has no duels page:
@@ -225,12 +340,38 @@ schedule before asking for it.
 
 ## Data
 
-One request builds the whole list:
+One request builds **both views**:
 [`useDuels(leagueId, day, { isLive })`](../../src/api/hooks/useDuels.ts) →
 `/v4/leagues/{leagueId}/ranking?dayNumber={day}`. The only thing on top of it
 is the per-manager squad fan-out behind
 [`n im Einsatz`](#players-on-the-pitch), which stays asleep unless a match is
-being played.
+being played — and which the Rangliste asks for **nobody**, since the line it
+feeds is on the duel card.
+
+### One response, two readings
+
+The pairings and the ranking are the same `us` array. So the **response** is
+what sits in the cache and each hook maps it in `select` — the arrangement
+[`useSeasonSchedule`](../api-layer.md#query-hooks) and `useMatchDetails`
+already use, and the reason switching tabs issues no request at all:
+
+| Hook | Reading | Sorted by |
+| ---- | ------- | --------- |
+| `useDuels` | Pairings, via `hhoui` | the better-placed of the two |
+| `useMatchdayStandings` | Managers, one row each | `mdp`, that matchday's points |
+
+Both map a manager with the *same* [`toRankedManager`](../../src/api/hooks/useRanking.ts)
+the season table uses, so a field added for one page cannot be missing on the
+other. Only the sort differs.
+
+Each selector is **memoised on the matchday**: React Query memoises `select` on
+the function's identity, and an inline arrow would re-map on every render and
+hand back fresh objects — which this page holds across renders and fans out
+over.
+
+The Rangliste's hook is left **idle on the Duelle tab**, passed `undefined` for
+its league id, which is how every hook in the app waits. The mapping is not
+free and nothing renders it there.
 
 **There is no duel endpoint.** `?dayNumber=` on the standings is the whole
 source — probed, with `/duels`, `/duels/{day}`, `/ranking/{day}`,
@@ -268,10 +409,12 @@ first.
 
 | State | Rendering |
 | ----- | --------- |
-| Loading (schedule or duels) | `PageHeading` plus `SkeletonList rows={6}` |
+| Loading (schedule or duels) | A picker-shaped placeholder plus `SkeletonList rows={6}` — the heading *is* the picker, so a title about to be replaced by something else would be the wrong placeholder |
 | Error | `ErrorState` with retry, whichever query failed |
 | Not a duel league | `<Navigate>` to the dashboard |
 | No pairings for the matchday | `EmptyState` — "Für diesen Spieltag sind noch keine Paarungen ausgelost." |
+| Rangliste before the first kick-off | `EmptyState` — "Noch kein Spieltag gespielt", under a plain `Rangliste` heading |
+| Rangliste with no points in the payload | `EmptyState` — "Für diesen Spieltag liefert Kickbase keine Punkte." |
 
 ## Unconfirmed
 

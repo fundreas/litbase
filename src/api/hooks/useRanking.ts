@@ -4,7 +4,36 @@ import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import type { DuelResult, LeagueRanking, RankedManager } from '@/api/models'
 import { qk } from '@/api/queryKeys'
-import type { RankingResponse } from '@/api/types'
+import type { RankingResponse, RankingUser } from '@/api/types'
+
+/**
+ * One manager out of the standings payload.
+ *
+ * Exported because the **same payload** is read a second way: with
+ * `?dayNumber=` it describes one matchday, which is what
+ * [`useMatchdayStandings`](./useDuels.ts) ranks. Only the sort differs between
+ * the two, so the mapping is shared rather than written twice — a field added
+ * here cannot then be missing on the other page.
+ */
+export function toRankedManager(user: RankingUser): RankedManager {
+  return {
+    id: user.i,
+    name: user.n,
+    image: user.uim,
+    seasonPoints: user.sp,
+    seasonPlacement: user.spl,
+    matchdayPoints: user.mdp,
+    matchdayPlacement: user.mdpl,
+    teamValue: user.tv,
+    placementChange: user.ppc ?? 0,
+    pointsPerMatchday: user.lp ?? [],
+    isAdmin: user.adm ?? false,
+    duelPlacement: user.hhpl,
+    duelPoints: user.hhsp,
+    duelMatchdayPoints: user.hhmp,
+    duelOpponentId: user.hhoui,
+  }
+}
 
 /**
  * Standings for a league.
@@ -26,23 +55,7 @@ function mapRanking(data: RankingResponse): LeagueRanking {
   const users = data.us ?? []
   const isDuelMode = users.some((user) => user.hhpl !== undefined)
 
-  const managers: RankedManager[] = users.map((user) => ({
-    id: user.i,
-    name: user.n,
-    image: user.uim,
-    seasonPoints: user.sp,
-    seasonPlacement: user.spl,
-    matchdayPoints: user.mdp,
-    matchdayPlacement: user.mdpl,
-    teamValue: user.tv,
-    placementChange: user.ppc ?? 0,
-    pointsPerMatchday: user.lp ?? [],
-    isAdmin: user.adm ?? false,
-    duelPlacement: user.hhpl,
-    duelPoints: user.hhsp,
-    duelMatchdayPoints: user.hhmp,
-    duelOpponentId: user.hhoui,
-  }))
+  const managers: RankedManager[] = users.map(toRankedManager)
 
   const placementOf = (manager: RankedManager) =>
     isDuelMode

@@ -257,7 +257,9 @@ league carries no `hhpl` at all.
 ### Used by
 
 [`useRanking`](../../src/api/hooks/useRanking.ts) → [Ranking](../pages/ranking.md),
-and [`useDuels`](../../src/api/hooks/useDuels.ts) (with `dayNumber`) →
+and — with `dayNumber`, one cached response read two ways —
+[`useDuels`](../../src/api/hooks/useDuels.ts) for the pairings plus
+`useMatchdayStandings` for that matchday's manager ranking, both →
 [Duels](../pages/duels.md).
 
 ---

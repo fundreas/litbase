@@ -1,17 +1,11 @@
-import {
-  CircleCheck,
-  CircleMinus,
-  CircleX,
-  Sigma,
-  Swords,
-  type LucideIcon,
-} from 'lucide-react'
+import { Sigma, Swords, type LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { duelResultOf, useRanking } from '@/api/hooks/useRanking'
 import type { DuelResult, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
+import { DuelOutcomeLine } from '@/components/ranking/DuelOutcomeLine'
 import { Avatar } from '@/components/ui/Avatar'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -213,7 +207,7 @@ function ManagerRow({
         <p className="nums truncate text-xs text-muted">
           {points(manager.matchdayPoints)} Pkt am Spieltag
         </p>
-        <DuelLine result={duelResult} opponentName={duelOpponentName} />
+        <DuelOutcomeLine result={duelResult} opponentName={duelOpponentName} />
       </div>
 
       {/* Two figures stacked, so the ordering is self-explaining: the bold one
@@ -236,50 +230,5 @@ function ManagerRow({
         )}
       </div>
     </li>
-  )
-}
-
-const DUEL_RESULT = {
-  won: { Icon: CircleCheck, className: 'text-positive', text: 'Gewonnen' },
-  drawn: { Icon: CircleMinus, className: 'text-muted', text: 'Remis' },
-  lost: { Icon: CircleX, className: 'text-negative', text: 'Verloren' },
-} as const
-
-/**
- * How the current duel went, and against whom.
- *
- * The outcome is spelled out rather than left to the icon's colour, which
- * would be the only cue otherwise — and colour alone is not a cue everyone
- * gets. Renders nothing at all outside duel leagues, where there is no duel
- * and no opponent to name.
- */
-function DuelLine({
-  result,
-  opponentName,
-}: {
-  result: DuelResult | undefined
-  opponentName: string | undefined
-}) {
-  if (result === undefined && opponentName === undefined) return null
-  const outcome = result === undefined ? undefined : DUEL_RESULT[result]
-
-  return (
-    <p className="flex items-center gap-1 text-xs">
-      {outcome !== undefined && (
-        <>
-          <outcome.Icon
-            size={13}
-            aria-hidden="true"
-            className={cn('shrink-0', outcome.className)}
-          />
-          <span className={cn('shrink-0 font-medium', outcome.className)}>
-            {outcome.text}
-          </span>
-        </>
-      )}
-      {opponentName !== undefined && (
-        <span className="truncate text-faint">vs. {opponentName}</span>
-      )}
-    </p>
   )
 }

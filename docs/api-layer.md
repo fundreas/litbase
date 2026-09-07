@@ -138,6 +138,8 @@ is what makes them safe to call before context has resolved.
 | `useLeagueManager(id)` | `/leagues/{id}/me` | 2 min (default) |
 | `useLeagueDetails(id)` | `/leagues/{id}/overview` | 10 min |
 | `useRanking(id)` | `/leagues/{id}/ranking` | 2 min (default) |
+| `useDuels(id, day)` | `/leagues/{id}/ranking?dayNumber=` | 5 min — 0 + poll while the matchday runs |
+| `useMatchdayStandings(id, day)` | same entry, mapped as a manager ranking | as above |
 | `useSquad(id)` | `/leagues/{id}/squad` | 2 min (default) |
 | `useMarket(id)` | `/leagues/{id}/market` | 30 s |
 | `useCompetitionTable(cid)` | `/competitions/{cid}/table` | 10 min |
@@ -197,6 +199,15 @@ opening a match from the [matchday list](pages/matchday.md) issues no request at
 all. It adds one policy the list has no use for: an upcoming match *is* fetched,
 held for five minutes, because the team sheets appear about an hour before
 kick-off. See [Match detail](pages/match-detail.md#opening-a-match-costs-no-request).
+
+`useDuels` and `useMatchdayStandings` are that same arrangement on the
+standings. `/leagues/{id}/ranking?dayNumber=` carries the duel pairings *and*
+the matchday's points — one `us` array read two ways — so the response is what
+sits in the cache and each hook maps it in `select`, which is what makes the
+[duels page](pages/duels.md#one-response-two-readings)'s two tabs one request.
+Both selectors are memoised on the matchday rather than written inline: React
+Query memoises `select` on the function's identity, so an arrow created during
+render would re-map on every render and hand back fresh objects.
 
 `useLiveMatches` takes **any sequence** of things carrying a match id, a
 kick-off and a finished flag. A matchday's fixtures arrive keyed by team (so
