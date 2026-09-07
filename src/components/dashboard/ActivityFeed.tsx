@@ -1,4 +1,6 @@
 import {
+  ArrowLeft,
+  ArrowRight,
   Flag,
   Gift,
   Tag,
@@ -7,11 +9,18 @@ import {
   UserPlus,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router'
 
+import { useAchievement } from '@/api/hooks/useAchievements'
 import { useActivities } from '@/api/hooks/useActivities'
-import type { LeagueActivity } from '@/api/models'
+import { useRanking } from '@/api/hooks/useRanking'
+import type { LeagueActivity, RankedManager } from '@/api/models'
+import { useAuth } from '@/auth/useAuth'
+import {
+  AchievementDialog,
+  MatchdayDialog,
+} from '@/components/dashboard/ActivityDialogs'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -20,34 +29,66 @@ import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { nowMs } from '@/lib/clock'
-import { money, placement, relativeTime } from '@/lib/format'
+import { money, moneyDelta, placement, relativeTime } from '@/lib/format'
 
 /**
  * **The league's event log** — Kickbase's *Aktivitäten* tab, on the dashboard.
  *
- * Every entry is one thing that happened in the league: a player put up for
- * sale, a transfer, a manager arriving or leaving, a matchday scored, an
- * achievement earned. Newest first, and it goes on for as long as the league
- * has — so the list **loads itself** as it is scrolled. A sentinel at the
- * bottom asks for the next page when it comes into view, and a *Mehr laden*
- * button stands in for it where there is no `IntersectionObserver`, or when
- * a load failed and needs a deliberate retry.
+ * Every entry is one thing that happened in the league: a transfer, a manager
+ * arriving or leaving, a matchday scored, an achievement earned. Newest first,
+ * and it goes on for as long as the league has — so the list **loads itself**
+ * as it is scrolled. A sentinel at the bottom asks for the next page when it
+ * comes into view, and a *Mehr laden* button stands in for it where there is
+ * no `IntersectionObserver`, or when a load failed and needs a deliberate
+ * retry.
  *
- * The rows are read, not acted on: the one tappable thing is a player, who
- * opens his page, because "who is this Bischof who just went up for 18 Mio."
- * is the question a listing raises. Managers, matchdays and achievements have
- * no page of their own to go to.
+ * Players being **listed** on the market are not shown — they are nine entries
+ * in ten and the market page is where they belong; the hook asks the API to
+ * leave them out.
  *
- * Entries the app cannot decode are dropped rather than rendered as a code —
- * see `LeagueActivity`.
+ * Every row does one thing when tapped, and the thing depends on the kind:
+ *
+ *  - a **transfer** opens the player's page;
+ *  - an **achievement** opens a sheet with its description, reward and count;
+ *  - a **matchday** goes to that matchday's duels in a duel league, and opens
+ *    the matchday's manager ranking as a sheet in any other;
+ *  - a manager, the bonus and the founding are read, not opened.
+ *
+ * The managers on transfer rows come by **name** — the feed carries no ids or
+ * avatars for them — and are matched against the standings for a face. A
+ * manager who has since left the league keeps initials.
  */
 export function ActivityFeed({ leagueId }: { leagueId: string }) {
   const query = useActivities(leagueId)
+  const ranking = useRanking(leagueId)
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const now = nowMs()
 
-  const activities = (query.data ?? []).filter(
-    (activity) => activity.kind !== 'unknown',
+  const [openActivity, setOpenActivity] = useState<LeagueActivity>()
+
+  const managersByName = useMemo(
+    () =>
+      new Map(
+        (ranking.data?.managers ?? []).map((manager) => [
+          manager.name,
+          manager,
+        ]),
+      ),
+    [ranking.data],
   )
+
+  const activities = (query.data ?? []).filter(
+    (activity) => activity.kind !== 'unknown' && activity.kind !== 'listed',
+  )
+
+  const open = (activity: LeagueActivity) => {
+    if (activity.kind === 'matchday' && ranking.data?.isDuelMode === true) {
+      void navigate(`/leagues/${leagueId}/duels?day=${String(activity.day)}`)
+      return
+    }
+    setOpenActivity(activity)
+  }
 
   return (
     <Card>
@@ -55,10 +96,10 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
 
       {query.isPending ? (
         <div className="flex flex-col gap-2 p-3">
-          <Skeleton className="h-12" />
-          <Skeleton className="h-12" />
-          <Skeleton className="h-12" />
-          <Skeleton className="h-12" />
+          <Skeleton className="h-14" />
+          <Skeleton className="h-14" />
+          <Skeleton className="h-14" />
+          <Skeleton className="h-14" />
         </div>
       ) : query.isError ? (
         <ErrorState
@@ -83,6 +124,8 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
                 activity={activity}
                 leagueId={leagueId}
                 now={now}
+                managersByName={managersByName}
+                onOpen={open}
               />
             ))}
           </ul>
@@ -95,6 +138,29 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
             }}
           />
         </>
+      )}
+
+      {openActivity?.kind === 'achievement' && (
+        <AchievementDialog
+          leagueId={leagueId}
+          achievementType={openActivity.achievementType}
+          title={openActivity.title}
+          description={openActivity.description}
+          onClose={() => {
+            setOpenActivity(undefined)
+          }}
+        />
+      )}
+      {openActivity?.kind === 'matchday' && (
+        <MatchdayDialog
+          leagueId={leagueId}
+          day={openActivity.day}
+          label={openActivity.label}
+          viewerId={user?.id}
+          onClose={() => {
+            setOpenActivity(undefined)
+          }}
+        />
       )}
     </Card>
   )
@@ -173,70 +239,31 @@ function ActivityRow({
   activity,
   leagueId,
   now,
+  managersByName,
+  onOpen,
 }: {
   activity: LeagueActivity
   leagueId: string
   now: number
+  managersByName: Map<string, RankedManager>
+  onOpen: (activity: LeagueActivity) => void
 }) {
   const when = (
     <time
       dateTime={activity.at}
-      className="shrink-0 pt-0.5 text-[0.6875rem] text-faint"
+      className="shrink-0 text-[0.6875rem] text-faint"
     >
       {relativeTime(activity.at, now)}
     </time>
   )
 
   switch (activity.kind) {
-    case 'listed':
-      return (
-        <Row
-          leading={
-            <PlayerPortrait
-              leagueId={leagueId}
-              playerId={activity.playerId}
-              name={activity.playerName}
-              image={activity.playerImage}
-            />
-          }
-          title={
-            <>
-              <PlayerLink
-                leagueId={leagueId}
-                playerId={activity.playerId}
-                name={activity.playerName}
-              />{' '}
-              steht zum Verkauf
-            </>
-          }
-          detail={money(activity.marketValue)}
-          when={when}
-        />
-      )
     case 'transfer':
       return (
-        <Row
-          leading={
-            <PlayerPortrait
-              leagueId={leagueId}
-              playerId={activity.playerId}
-              name={activity.playerName}
-              image={activity.playerImage}
-            />
-          }
-          title={
-            <>
-              <span className="font-semibold">{activity.managerName}</span>{' '}
-              {activity.direction === 'bought' ? 'kauft' : 'verkauft'}{' '}
-              <PlayerLink
-                leagueId={leagueId}
-                playerId={activity.playerId}
-                name={activity.playerName}
-              />
-            </>
-          }
-          detail={money(activity.price)}
-          tone={activity.direction === 'bought' ? 'positive' : 'negative'}
+        <TransferRow
+          activity={activity}
+          leagueId={leagueId}
+          manager={managersByName.get(activity.managerName)}
           when={when}
         />
       )
@@ -284,19 +311,26 @@ function ActivityRow({
               : `Du wurdest ${placement(activity.placement)}`
           }
           when={when}
+          // A matchday the viewer sat out arrives with an empty payload and so
+          // no day at all, and `?dayNumber=0` answers a ranking with every
+          // per-matchday field stripped — ten managers on nought points. There
+          // is nothing to open, so the row is not a button.
+          onClick={
+            activity.day > 0
+              ? () => {
+                  onOpen(activity)
+                }
+              : undefined
+          }
         />
       )
     case 'achievement':
       return (
-        <Row
-          leading={<IconDisc icon={Trophy} accent />}
-          title={
-            <>
-              Erfolg: <span className="font-semibold">{activity.title}</span>
-            </>
-          }
-          detail={activity.description}
+        <AchievementRow
+          activity={activity}
+          leagueId={leagueId}
           when={when}
+          onOpen={onOpen}
         />
       )
     case 'bonus':
@@ -325,6 +359,7 @@ function ActivityRow({
           when={when}
         />
       )
+    case 'listed':
     case 'unknown':
       return null
   }
@@ -332,37 +367,181 @@ function ActivityRow({
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A transfer, drawn like a market listing: the player's cutout flush on the
+ * left, his name over the fee, and on the right the manager who dealt — with
+ * an arrow that says which way the player went. **Green and rightwards** into
+ * the manager's squad on a buy, **red and leftwards** out of it on a sale.
+ *
+ * The whole row opens the player's page. A sale is *to Kickbase*, so there is
+ * no second manager to show and nothing else the row could open.
+ */
+function TransferRow({
+  activity,
+  leagueId,
+  manager,
+  when,
+}: {
+  activity: Extract<LeagueActivity, { kind: 'transfer' }>
+  leagueId: string
+  /** The dealing manager from the standings, when the name still resolves. */
+  manager: RankedManager | undefined
+  when: ReactNode
+}) {
+  const isBuy = activity.direction === 'bought'
+  const Arrow = isBuy ? ArrowRight : ArrowLeft
+
+  return (
+    <li>
+      <Link
+        to={`/leagues/${leagueId}/players/${activity.playerId}`}
+        className="flex items-stretch transition-colors hover:bg-surface-2"
+      >
+        {/* Flush portrait, the market row's arrangement: the Kickbase cutouts
+            are transparent PNGs, so a wash grounds the figure and the inner
+            edge is masked to dissolve into the row rather than end on a
+            line. */}
+        <span className="flex w-14 shrink-0 self-stretch">
+          <Avatar
+            src={activity.playerImage}
+            name={activity.playerName}
+            fill
+            className={cn(
+              'w-full self-stretch bg-transparent',
+              'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+              '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+            )}
+          />
+        </span>
+
+        <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 pl-1">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-ink">
+              {activity.playerName}
+            </span>
+            <span className="nums mt-0.5 block text-xs text-muted">
+              {money(activity.price)}
+            </span>
+          </span>
+
+          <span
+            className="flex shrink-0 items-center gap-1"
+            title={`${activity.managerName} ${isBuy ? 'kauft' : 'verkauft'}`}
+          >
+            <Arrow
+              size={16}
+              aria-hidden="true"
+              className={isBuy ? 'text-positive' : 'text-negative'}
+            />
+            <Avatar
+              src={manager?.image}
+              name={activity.managerName}
+              size={28}
+            />
+            <span className="sr-only">
+              {activity.managerName} {isBuy ? 'kauft' : 'verkauft'}
+            </span>
+          </span>
+
+          {when}
+        </span>
+      </Link>
+    </li>
+  )
+}
+
+/**
+ * An achievement: the trophy, the name, and — once the detail has answered —
+ * what it paid, in green with a plus, because that is the part of an
+ * achievement a manager cares about. Nothing is shown while the reward is
+ * unknown or zero, rather than a placeholder.
+ */
+function AchievementRow({
+  activity,
+  leagueId,
+  when,
+  onOpen,
+}: {
+  activity: Extract<LeagueActivity, { kind: 'achievement' }>
+  leagueId: string
+  when: ReactNode
+  onOpen: (activity: LeagueActivity) => void
+}) {
+  const detail = useAchievement(leagueId, activity.achievementType)
+  const reward = detail.data?.reward ?? 0
+
+  return (
+    <Row
+      leading={<IconDisc icon={Trophy} accent />}
+      title={<span className="font-semibold">{activity.title}</span>}
+      detail={reward > 0 ? moneyDelta(reward) : undefined}
+      tone={reward > 0 ? 'positive' : undefined}
+      when={when}
+      onClick={() => {
+        onOpen(activity)
+      }}
+    />
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The plain row. With `onClick` it is a button that fills the row — a phone
+ * row is a big target and every part of it means the same thing — and without
+ * one it is just a row.
+ */
 function Row({
   leading,
   title,
   detail,
   tone,
   when,
+  onClick,
 }: {
   leading: ReactNode
   title: ReactNode
   detail?: ReactNode
   tone?: 'positive' | 'negative'
   when: ReactNode
+  onClick?: () => void
 }) {
-  return (
-    <li className="flex items-start gap-3 px-4 py-3">
+  const body = (
+    <>
       {leading}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm leading-snug text-ink">{title}</p>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm leading-snug text-ink">{title}</span>
         {detail !== undefined && (
-          <p
+          <span
             className={cn(
-              'nums mt-0.5 truncate text-xs text-muted',
+              'nums mt-0.5 block truncate text-xs text-muted',
               tone === 'positive' && 'text-positive',
               tone === 'negative' && 'text-negative',
             )}
           >
             {detail}
-          </p>
+          </span>
         )}
-      </div>
+      </span>
       {when}
+    </>
+  )
+
+  const className = 'flex w-full items-center gap-3 px-4 py-3 text-left'
+
+  return (
+    <li>
+      {onClick === undefined ? (
+        <div className={className}>{body}</div>
+      ) : (
+        <button
+          type="button"
+          onClick={onClick}
+          className={cn(className, 'transition-colors hover:bg-surface-2')}
+        >
+          {body}
+        </button>
+      )}
     </li>
   )
 }
@@ -384,52 +563,5 @@ function IconDisc({
     >
       <Icon size={16} />
     </span>
-  )
-}
-
-/**
- * The portrait, opening the player's page. The transfer-market icon is not
- * used here — the Kickbase cutout says "a player" better than a tag does, and
- * shows *which* one.
- */
-function PlayerPortrait({
-  leagueId,
-  playerId,
-  name,
-  image,
-}: {
-  leagueId: string
-  playerId: string
-  name: string
-  image: string | undefined
-}) {
-  return (
-    <Link
-      to={`/leagues/${leagueId}/players/${playerId}`}
-      aria-label={`${name} öffnen`}
-      tabIndex={-1}
-      className="shrink-0 transition-opacity hover:opacity-80"
-    >
-      <Avatar src={image} name={name} size={36} className="bg-surface-2" />
-    </Link>
-  )
-}
-
-function PlayerLink({
-  leagueId,
-  playerId,
-  name,
-}: {
-  leagueId: string
-  playerId: string
-  name: string
-}) {
-  return (
-    <Link
-      to={`/leagues/${leagueId}/players/${playerId}`}
-      className="font-semibold hover:underline"
-    >
-      {name}
-    </Link>
   )
 }

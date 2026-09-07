@@ -1897,6 +1897,35 @@ export interface ActivityAchievementData {
   d: string
 }
 
+/**
+ * `GET /v4/leagues/{leagueId}/user/achievements/{type}`.
+ *
+ * Probed 2026-09-07 for six earned and three unearned types. The earned ones
+ * carry `ac` and `dt`; the unearned ones neither.
+ */
+export interface AchievementResponse {
+  /** Achievement type — see docs/api/codes.md#achievement-type. */
+  t: number
+  /** Name — `"Spieltagssieger"`. */
+  n: string
+  /** Description — `"Werde Spieltagssieger"`. */
+  d: string
+  /** How often it has been earned. Absent until the first time. */
+  ac?: number
+  /** Earned at least once. */
+  ise: boolean
+  /**
+   * The reward, in €. `1000000` for Spieltagssieger, `100000` for Erster
+   * Deal, `0` for Managerlizenz. Present on unearned types too — it is what
+   * the achievement *pays*, not what was paid.
+   */
+  er: number
+  /** When it was last earned, ISO 8601. Absent until then. */
+  dt?: string
+  /** Unknown — `true` on three of six earned, `false` on the rest. */
+  isrp?: boolean
+}
+
 /** `data` on a `LOGIN_BONUS` entry — from the spec only, see {@link ACTIVITY_TYPE}. */
 export interface ActivityBonusData {
   /** Bonus paid, in €. */

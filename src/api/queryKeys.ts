@@ -119,6 +119,9 @@ export const qk = {
    */
   activities: (leagueId: string) =>
     [...qk.league(leagueId), 'activities'] as const,
+  /** One of the viewer's achievements in this league, by type code. */
+  achievement: (leagueId: string, type: number) =>
+    [...qk.league(leagueId), 'achievement', type] as const,
   /**
    * One club's squad, in the context of a league.
    *

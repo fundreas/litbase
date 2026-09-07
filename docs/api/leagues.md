@@ -574,7 +574,7 @@ all.
 | `t` | What the single entry adds |
 | --- | -------------------------- |
 | `3` | The player's stats — `tp`, `ap`, `pos`, `st`, `shn`, `tfhmvt` (the 24-hour market-value change), `smc`/`ismc`/`smdc` (**✗**) — and `mv` as it stands **now**, not at listing |
-| `15` | `byr` becomes an object `{ i, n }`, plus `fn`, `ln`, `mv` (current), `isop` (**✗**) |
+| `15` | `byr` / `slr` become objects `{ i, n }`, plus `fn`, `ln`, `mv` (current). `isop` is **`true` on every buy and `false` on every sale** (9 and 19) — it tracks the direction, not the viewer's involvement; it is *not* "the viewer bid on this" |
 | `17` | **The whole matchday table**: `us[]` of `{ i, n, pl, p }` — every manager's placement and points — and `fp` (**✗**, empty). Note it listed **four of the five** members; the one missing had joined the day before the matchday (**?**) |
 | `5` | `uc` (**✗** `5`), `spld` (**?** `1` — starting players dealt), `ibun` (**✗** the name again) |
 | `13` | `uc`, `ds` (**✗** `1`) |
@@ -585,4 +585,16 @@ all.
 
 ### Used by
 
-Nothing yet. The `17` reading is what a "matchday result" row would expand into.
+Nothing yet. The `17` reading is what a "matchday result" row would expand into;
+the [dashboard](../pages/dashboard.md#aktivitäten) reads `/ranking?dayNumber=`
+for that instead, which has avatars.
+
+### No lost bids anywhere
+
+Whether **the viewer bid on a player someone else won** is not exposed. Not
+here, not on the list entry, and not on
+`GET /v4/leagues/{leagueId}/managers/{managerId}/transfer` — which answers a
+manager's **completed** deals only (`{ u, unm, it: [{ pi, pn, tid, tty, trp,
+dt, pim, othnm? }] }`, `tty` `1` bought / `2` sold, `othnm` the other party when
+there was one, paged with `?start=`). `/market/history`, `/user/offers`,
+`/me/offers`, `/transfers`, `/user/transfers` are 404 or 405.

@@ -31,6 +31,30 @@ import {
 export const ACTIVITIES_PAGE_SIZE = 25
 
 /**
+ * The event types the feed asks for — **everything but a player being
+ * listed** (`3`).
+ *
+ * Listings are nine entries in ten: Kickbase puts a player on the market about
+ * once an hour, so a feed that carried them was a market log with the odd
+ * transfer in it, and the market page already shows the same players. Sent as
+ * the API's `filter`, so the pages that arrive are the rows that render — a
+ * page filtered client-side could come back empty and stop the scroll while
+ * the feed still had entries.
+ *
+ * Only decoded types are listed; a code this list does not name will never
+ * arrive, which is also why `unknown` is a mapper fallback rather than a row.
+ */
+const FEED_TYPES = [
+  ACTIVITY_TYPE.MANAGER_JOINED,
+  ACTIVITY_TYPE.MANAGER_LEFT,
+  ACTIVITY_TYPE.TRANSFER,
+  ACTIVITY_TYPE.MATCHDAY_FINISHED,
+  ACTIVITY_TYPE.LOGIN_BONUS,
+  ACTIVITY_TYPE.ACHIEVEMENT,
+  ACTIVITY_TYPE.LEAGUE_FOUNDED,
+].join(',')
+
+/**
  * The league's event log, one page at a time.
  *
  * An **infinite query**: `?start=` is the page parameter, the offset of the
@@ -55,7 +79,13 @@ export function useActivities(
     queryFn: async ({ pageParam }) =>
       get<ActivitiesFeedResponse>(
         endpoints.leagues.activitiesFeed(leagueId as string),
-        { params: { start: pageParam, max: ACTIVITIES_PAGE_SIZE } },
+        {
+          params: {
+            start: pageParam,
+            max: ACTIVITIES_PAGE_SIZE,
+            filter: FEED_TYPES,
+          },
+        },
       ),
     getNextPageParam: (lastPage, pages) =>
       (lastPage.af ?? []).length < ACTIVITIES_PAGE_SIZE
@@ -139,6 +169,7 @@ export function toActivity(item: ActivityItem): LeagueActivity {
       return {
         ...base,
         kind: 'achievement',
+        achievementType: achievement.t,
         title: achievement.n,
         description: achievement.d,
       }

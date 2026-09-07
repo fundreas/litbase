@@ -142,7 +142,8 @@ is what makes them safe to call before context has resolved.
 | `useMatchdayStandings(id, day)` | same entry, mapped as a manager ranking | as above |
 | `useSquad(id)` | `/leagues/{id}/squad` | 2 min (default) |
 | `useMarket(id)` | `/leagues/{id}/market` | 30 s |
-| `useActivities(id)` | `/leagues/{id}/activitiesFeed?start=&max=` | 1 min — an **infinite query**, see below |
+| `useActivities(id)` | `/leagues/{id}/activitiesFeed?start=&max=&filter=` | 1 min — an **infinite query**, see below |
+| `useAchievement(id, type)` | `/leagues/{id}/user/achievements/{type}` | 1 hour |
 | `useCompetitionTable(cid)` | `/competitions/{cid}/table` | 10 min |
 | `useCompetitionPlayers(cid)` | `/competitions/{cid}/players` | 1 hour — 0 + 10 s poll while a matchday runs |
 | `useRecommendedLeagues()` | `/leagues/recommended` | 5 min |

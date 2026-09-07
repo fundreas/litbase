@@ -399,12 +399,28 @@ export type LeagueActivity =
     })
   | (ActivityBase & {
       kind: 'achievement'
+      /** On the achievement scale — what {@link Achievement} is looked up by. */
+      achievementType: number
       title: string
       description: string
     })
   | (ActivityBase & { kind: 'bonus'; amount: number; day: number })
   | (ActivityBase & { kind: 'founded'; leagueName: string })
   | (ActivityBase & { kind: 'unknown'; type: number })
+
+/** One of Kickbase's achievements, as it stands for the viewer. */
+export interface Achievement {
+  type: number
+  name: string
+  description: string
+  /** What earning it pays, in €. `0` for the ones that pay nothing. */
+  reward: number
+  isEarned: boolean
+  /** How often the viewer has earned it. */
+  timesEarned: number
+  /** When it was last earned, ISO 8601. */
+  earnedAt?: string
+}
 
 /**
  * The standings **of one matchday** — who scored what on that day, rather than

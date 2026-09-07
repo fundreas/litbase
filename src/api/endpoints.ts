@@ -276,6 +276,23 @@ export const endpoints = {
      */
     activity: (leagueId: string, activityId: string) =>
       `/v4/leagues/${leagueId}/activitiesFeed/${activityId}`,
+    /**
+     * **The viewer's** achievements in this league — all 46 Kickbase knows,
+     * each with whether it is earned (`ise`) and how often (`ac`). Names are
+     * localised by `Accept-Language`. Unused; {@link achievement} is what the
+     * feed reads.
+     */
+    achievements: (leagueId: string) =>
+      `/v4/leagues/${leagueId}/user/achievements`,
+    /**
+     * One achievement in detail: the description, **the reward in €** (`er`),
+     * when it was earned and how often. The type codes are those of `t` on
+     * `/user/achievements` and on a type-`26` feed entry — see
+     * [docs/api/codes.md](../../docs/api/codes.md#achievement-type). Answers
+     * for unearned types too, minus `ac` and `dt`.
+     */
+    achievement: (leagueId: string, type: number) =>
+      `/v4/leagues/${leagueId}/user/achievements/${String(type)}`,
 
     /* --- Joining ------------------------------------------------------- */
 

@@ -30,14 +30,14 @@ pattern every other data page should follow.
 
   ┌─────────────────────────────┐
   │ Aktivitäten                 │
-  │ (P) Tom Bischof steht zum   │
-  │     Verkauf      vor 5 Min. │
-  │     18,7 Mio. €             │
-  │ (P) leo abi kauft Adeline   │
-  │     5,6 Mio. €    vor 3 Std.│
+  │ (🏆) Tormaschine            │
+  │      +250.000 €  vor 5 Min. │
   │ (🏳) Spieltag 2 ist beendet │
-  │     Du wurdest 1.           │
-  │ (🏆) Erfolg: Tormaschine    │
+  │      Du wurdest 1.          │
+  │ ▌P▌ Adeline      → (L)      │
+  │     5,6 Mio. €    vor 3 Std.│
+  │ ▌P▌ Güther       ← (Y)      │
+  │     2,4 Mio. €       gestern│
   │ …                           │
   │         ── lädt weiter ──   │
   └─────────────────────────────┘
@@ -54,6 +54,8 @@ rest of the page:
 | [`useLeagueDetails(leagueId)`](../../src/api/hooks/useLeague.ts) | Competition name, manager count, founding date — the subtitle |
 | [`useRanking(leagueId)`](../../src/api/hooks/useRanking.ts) | Team value, points, placement, and the top three |
 | [`useActivities(leagueId)`](../../src/api/hooks/useActivities.ts) | The event log, 25 entries a page |
+| [`useAchievement(leagueId, type)`](../../src/api/hooks/useAchievements.ts) | Per achievement row: what it paid, how often it was earned |
+| [`useMatchdayStandings(leagueId, day)`](../../src/api/hooks/useDuels.ts) | The ranking sheet a matchday row opens |
 
 The signed-in user's own row is found by matching `manager.id` against
 `user?.id` from `useAuth()`, since `/leagues/{id}/me` does not itself carry
@@ -94,23 +96,51 @@ The league's event log, below the ranking — Kickbase's own *Aktivitäten* tab.
 [`GET /leagues/{id}/activitiesFeed`](../api/leagues.md#get-v4leaguesleagueidactivitiesfeed)
 and renders one row per entry, newest first:
 
-| Type | Row | Detail line | Leading |
-| ---- | --- | ----------- | ------- |
-| Listing | *Tom Bischof* steht zum Verkauf | Market value | Portrait → player page |
-| Transfer | **leo abi** kauft *Adeline* · **yo-yo** verkauft *Güther* | Fee, green for a buy, red for a sale | Portrait → player page |
-| Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon |
-| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | Flag |
-| Achievement | Erfolg: **Tormaschine** | Kickbase's description | Trophy, accent |
-| Login bonus | **Auflaufprämie** kassiert | Amount · day | Gift, accent — from the spec, never seen live |
-| Founded | Liga **JSG Königslutter** gegründet | — | Tag |
+| Type | Row | Detail line | Leading | Tap |
+| ---- | --- | ----------- | ------- | --- |
+| Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | Player page |
+| Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | — |
+| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | Flag | Duel league: `/duels?day=N`. Otherwise a sheet with the matchday's manager ranking |
+| Achievement | **Tormaschine** | `+250.000 €` in green, when it paid anything | Trophy, accent | A sheet: description, reward, how often earned |
+| Login bonus | **Auflaufprämie** kassiert | Amount · day | Gift, accent — from the spec, never seen live | — |
+| Founded | Liga **JSG Königslutter** gegründet | — | Tag | — |
+
+**Listings are left out.** A player going up for sale is nine feed entries in
+ten — Kickbase lists one about every hour — and the market page is where those
+belong. The hook sends the API's `filter` with every *other* decoded type, so
+the pages that arrive are the rows that render; filtering client-side would
+have produced empty pages that stopped the scroll while the feed went on.
 
 Every row carries the time on the right — `vor 5 Min.`, `vor 3 Std.`,
 `gestern`, then the weekday and date — from
 [`relativeTime`](../../src/lib/format.ts). Types the app has not decoded are
 dropped rather than shown as a code.
 
-The player's name and portrait link to his page; nothing else on a row is
-tappable. Managers, matchdays and achievements have no page to go to.
+### What a transfer row knows, and what it does not
+
+The feed names the dealing manager but carries **no id and no avatar** for
+them, so the row looks the name up in the standings for a face; a manager who
+has since left keeps initials. A sale is always *to Kickbase* — the API has
+never shown a manager-to-manager sale — so there is one manager per row.
+
+**A lost bid is not in the API.** The Kickbase app can say "you offered X and
+lost" on a transfer; nothing found here can. The feed entry, its
+[single-entry detail](../api/leagues.md#get-v4leaguesleagueidactivitiesfeedactivityid)
+and `/managers/{id}/transfer` all describe only the deal that happened — `isop`
+on the detail looked like the flag but turned out to track the direction (true
+on all 9 buys, false on all 19 sales). So a transfer row opens the player's
+page whoever bought him; the "your bid" sheet waits for a payload that carries
+one.
+
+### The achievement's money is a second request
+
+The feed entry names and describes an achievement but says nothing about the
+reward, and neither does the list endpoint. Only
+[`/user/achievements/{type}`](../api/README.md#what-the-app-does-not-use)
+carries `er`, so each achievement row asks for its own type through
+[`useAchievement`](../../src/api/hooks/useAchievements.ts) — a handful of
+requests in a feed of hundreds, held for an hour. The sheet the row opens reads
+the same entry for the count, so opening it costs nothing more.
 
 ### It loads as you scroll
 
