@@ -43,6 +43,7 @@ the two marked *none*.
 | `GET` | `/v4/leagues/{leagueId}/activitiesFeed` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidactivitiesfeed) |
 | `GET` | `/v4/leagues/{leagueId}/activitiesFeed/{activityId}` | | [Leagues](leagues.md#get-v4leaguesleagueidactivitiesfeedactivityid) |
 | `GET` | `/v4/leagues/{leagueId}/user/achievements/{type}` | ✔ | [Codes](codes.md#achievement-type) |
+| `GET` | `/v4/leagues/{leagueId}/players/{playerId}/transfers` | ✔ | [Leagues](leagues.md#where-a-bid-of-your-own-can-be-read-back) |
 | `GET` | `/v4/leagues/{leagueId}/squad` | ✔ | [Squad](squad-and-lineup.md#get-v4leaguesleagueidsquad) |
 | `GET` | `/v4/leagues/{leagueId}/managers/{userId}/squad` | ✔ | [Squad](squad-and-lineup.md#get-v4leaguesleagueidmanagersuseridsquad) |
 | `GET` | `/v4/leagues/{leagueId}/users/{userId}/teamcenter` | ✔ | [Squad](squad-and-lineup.md#get-v4leaguesleagueidusersuseridteamcenter) |
@@ -199,8 +200,8 @@ Money is in **euros as an integer**. Dates are **ISO 8601 with a `Z`**, except
 
 ## What the app does not use
 
-The published spec lists **149 paths**. This reference documents **38** — the
-28 the app actually calls, plus ten neighbours that are declared, adjacent or
+The published spec lists **149 paths**. This reference documents **39** — the
+29 the app actually calls, plus ten neighbours that are declared, adjacent or
 too useful to leave undescribed (each is marked *Used: no* on its page). The
 rest are whole
 product areas the app does not implement — `/v4/challenges/*` (Kickbase's
@@ -220,7 +221,7 @@ simply unbuilt:
 | `POST /v4/leagues/{id}/market/{playerId}/sell` | Selling straight back to Kickbase |
 | `GET /v4/leagues/{id}/me/budget` | Budget on its own, without the rest of `/me` |
 | `GET /v4/leagues/{id}/user/achievements` | The viewer's 46 achievements with earned flags — the list behind the `/{type}` detail the dashboard reads. Type codes in [Codes](codes.md#achievement-type) |
-| `GET /v4/leagues/{id}/managers/{id}/transfer` | A manager's completed deals, `tty` 1 bought / 2 sold. Not lost bids — see [Leagues](leagues.md#no-lost-bids-anywhere) |
+| `GET /v4/leagues/{id}/managers/{id}/transfer` | A manager's completed deals, `tty` 1 bought / 2 sold. Not their bids — see [Leagues](leagues.md#where-a-bid-of-your-own-can-be-read-back) |
 | `GET /v4/bonus/collect` | Claims the daily login bonus (*Auflaufprämie*) for every league at once — a **write dressed as a `GET`**, so it was read from the spec and never called |
 | `GET /v4/config` | Client configuration. Probed once — it names no game modes, which is why [`GAME_PLAY_MODE`](codes.md#game-modes-gpm) had to be inferred |
 

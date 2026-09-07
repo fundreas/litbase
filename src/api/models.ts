@@ -349,6 +349,12 @@ interface ActivityBase {
   id: string
   /** ISO 8601. */
   at: string
+  /**
+   * Comments on this entry. `0` on every entry ever observed — Kickbase's
+   * feed carries chat threads the app does not write to, and nobody in the
+   * probed leagues has used one.
+   */
+  commentCount: number
 }
 
 /**
@@ -407,6 +413,19 @@ export type LeagueActivity =
   | (ActivityBase & { kind: 'bonus'; amount: number; day: number })
   | (ActivityBase & { kind: 'founded'; leagueName: string })
   | (ActivityBase & { kind: 'unknown'; type: number })
+
+/**
+ * A player's market state as it concerns the viewer — above all **what they
+ * bid on him**, which is exposed nowhere else.
+ */
+export interface PlayerOfferState {
+  /** Listing price, in €, while he is on the market. */
+  price?: number
+  /** Is he on the transfer market right now. */
+  isListed: boolean
+  /** What the viewer offered, in €. Absent when they did not bid. */
+  ownOffer?: number
+}
 
 /** One of Kickbase's achievements, as it stands for the viewer. */
 export interface Achievement {

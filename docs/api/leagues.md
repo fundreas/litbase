@@ -464,7 +464,7 @@ It filters on **`t` and nothing else**. Established by elimination:
 | `i` | string | Entry id |
 | `t` | number | Event type — see [Codes](codes.md#activity-type-t) |
 | `dt` | string | When, ISO 8601 |
-| `coc` | number | Comment count — `0` on all 620 entries observed. The comments live at `…/activitiesFeed/{activityId}/comments?start=&max=`, which answers `{ coc, it: [] }`; `POST` there with `{ comm }` adds one (declared by the spec, not tried) |
+| `coc` | number | **Comment count** — `0` on all 620 entries across two leagues, so never observed non-zero. Read as the count because it is the one field beside `it` on the comments endpoint itself (`{ coc, it: [] }`), and `it` is always "the list". Proving it needs a `POST`, and **a comment cannot be taken back**: `OPTIONS` on the collection answers `allow: GET, POST`, and there is no single-comment route, so a test comment would stand in the league feed for good. The comments live at `…/activitiesFeed/{activityId}/comments?start=&max=`; `POST` there with `{ comm }` adds one (declared by the spec, not tried) |
 | `data` | object | **Depends on `t`** — the shapes follow. `{}` on some entries |
 
 #### `data` by type
@@ -589,12 +589,40 @@ Nothing yet. The `17` reading is what a "matchday result" row would expand into;
 the [dashboard](../pages/dashboard.md#aktivitäten) reads `/ranking?dayNumber=`
 for that instead, which has avatars.
 
-### No lost bids anywhere
+### Where a bid of your own can be read back
 
-Whether **the viewer bid on a player someone else won** is not exposed. Not
-here, not on the list entry, and not on
-`GET /v4/leagues/{leagueId}/managers/{managerId}/transfer` — which answers a
-manager's **completed** deals only (`{ u, unm, it: [{ pi, pn, tid, tty, trp,
-dt, pim, othnm? }] }`, `tty` `1` bought / `2` sold, `othnm` the other party when
-there was one, paged with `?start=`). `/market/history`, `/user/offers`,
-`/me/offers`, `/transfers`, `/user/transfers` are 404 or 405.
+**Not from the feed.** Neither the list entry nor the single-entry detail names
+anyone but the parties to the deal, and `isop` on the detail looks like the
+flag and is not: it is `true` on all nine buys and `false` on all nineteen
+sales, so it tracks the direction.
+
+**Not from the manager's transfer log** either.
+`GET /v4/leagues/{leagueId}/managers/{managerId}/transfer` answers **completed**
+deals only — `{ u, unm, it: [{ pi, pn, tid, tty, trp, dt, pim, othnm? }] }`,
+`tty` `1` bought / `2` sold, `othnm` the other party when there was one, paged
+with `?start=`. League-level `/market/history`, `/user/offers`, `/me/offers`,
+`/transfers` and `/user/transfers` are all 404 or 405.
+
+**One endpoint does carry it, per player:**
+
+```
+GET /v4/leagues/{leagueId}/players/{playerId}/transfers
+```
+
+Note the spelling — `transfers`, *not* the `transferHistory` documented under
+[Players](players.md). It answers
+`{ n, oui, mv, prc, iotm, exs, uop, uoid, ofs[], iposl, ipl, plpim, ts }`,
+where **`uop` is what the viewer offered**, `uoid` their offer id (their own
+user id), and `ofs[]` the offers this account may see — `{ u, uoid, uop, st }`,
+`st` `0` on every one observed.
+
+Verified on 2026-09-07 by placing an offer on a live listing and withdrawing it
+again: with no bid the response carries `ofs: []` and no `uop` at all, and with
+one both appear. The market listing shows the same pair, but only while the
+listing stands and only inside a list of twenty.
+
+> **Whether a *losing* bid survives the sale is unresolved** (**?**). Every
+> completed transfer probed answered `ofs: []` — but the account had bid on
+> none of them, and producing a lost bid costs a listing's full run. The
+> [dashboard](../pages/dashboard.md#aktivitäten) asks anyway and renders the
+> answer when there is one.

@@ -205,6 +205,25 @@ export const endpoints = {
     playerTransfers: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/players/${playerId}/transferHistory`,
     /**
+     * **The player's market state, including the viewer's own bid on him** —
+     * note the spelling, `transfers` and not {@link playerTransfers}'s
+     * `transferHistory`. Different endpoint, different answer.
+     *
+     * The only place a bid can be read back per player: `uop` is what the
+     * viewer offered, `uoid` the offer id, and `ofs[]` the offers this account
+     * may see (`{ u, uoid, uop, st }`). Established 2026-09-07 by placing an
+     * offer on the test account and withdrawing it again — with no bid it
+     * answers `ofs: []` and no `uop` at all, and with one both appear.
+     *
+     * **Whether a *losing* bid survives the sale is unverified** (**?**): every
+     * completed transfer probed answered `ofs: []`, but the account had bid on
+     * none of them, and a bid that loses takes a listing's full run to
+     * produce. So the [activity feed](../../docs/pages/dashboard.md#aktivitäten)
+     * asks and renders the answer when there is one.
+     */
+    playerOffers: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/players/${playerId}/transfers`,
+    /**
      * **One club, and every player it has** — market values, lineup
      * probabilities, and who in this league owns each of them.
      *

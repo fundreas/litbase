@@ -144,6 +144,7 @@ is what makes them safe to call before context has resolved.
 | `useMarket(id)` | `/leagues/{id}/market` | 30 s |
 | `useActivities(id)` | `/leagues/{id}/activitiesFeed?start=&max=&filter=` | 1 min — an **infinite query**, see below |
 | `useAchievement(id, type)` | `/leagues/{id}/user/achievements/{type}` | 1 hour |
+| `usePlayerOffers(id, pid)` | `/leagues/{id}/players/{pid}/transfers` | 5 min — the viewer's own bid on one player |
 | `useCompetitionTable(cid)` | `/competitions/{cid}/table` | 10 min |
 | `useCompetitionPlayers(cid)` | `/competitions/{cid}/players` | 1 hour — 0 + 10 s poll while a matchday runs |
 | `useRecommendedLeagues()` | `/leagues/recommended` | 5 min |

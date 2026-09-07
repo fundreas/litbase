@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Flag,
   Gift,
+  MessageCircle,
   Tag,
   Trophy,
   UserMinus,
@@ -20,6 +21,7 @@ import { useAuth } from '@/auth/useAuth'
 import {
   AchievementDialog,
   MatchdayDialog,
+  TransferDialog,
 } from '@/components/dashboard/ActivityDialogs'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -48,11 +50,17 @@ import { money, moneyDelta, placement, relativeTime } from '@/lib/format'
  *
  * Every row does one thing when tapped, and the thing depends on the kind:
  *
- *  - a **transfer** opens the player's page;
+ *  - a **purchase** opens a sheet naming the buyer and, if the reader was
+ *    bidding on the same player, what they bid;
+ *  - a **sale** opens the player's page — it was a sale to Kickbase, so there
+ *    is no contest to report;
  *  - an **achievement** opens a sheet with its description, reward and count;
  *  - a **matchday** goes to that matchday's duels in a duel league, and opens
  *    the matchday's manager ranking as a sheet in any other;
  *  - a manager, the bonus and the founding are read, not opened.
+ *
+ * Rows carry a **comment count** at the right end when Kickbase has one, left
+ * of the timestamp.
  *
  * The managers on transfer rows come by **name** — the feed carries no ids or
  * avatars for them — and are matched against the standings for a face. A
@@ -140,6 +148,16 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
         </>
       )}
 
+      {openActivity?.kind === 'transfer' && (
+        <TransferDialog
+          leagueId={leagueId}
+          activity={openActivity}
+          manager={managersByName.get(openActivity.managerName)}
+          onClose={() => {
+            setOpenActivity(undefined)
+          }}
+        />
+      )}
       {openActivity?.kind === 'achievement' && (
         <AchievementDialog
           leagueId={leagueId}
@@ -248,13 +266,28 @@ function ActivityRow({
   managersByName: Map<string, RankedManager>
   onOpen: (activity: LeagueActivity) => void
 }) {
+  /**
+   * The right-hand end of every row: how many people have commented on the
+   * entry, then when it happened. The count is a Kickbase feature the app does
+   * not otherwise touch — there is no thread view here — so it is a marker
+   * that something is being talked about, not a control, and it is absent
+   * entirely at zero, which is what every entry ever probed has read.
+   */
   const when = (
-    <time
-      dateTime={activity.at}
-      className="shrink-0 text-[0.6875rem] text-faint"
-    >
-      {relativeTime(activity.at, now)}
-    </time>
+    <span className="flex shrink-0 items-center gap-2">
+      {activity.commentCount > 0 && (
+        <span
+          className="flex items-center gap-0.5 text-[0.6875rem] text-faint"
+          title={`${String(activity.commentCount)} Kommentare`}
+        >
+          <MessageCircle size={11} aria-hidden="true" />
+          <span className="nums">{activity.commentCount}</span>
+        </span>
+      )}
+      <time dateTime={activity.at} className="text-[0.6875rem] text-faint">
+        {relativeTime(activity.at, now)}
+      </time>
+    </span>
   )
 
   switch (activity.kind) {
@@ -265,6 +298,7 @@ function ActivityRow({
           leagueId={leagueId}
           manager={managersByName.get(activity.managerName)}
           when={when}
+          onOpen={onOpen}
         />
       )
     case 'joined':
@@ -373,79 +407,101 @@ function ActivityRow({
  * an arrow that says which way the player went. **Green and rightwards** into
  * the manager's squad on a buy, **red and leftwards** out of it on a sale.
  *
- * The whole row opens the player's page. A sale is *to Kickbase*, so there is
- * no second manager to show and nothing else the row could open.
+ * **A purchase opens a sheet, a sale opens the player.** Only a purchase has a
+ * second side worth a sheet: someone won the player, and the reader may have
+ * been bidding against them — which is the one thing about a transfer that is
+ * not already on the row. A sale is *to Kickbase*, there was no contest, and
+ * the player's page is the useful destination.
  */
 function TransferRow({
   activity,
   leagueId,
   manager,
   when,
+  onOpen,
 }: {
   activity: Extract<LeagueActivity, { kind: 'transfer' }>
   leagueId: string
   /** The dealing manager from the standings, when the name still resolves. */
   manager: RankedManager | undefined
   when: ReactNode
+  onOpen: (activity: LeagueActivity) => void
 }) {
   const isBuy = activity.direction === 'bought'
   const Arrow = isBuy ? ArrowRight : ArrowLeft
 
-  return (
-    <li>
-      <Link
-        to={`/leagues/${leagueId}/players/${activity.playerId}`}
-        className="flex items-stretch transition-colors hover:bg-surface-2"
-      >
-        {/* Flush portrait, the market row's arrangement: the Kickbase cutouts
+  const inner = (
+    <>
+      {/* Flush portrait, the market row's arrangement: the Kickbase cutouts
             are transparent PNGs, so a wash grounds the figure and the inner
             edge is masked to dissolve into the row rather than end on a
             line. */}
-        <span className="flex w-14 shrink-0 self-stretch">
-          <Avatar
-            src={activity.playerImage}
-            name={activity.playerName}
-            fill
-            className={cn(
-              'w-full self-stretch bg-transparent',
-              'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
-              '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
-            )}
+      <span className="flex w-14 shrink-0 self-stretch">
+        <Avatar
+          src={activity.playerImage}
+          name={activity.playerName}
+          fill
+          className={cn(
+            'w-full self-stretch bg-transparent',
+            'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+            '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+          )}
+        />
+      </span>
+
+      <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 pl-1">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-ink">
+            {activity.playerName}
+          </span>
+          <span className="nums mt-0.5 block text-xs text-muted">
+            {money(activity.price)}
+          </span>
+        </span>
+
+        <span
+          className="flex shrink-0 items-center gap-1"
+          title={`${activity.managerName} ${isBuy ? 'kauft' : 'verkauft'}`}
+        >
+          <Arrow
+            size={16}
+            aria-hidden="true"
+            className={isBuy ? 'text-positive' : 'text-negative'}
           />
+          <Avatar src={manager?.image} name={activity.managerName} size={28} />
+          <span className="sr-only">
+            {activity.managerName} {isBuy ? 'kauft' : 'verkauft'}
+          </span>
         </span>
 
-        <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 pl-1">
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-ink">
-              {activity.playerName}
-            </span>
-            <span className="nums mt-0.5 block text-xs text-muted">
-              {money(activity.price)}
-            </span>
-          </span>
+        {when}
+      </span>
+    </>
+  )
 
-          <span
-            className="flex shrink-0 items-center gap-1"
-            title={`${activity.managerName} ${isBuy ? 'kauft' : 'verkauft'}`}
-          >
-            <Arrow
-              size={16}
-              aria-hidden="true"
-              className={isBuy ? 'text-positive' : 'text-negative'}
-            />
-            <Avatar
-              src={manager?.image}
-              name={activity.managerName}
-              size={28}
-            />
-            <span className="sr-only">
-              {activity.managerName} {isBuy ? 'kauft' : 'verkauft'}
-            </span>
-          </span>
+  const className =
+    'flex w-full items-stretch text-left transition-colors hover:bg-surface-2'
 
-          {when}
-        </span>
-      </Link>
+  return (
+    <li>
+      {isBuy ? (
+        <button
+          type="button"
+          onClick={() => {
+            onOpen(activity)
+          }}
+          className={className}
+        >
+          {inner}
+        </button>
+      ) : (
+        <Link
+          to={`/leagues/${leagueId}/players/${activity.playerId}`}
+          className={className}
+        >
+          {inner}
+        </Link>
+      )}
     </li>
   )
 }

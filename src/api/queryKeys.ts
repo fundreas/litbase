@@ -89,6 +89,12 @@ export const qk = {
   playerTransfers: (leagueId: string, playerId: string) =>
     [...qk.playerDetail(leagueId, playerId), 'transfers'] as const,
   /**
+   * The player's market state and the viewer's bid on him — a **different**
+   * endpoint to {@link playerTransfers}, despite the neighbouring paths.
+   */
+  playerOffers: (leagueId: string, playerId: string) =>
+    [...qk.playerDetail(leagueId, playerId), 'offers'] as const,
+  /**
    * One player in **one matchday's** match — the live score and its breakdown.
    *
    * Keyed by the matchday *and the season*, unlike {@link playerDetail}: this

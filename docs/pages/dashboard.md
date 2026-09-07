@@ -98,7 +98,7 @@ and renders one row per entry, newest first:
 
 | Type | Row | Detail line | Leading | Tap |
 | ---- | --- | ----------- | ------- | --- |
-| Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | Player page |
+| Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | **Buy**: a sheet — see below. **Sale**: player page |
 | Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | — |
 | Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | Flag | Duel league: `/duels?day=N`. Otherwise a sheet with the matchday's manager ranking |
 | Achievement | **Tormaschine** | `+250.000 €` in green, when it paid anything | Trophy, accent | A sheet: description, reward, how often earned |
@@ -116,6 +116,13 @@ Every row carries the time on the right — `vor 5 Min.`, `vor 3 Std.`,
 [`relativeTime`](../../src/lib/format.ts). Types the app has not decoded are
 dropped rather than shown as a code.
 
+**A comment count sits left of the timestamp** when there is one: a speech
+bubble and a number, from `coc` on the entry. Kickbase's feed carries comment
+threads and this app has no view for them, so the badge says a thing is being
+talked about rather than offering to open it. It is absent at zero, which is
+what all 620 entries across two leagues have read — see
+[the API note](../api/leagues.md#get-v4leaguesleagueidactivitiesfeed).
+
 ### What a transfer row knows, and what it does not
 
 The feed names the dealing manager but carries **no id and no avatar** for
@@ -123,14 +130,30 @@ them, so the row looks the name up in the standings for a face; a manager who
 has since left keeps initials. A sale is always *to Kickbase* — the API has
 never shown a manager-to-manager sale — so there is one manager per row.
 
-**A lost bid is not in the API.** The Kickbase app can say "you offered X and
-lost" on a transfer; nothing found here can. The feed entry, its
-[single-entry detail](../api/leagues.md#get-v4leaguesleagueidactivitiesfeedactivityid)
-and `/managers/{id}/transfer` all describe only the deal that happened — `isop`
-on the detail looked like the flag but turned out to track the direction (true
-on all 9 buys, false on all 19 sales). So a transfer row opens the player's
-page whoever bought him; the "your bid" sheet waits for a payload that carries
-one.
+**A purchase opens a sheet** with the player, the fee, the manager who won him,
+a link to his page — and **what you bid**, when the API still knows. That last
+line is why the sheet exists: it is the only thing about a transfer that is not
+already on the row, and the question a feed of other people's purchases raises.
+
+The bid comes from
+[`usePlayerOffers`](../../src/api/hooks/usePlayerOffers.ts) reading
+`/players/{id}/transfers` — **note the spelling**, a different endpoint to the
+`transferHistory` the player page uses. It is the only place a bid is exposed
+per player: `uop` is what you offered. Established on 2026-09-07 by placing an
+offer on the test account and withdrawing it again, since with no bid the
+response carries `ofs: []` and no `uop` at all.
+
+The request is made **when the sheet opens**, not per row — it is one per
+player, and a feed of transfers would otherwise fan out over every one of them.
+
+> **Whether a *losing* bid survives the sale is unverified.** Every completed
+> transfer probed answered `ofs: []`, but the account had bid on none of them,
+> and producing a lost bid takes a listing's full run. So the line renders when
+> there is an answer and is silently absent otherwise — the sheet never claims
+> you did not bid.
+
+A **sale** opens the player's page instead. It was a sale to Kickbase, so there
+was no contest and no bid of yours to report.
 
 ### The achievement's money is a second request
 

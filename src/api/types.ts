@@ -1819,6 +1819,53 @@ export interface ActivityItem {
   data?: Record<string, unknown>
 }
 
+/**
+ * `GET /v4/leagues/{leagueId}/players/{playerId}/transfers` — the player's
+ * market state and **the viewer's own bid on him**.
+ *
+ * Not `transferHistory`; see {@link PlayerTransferHistoryResponse} for that.
+ * Probed 2026-09-07 with and without a standing offer.
+ */
+export interface PlayerOffersResponse {
+  /** Player's last name. */
+  n: string
+  /** Current owner's user id. `null` when nobody owns him. */
+  oui?: string | null
+  /** Market value, in €. Only while he is listed. */
+  mv?: number
+  /** Listing price, in €. `0` when he is not on the market. */
+  prc?: number
+  /** Is he on the transfer market right now. */
+  iotm?: boolean
+  /** Seconds left on the listing. */
+  exs?: number
+  /**
+   * **What the viewer offered**, in €. Absent when they have not bid — which
+   * is also how it reads for every *completed* transfer probed, though no
+   * losing bid has been observed to test it against.
+   */
+  uop?: number | null
+  /** The viewer's offer id — their own user id. */
+  uoid?: string | null
+  /** Offers this account may see. Empty unless the viewer has bid. */
+  ofs?: PlayerOffer[] | null
+  iposl?: boolean
+  ipl?: boolean
+  plpim?: string
+  ts?: string
+}
+
+export interface PlayerOffer {
+  /** Bidder's user id. */
+  u: string
+  /** Offer id — the same as `u` for one's own offer. */
+  uoid: string
+  /** Offered price, in €. */
+  uop: number
+  /** Offer status. `0` on every offer observed. */
+  st?: number
+}
+
 /** `data` on a `PLAYER_LISTED` entry. */
 export interface ActivityListingData {
   /** Player id. */

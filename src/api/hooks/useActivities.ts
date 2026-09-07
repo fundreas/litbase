@@ -107,7 +107,7 @@ function selectActivities(
  * shapes documented in `types.ts`.
  */
 export function toActivity(item: ActivityItem): LeagueActivity {
-  const base = { id: item.i, at: item.dt }
+  const base = { id: item.i, at: item.dt, commentCount: item.coc ?? 0 }
   const data = item.data ?? {}
 
   switch (item.t) {
