@@ -69,6 +69,12 @@ export const qk = {
   matchdaySquad: (leagueId: string, userId: string, day: number) =>
     [...qk.managerSquad(leagueId, userId), 'day', day] as const,
   /**
+   * One manager's every season in the league. Under the same `manager` prefix
+   * as their squad, so dropping a manager drops their history too.
+   */
+  managerPerformance: (leagueId: string, userId: string) =>
+    [...qk.league(leagueId), 'manager', userId, 'performance'] as const,
+  /**
    * One player's detail. **Not scoped to a matchday** — the response carries
    * every matchday's points in `ph`, so one cache entry serves them all.
    */

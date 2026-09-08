@@ -469,6 +469,40 @@ export interface Achievement {
   earnedAt?: string
 }
 
+/** One season of a manager's time in the league. */
+export interface ManagerSeason {
+  /** Kickbase's season id — `"42"`; steps by five and is not a year. */
+  id: string
+  /** The long label, `"2026/2027"`. */
+  label: string
+  /**
+   * Final placement, 1-based. `undefined` while the season is running — the
+   * wire says `0` for every manager of an unfinished season, leader included.
+   */
+  placement?: number
+  totalPoints: number
+  /** Truncated average over the matchdays scored, sat-out ones counting as 0. */
+  averagePoints: number
+  matchdayWins: number
+}
+
+/**
+ * A manager's whole history in one league.
+ *
+ * `titles` is the number of finished seasons they ended in first place — the
+ * count behind the gold stars on their avatar in the
+ * [standings](../components/manager/ManagerAvatar.tsx). It is **this league
+ * only**: the API has no cross-league view, so a champion elsewhere carries no
+ * star here.
+ */
+export interface ManagerHistory {
+  id: string
+  name: string
+  /** Oldest first. */
+  seasons: ManagerSeason[]
+  titles: number
+}
+
 /**
  * The standings **of one matchday** — who scored what on that day, rather than
  * where the season stands.

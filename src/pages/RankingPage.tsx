@@ -7,7 +7,7 @@ import type { DuelResult, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
 import { DuelOutcomeLine } from '@/components/ranking/DuelOutcomeLine'
-import { Avatar } from '@/components/ui/Avatar'
+import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/States'
@@ -208,7 +208,7 @@ function ManagerRow({
               nothing. */}
             <PlacementChange value={manager.placementChange} />
           </span>
-          <Avatar src={manager.image} name={manager.name} size={48} />
+          <ManagerAvatar leagueId={leagueId} manager={manager} size={48} />
         </span>
 
         {/* Name, then two subtitles: what was scored this matchday, then how

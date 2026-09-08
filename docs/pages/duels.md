@@ -59,6 +59,16 @@ turned to face the middle. That is what makes it read as a duel rather than as
 two list rows that happen to share a border. Both names truncate: a phone at
 360px leaves roughly 110px per side, and manager names are not short.
 
+### Title stars
+
+Every manager face on this page — both sides of a duel card, the *Ohne Gegner*
+rows and the Rangliste — is the
+[`ManagerAvatar`](../../src/components/manager/ManagerAvatar.tsx) of the
+[season standings](ranking.md#title-stars), so a manager who has won this
+league carries one small gold star per title on the avatar's rim here as well.
+The count comes from `/managers/{id}/performance`, one request per manager held
+for an hour, which the standings page has usually already made.
+
 **The whole card is a link** to [Duel detail](duel-detail.md), carrying the
 selected matchday with it — not a chevron in the corner, because a duel row on
 a phone is a big target and every part of it means "this duel".

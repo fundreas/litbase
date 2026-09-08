@@ -2,7 +2,7 @@ import { ChevronRight, CircleCheck, Swords } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { duelLeader, type Duel, type DuelSide } from '@/api/models'
-import { Avatar } from '@/components/ui/Avatar'
+import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { cn } from '@/lib/cn'
 import { placement, points } from '@/lib/format'
 
@@ -24,6 +24,7 @@ import { placement, points } from '@/lib/format'
  */
 export function DuelCard({
   duel,
+  leagueId,
   to,
   hasStarted,
   isFinished,
@@ -31,6 +32,8 @@ export function DuelCard({
   activePlayers,
 }: {
   duel: Duel
+  /** For the title stars on each side's avatar — the history is per league. */
+  leagueId: string
   /** Detail route for this duel, matchday included. */
   to: string
   hasStarted: boolean
@@ -61,6 +64,7 @@ export function DuelCard({
         )}
       >
         <Side
+          leagueId={leagueId}
           side={duel.sides[0]}
           align="left"
           hasStarted={hasStarted}
@@ -80,6 +84,7 @@ export function DuelCard({
         />
 
         <Side
+          leagueId={leagueId}
           side={duel.sides[1]}
           align="right"
           hasStarted={hasStarted}
@@ -110,6 +115,7 @@ export function DuelCard({
  */
 function Side({
   side,
+  leagueId,
   align,
   hasStarted,
   isFinished,
@@ -118,6 +124,7 @@ function Side({
   activePlayers,
 }: {
   side: DuelSide
+  leagueId: string
   align: 'left' | 'right'
   hasStarted: boolean
   isFinished: boolean
@@ -135,7 +142,7 @@ function Side({
         isRight && 'flex-row-reverse',
       )}
     >
-      <Avatar src={side.image} name={side.name} size={44} />
+      <ManagerAvatar leagueId={leagueId} manager={side} size={44} />
       <div className={cn('min-w-0 flex-1', isRight && 'text-right')}>
         <p className="truncate text-sm font-semibold text-ink">
           {side.name}

@@ -9,8 +9,8 @@ import {
   type MatchdayStandings,
   type RankedManager,
 } from '@/api/models'
+import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { DuelOutcomeLine } from '@/components/ranking/DuelOutcomeLine'
-import { Avatar } from '@/components/ui/Avatar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
@@ -202,7 +202,7 @@ function ManagerRow({
           <span className="nums w-6 text-center text-base font-bold text-faint">
             {placement(rank)}
           </span>
-          <Avatar src={manager.image} name={manager.name} size={44} />
+          <ManagerAvatar leagueId={leagueId} manager={manager} size={44} />
         </span>
 
         <span className="min-w-0 flex-1">

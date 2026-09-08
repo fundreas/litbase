@@ -150,7 +150,7 @@ inverted reading would be visible immediately rather than silent.
 | ------- | ------ |
 | Placement | `seasonPlacement` or `duelPlacement`, formatted `3.` by `placement()` |
 | Placement change | `placementChange` (`ppc`), under the placement — hidden when `0` |
-| Avatar | `image` (`uim`), initials fallback |
+| Avatar | `image` (`uim`), initials fallback — with one **gold star per league title** on its rim, see [Title stars](#title-stars) |
 | Name | `name`, with a `du` tag in accent colour when `id === user?.id` |
 | Admin | not here — the crown is on the [manager page](manager-detail.md#the-header)'s header, from `isAdmin` |
 | Subtitle 1 | Matchday Kickbase points (`mdp`) |
@@ -161,6 +161,32 @@ inverted reading would be visible immediately rather than silent.
 **Your own row is outlined** in `border-accent/50` instead of the usual
 `border-line`, which makes it findable by scanning rather than reading — the
 point of a standings list on a phone.
+
+### Title stars
+
+A manager who has **won this league** carries one small gold star per title,
+astride the top rim of the avatar — half above the circle, half over it, the
+points of neighbouring stars tucked under each other so five still fit on a
+44px face. More than five shows five, with the exact count in the tooltip
+(`3 Meistertitel`). Nothing is drawn for a manager without a title, and nothing
+while the count is loading, so a row never flashes a badge it then takes back.
+
+The avatar is
+[`ManagerAvatar`](../../src/components/manager/ManagerAvatar.tsx), which the
+[duel cards, the byes and the matchday Rangliste](duels.md#title-stars) share —
+a champion looks like one wherever their face appears. It asks for the count
+itself through
+[`useManagerHistory`](../../src/api/hooks/useManagerHistory.ts) →
+`/v4/leagues/{leagueId}/managers/{managerId}/performance`, the one endpoint
+that reaches past the current season; one request per manager, held for an
+hour, so the three pages share it.
+
+A title is a **finished** season the manager ended in first place. The running
+season reads `pl: 0` for everybody, leader included, and so never counts — see
+[How often has a manager won the league?](../api/leagues.md#how-often-has-a-manager-won-the-league)
+for the probe, and for the one reading still unconfirmed: no finished season
+has been observed live yet. And it is **this league only**; the API has no
+cross-league view, so a champion elsewhere carries no star here.
 
 ## Placement change
 

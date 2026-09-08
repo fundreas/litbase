@@ -19,6 +19,10 @@
   --color-positive: oklch(0.78 0.17 150);
   --color-negative: oklch(0.68 0.19 22);
   --color-warning: oklch(0.82 0.15 78);
+  /* The league-title star. Warmer and more saturated than `warning`, so the
+     two read as different things when both sit on one row. */
+  --color-gold: oklch(0.84 0.17 88);
+  --color-gold-ink: oklch(0.55 0.13 80);
 
   --font-sans:
     'Inter var', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',

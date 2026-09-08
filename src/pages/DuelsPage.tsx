@@ -8,9 +8,9 @@ import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import { matchdayState, type Duel } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { DuelCard } from '@/components/duels/DuelCard'
+import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { MatchdayPicker } from '@/components/MatchdayPicker'
 import { ManagerRankingTab } from '@/components/ranking/ManagerRankingTab'
-import { Avatar } from '@/components/ui/Avatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
@@ -319,6 +319,7 @@ export function DuelsPage() {
                 <DuelCard
                   key={duel.id}
                   duel={duel}
+                  leagueId={leagueId}
                   to={`/leagues/${leagueId}/duels/${duel.id}?day=${String(activeDay)}`}
                   hasStarted={hasStarted}
                   isFinished={state === 'finished'}
@@ -340,7 +341,11 @@ export function DuelsPage() {
                     key={side.id}
                     className="flex items-center gap-2.5 rounded-card border border-line bg-surface px-3 py-3"
                   >
-                    <Avatar src={side.image} name={side.name} size={44} />
+                    <ManagerAvatar
+                      leagueId={leagueId}
+                      manager={side}
+                      size={44}
+                    />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-ink">
                         {side.name}

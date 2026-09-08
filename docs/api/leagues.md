@@ -275,9 +275,14 @@ carrying that season's final placement, and inside it every matchday they
 played. Everything else in this reference stops at the current season; this is
 the only endpoint that does not.
 
-**Auth** Bearer. **Unused.** **Spec-only — never called.** The readings below
-are derived from the spec's captured example, so several are arithmetic
-(stated as such) and the rest are marked.
+**Auth** Bearer. **Used** by
+[`useManagerHistory`](../../src/api/hooks/useManagerHistory.ts) for one thing:
+the **gold title stars** on a manager's avatar in the
+[Ranking](../pages/ranking.md#title-stars), on the duel cards and in the
+matchday Rangliste of [Duels](../pages/duels.md#title-stars). Probed live on
+2026-09-08 for every manager of two first-season leagues; the readings of
+*finished* seasons below are still from the spec's captured example, so several
+are arithmetic (stated as such) and the rest are marked.
 
 ### Path parameters
 
@@ -325,14 +330,21 @@ first season runs day 2…34, 33 entries.
 **This endpoint is the only route to it for an arbitrary manager**, by counting
 the `it[]` entries whose `pl` is first place.
 
-**What "first place" is, is unresolved.** All four sample seasons read `pl: 0`,
-which is either a zero-based placement (three titles in a row) or "not
-recorded". Everywhere else in this reference `pl` is 1-based — see the
-[index](README.md) — with one documented exception, the matchday entries in the
-activity feed, which count from zero
-([Events](../pages/events.md)). The sibling `/dashboard` reads `pl: 4` for a
-different account, which leans 1-based, but that is a different sample.
-**Probe a manager with a known finishing position before counting anything.**
+**`pl: 0` is "not settled", not a placement — probed 2026-09-08.** In a
+league on matchday 2 of its first season, **every** manager's running season
+read `pl: 0`: the one sitting 1st by `spl`, whose own `/dashboard` said `pl: 1`
+at the same moment, and the one sitting 5th alike. A zero-based placement would
+have put `4` on the fifth; a live placement would have put `1` on the leader.
+So the running season carries no placement at all, and can never count as a
+title — which also explains the spec's sample, where the running season reads
+`0` like the other three.
+
+**A finished season has not been observed live** — neither test league has one
+— so the 1-based reading of a settled `pl` rests on the rest of the API
+(`/dashboard` above, `spl`, `mdpl`) rather than on a probe. The app counts
+`pl === 1` on that basis. If a settled season turns out to read `0` for its
+champion too, the stars would simply never appear; nothing would be drawn
+wrongly. **Check the first league that carries a finished season.**
 
 **For the viewer only there is a second, better source.** Achievement type
 `2001` is *Meister* and `2002` *Vizemeister* — see
