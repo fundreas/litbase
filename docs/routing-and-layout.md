@@ -89,10 +89,25 @@ entry the app is on, closing goes **back** rather than replacing, so a back
 press after closing does not spend itself repainting the same screen. Where it
 did not — a refresh, a shared link — the hash is dropped in place instead.
 
+**A dismissed sheet does not come back on a forward press.** Going back does
+not delete the entry the modal was open in — it is still sitting ahead of the
+reader, and forward (or the forward swipe on iOS) would reopen what they just
+dismissed. The History API cannot drop it: only a `pushState` truncates what is
+ahead, and pushing puts a second identical entry under the reader, which would
+spend their next *back* press repainting the screen they are already looking
+at. Back is used constantly on a phone and forward hardly at all, so the entry
+is marked **spent** instead: a forward press onto it opens nothing — the modal
+is declined during render, so no frame of it is ever painted — and the layer
+comes out of the URL in place, so the address matches the screen and a refresh
+there cannot bring the sheet back either. It is short-lived in any case; any
+ordinary navigation truncates the stack ahead and throws the entry away.
+
 A link *inside* a hash modal needs no `onClose`: it changes the URL, the hash
 goes with it, and the modal closes by construction. Those links carry `replace`
 so the destination swallows the modal's entry — otherwise the way back out of a
-player's page leads through the sheet it was opened from.
+player's page leads through the sheet it was opened from. A link that *pushes*
+leaves the sheet's entry behind rather than ahead, and going back to it does
+find the sheet open again — the entry was never dismissed.
 
 | Hash | Where |
 | ---- | ----- |
