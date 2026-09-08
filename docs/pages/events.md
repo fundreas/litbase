@@ -70,7 +70,7 @@ a row or by the sheet it opens.
 | ---- | --- | ----------- | ------- | --- |
 | Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | **Buy**: a sheet — see below. **Sale**: player page |
 | Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | — |
-| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | **The manager who won the matchday, in a crown.** Flag until it lands | Duel league: `/duels?day=N`. Otherwise a sheet with the matchday's manager ranking |
+| Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | **The manager who won the matchday, in a crown.** Flag until it lands | A sheet with the matchday's manager ranking, in **every** league — see below |
 | Achievement | **Tormaschine** | `+250.000 €` in green, when it paid anything | Trophy, accent | A sheet: description, reward, how often earned |
 | Login bonus | **Auflaufprämie** kassiert | Amount · day | Gift, accent — from the spec, never seen live | — |
 | Founded | Liga **JSG Königslutter** gegründet | — | Tag | — |
@@ -180,6 +180,41 @@ have made anyway, and opening the sheet afterwards costs nothing.
 The flag stays when nobody scored: a matchday every manager sat out sorts
 alphabetically, and crowning the first name in the alphabet would be inventing
 a winner.
+
+### The sheet a matchday row opens
+
+**Every league gets it.** A duel league used to have the row navigate straight
+to `/duels?day=N` instead — which meant the one mode where a settled matchday
+raises the most questions was the mode that never got its answer in place: the
+feed was left behind for a page, and the ranking was another tap after that.
+
+So the row always opens the ranking, and the link that *was* the row's whole
+behaviour now sits beside the sheet's title:
+
+| League | Head link | Goes to |
+| ------ | --------- | ------- |
+| Duels | **Duelle** › | `/duels?day=N` — the pairings for the matchday the sheet is about |
+| Any other | **Rangliste** › | `/ranking` — the season table, the only league-wide ranking a normal league has |
+
+Following it closes the sheet: it is a view of the page being opened, and left
+stacked it would put an overlay over the answer.
+
+The rows are [`ManagerRankingTab`](../../src/components/ranking/ManagerRankingTab.tsx),
+the same ones the [duels page](duels.md)'s Rangliste draws — so in a duel
+league **each row also says how that manager's duel went**: won, drawn or lost,
+as an icon *and* the word, over the opponent's name, linking to the duel in
+detail. The outcome is resolved against the opponent named in `hhoui` on this
+same response, and `hhoui` is per-`dayNumber` — so it is the pairing of the
+matchday the sheet is about, not of the current one.
+
+That line is gated on the matchday being finished, because level at `0` in the
+third minute is not a draw. Here the gate is hard `true`: the feed only ever
+names a matchday that is over.
+
+> [!NOTE]
+> A matchday you sat out arrives with no day at all, and `?dayNumber=0` answers
+> a ranking with every per-matchday field stripped — ten managers on nought
+> points. There is nothing to open, so that row is not a button.
 
 ### Your placement comes from the standings, not the feed
 

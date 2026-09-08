@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 
 import { useAchievement } from '@/api/hooks/useAchievements'
 import { useActivities } from '@/api/hooks/useActivities'
@@ -64,8 +64,9 @@ import {
  *  - a **sale** opens the player's page — it was a sale to Kickbase, so there
  *    is no contest to report;
  *  - an **achievement** opens a sheet with its description, reward and count;
- *  - a **matchday** goes to that matchday's duels in a duel league, and opens
- *    the matchday's manager ranking as a sheet in any other;
+ *  - a **matchday** opens the matchday's manager ranking as a sheet, in every
+ *    league — with a link in its head onwards to the day's duels, or to the
+ *    season table where there are none;
  *  - a manager, the bonus and the founding are read, not opened.
  *
  * Rows carry a **comment count** at the right end when Kickbase has one, left
@@ -79,7 +80,6 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
   const query = useActivities(leagueId)
   const ranking = useRanking(leagueId)
   const { user } = useAuth()
-  const navigate = useNavigate()
   const now = nowMs()
 
   const [openActivity, setOpenActivity] = useState<LeagueActivity>()
@@ -98,14 +98,6 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
   const activities = (query.data ?? []).filter(
     (activity) => activity.kind !== 'unknown' && activity.kind !== 'listed',
   )
-
-  const open = (activity: LeagueActivity) => {
-    if (activity.kind === 'matchday' && ranking.data?.isDuelMode === true) {
-      void navigate(`/leagues/${leagueId}/duels?day=${String(activity.day)}`)
-      return
-    }
-    setOpenActivity(activity)
-  }
 
   return (
     <Card>
@@ -142,7 +134,7 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
                 leagueId={leagueId}
                 now={now}
                 managersByName={managersByName}
-                onOpen={open}
+                onOpen={setOpenActivity}
               />
             ))}
           </ul>
@@ -184,6 +176,7 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
           day={openActivity.day}
           label={openActivity.label}
           viewerId={user?.id}
+          isDuelMode={ranking.data?.isDuelMode === true}
           onClose={() => {
             setOpenActivity(undefined)
           }}

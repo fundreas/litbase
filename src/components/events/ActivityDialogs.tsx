@@ -370,24 +370,55 @@ function Fact({
 }
 
 /**
- * What a matchday row opens in a league without duels: the matchday's manager
- * ranking, the same rows the matchday page's Rangliste draws.
+ * What a matchday row opens — **in every league**: the matchday's manager
+ * ranking, the same rows the duels page's Rangliste draws.
  *
  * Reads `/ranking?dayNumber=` rather than the feed entry's own detail — that
  * one has placements and points but no avatars, and the standings entry is
  * one the duels and matchday pages may already have filled.
+ *
+ * ## The way out is in the head, not in the row
+ *
+ * A duel league used to have the row *navigate* to that matchday's duels, so
+ * the one league mode where a settled matchday raises the most questions was
+ * the one that never got the answer in place — the feed was left behind for a
+ * page, and the ranking took a second tap to find. The sheet now opens for
+ * everybody, and the link that was the row's whole behaviour sits beside the
+ * title instead:
+ *
+ *  - **Duelle** in a duel league, at that matchday — the pairings for the day
+ *    the sheet is about, which is what the rows here are each half of;
+ *  - **Rangliste** anywhere else — the season table, the only league-wide
+ *    ranking a normal league has. It is not day-scoped, and it is the right
+ *    place to land from a matchday that has just moved it.
+ *
+ * ## In a duel league every row says how the duel went
+ *
+ * Won, drawn or lost, as an icon *and* the word — `ManagerRankingTab` draws
+ * that line itself, from the opponent each manager names in `hhoui` on this
+ * very response. `hhoui` is per-`dayNumber`, so it is the pairing of **the
+ * matchday the sheet is about**, not of the current one.
+ *
+ * It is the `isFinished` below that turns those outcomes on, and it is hard
+ * `true` here on purpose: the row that opens this sheet is a *Spieltag ist
+ * beendet* entry, so the matchday is over by the time the feed mentions it at
+ * all. That gate exists because level at `0` in the third minute is not a
+ * draw — a state this sheet cannot be in.
  */
 export function MatchdayDialog({
   leagueId,
   day,
   label,
   viewerId,
+  isDuelMode,
   onClose,
 }: {
   leagueId: string
   day: number
   label: string
   viewerId: string | undefined
+  /** Played as duels? Decides where the head link goes — see above. */
+  isDuelMode: boolean
   onClose: () => void
 }) {
   const query = useMatchdayStandings(leagueId, day)
@@ -398,7 +429,30 @@ export function MatchdayDialog({
       onOpenChange={(open) => {
         if (!open) onClose()
       }}
-      title={label}
+      title={
+        <span className="flex items-center justify-between gap-3">
+          <span className="min-w-0 truncate">{label}</span>
+          {/* Closed on the way out: the sheet is a view of the page being
+              opened, and leaving it stacked behind the destination would put
+              an overlay over the answer. */}
+          <Link
+            to={
+              isDuelMode
+                ? `/leagues/${leagueId}/duels?day=${String(day)}`
+                : `/leagues/${leagueId}/ranking`
+            }
+            onClick={onClose}
+            className={cn(
+              '-mr-1 flex shrink-0 items-center gap-0.5 rounded-card px-1.5 py-1',
+              'text-xs font-medium text-accent transition-colors hover:bg-surface-2/60',
+              'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+            )}
+          >
+            {isDuelMode ? 'Duelle' : 'Rangliste'}
+            <ChevronRight size={14} aria-hidden="true" />
+          </Link>
+        </span>
+      }
     >
       {query.isError ? (
         <ErrorState error={query.error} className="py-4" />
@@ -407,6 +461,9 @@ export function MatchdayDialog({
           standings={query.data}
           leagueId={leagueId}
           viewerId={viewerId}
+          // The feed only ever names a matchday that is over — and this is
+          // what puts *Gewonnen* / *Remis* / *Verloren* on every row of a
+          // duel league. See above before loosening it.
           isFinished
           isPending={query.isPending}
         />
