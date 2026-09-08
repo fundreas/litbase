@@ -1,5 +1,6 @@
-import { Flag, RefreshCw, Store, type LucideIcon } from 'lucide-react'
+import { Flag, Gavel, RefreshCw, Store, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router'
 
 import { useLeagueDetails } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
@@ -11,9 +12,9 @@ import { PageHeading } from '@/components/PageHeading'
 import { MarketRow } from '@/components/market/MarketRow'
 import { OfferDialog } from '@/components/market/OfferDialog'
 import { OwnListingsTab } from '@/components/market/OwnListingsTab'
+import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { nowMs } from '@/lib/clock'
 import { COUNTDOWN_SECONDS_FROM, kickoff, money } from '@/lib/format'
@@ -39,11 +40,27 @@ const TICK_FAST_MS = 1_000
  */
 const FAST_FROM_SECONDS = COUNTDOWN_SECONDS_FROM + 30
 
-/** The page's shared clock. One interval for the whole list — see `MarketRow`. */
-function useTick(intervalMs: number): number {
+/**
+ * The page's two views, as path segments.
+ *
+ * `market` is the **bare** route (`/leagues/:leagueId/market`), so its value is
+ * only ever used to name the view, never appended to a URL.
+ */
+const VIEWS = { market: 'market', offers: 'offers' } as const
+
+type View = (typeof VIEWS)[keyof typeof VIEWS]
+
+/**
+ * The page's shared clock. One interval for the whole list — see `MarketRow`.
+ *
+ * `null` stops it. The seller's view has no countdown on it at all, and a
+ * clock nothing reads is a re-render of the page once a second.
+ */
+function useTick(intervalMs: number | null): number {
   const [now, setNow] = useState(() => nowMs())
 
   useEffect(() => {
+    if (intervalMs === null) return undefined
     const id = setInterval(() => {
       setNow(nowMs())
     }, intervalMs)
@@ -66,15 +83,34 @@ function useTick(intervalMs: number): number {
  * Every row is two targets: the portrait opens the player, everything else
  * opens the bid dialog. See [`MarketRow`](../components/market/MarketRow.tsx).
  *
- * **It grows a second tab the moment you are also a seller.** With a listing
+ * **It grows a second view the moment you are also a seller.** With a listing
  * of your own up, *Gebote* holds the other cut of the same payload — your
  * players, each with the league's bids under it — and the page stays a single
  * list for everyone who is only buying. See
  * [`OwnListingsTab`](../components/market/OwnListingsTab.tsx).
+ *
+ * ## The view is a path segment
+ *
+ * `/market` and `/market/offers`, switched by a
+ * [`BottomTabBar`](../components/ui/BottomTabBar.tsx) like every other
+ * two-view page in the app — the thumb is already down there, and each view is
+ * then linkable and survives a refresh. Its *Gebote* tab carries a **badge**
+ * counting the bids standing on your listings, which is the one thing on this
+ * page that arrives while you are not looking at it and is worth a mark that
+ * says so.
+ *
+ * The bar appears with the first listing of your own and is otherwise absent:
+ * a one-tab bar costs a row of screen height to offer no choice. It is drawn
+ * on `/market/offers` regardless, so a bookmark to a view that has since
+ * emptied still has its way back.
  */
 export function MarketPage() {
   const { league, leagueId, competitionId } = useActiveLeague()
   const { user } = useAuth()
+  const location = useLocation()
+  const view: View = location.pathname.endsWith(`/${VIEWS.offers}`)
+    ? VIEWS.offers
+    : VIEWS.market
   const { data, isPending, isError, error, refetch } = useMarket(leagueId)
   const matchday = useCurrentMatchday(competitionId)
   // For `upe` — whether this league lets a bid fall below the market value.
@@ -93,7 +129,9 @@ export function MarketPage() {
   const isClosing =
     soonestExpiry !== undefined &&
     soonestExpiry - nowMs() < FAST_FROM_SECONDS * 1000
-  const now = useTick(isClosing ? TICK_FAST_MS : TICK_MS)
+  const now = useTick(
+    view === VIEWS.offers ? null : isClosing ? TICK_FAST_MS : TICK_MS,
+  )
 
   /**
    * Which listing's bid dialog is open — `#offer:<playerId>`, so the back
@@ -140,6 +178,26 @@ export function MarketPage() {
     0,
   )
 
+  const base = `/leagues/${leagueId}/${VIEWS.market}`
+  const tabs: BottomTab[] = [
+    { value: VIEWS.market, label: 'Markt', icon: Store, to: base },
+    {
+      value: VIEWS.offers,
+      label: 'Gebote',
+      icon: Gavel,
+      to: `${base}/${VIEWS.offers}`,
+      // Bids from other managers, on players of yours. The count is the whole
+      // reason to go and look, and it lands without anything on screen moving.
+      badge: received,
+    },
+  ]
+  /* Only a seller has two views. The offers route keeps the bar whatever the
+     data says, or a link to it becomes a dead end with no way back. */
+  const bar =
+    ownListings.length > 0 || view === VIEWS.offers ? (
+      <BottomTabBar tabs={tabs} active={view} ariaLabel="Marktansicht" />
+    ) : null
+
   const heading = (
     <PageHeading
       title="Transfermarkt"
@@ -180,6 +238,7 @@ export function MarketPage() {
       <div className="flex flex-col gap-4">
         {heading}
         <SkeletonList rows={8} />
+        {bar}
       </div>
     )
   }
@@ -194,6 +253,20 @@ export function MarketPage() {
             void refetch()
           }}
         />
+        {bar}
+      </div>
+    )
+  }
+
+  /* The seller's view is the whole page, so it returns before the buying side
+     is built: no list of twenty rows to make, and the `#offer:` dialog — which
+     is a bid of one's own, opened from a market row — has no business here. */
+  if (view === VIEWS.offers) {
+    return (
+      <div className="flex flex-col gap-4">
+        {heading}
+        <OwnListingsTab listings={ownListings} leagueId={leagueId} />
+        {bar}
       </div>
     )
   }
@@ -234,33 +307,7 @@ export function MarketPage() {
     <div className="flex flex-col gap-4">
       {heading}
 
-      {ownListings.length === 0 ? (
-        market
-      ) : (
-        /* Buying first: it is what the page has always been and what it is
-           opened for, and the seller's side is a place you go deliberately. */
-        <Tabs defaultValue="market">
-          <TabsList>
-            <TabsTrigger value="market">Markt</TabsTrigger>
-            <TabsTrigger value="own">
-              Gebote
-              {/* The count is the reason to look, so it is on the tab rather
-                  than behind it. Silent at zero: "Gebote 0" is a label that
-                  invites a tap to confirm what it already said. */}
-              {received > 0 && (
-                <span className="nums ml-1.5 font-semibold">
-                  {String(received)}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="market">{market}</TabsContent>
-          <TabsContent value="own">
-            <OwnListingsTab listings={ownListings} leagueId={leagueId} />
-          </TabsContent>
-        </Tabs>
-      )}
+      {market}
 
       {selected !== null && (
         // Keyed by player: the dialog seeds its amount once, at mount, so a
@@ -283,6 +330,8 @@ export function MarketPage() {
           onClose={offer.close}
         />
       )}
+
+      {bar}
     </div>
   )
 }

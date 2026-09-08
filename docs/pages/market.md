@@ -13,10 +13,12 @@ to the highest bid standing at that moment and with no second round, so the
 listings about to close are the only ones you can still do anything about.
 Manager listings have no expiry at all and sort last.
 
-**Two tabs, but only for a seller.** With a listing of your own up, the page
-grows a *Gebote* tab holding your players and the bids on them — see
-[below](#the-selling-side-when-there-is-one--gebote). Buying is the first tab
-and the default, because it is what the page is opened for.
+**Two views, but only for a seller.** With a listing of your own up, the page
+grows a *Gebote* view holding your players and the bids on them, reached from a
+[bottom tab bar](../routing-and-layout.md#navigation) whose badge counts those
+bids — see [below](#the-selling-side-when-there-is-one--gebote). `/market` is
+the buying side and the page's front door, because that is what it is opened
+for.
 
 Each row of the market list carries what a buying decision actually needs:
 
@@ -388,12 +390,21 @@ helper for one caller.
 
 ## The selling side, when there is one — "Gebote"
 
-**The page splits into two tabs the moment a listing of your own is up**:
-*Markt*, which is everything above, and *Gebote* —
-[`OwnListingsTab`](../../src/components/market/OwnListingsTab.tsx). With
-nothing of yours on the market there are no tabs at all, and the page is the
-single list it has always been: a tab strip with one inhabited side asks a
-question that has one answer.
+**The page splits in two the moment a listing of your own is up**: `/market`,
+which is everything above, and `/market/offers` —
+[`OwnListingsTab`](../../src/components/market/OwnListingsTab.tsx). The view is
+a **path segment**, switched by a
+[`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx) as on every other
+two-view page: the thumb is already at the bottom of a list you scroll, and
+each view is then linkable and survives a refresh.
+
+**The bar is there only for a seller**, and with it the badge: a count on the
+*Gebote* icon of every bid standing on your listings — the one thing on this
+page that lands while you are looking at the other view. It is silent at zero,
+and with nothing of yours on the market there is no bar at all, because a
+one-tab bar spends a row of screen height to offer no choice. `/market/offers`
+keeps its bar whatever the data says, so a bookmark to a view that has since
+emptied still has a way back rather than being a dead end.
 
 It is **the other cut of the same payload, and costs no request.** A listing
 names its seller (`u`) and the signed-in manager's id is on the session, so

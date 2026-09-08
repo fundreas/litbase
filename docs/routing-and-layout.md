@@ -394,14 +394,27 @@ of its own, so **Mannschaft** had to stand in for it).
 Several pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
 of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, the player page's
-four tabs, the match page's three, and the [team page](pages/team.md)'s four —
-rather than between pages, and exists only while that page is open. Two of
-those bars have a **conditional last tab**, appearing only while something is
-being played: the squad page's *Live* while a matchday runs, and the team
-page's while that club's own fixture does. Both are **appended** rather than
-inserted, so the permanent tabs never move under a thumb that had learned where
-they are. The bar is `sticky`, not `fixed`, so at `lg` and up it stays inside
-the content column instead of lying across the sidebar.
+four tabs, the match page's three, the [team page](pages/team.md)'s four, and
+the [market](pages/market.md#the-selling-side-when-there-is-one--gebote)'s
+Markt ⇄ Gebote — rather than between pages, and exists only while that page is
+open. Two of those bars have a **conditional last tab**, appearing only while
+something is being played: the squad page's *Live* while a matchday runs, and
+the team page's while that club's own fixture does. Both are **appended**
+rather than inserted, so the permanent tabs never move under a thumb that had
+learned where they are.
+
+The market's bar is conditional as a **whole**: it is drawn only for a manager
+who has a listing of his own up, because a one-tab bar spends a row of screen
+height offering no choice. It is also the one bar with a **badge** — a count on
+the *Gebote* icon of the bids standing on those listings, which is the only
+thing on that page that arrives while nobody is looking at it. A badge is drawn
+only above zero.
+
+The bar is `fixed`, not `sticky` — it was reported scrolling out of view, and
+sticky is only ever as reliable as the height chain above it. So it pins to the
+viewport and starts where the sidebar ends (`lg:left-64`) rather than lying
+across it, and it reserves its own footprint in the flow so the last row of a
+list can be scrolled clear of it.
 
 Pages can claim the leftover viewport height: `main` is a flex column, so a
 page root with `flex-1` fills it. The [lineup](pages/squad.md#lineup-tab) uses

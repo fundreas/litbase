@@ -10,7 +10,19 @@ export interface BottomTab {
   icon: LucideIcon
   /** Where the tab goes. */
   to: string
+  /**
+   * A count worth interrupting for, drawn on the icon's corner.
+   *
+   * Omitted or `0` draws nothing: a badge saying zero is a mark that catches
+   * the eye to report that nothing happened. The market page's *Gebote* tab
+   * uses it for bids standing on your own listings — see
+   * [`MarketPage`](../../pages/MarketPage.tsx).
+   */
+  badge?: number
 }
+
+/** Past this the pill would be wider than the icon it sits on. */
+const BADGE_MAX = 99
 
 /**
  * Views of one page, docked at the bottom of the screen — **always on screen,
@@ -57,6 +69,10 @@ export interface BottomTab {
  * sidebar ends (`lg:left-64`, that column's `w-64`) and centres its own
  * contents at the content well's `max-w-3xl`, which lines the tabs up with the
  * page above them at every width.
+ *
+ * A tab can carry a **badge** — a count on the icon's corner, for a view with
+ * something waiting in it. It is drawn only above zero, so a quiet tab looks
+ * quiet.
  *
  * Each tab is a real `<Link>`, so every view is linkable, opens in a new tab on
  * a middle click, and survives a refresh — the active view is read back out of
@@ -117,11 +133,30 @@ export function BottomTabBar({
                       : 'text-faint hover:bg-surface-2 hover:text-ink',
                   )}
                 >
-                  <Icon
-                    size={18}
-                    aria-hidden="true"
-                    strokeWidth={isActive ? 2.4 : 2}
-                  />
+                  {/* The badge rides the icon rather than the label: it is a
+                      count of things, and the icon is the thing. `relative`
+                      here and not on the link, so it is pinned to the glyph's
+                      corner at any label length. */}
+                  <span className="relative flex shrink-0">
+                    <Icon
+                      size={18}
+                      aria-hidden="true"
+                      strokeWidth={isActive ? 2.4 : 2}
+                    />
+                    {tab.badge !== undefined && tab.badge > 0 && (
+                      <span
+                        className={cn(
+                          'nums absolute -top-1.5 -right-2 min-w-4 rounded-full px-1',
+                          'bg-accent text-center text-[0.625rem] leading-4 font-bold',
+                          'text-accent-ink',
+                        )}
+                      >
+                        {tab.badge > BADGE_MAX
+                          ? `${String(BADGE_MAX)}+`
+                          : tab.badge}
+                      </span>
+                    )}
+                  </span>
                   {tab.label}
                 </Link>
               </li>

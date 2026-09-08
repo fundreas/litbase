@@ -49,6 +49,9 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/<page>    every league-scoped page
  *   /leagues/:leagueId/squad/lineup        the pitch, under the squad
  *   /leagues/:leagueId/squad/live          the running matchday, while it runs
+ *   /leagues/:leagueId/market              the transfer market, to buy from
+ *   /leagues/:leagueId/market/offers       your own listings, and the bids on
+ *                                          them
  *   /leagues/:leagueId/matchday            every fixture of a matchday
  *   /leagues/:leagueId/matchday/ranking    the matchday's 25 best players
  *   /leagues/:leagueId/duels               the matchday's duels
@@ -138,7 +141,14 @@ export const router = createBrowserRouter(
                   loader: ({ params }) =>
                     redirect(`/leagues/${params.leagueId ?? ''}/squad/lineup`),
                 },
+                // Two routes, one component: the view comes from the
+                // segment, as on the squad and season pages. `market/offers`
+                // is the seller's side, and is registered unconditionally —
+                // whether there is anything in it depends on the market
+                // payload, which no route can know. The page renders it empty
+                // with its bar intact rather than bouncing the URL.
                 { path: 'market', element: <MarketPage /> },
+                { path: 'market/offers', element: <MarketPage /> },
                 { path: 'ranking', element: <RankingPage /> },
                 // The competition's own fixtures, and one match in detail.
                 // Three routes for the detail, one component — the tab comes

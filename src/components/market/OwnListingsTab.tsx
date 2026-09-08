@@ -28,7 +28,9 @@ import { money, moneyExact } from '@/lib/format'
  * soon they close, with your own three sitting somewhere in among them saying
  * nothing about being yours. What a seller wants is the other cut of the same
  * data: *my* players, each with its bids underneath, in one place. So the page
- * splits in two whenever there is anything to put here.
+ * grows a second view — `/market/offers`, reached from the
+ * [bottom bar](../ui/BottomTabBar.tsx) — whenever there is anything to put in
+ * it, and the bar's badge says how many bids are waiting there.
  *
  * **It costs no request.** Own listings arrive in the market payload like every
  * other, identified by `u.i` being the signed-in manager, and the bids come
@@ -63,14 +65,16 @@ export function OwnListingsTab({
   listings: MarketListing[]
   leagueId: string
 }) {
-  // Only for the bidders' pictures, and only fetched once this tab is opened:
-  // Radix unmounts the inactive one. Cached and shared with the ranking page.
+  // Only for the bidders' pictures, and only fetched on this view: the two
+  // views are two routes, so nothing here mounts until `/market/offers` does.
+  // Cached and shared with the ranking page, which pays for it anyway.
   const ranking = useRanking(leagueId)
 
   /**
    * Which dialog is open, as ids. Local state rather than the market page's
    * `#offer:` hash: that hash names *a bid of one's own on somebody else's
-   * listing*, and two dialogs answering to one key would open each other.
+   * listing*, and two dialogs answering to one key would open each other. The
+   * view itself is in the path, so what a refresh restores is the list.
    */
   const [dialog, setDialog] = useState<
     { kind: 'price' | 'offer'; playerId: string; offerId?: string } | undefined
