@@ -402,16 +402,23 @@ function transferHistoryQuery(
  * can say what the player was worth on the day of the deal, and without it the
  * rows simply carry the fee. Passing it late is fine — the mapping re-runs and
  * the values appear.
+ *
+ * `since` cuts the list to one season — [`seasonStart`](../models.ts) is where
+ * that boundary comes from. It is applied **after** the fold, so a manager who
+ * bought the player last season is still named as the seller of a deal in this
+ * one; and it is optional, because a season boundary the app has not worked out
+ * yet is no reason to hide a transfer.
  */
 export function usePlayerTransfers(
   leagueId: string | undefined,
   playerId: string | undefined,
   history?: MarketValueHistory,
+  since?: number,
 ): UseQueryResult<PlayerTransfer[]> {
   return useQuery({
     ...transferHistoryQuery(leagueId, playerId),
     select: (data: PlayerTransferHistoryResponse) =>
-      toTransferHistory(data.it, history),
+      toTransferHistory(data.it, history, since),
   })
 }
 

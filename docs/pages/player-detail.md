@@ -50,7 +50,7 @@ tab that needs them.
 | `/v4/leagues/{lid}/players/{pid}` | always | Profile, season totals, availability, lineup probability, **owner id** |
 | `/v4/leagues/{lid}/players/{pid}/performance` | Details + Leistung | Every season, every fixture |
 | `/v4/leagues/{lid}/players/{pid}/marketvalue/365` | everywhere but Leistung | A year of daily values, purchase price, profit/loss |
-| `/v4/leagues/{lid}/players/{pid}/transferHistory` | when owned, and on Transfers | Every hand the player has passed through |
+| `/v4/leagues/{lid}/players/{pid}/transferHistory` | when owned, and on Transfers | Every hand the player has passed through, all seasons — [cut to this one](#the-season-cut-and-why-it-is-1-july) in the mapping |
 | `/v4/leagues/{lid}/players/{pid}/transfers` | on Transfers, **for one's own player** | Whether he is listed, at what, and the bids standing on him — polled at 30 s while a listing stands |
 | `/v4/leagues/{lid}/playercenter/{pid}?dayNumber=&seasonId=` | on opening a [match breakdown](#the-match-breakdown) | Every scoring action of one match, and what each was worth |
 | `/v4/live/eventtypes` | with the first breakdown | Names for all 621 event types. One shared entry, cached for a day |
@@ -525,11 +525,29 @@ placeholders first and derives both ends from what is left.
 
 ## Transfers tab
 
-Every hand the player has passed through **in this league**, newest first —
-[`PlayerTransfersTab`](../../src/components/player/PlayerTransfersTab.tsx) over
-one `transferHistory` request. Since a Kickbase league's history begins when the
-league does, that is the season, and the tab says so under the list rather than
-pretending to reach further.
+Every hand the player has passed through **in this league, this season**,
+newest first — [`PlayerTransfersTab`](../../src/components/player/PlayerTransfersTab.tsx)
+over one `transferHistory` request.
+
+### The season cut, and why it is 1 July
+
+`transferHistory` reaches back as far as the **league** does, which across a
+season change is more than anybody wants to scroll. Neither the endpoint nor the
+league payload dates a season, so the boundary is derived from the fixture list
+by [`seasonStart`](../../src/api/models.ts): **the most recent 1 July at or
+before the first kick-off**, in UTC.
+
+**Not matchday one**, which is the tempting answer and the wrong one. The
+Bundesliga stops in May and starts again in August, while leagues form and trade
+through **July** — a cut at the opening whistle would throw away a pre-season
+window that holds a good share of a season's deals. The gap between two seasons
+is the one part of the year the fixture list says nothing about, and 1 July sits
+squarely in it. Reading the year off the schedule rather than hard-coding it
+also keeps the rule honest for a competition that opens in January: there the
+answer is the July before, which is what "most recent" gives.
+
+**No schedule, no cut.** Until the matchday list lands the whole history shows;
+a boundary the app has not worked out is not a reason to hide a transfer.
 
 ### One row per event, not per owner
 
@@ -546,6 +564,13 @@ purchase **off Kickbase's market** from one **out of a manager's squad** —
 Maksimovic was released a minute after being granted and bought three days
 later, and a naive "previous entry's manager" reading would have credited that
 sale to a manager who no longer had him.
+
+**The fold runs before the season cut, over everything the API sent.** A player
+bought last season and sold in this one is a sale *by the manager who bought him
+then*, and filtering the wire's entries first would have discarded the only
+record of who that was. So dropped entries still shape the rows that survive
+them, and the oldest row on the tab can name a manager whose own purchase is not
+listed above it.
 
 Each row is therefore:
 

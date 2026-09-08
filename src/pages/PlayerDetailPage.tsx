@@ -15,6 +15,7 @@ import { useRanking } from '@/api/hooks/useRanking'
 import {
   matchdayState,
   pointsScaleFor,
+  seasonStart,
   type PlayerOfferState,
   type PlayerOwnership,
   type PlayerTransfer,
@@ -102,13 +103,21 @@ export function PlayerDetailPage() {
     player.data?.ownerId === undefined ? undefined : playerId,
     marketValue.data,
   )
+  // The matchday list, for two unrelated jobs: the header's live strip below,
+  // and the summer that separates this season's transfers from last season's.
+  // It is the same cache entry the squad page fills, so it costs no request.
+  const schedule = useSeasonSchedule(competitionId)
+
   // One cache entry serves the owner panel and the Transfers tab; asking for it
   // here only widens what is mapped out of it, and only on the tab that lists
-  // the lot.
+  // the lot. Cut to the running season — a league that has seen a season change
+  // has a history nobody wants to scroll, and the tab says which season it is
+  // showing.
   const transfers = usePlayerTransfers(
     leagueId,
     tab === PLAYER_TABS.transfers ? playerId : undefined,
     marketValue.data,
+    seasonStart(schedule.data),
   )
 
   // Whether the viewer may sell him, and at what he is currently offered.
@@ -150,13 +159,6 @@ export function PlayerDetailPage() {
     return new Map(currentSeason.matches.map((match) => [match.day, match]))
   }, [currentSeason])
 
-  // The header's matchday strip appears **only while the matchday is being
-  // played** — between matchdays it would be a permanent line saying nothing
-  // the Spiele card does not. "Being played" is the schedule's own reading:
-  // the first kick-off has passed and not every fixture reports finished. The
-  // matchday list is the same cache entry the squad page fills, so this costs
-  // no request of its own.
-  const schedule = useSeasonSchedule(competitionId)
   const currentMatchday = schedule.data?.matchdays.find(
     (entry) => entry.day === schedule.data?.currentDay,
   )

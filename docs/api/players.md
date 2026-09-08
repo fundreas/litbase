@@ -449,6 +449,15 @@ Who has owned the player **in this league**, oldest first. The whole chain in
 one response — a buy, a sale back to Kickbase, a manager leaving and dropping
 their squad, all of it.
 
+**There is no season parameter and no season field**, and `seasonId` is ignored
+(see below). Whether entries survive a season change is **untested** (**?**):
+both probed leagues were founded inside the running season, so their whole
+history is this season's. The app does not wait to find out — the
+[player page](../pages/player-detail.md#the-season-cut-and-why-it-is-1-july)
+cuts the mapped list at the 1 July before the current season's first kick-off,
+which is a no-op for a league like these and the right answer for one that has
+been going a while.
+
 **Auth** Bearer. Note the **camelCase path segment** — `transferHistory`.
 
 Re-probed on 2026-09-08 across two leagues, and cross-checked entry by entry

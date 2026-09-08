@@ -8,8 +8,14 @@ import { cn } from '@/lib/cn'
 import { money, moneyDelta, time, weekdayDate } from '@/lib/format'
 
 /**
- * Every hand the player has passed through in this league, newest first — and,
- * when he is the viewer's own, the controls for the next one.
+ * Every hand the player has passed through in this league **this season**,
+ * newest first — and, when he is the viewer's own, the controls for the next
+ * one.
+ *
+ * The season cut is the page's, applied after the fold that works out the
+ * sellers — see [`seasonStart`](../../api/models.ts). It matters here only in
+ * that a row can name a manager whose own purchase is not on the list, because
+ * it happened before the summer.
  *
  * The seller's panel above it is the page's, not this component's: what a
  * manager may do with his player needs the market state and three mutations,
@@ -60,7 +66,7 @@ export function PlayerTransfersTab({
     return (
       <EmptyState
         title="Keine Transfers"
-        description="Diesen Spieler hat in dieser Liga noch niemand besessen."
+        description="In dieser Saison hat diesen Spieler in dieser Liga niemand gekauft oder verkauft."
       />
     )
   }
@@ -87,8 +93,8 @@ export function PlayerTransfersTab({
       </Card>
 
       <p className="px-1 text-[0.6875rem] text-faint">
-        Nur diese Liga – die Historie beginnt mit dem Liga-Start. Der zweite
-        Betrag ist die Differenz zum Marktwert des Transfertages.
+        Nur Transfers dieser Liga aus der laufenden Saison. Der zweite Betrag
+        ist die Differenz zum Marktwert des Transfertages.
       </p>
     </div>
   )

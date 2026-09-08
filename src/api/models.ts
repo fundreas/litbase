@@ -2587,11 +2587,23 @@ export interface TransferParty {
  * sale followed by a purchase. Either way the fold names the right seller,
  * because either way the holder before the buy is the manager who had them.
  *
- * `history` is optional and only adds the market value of the day to each row.
+ * ## `since` cuts the list, never the fold
+ *
+ * The fold runs over **everything the API sent** and the cut happens after it,
+ * which is the whole reason the two are separate steps: a player bought last
+ * season and sold in this one is a sale *by the manager who bought him then*,
+ * and a filter applied to the wire's entries first would have thrown away the
+ * only record of who that was. Dropped entries still shape the rows that
+ * survive them.
+ *
+ * `history` is optional and only adds the market value of the day to each row;
+ * `since` is optional and unfiltered without it — a boundary nobody has worked
+ * out yet is not a reason to hide a transfer.
  */
 export function toTransferHistory(
   items: PlayerTransferItem[] | undefined,
   history?: MarketValueHistory,
+  since?: number,
 ): PlayerTransfer[] {
   const transfers: PlayerTransfer[] = []
   let holder: TransferParty | undefined
@@ -2622,7 +2634,52 @@ export function toTransferHistory(
     })
   }
 
-  return transfers.reverse()
+  transfers.reverse()
+
+  if (since === undefined) return transfers
+  // An entry Kickbase dated unparseably is kept rather than dropped: a bad
+  // timestamp is not evidence that a transfer belongs to another season.
+  return transfers.filter((transfer) => {
+    const at = Date.parse(transfer.date)
+    return Number.isNaN(at) || at >= since
+  })
+}
+
+/**
+ * When the running season began, in epoch milliseconds — **the summer before
+ * it**, not its first kick-off.
+ *
+ * A league's transfer history reaches back as far as the league does, and
+ * across a season change that is more than anybody wants to read. The cut has
+ * to fall in the gap between two seasons, and the gap is the only part of the
+ * year the fixture list says nothing about: the Bundesliga stops in May and
+ * starts again in August, while leagues form and trade **through July**, before
+ * a ball is kicked. Cutting at matchday one would therefore throw away the
+ * pre-season window, which is where a good share of a season's transfers
+ * happen.
+ *
+ * So: the **most recent 1 July at or before the first kick-off**, in UTC, which
+ * the API dates everything in. Derived from the schedule rather than from a
+ * hard-coded year, and stated generally enough to survive a competition whose
+ * season opens in January — there the answer is the July before it, as it
+ * should be.
+ *
+ * `undefined` when no schedule has arrived, which callers read as "do not
+ * filter" rather than "filter everything out".
+ */
+export function seasonStart(
+  schedule: SeasonSchedule | undefined,
+): number | undefined {
+  const first = schedule?.matchdays[0]?.start
+  if (first === undefined) return undefined
+
+  const kickoff = new Date(first)
+  const time = kickoff.getTime()
+  if (Number.isNaN(time)) return undefined
+
+  const year = kickoff.getUTCFullYear()
+  const july = Date.UTC(year, 6, 1)
+  return july <= time ? july : Date.UTC(year - 1, 6, 1)
 }
 
 function transferKind(
