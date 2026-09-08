@@ -6,6 +6,7 @@ import { endpoints } from '@/api/endpoints'
 import { toRankedManager } from '@/api/hooks/useRanking'
 import {
   duelIdOf,
+  duelSideOf,
   type Duel,
   type DuelSide,
   type MatchdayDuels,
@@ -20,17 +21,15 @@ import type { RankingResponse, RankingUser } from '@/api/types'
 /** A settled matchday cannot change, so it is held for a while. */
 const SETTLED_STALE_MS = 5 * 60_000
 
+/**
+ * Through the domain model rather than straight off the wire: the fields a side
+ * needs are the fields {@link toRankedManager} already names, and
+ * {@link duelSideOf} is the one place they are picked — so the
+ * [manager page](../../pages/ManagerDetailPage.tsx), which builds a side from a
+ * manager it already holds, cannot end up with a different notion of one.
+ */
 function toSide(user: RankingUser): DuelSide {
-  return {
-    id: user.i,
-    name: user.n,
-    image: user.uim,
-    matchdayPoints: user.mdp,
-    duelPlacement: user.hhpl,
-    duelPoints: user.hhsp,
-    seasonPlacement: user.spl,
-    duelMatchdayPoints: user.hhmp,
-  }
+  return duelSideOf(toRankedManager(user))
 }
 
 /** The placement a duel league is actually ranked by. */

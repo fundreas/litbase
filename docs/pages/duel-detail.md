@@ -70,6 +70,18 @@ the pitch has to stack them *top and bottom* — something has to bridge those
 two arrangements, and a legend would cost a row of height the pitch cannot
 spare.
 
+Each chip is also **a link to that manager**, matchday and all — see
+[Manager](manager-detail.md). It is the only thing on this pitch that names a
+manager (the portraits are the players' and belong to the breakdown), and where
+it leads is the same eleven drawn at twice the size with a bench you can read.
+
+The portraits and the bench rows themselves are shared with that page: the card,
+the plate and the bench row live in
+[`RosterPitch`](../../src/components/roster/RosterPitch.tsx), so one player
+cannot be a different size or colour on two screens one tap apart. What stays
+here is the arrangement — eight bands, two benches side by side — which is the
+part a duel does differently.
+
 ### The action breakdown
 
 **Tapping a portrait opens the actions behind its number** — the same
@@ -117,8 +129,14 @@ nothing spare gets *Alle Spieler aufgestellt* rather than an empty box.
 
 ### Header
 
-The scoreline is unchanged except that **`n laufend · n offen` moved into it**,
-under the manager it belongs to. It used to sit inside each roster card, which
+**Each half of the scoreline is a link to that manager** —
+[Manager](manager-detail.md), carrying `?day=`. On this page there is nothing
+else a tap on a half could mean: the duel is what you are already looking at,
+so the face, the name and the total together are one target, which is the
+largest a two-column header can offer a thumb.
+
+The scoreline is otherwise unchanged except that **`n laufend · n offen` moved
+into it**, under the manager it belongs to. It used to sit inside each roster card, which
 the pitch replaced; it reads better here anyway, since it qualifies the total
 directly above it — 40 points behind with four matches to play is winning. The
 line is simply absent until the rosters land, rather than claiming
@@ -558,8 +576,8 @@ too — the rules are the hook's, not this page's.
 | Query | Endpoint | Shared with |
 | ----- | -------- | ----------- |
 | `useDuels` | `/leagues/{id}/ranking?dayNumber=` | [Duels](duels.md) — already warm |
-| `useMatchdaySquad` ×2 | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | [Squad — live tab](squad.md#live-tab) |
-| `useManagerSquad` ×2 | `/leagues/{id}/managers/{uid}/squad` | positions only — see [above](#positions-still-come-from-todays-squad) |
+| `useMatchdaySquad` ×2 | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | [Squad — live tab](squad.md#live-tab), [Manager](manager-detail.md) |
+| `useManagerSquad` ×2 | `/leagues/{id}/managers/{uid}/squad` | positions only — see [above](#positions-still-come-from-todays-squad); the [manager page](manager-detail.md#kader) renders the same entry |
 | `useMatchdayFixtures` | `/competitions/{id}/matchdays` | squad page, duel picker |
 | `useMatchdayPoints` ×N | `/leagues/{id}/players/{pid}` | [Squad — live tab](squad.md#live-tab) |
 | `useLiveMatches` ×N | `/matches/{mid}/details` | every started match — [Matchday](matchday.md) |
@@ -575,6 +593,17 @@ other path spellings answer 404, which is what the old claim was based on.
 `useManagerSquad` does carry a `mu` block naming both duel managers, which is
 how the current pairing could be read without the standings — the app uses the
 standings anyway, because those work for every matchday.
+
+**All of it now goes through one hook per manager.**
+[`useManagerRoster`](../../src/api/hooks/useManagerRoster.ts) holds everything
+above for *one* side — the source split, the poll, the points — and
+`useDuelRosters` is two of those with the results paired. The split happened
+when the [manager page](manager-detail.md) needed exactly one side: every rule
+here is a fact about a manager's matchday rather than about a duel, and the
+second copy of it would have been the copy that drifted. The points are now
+fanned out per side rather than over both squads at once, which is **the same
+set of requests** — a player cannot be in two managers' squads, and the queries
+are keyed by player id either way.
 
 `useMatchdayFixtures` reads the same cache entry as `useCurrentMatchday` and
 `useSeasonSchedule` through a third `select`. Its selector closes over `day`,
@@ -671,6 +700,10 @@ ranking's per-club split rests on.
 **No manager avatar on the rows in the split reading.** In the combined list it
 is the only thing distinguishing two rows; under a heading that already names
 the manager it is one fact repeated down a whole column.
+
+**The heading itself is the link to that manager**, the whole row of it: it is
+the one thing in this reading that names them, and the rows beneath it are the
+players' and lead to the players.
 
 Each section's total is `totalPoints` — **Kickbase's own figure from the
 standings, not the sum of the rows beneath it.** That is deliberate: it is the

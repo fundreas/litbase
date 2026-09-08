@@ -1,81 +1,27 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
-import { useMemo } from 'react'
-
-import { get } from '@/api/client'
-import { endpoints } from '@/api/endpoints'
-import { useMatchdayFixtures } from '@/api/hooks/useMatchday'
-import { useLiveMatches } from '@/api/hooks/useLiveMatches'
-import { useMatchdayPoints } from '@/api/hooks/useMatchdayPoints'
-import { useMatchdaySquad } from '@/api/hooks/useMatchdaySquad'
-import { teamSheetRole, useTeamSheets } from '@/api/hooks/useTeamSheets'
+import { useManagerRoster } from '@/api/hooks/useManagerRoster'
 import {
-  areFixturesSettled,
   byMatchdayPoints,
-  canUseMatchdaySquad,
-  duelPlayerStatus,
-  fixtureState,
-  toPosition,
   type DuelPlayer,
   type DuelRoster,
   type DuelSide,
-  type MatchdaySquad,
-  type MatchdaySquadPlayer,
-  type PositionKey,
 } from '@/api/models'
-import { qk } from '@/api/queryKeys'
-import type { ManagerSquadResponse } from '@/api/types'
-
-/** One manager's players, fielded or not. Works for *any* manager. */
-export function useManagerSquad(
-  leagueId: string | undefined,
-  userId: string | undefined,
-): UseQueryResult<ManagerSquadResponse> {
-  return useQuery({
-    queryKey: qk.managerSquad(leagueId ?? 'none', userId ?? 'none'),
-    enabled: leagueId !== undefined && userId !== undefined,
-    staleTime: 5 * 60_000,
-    queryFn: () =>
-      get<ManagerSquadResponse>(
-        endpoints.leagues.managerSquad(leagueId as string, userId as string),
-      ),
-  })
-}
 
 /**
  * Both managers' teams **as they stood on that matchday**, with each player's
  * points and state.
  *
- * **Where a roster comes from depends on whether the matchday is over.**
+ * Two [manager rosters](./useManagerRoster.ts) side by side, and nothing else:
+ * every rule about which source to believe, when to poll and how the points are
+ * paid for is a fact about *a* manager's matchday, so it lives there and this
+ * hook is the pairing. The [manager page](../../pages/ManagerDetailPage.tsx)
+ * mounts one of the same, which is why the split happened — a second copy of
+ * that reasoning is the copy that would have drifted.
  *
- *  - **Finished** → [`useMatchdaySquad`](./useMatchdaySquad.ts), the matchday
- *    snapshot. `lp` is the eleven that was actually fielded, so a past
- *    matchday finally lists the right players instead of today's eleven with
- *    old points beside it. That was this page's one real compromise.
- *  - **Live or upcoming** → `useManagerSquad` and its `lo`, exactly as before.
- *
- * The split is not hedging. Measured on a real payload: for a matchday that
- * has not kicked off, the snapshot's `lp` is **empty** while the squad plainly
- * has eleven players fielded (`lo` `0…10`). So `lp` fills at or after
- * kick-off, and reading it mid-matchday would show a partial eleven and put
- * the rest on the bench — a regression on the case the page is used for most.
- * `lo`, meanwhile, is complete and authoritative while the matchday runs:
- * Kickbase locks it at the first kick-off.
- *
- * What would collapse the two branches into one is knowing whether `lp` fills
- * with **all eleven** at the matchday's start or only per match as each kicks
- * off — one probe during a running matchday, noted in
- * [duel detail](../../docs/pages/duel-detail.md#the-squad-it-shows-is-the-matchdays).
- *
- * The points are still the expensive part, and
- * [`useMatchdayPoints`](./useMatchdayPoints.ts) owns that: there is no bulk
- * source of per-player matchday points, so it fans out one request per player
- * under rules that keep the cost down. Both rosters are handed to it as
- * **one** list, so the whole duel is a single fan-out — and the list is now
- * the snapshot's, so a player sold since is still fetched and one bought since
- * is not.
- *
- * `useManagerSquad` is still read, for one field: the position of each player,
- * which the snapshot does not reliably carry.
+ * **Two fan-outs, the same requests.** The points used to be fetched for both
+ * squads as one list; they are now fetched per side. A player cannot be in two
+ * managers' squads at once, and the queries are keyed by player id either way,
+ * so the set of requests is identical — it is two `useQueries` calls where
+ * there was one.
  */
 export function useDuelRosters(
   leagueId: string | undefined,
@@ -87,279 +33,36 @@ export function useDuelRosters(
   isPending: boolean
   isError: boolean
   error: unknown
-  /** The API has no squad for this matchday — see the field's note below. */
+  /** Neither manager has anything for this matchday — see below. */
   isEmpty: boolean
   /** True while per-player points are still arriving; rows render without them. */
   isPointsPending: boolean
   refetch: () => void
 } {
-  const squadA = useManagerSquad(leagueId, sides?.[0].id)
-  const squadB = useManagerSquad(leagueId, sides?.[1].id)
-  const fixtures = useMatchdayFixtures(competitionId, day)
-
-  // Today's squads: the fallback source for a matchday still in progress, and
-  // in every case the source of each player's position, which the snapshot
-  // payload does not reliably carry.
-  const positionsA = usePositions(squadA.data)
-  const positionsB = usePositions(squadB.data)
-
-  const isSettled = areFixturesSettled(fixtures.data)
-  /**
-   * Is any match of this matchday actually being played? That is what puts the
-   * two snapshots on the live poll — they carry the running per-player scores,
-   * so this page's points cost **two requests a tick, not thirty**.
-   */
-  const isLive = [...(fixtures.data?.values() ?? [])].some(
-    (fixture) => fixtureState(fixture) === 'running',
-  )
-
-  const snapshotA = useMatchdaySquad(leagueId, sides?.[0].id, day, positionsA, {
-    isLive,
-  })
-  const snapshotB = useMatchdaySquad(leagueId, sides?.[1].id, day, positionsB, {
-    isLive,
-  })
-
-  /**
-   * The live state of each match: the fresh score, the minute, the events.
-   * One request per match rather than per player, polled only while a match
-   * is actually running — see [`useLiveMatches`](./useLiveMatches.ts).
-   */
-  const liveByMatchId = useLiveMatches(fixtures.data?.values())
-
-  /**
-   * The clubs' own team sheets for the matches still to kick off — the other
-   * half of the same payload, for the hour in which it is news. See
-   * [`useTeamSheets`](./useTeamSheets.ts).
-   */
-  const sheetByTeamId = useTeamSheets(fixtures.data?.values())
-
-  /**
-   * The roster to render, from whichever source can be believed.
-   *
-   * The snapshot wins whenever its lineup looks complete — see
-   * `canUseMatchdaySquad`, which is where the "why not always?" is written
-   * down. Today's squad is the fallback, and the only source before a matchday
-   * kicks off.
-   */
-  const rosterOf = (
-    snapshot: MatchdaySquad | undefined,
-    squad: ManagerSquadResponse | undefined,
-    positions: Map<string, PositionKey>,
-  ): { fielded: MatchdaySquadPlayer[]; bench: MatchdaySquadPlayer[] } => {
-    const today = fromManagerSquad(squad, positions)
-    if (
-      snapshot !== undefined &&
-      canUseMatchdaySquad(snapshot, today.fielded.length, isSettled)
-    ) {
-      return { fielded: snapshot.fielded, bench: snapshot.bench }
-    }
-    return today
-  }
-
-  const rosterA = rosterOf(snapshotA.data, squadA.data, positionsA)
-  const rosterB = rosterOf(snapshotB.data, squadB.data, positionsB)
-
-  // Both rosters as one list of subjects, so the whole duel is a single
-  // fan-out rather than two. Taken from whichever source is in use, so on a
-  // settled matchday a player sold since is still fetched and one bought since
-  // is not.
-  //
-  // Not memoised: the rosters above are rebuilt every render by design, so a
-  // memo keyed on them would never hit, and one keyed on the query data behind
-  // them would be a dependency list that lies. `useQueries` compares by key,
-  // so a fresh array of the same ids costs nothing.
-  const subjects = [rosterA, rosterB].flatMap((roster) =>
-    [...roster.fielded, ...roster.bench].map((player) => ({
-      id: player.id,
-      teamId: player.teamId,
-      // A player nobody owns any more has no position from either squad, and
-      // the detail response is the only place left to get one. Without it the
-      // pitch cannot place him and drops him — which is exactly how players
-      // sold since the matchday went missing from the lineup view while
-      // appearing correctly in the ranking.
-      needsPosition: player.position === undefined,
-      // The running score, already in hand from the snapshot above. Handing it
-      // over switches this player's per-player poll off — the whole reason a
-      // live duel costs two requests a tick rather than thirty — and it is
-      // still outranked by the settled score once the match is over.
-      livePoints: player.livePoints,
-    })),
-  )
-
-  const points = useMatchdayPoints(leagueId, day, subjects, fixtures.data)
-  const pointsByPlayerId = points.byPlayerId
-
-  // Built on every render, deliberately: `useQueries` inside the points hook
-  // returns a fresh array each time, so the rosters cannot be memoised on
-  // their own input without inventing a surrogate key — and a signature-string
-  // keyed memo is harder to trust than the thirty object allocations it would
-  // save. This page re-renders on a once-a-minute poll and on a tab switch.
-  const data = ((): [DuelRoster, DuelRoster] | undefined => {
-    const fixtureByTeamId = fixtures.data
-    if (
-      sides === undefined ||
-      fixtureByTeamId === undefined ||
-      squadA.data === undefined ||
-      squadB.data === undefined
-    ) {
-      return undefined
-    }
-
-    const build = (
-      roster: { fielded: MatchdaySquadPlayer[]; bench: MatchdaySquadPlayer[] },
-      side: DuelSide,
-    ): DuelRoster => {
-      const toPlayer = (player: MatchdaySquadPlayer): DuelPlayer => {
-        const fixture = fixtureByTeamId.get(player.teamId)
-        const live =
-          fixture === undefined ? undefined : liveByMatchId.get(fixture.matchId)
-        return {
-          id: player.id,
-          name: player.name,
-          teamId: player.teamId,
-          // Today's squad first, then the player's own detail — which is the
-          // only source for someone no manager owns now.
-          position: player.position ?? points.positionByPlayerId.get(player.id),
-          // The snapshot states membership of the lineup outright, so there is
-          // no slot index to read `lo` from any more. `lineupOrder` carries
-          // the payload's own ordering, which is what keeps the keeper first.
-          lineupOrder: player.wasFielded ? 0 : undefined,
-          status: duelPlayerStatus({
-            lineupOrder: player.wasFielded ? 0 : undefined,
-            fixture,
-          }),
-          points: pointsByPlayerId.get(player.id),
-          availability: player.availability,
-          image: player.image,
-          fixture,
-          live,
-          events: live?.eventsByPlayerId.get(player.id),
-          sheet: teamSheetRole(sheetByTeamId, player.teamId, player.id),
-          managerId: side.id,
-        }
-      }
-
-      // Straight from whichever source's own split, in its own order — the
-      // `lo` arithmetic and its goalkeeper trap now live in one place,
-      // `fromManagerSquad`.
-      const lineup = roster.fielded.map(toPlayer)
-      const bench = roster.bench.map(toPlayer)
-
-      const countState = (state: 'running' | 'upcoming') =>
-        lineup.filter(
-          (player) =>
-            player.fixture !== undefined &&
-            fixtureState(player.fixture) === state,
-        ).length
-
-      return {
-        manager: side,
-        lineup,
-        bench,
-        // Kickbase's own figure, not the sum of the rows above: the rows may
-        // still be loading, and the standings are the authority either way.
-        // Now that the rows are the real ones, the two *should* agree up to
-        // the empty-slot penalty — a cross-check worth adding one day.
-        totalPoints: side.matchdayPoints,
-        activeMatches: countState('running'),
-        openMatches: countState('upcoming'),
-      }
-    }
-
-    return [build(rosterA, sides[0]), build(rosterB, sides[1])]
-  })()
+  const a = useManagerRoster(leagueId, competitionId, day, sides?.[0])
+  const b = useManagerRoster(leagueId, competitionId, day, sides?.[1])
 
   return {
-    data,
-    // Both sources are always in flight, and the roster falls back to today's
-    // squad, so the page is ready as soon as *that* is — waiting for the
-    // snapshot too would delay a live duel for no gain.
-    isPending: fixtures.isPending || squadA.isPending || squadB.isPending,
-    isError:
-      fixtures.isError ||
-      squadA.isError ||
-      squadB.isError ||
-      snapshotA.isError ||
-      snapshotB.isError,
-    error:
-      fixtures.error ??
-      squadA.error ??
-      squadB.error ??
-      snapshotA.error ??
-      snapshotB.error,
+    data:
+      a.data === undefined || b.data === undefined
+        ? undefined
+        : [a.data, b.data],
+    isPending: a.isPending || b.isPending,
+    isError: a.isError || b.isError,
+    error: a.error ?? b.error,
     /**
-     * Neither manager has anything to show for this matchday: the snapshot is
-     * empty (before the league existed, or a day out of range) *and* today's
-     * squads cannot stand in because nothing is fielded in them either.
-     * Distinct from an error, and the page says so rather than drawing two
-     * empty teams.
+     * **Both** sides came back with nothing: a matchday out of range, or one
+     * from before the league existed. Distinct from an error, and the page says
+     * so rather than drawing two empty teams. One empty side alone is not this
+     * — a manager who has left the league is a real, drawable half.
      */
-    isEmpty:
-      snapshotA.data?.isEmpty === true &&
-      snapshotB.data?.isEmpty === true &&
-      rosterA.fielded.length === 0 &&
-      rosterB.fielded.length === 0,
-    isPointsPending: points.isPending,
+    isEmpty: a.isEmpty && b.isEmpty,
+    isPointsPending: a.isPointsPending || b.isPointsPending,
     refetch: () => {
-      void snapshotA.refetch()
-      void snapshotB.refetch()
-      void squadA.refetch()
-      void squadB.refetch()
-      void fixtures.refetch()
+      a.refetch()
+      b.refetch()
     },
   }
-}
-
-/**
- * A manager's squad **as it stands now**, in the shape the snapshot uses.
- *
- * The source for a matchday still in progress, where `lo` is the complete and
- * authoritative lineup and the snapshot's `lp` is not yet filled.
- *
- * `lo` is 0-based and `0` is the goalkeeper, so membership is tested against
- * `undefined`. `lo > 0` would silently bench the keeper — the trap the squad
- * page documents at length, and the reason this lives in exactly one function.
- */
-function fromManagerSquad(
-  squad: ManagerSquadResponse | undefined,
-  positions: Map<string, PositionKey>,
-): { fielded: MatchdaySquadPlayer[]; bench: MatchdaySquadPlayer[] } {
-  const players = (squad?.it ?? []).map((player) => ({
-    id: player.pi,
-    name: player.pn,
-    teamId: player.tid,
-    position: positions.get(player.pi) ?? toPosition(player.pos),
-    availability: player.st,
-    image: player.pim,
-    wasFielded: player.lo !== undefined,
-    lineupOrder: player.lo,
-  }))
-
-  return {
-    fielded: players
-      .filter((player) => player.wasFielded)
-      .sort((a, b) => (a.lineupOrder ?? 0) - (b.lineupOrder ?? 0)),
-    bench: players.filter((player) => !player.wasFielded),
-  }
-}
-
-/**
- * Position per player id, from the squad a manager holds **today**.
- *
- * The one thing the matchday snapshot does not reliably carry. Memoised on the
- * squad so it is stable between renders, since it feeds a `select`.
- */
-function usePositions(
-  squad: ManagerSquadResponse | undefined,
-): Map<string, PositionKey> {
-  return useMemo(() => {
-    const byId = new Map<string, PositionKey>()
-    for (const player of squad?.it ?? []) {
-      byId.set(player.pi, toPosition(player.pos))
-    }
-    return byId
-  }, [squad])
 }
 
 /**

@@ -1,9 +1,3 @@
-# Manager Details page
-  - lineup
-  - squad
-  - event history
-  - details
-
 # offer a player from squad
   - show open offers for players
 

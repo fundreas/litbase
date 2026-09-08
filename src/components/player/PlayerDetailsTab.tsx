@@ -1,5 +1,6 @@
 import { House, Info, PlaneTakeoff, Shirt, Timer } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { breakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
@@ -91,7 +92,9 @@ export function PlayerDetailsTab({
         />
       </div>
 
-      {ownership !== undefined && <OwnerCard ownership={ownership} />}
+      {ownership !== undefined && (
+        <OwnerCard ownership={ownership} leagueId={leagueId} />
+      )}
 
       <Card>
         <CardHeader
@@ -270,29 +273,62 @@ function Stat({
  * basis at that day's market value and no money changed hands, so the figure
  * reads "Startkader" rather than quoting a fictional bargain.
  */
-function OwnerCard({ ownership }: { ownership: PlayerOwnership }) {
+function OwnerCard({
+  ownership,
+  leagueId,
+}: {
+  ownership: PlayerOwnership
+  leagueId: string | undefined
+}) {
+  const to =
+    leagueId === undefined
+      ? undefined
+      : `/leagues/${leagueId}/managers/${ownership.managerId}`
+
+  /* The manager's half of the row is **the way to their page** — the face, the
+     name and how long they have had him. The price on the right belongs to
+     this player and stays where it is: it is a fact about the deal, not about
+     the manager, and one target per meaning is the rule this app follows for
+     rows with two of them. See
+     [the manager page](../../pages/ManagerDetailPage.tsx). */
+  const who = (
+    <>
+      <Avatar
+        src={ownership.managerImage}
+        name={ownership.managerName}
+        size={36}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-ink">
+          {ownership.managerName ?? 'Unbekannt'}
+          {ownership.isViewer && (
+            <span className="ml-1.5 text-xs font-medium text-accent">du</span>
+          )}
+        </p>
+        <p className="truncate text-xs text-muted">
+          {ownership.since === undefined
+            ? 'Im Kader'
+            : `Seit ${weekdayDate(ownership.since)}`}
+        </p>
+      </div>
+    </>
+  )
+
   return (
     <Card>
       <CardHeader title="Manager" />
       <div className="flex items-center gap-3 px-4 py-3">
-        <Avatar
-          src={ownership.managerImage}
-          name={ownership.managerName}
-          size={36}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink">
-            {ownership.managerName ?? 'Unbekannt'}
-            {ownership.isViewer && (
-              <span className="ml-1.5 text-xs font-medium text-accent">du</span>
-            )}
-          </p>
-          <p className="truncate text-xs text-muted">
-            {ownership.since === undefined
-              ? 'Im Kader'
-              : `Seit ${weekdayDate(ownership.since)}`}
-          </p>
-        </div>
+        {to === undefined ? (
+          <div className="flex min-w-0 flex-1 items-center gap-3">{who}</div>
+        ) : (
+          <Link
+            to={to}
+            title={`${ownership.managerName ?? 'Manager'} ansehen`}
+            className="-m-1 flex min-w-0 flex-1 items-center gap-3 rounded-card p-1 transition-colors hover:bg-surface-2/60"
+          >
+            {who}
+          </Link>
+        )}
 
         <span className="shrink-0 text-right">
           <span className="nums block text-sm font-semibold text-ink">

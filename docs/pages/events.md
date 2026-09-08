@@ -70,7 +70,7 @@ a row or by the sheet it opens.
 | Type | Row | Detail line | Leading | Tap |
 | ---- | --- | ----------- | ------- | --- |
 | Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | **Buy**: a sheet — see below. **Sale**: player page |
-| Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | — |
+| Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | the **name** opens that [manager](manager-detail.md) — the one kind of entry that carries a manager's id |
 | Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | **The manager who won the matchday, in a crown.** Flag until it lands | A sheet with the matchday's manager ranking, in **every** league — see below |
 | Achievement | **Tormaschine** | `+250.000 €` in green, when it paid anything | Trophy, accent | A sheet: description, reward, how often earned |
 | Login bonus | **Auflaufprämie** kassiert | Amount · day | Gift, accent — from the spec, never seen live | — |
@@ -302,9 +302,17 @@ The API's `filter` parameter takes event-type codes and nothing else — no
 manager, no date window; see
 [the API notes](../api/leagues.md#what-filter-can-and-cannot-do). A type
 filter (chips for *Transfers* · *Spieltage* · *Erfolge*) would be one query
-key per selection and is the obvious next step; a manager or period filter
-would have to be done client-side over the pages already fetched, which is a
-different — and less honest — feature. Neither is built.
+key per selection and is the obvious next step, and is not built.
+
+**A manager filter is** — not here, but as the
+[manager page](manager-detail.md#verlauf)'s Verlauf tab, which mounts this very
+component with a `manager` prop. It does exactly what this section calls the
+less honest option: picks the rows out of the pages already fetched, and pages
+itself forward while nothing has matched. What makes it worth it there is that
+the tab is *about* one manager, so a list that fills in as it walks the feed is
+answering the question the page asked; a filter chip on this page would have
+looked like the API doing the work. The costs are written down where the
+feature is.
 
 ### The feed is about you
 
@@ -313,6 +321,10 @@ placement (and an empty payload if you sat the matchday out), and the
 achievement entries are *your* achievements — another manager's never appear.
 So *Du wurdest 1.* is the API's word, not a lookup, and the card reads
 differently for every member of the same league.
+
+That is also why those entries appear on the **viewer's own**
+[manager page](manager-detail.md#verlauf) and on nobody else's: attributing the
+reader's own achievements to a rival would be worse than leaving them out.
 
 ## States
 

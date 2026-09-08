@@ -33,6 +33,9 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          │  └─ :matchId         one match; the matchday is looked up from it
          │     └─ lineup        second tab of the same component
          ├─ table       the Bundesliga table's old URL, kept as a redirect
+         ├─ managers
+         │  └─ :managerId       one manager; four tabs from the segment
+         │                      ?day=N — the matchday the lineup tab shows
          ├─ players
          │  └─ :playerId        one player; four tabs from the segment
          └─ teams       the season: every club as a table
@@ -118,6 +121,10 @@ find the sheet open again — the entry was never dismissed.
 | `#poster` | The projected eleven, on a [player](pages/player-detail.md) and on a [club](pages/team.md) |
 | `#legend`, `#formations` | The [squad](pages/squad.md)'s symbol legend and formation reference |
 | `#offer:<playerId>` | [Transfermarkt](pages/market.md) — the bid dialog |
+
+The [manager page](pages/manager-detail.md)'s lineup tab reuses three of these
+unchanged — `#fullscreen`, `#player:<id>` and the stack of the two — because it
+draws the same pitch as a duel does with one eleven on it.
 
 **Two kinds of modal are deliberately left on `useState`**, and both fail the
 one test that matters — whatever the modal shows has to be recoverable from the
@@ -355,6 +362,15 @@ resolves the active item with `isNavItemActive()` rather than `NavLink`'s own
 matching. That helper also prefix-matches, so a page's detail routes keep its
 entry lit: `/squad/lineup` and `/players/:playerId` both leave **Mannschaft**
 highlighted, rather than the drawer going dark the moment you tap into a row.
+
+**The [manager page](pages/manager-detail.md) has no entry either**, and its
+list is *Rangliste* — so that entry carries `alsoMatches: ['managers']`. Unlike
+the club page below, the prefix rule could not do this on its own: the page
+lives at `/managers/:managerId`, beside `/ranking` rather than under it. Giving
+it a parent route was the alternative and it would have meant
+`/ranking/managers/:id`, which reads as a *view of the standings* rather than as
+a manager, and would have put a list segment in the middle of every link to one.
+So this is the one detail page that names its list explicitly.
 
 **The [club page](pages/team.md) has no entry of its own**, and never will: a
 drawer entry needs a single subject — *your* squad, *the* market — and a club

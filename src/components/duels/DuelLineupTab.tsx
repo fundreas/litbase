@@ -1,30 +1,24 @@
+import { Link } from 'react-router'
+
 import { breakdownFixtureFrom } from '@/api/hooks/usePlayerMatchEvents'
 import {
-  playerFigure,
-  TEAM_SHEET_ROLE_LABEL,
   type DuelPlayer,
   type DuelRoster,
   type PositionKey,
 } from '@/api/models'
 import { BenchMark } from '@/components/player/BenchMark'
-import {
-  figureDescription,
-  figureLabel,
-  isScore,
-} from '@/components/player/playerFigure'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import {
-  TeamSheetCorner,
-  TeamSheetMark,
-} from '@/components/player/TeamSheetMark'
+  RosterBand,
+  RosterBenchRow,
+  type RosterRing,
+} from '@/components/roster/RosterPitch'
 import { Pitch } from '@/components/squad/Pitch'
 import {
-  cornerBadgeSize,
   fitPitchMetrics,
   ROW_ORDER,
   ROW_ORDER_MIRRORED,
   usePitchBox,
-  type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
 import {
@@ -40,13 +34,14 @@ import { useMemo, type ReactNode } from 'react'
  * drawn. The top side keeps the white ring the squad's own pitches use; the
  * bottom side takes the accent, so a glance at a portrait says whose it is
  * without reading anything.
+ *
+ * The cards themselves are the shared
+ * [roster pieces](../roster/RosterPitch.tsx), which know only about a ring —
+ * "top" and "bottom" are this page's idea, and only this page's.
  */
 type Side = 'top' | 'bottom'
 
-const RING_CLASS: Record<Side, string> = {
-  top: 'ring-white/75',
-  bottom: 'ring-accent/80',
-}
+const RING: Record<Side, RosterRing> = { top: 'light', bottom: 'accent' }
 
 /**
  * Both elevens on **one pitch, facing each other** — the first manager's
@@ -156,6 +151,8 @@ export function DuelLineupTab({
         roster={top}
         side="top"
         isViewer={top.manager.id === viewerId}
+        leagueId={leagueId}
+        day={day}
       />
 
       {/* The one corner the two name plates leave free. Gone once the pitch is
@@ -172,20 +169,20 @@ export function DuelLineupTab({
 
       <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
         {ROW_ORDER_MIRRORED.map((position) => (
-          <PitchBand
+          <RosterBand
             key={`top-${position}`}
             players={top.lineup.filter((p) => p.position === position)}
             metrics={metrics}
-            side="top"
+            ring={RING.top}
             onOpen={openBreakdown}
           />
         ))}
         {ROW_ORDER.map((position) => (
-          <PitchBand
+          <RosterBand
             key={`bottom-${position}`}
             players={bottom.lineup.filter((p) => p.position === position)}
             metrics={metrics}
-            side="bottom"
+            ring={RING.bottom}
             onOpen={openBreakdown}
           />
         ))}
@@ -195,6 +192,8 @@ export function DuelLineupTab({
         roster={bottom}
         side="bottom"
         isViewer={bottom.manager.id === viewerId}
+        leagueId={leagueId}
+        day={day}
       />
     </Pitch>
   )
@@ -273,165 +272,58 @@ function countAt(lineup: DuelPlayer[], position: PositionKey): number {
   return lineup.filter((player) => player.position === position).length
 }
 
-/** One position's players, side by side. */
-function PitchBand({
-  players,
-  metrics,
-  side,
-  onOpen,
-}: {
-  players: DuelPlayer[]
-  metrics: PlayerMetrics
-  side: Side
-  onOpen: (player: DuelPlayer) => void
-}) {
-  return (
-    /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
-       documents at length: wrapping turns width pressure into height, which
-       feeds back into the sizing and oscillates. The fit above already
-       guarantees the busiest band fits, so clipping is a backstop. */
-    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
-      {players.map((player) => (
-        <PitchPlayer
-          key={player.id}
-          player={player}
-          metrics={metrics}
-          side={side}
-          onOpen={onOpen}
-        />
-      ))}
-    </div>
-  )
-}
-
 /**
- * A portrait and its one figure: the points, or the kick-off time while the
- * match is still to come — see
- * [`playerFigure()`](../../api/models.ts).
+ * Whose half this is, in the corner of the pitch — **and the way to them.**
  *
- * The figure is tinted **only while the player's match is running** — the one
- * state that is going to change, and so the only one worth spotting across a
- * pitch of 22. A real score is drawn at full contrast and a placeholder (a
- * kick-off day or time, a dash) stays quiet, so the eye finds the numbers
- * first.
- *
- * The corner carries the [club's team sheet](../player/TeamSheetMark.tsx) in
- * the hour a sheet exists and the match has not started, and nothing at all
- * outside it. That is the one time a duel of two unstarted elevens has anything
- * to separate its 22 identical `Sa` plates — and on this pitch, unlike the
- * squad editor's, no other badge is competing for the corner.
- */
-function PitchPlayer({
-  player,
-  metrics,
-  side,
-  onOpen,
-}: {
-  player: DuelPlayer
-  metrics: PlayerMetrics
-  side: Side
-  onOpen: (player: DuelPlayer) => void
-}) {
-  const isRunning = player.status === 'playing'
-  const figure = playerFigure(player)
-
-  /*
-   * A portrait is a **button, not a link**, and that is the change worth
-   * noting: these plates carried nothing but a number, and the number was the
-   * one thing on the page that could not be explained. A tap now opens the
-   * [breakdown](../player/PlayerMatchEventsDialog.tsx) — the actions behind
-   * that figure — and the player's own page is a tap further on, from the
-   * dialog's header. A duel is read to find out where the points came from, so
-   * the answer belongs in front of the detour rather than behind it.
-   *
-   * There is nothing to open without a fixture: a player whose club has no
-   * match that matchday has no actions and no breakdown to address.
-   */
-  const canOpen = player.fixture !== undefined
-
-  const Shell = canOpen ? 'button' : 'span'
-
-  return (
-    <Shell
-      {...(canOpen
-        ? {
-            type: 'button' as const,
-            onClick: () => {
-              onOpen(player)
-            },
-          }
-        : {})}
-      title={`${player.name}: ${figureDescription(figure)}`}
-      style={{ width: metrics.width }}
-      className={cn(
-        'flex shrink-0 flex-col items-center rounded-lg p-1',
-        canOpen &&
-          'transition-colors hover:bg-black/20 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-      )}
-    >
-      <span className="relative">
-        <Avatar
-          src={player.image}
-          name={player.name}
-          size={metrics.avatar}
-          className={cn('ring-2', RING_CLASS[side])}
-        />
-        {player.sheet !== undefined && (
-          <TeamSheetCorner
-            role={player.sheet}
-            size={cornerBadgeSize(metrics.avatar)}
-          />
-        )}
-      </span>
-      <span
-        style={{
-          width: metrics.plateWidth,
-          marginTop: -metrics.plateOverlap,
-          fontSize: metrics.nameFontSize,
-        }}
-        className={cn(
-          'nums relative truncate rounded bg-black/70 px-1 text-center font-bold',
-          isRunning
-            ? 'text-accent'
-            : isScore(figure)
-              ? 'text-white'
-              : 'text-white/55',
-        )}
-      >
-        {figureLabel(figure)}
-      </span>
-    </Shell>
-  )
-}
-
-/**
- * Whose half this is, in the corner of the pitch.
- *
- * Absolutely positioned so it costs the bands no height — the pitch is the
+ * Absolutely positioned so it costs the bands no height: the pitch is the
  * scarcest space on the page and eight bands are already tight.
+ *
+ * A plate is small for a tap target, and it is the only thing on this pitch
+ * naming a manager — the portraits are the players' and belong to the
+ * breakdown. So it links to [their page](../../pages/ManagerDetailPage.tsx),
+ * with the matchday riding along, which is where the same eleven is drawn at
+ * twice the size with a bench you can read.
  */
 function SideLabel({
   roster,
   side,
   isViewer,
+  leagueId,
+  day,
 }: {
   roster: DuelRoster
   side: Side
   isViewer: boolean
+  leagueId: string | undefined
+  day: number | undefined
 }) {
-  return (
-    <span
-      className={cn(
-        'absolute z-10 flex items-center gap-1.5 rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm',
-        side === 'top' ? 'top-1 left-1' : 'bottom-1 left-1',
-      )}
-    >
+  const body = (
+    <>
       <Avatar src={roster.manager.image} name={roster.manager.name} size={16} />
       <span className="max-w-28 truncate text-[0.625rem] font-semibold text-white">
         {roster.manager.name}
         {isViewer && <span className="ml-1 text-accent">du</span>}
       </span>
-    </span>
+    </>
+  )
+
+  const className = cn(
+    'absolute z-10 flex items-center gap-1.5 rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm',
+    side === 'top' ? 'top-1 left-1' : 'bottom-1 left-1',
+  )
+
+  if (leagueId === undefined) {
+    return <span className={className}>{body}</span>
+  }
+
+  return (
+    <Link
+      to={`/leagues/${leagueId}/managers/${roster.manager.id}?day=${String(day ?? '')}`}
+      title={`${roster.manager.name} ansehen`}
+      className={cn(className, 'transition-colors hover:bg-black/65')}
+    >
+      {body}
+    </Link>
   )
 }
 
@@ -473,46 +365,14 @@ function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
           Alle Spieler aufgestellt
         </p>
       ) : (
-        <ul className="flex flex-col gap-1">
-          {roster.bench.map((player) => {
-            const figure = playerFigure(player)
-            return (
-              <li
-                key={player.id}
-                title={`${player.name}: ${figureDescription(figure)}${player.sheet === undefined ? '' : ` · ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
-                className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-1.5 py-1 opacity-75"
-              >
-                <Avatar
-                  src={player.image}
-                  name={player.name}
-                  size={24}
-                  className={cn('ring-1', RING_CLASS[side])}
-                />
-                <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-ink">
-                  {player.name}
-                </span>
-                {/* Inline rather than in the corner of a 24px portrait, where
-                    a badge would cover a third of the face. A bench player's
-                    club sheet still matters: he is who you would have fielded
-                    instead, and next week you might. */}
-                {player.sheet !== undefined && (
-                  <TeamSheetMark role={player.sheet} size={12} />
-                )}
-                {figure.kind === 'bench' ? (
-                  <BenchMark size={12} className="text-faint" />
-                ) : (
-                  <span
-                    className={cn(
-                      'nums shrink-0 text-[0.6875rem] font-semibold',
-                      isScore(figure) ? 'text-ink' : 'text-faint',
-                    )}
-                  >
-                    {figureLabel(figure)}
-                  </span>
-                )}
-              </li>
-            )
-          })}
+        /* Dimmed as a set, on the list rather than per row: the heading says
+           what these are. The rows are the shared
+           [bench row](../roster/RosterPitch.tsx), and inert here — a tap on
+           this page belongs to the pitch. */
+        <ul className="flex flex-col gap-1 opacity-75">
+          {roster.bench.map((player) => (
+            <RosterBenchRow key={player.id} player={player} ring={RING[side]} />
+          ))}
         </ul>
       )}
     </section>

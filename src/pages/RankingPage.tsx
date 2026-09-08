@@ -1,5 +1,6 @@
 import { Sigma, Swords, type LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 
 import { duelResultOf, useRanking } from '@/api/hooks/useRanking'
 import type { DuelResult, RankedManager } from '@/api/models'
@@ -89,6 +90,7 @@ export function RankingPage() {
           <ManagerRow
             key={manager.id}
             manager={manager}
+            leagueId={leagueId}
             isMe={manager.id === user?.id}
             isDuelView={isDuelView}
             duelResult={
@@ -158,77 +160,97 @@ function SortToggle({
   )
 }
 
+/**
+ * One manager's row — **and a link to their page.**
+ *
+ * The whole row, because every part of it is about the one manager: a list row
+ * on a phone is a big target and there is nothing else here it could mean. That
+ * is what this table was missing — a name and two numbers, and no way to ask
+ * what was behind them; the [manager page](./ManagerDetailPage.tsx) is the
+ * answer, with their eleven, their squad and their transfers.
+ */
 function ManagerRow({
   manager,
+  leagueId,
   isMe,
   isDuelView,
   duelResult,
   duelOpponentName,
 }: {
   manager: RankedManager
+  leagueId: string
   isMe: boolean
   isDuelView: boolean
   duelResult: DuelResult | undefined
   duelOpponentName: string | undefined
 }) {
   return (
-    <li
-      className={cn(
-        'flex items-center gap-3 rounded-card border bg-surface px-3 py-2.5',
-        isMe ? 'border-accent/50' : 'border-line',
-      )}
-    >
-      {/* Placement and avatar are one group with a tight gap of their own, so
+    <li>
+      <Link
+        to={`/leagues/${leagueId}/managers/${manager.id}`}
+        className={cn(
+          'flex items-center gap-3 rounded-card border bg-surface px-3 py-2.5',
+          'transition-colors hover:border-accent/40 hover:bg-surface-2',
+          isMe ? 'border-accent/50' : 'border-line',
+        )}
+      >
+        {/* Placement and avatar are one group with a tight gap of their own, so
           the row's `gap-3` separates them from the text rather than pushing
           the number away from the face it belongs to. */}
-      <span className="flex shrink-0 items-center gap-1.5">
-        <span className="w-6 text-center">
-          <span className="nums block text-base font-bold text-faint">
-            {placement(
-              isDuelView ? manager.duelPlacement : manager.seasonPlacement,
-            )}
-          </span>
-          {/* Only when it actually moved — a lone dash was a line saying
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="w-6 text-center">
+            <span className="nums block text-base font-bold text-faint">
+              {placement(
+                isDuelView ? manager.duelPlacement : manager.seasonPlacement,
+              )}
+            </span>
+            {/* Only when it actually moved — a lone dash was a line saying
               nothing. */}
-          <PlacementChange value={manager.placementChange} />
+            <PlacementChange value={manager.placementChange} />
+          </span>
+          <Avatar src={manager.image} name={manager.name} size={48} />
         </span>
-        <Avatar src={manager.image} name={manager.name} size={48} />
-      </span>
 
-      {/* Name, then two subtitles: what was scored this matchday, then how
+        {/* Name, then two subtitles: what was scored this matchday, then how
           the duel it fed into went. */}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-ink">
-          {manager.name}
-          {isMe && <span className="ml-1.5 text-xs text-accent">du</span>}
-        </p>
-        {/* The manager's real Kickbase points for the matchday — not their
-            duel points, which are the headline figure on the right. */}
-        <p className="nums truncate text-xs text-muted">
-          {points(manager.matchdayPoints)} Pkt am Spieltag
-        </p>
-        <DuelOutcomeLine result={duelResult} opponentName={duelOpponentName} />
-      </div>
-
-      {/* Two figures stacked, so the ordering is self-explaining: the bold one
-          is what the table is sorted by, the muted one is the other total. */}
-      <div className="shrink-0 text-right">
-        <p className="nums text-sm font-semibold text-ink">
-          {points(isDuelView ? manager.duelPoints : manager.seasonPoints)}
-        </p>
-        {manager.duelPoints !== undefined && (
-          <p
-            className="nums text-xs text-muted"
-            title={
-              isDuelView ? 'Kickbase-Punkte insgesamt' : 'Duellpunkte insgesamt'
-            }
-          >
-            {isDuelView
-              ? `${points(manager.seasonPoints)} Pkt`
-              : `${points(manager.duelPoints)} Duell`}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-ink">
+            {manager.name}
+            {isMe && <span className="ml-1.5 text-xs text-accent">du</span>}
           </p>
-        )}
-      </div>
+          {/* The manager's real Kickbase points for the matchday — not their
+            duel points, which are the headline figure on the right. */}
+          <p className="nums truncate text-xs text-muted">
+            {points(manager.matchdayPoints)} Pkt am Spieltag
+          </p>
+          <DuelOutcomeLine
+            result={duelResult}
+            opponentName={duelOpponentName}
+          />
+        </div>
+
+        {/* Two figures stacked, so the ordering is self-explaining: the bold one
+          is what the table is sorted by, the muted one is the other total. */}
+        <div className="shrink-0 text-right">
+          <p className="nums text-sm font-semibold text-ink">
+            {points(isDuelView ? manager.duelPoints : manager.seasonPoints)}
+          </p>
+          {manager.duelPoints !== undefined && (
+            <p
+              className="nums text-xs text-muted"
+              title={
+                isDuelView
+                  ? 'Kickbase-Punkte insgesamt'
+                  : 'Duellpunkte insgesamt'
+              }
+            >
+              {isDuelView
+                ? `${points(manager.seasonPoints)} Pkt`
+                : `${points(manager.duelPoints)} Duell`}
+            </p>
+          )}
+        </div>
+      </Link>
     </li>
   )
 }

@@ -13,6 +13,7 @@ import {
   EventsPage,
   JoinLeaguePage,
   LeagueGate,
+  ManagerDetailPage,
   MarketPage,
   MatchDetailPage,
   MatchdayPage,
@@ -54,6 +55,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/duels/ranking       the matchday's manager standings
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
  *   /leagues/:leagueId/players/:playerId   one player, four tabs
+ *   /leagues/:leagueId/managers/:managerId one manager, four tabs
  *   /leagues/:leagueId/teams               the season: every club, as a table
  *   /leagues/:leagueId/teams/ranking       the season's 25 best players
  *   /leagues/:leagueId/teams/:teamId       one club, four tabs
@@ -206,6 +208,30 @@ export const router = createBrowserRouter(
                   path: 'table',
                   loader: ({ params }) =>
                     redirect(`/leagues/${params.leagueId ?? ''}/teams`),
+                },
+                // One manager, four routes, one component — the tab comes
+                // from the segment, as everywhere else. Reached by tapping a
+                // manager's name or face: a row of either standings, a duel's
+                // scoreline, a player's owner, a transfer in the feed. No
+                // drawer entry of its own, but `alsoMatches` on *Rangliste*
+                // keeps that entry lit, since the standings are the list every
+                // manager on the page came out of.
+                //
+                // `?day=` selects the matchday the Aufstellung tab shows and
+                // rides along on all four tab links, exactly as on the duel
+                // detail page.
+                { path: 'managers/:managerId', element: <ManagerDetailPage /> },
+                {
+                  path: 'managers/:managerId/squad',
+                  element: <ManagerDetailPage />,
+                },
+                {
+                  path: 'managers/:managerId/events',
+                  element: <ManagerDetailPage />,
+                },
+                {
+                  path: 'managers/:managerId/details',
+                  element: <ManagerDetailPage />,
                 },
                 { path: 'players', element: <PlayersPage /> },
                 // Four routes, one component, as on the squad and duel-detail

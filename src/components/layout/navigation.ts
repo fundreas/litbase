@@ -102,7 +102,18 @@ export const NAV_ITEMS: NavItem[] = [
     alsoMatches: ['players', 'lineup'],
   },
   { to: 'market', label: 'Transfermarkt', icon: Store },
-  { to: 'ranking', label: 'Rangliste', icon: Trophy },
+  // `managers` covers the manager detail page, which is reached by tapping a
+  // name — a standings row, a duel's scoreline, a player's owner — and has no
+  // drawer entry of its own. The Rangliste is the list every one of those
+  // managers came out of, so it is the entry that should stay lit; the prefix
+  // test alone would not do it, because the page lives beside `/ranking`
+  // rather than under it.
+  {
+    to: 'ranking',
+    label: 'Rangliste',
+    icon: Trophy,
+    alsoMatches: ['managers'],
+  },
   // The competition's fixtures. `isNavItemActive`'s prefix test already covers
   // the match detail page at `/matchday/:matchId`, so it needs no
   // `alsoMatches` — tapping into a match keeps *Spieltag* lit.

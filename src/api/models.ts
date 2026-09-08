@@ -513,6 +513,36 @@ export interface DuelSide {
   duelMatchdayPoints?: number
 }
 
+/**
+ * A ranked manager as a duel side.
+ *
+ * The same manager, read for what a roster needs: who they are and what they
+ * scored on the matchday in question. One function rather than a field list
+ * repeated per caller, because there are now two — the
+ * [pairings](../api/hooks/useDuels.ts) build both sides of a duel from the
+ * standings, and the [manager page](../pages/ManagerDetailPage.tsx) builds a
+ * single side for the same [roster hook](../api/hooks/useManagerRoster.ts).
+ *
+ * **The matchday points are whichever matchday the manager was read for.**
+ * `mdp` comes from `/ranking?dayNumber=`, so a manager mapped out of the
+ * *season* standings carries the current matchday's points — which is right for
+ * the current matchday and wrong for any other. Callers wanting a past matchday
+ * read [`useMatchdayStandings`](../api/hooks/useDuels.ts) for that day and map
+ * from there.
+ */
+export function duelSideOf(manager: RankedManager): DuelSide {
+  return {
+    id: manager.id,
+    name: manager.name,
+    image: manager.image,
+    matchdayPoints: manager.matchdayPoints,
+    duelPlacement: manager.duelPlacement,
+    duelPoints: manager.duelPoints,
+    seasonPlacement: manager.seasonPlacement,
+    duelMatchdayPoints: manager.duelMatchdayPoints,
+  }
+}
+
 /** Two managers drawn against each other on one matchday. */
 export interface Duel {
   /**
@@ -1484,6 +1514,46 @@ export interface SquadMember {
    * goalkeeper — see `LineupTab`'s seeding.
    */
   lineupOrder?: number
+}
+
+/**
+ * One player in **another** manager's squad.
+ *
+ * A smaller shape than {@link SquadMember}, because
+ * `/managers/{uid}/squad` is a smaller payload: it carries no purchase price
+ * (so no profit or loss), no `tfhmvt` (no daily change), no `prob` and no offer
+ * count. Those four are the parts of one's *own* squad row that are about
+ * managing it, and Kickbase does not hand them out about somebody else's.
+ *
+ * Deliberately not `SquadMember` with zeros in the gaps: a profit of `0 €` is a
+ * claim, and it would be drawn as one — a grey `±0` under every player on the
+ * [manager page](../components/manager/ManagerSquadTab.tsx).
+ */
+export interface ManagerSquadMember {
+  id: string
+  /** The payload carries the last name only — there is no `fn` on it. */
+  lastName: string
+  teamId: string
+  position: PositionKey
+  marketValue: number
+  marketValueTrend: MarketValueTrend
+  /** Season total. `undefined` when the payload omits `p` entirely. */
+  totalPoints?: number
+  /** Per matchday. `undefined` for the same reason. */
+  averagePoints?: number
+  /** 0 means available; anything else is injured / suspended / away. */
+  status: number
+  image?: string
+  /**
+   * Is the player in the manager's lineup **as it stands now**?
+   *
+   * From `lo`, which is 0-based, so this is the `!== undefined` test spelled
+   * out once — `lo > 0` silently benches the goalkeeper, the trap
+   * {@link SquadMember.lineupOrder} documents at length. The lineup itself is
+   * locked at the first kick-off of a matchday, so during one this is what the
+   * manager fielded; between matchdays it is what they intend to.
+   */
+  isFielded: boolean
 }
 
 export interface MarketListing {
@@ -2697,6 +2767,93 @@ function transferKind(
       return 'released'
     default:
       return 'unknown'
+  }
+}
+
+/** The two ends of one manager's spell with a player — see {@link saleLedger}. */
+export interface SaleLedger {
+  /** How they came by him: a `bought` entry, or the `granted` start squad. */
+  acquisition: PlayerTransfer
+  /**
+   * What the sale is measured against, in €:
+   *
+   *  - `paid` — the fee on the purchase, the plain answer;
+   *  - `granted` — the market value of the day he was dealt out, because a
+   *    squad player has no fee and Kickbase books that value as the basis
+   *    (see {@link PlayerOwnership}). `undefined` when that day predates the
+   *    year of values the API serves.
+   */
+  basis: 'paid' | 'granted'
+  cost?: number
+  /** Proceeds minus {@link cost}, in €. Absent when there is no basis. */
+  profit?: number
+  /** Whole days he spent in the seller's squad. */
+  heldDays: number
+}
+
+/**
+ * What a manager made on selling a player: how they got him, what he cost, and
+ * the difference the sale settled.
+ *
+ * The feed's sale entry names the seller, the player and the fee, and stops —
+ * so the other end of the deal has to be found in the league's transfer
+ * history, which is the only place it is written down.
+ *
+ * **The acquisition is the newest one that is not newer than the sale**, which
+ * is what makes this correct for a player traded more than once: a manager who
+ * bought, sold, bought again and sold again has two spells in the chain, and an
+ * older sale must be paired with the older purchase rather than with whatever
+ * the manager did next. The sale entry itself cannot be mistaken for an
+ * acquisition — a sale names nobody as receiver, so it has no `to`.
+ *
+ * Matched **by id where the standings still know the seller**, by display name
+ * otherwise: the feed carries only a name (`slr`), and a manager who has since
+ * left the league no longer resolves to one of them. Two managers sharing a
+ * display name would be indistinguishable, as everywhere the feed names one.
+ *
+ * `undefined` when the chain holds no purchase by that manager at all — an
+ * unresolvable name, or a history the API did not answer.
+ */
+export function saleLedger(
+  transfers: PlayerTransfer[] | undefined,
+  history: MarketValueHistory | undefined,
+  seller: { id?: string; name: string },
+  /** When the sale happened, ISO 8601. */
+  at: string,
+  /** What the sale paid, in €. */
+  proceeds: number,
+): SaleLedger | undefined {
+  const sold = Date.parse(at)
+  if (Number.isNaN(sold)) return undefined
+
+  const isSeller = (party: TransferParty | undefined) =>
+    party !== undefined &&
+    (seller.id !== undefined && party.id !== undefined
+      ? party.id === seller.id
+      : party.name === seller.name)
+
+  // Newest first, so the first hit at or before the sale is the spell it ends.
+  const acquisition = (transfers ?? []).find(
+    (transfer) => isSeller(transfer.to) && Date.parse(transfer.date) <= sold,
+  )
+  if (acquisition === undefined) return undefined
+
+  const basis = acquisition.kind === 'granted' ? 'granted' : 'paid'
+  const cost =
+    basis === 'granted'
+      ? marketValueAt(history, acquisition.date)?.value
+      : acquisition.fee
+
+  const bought = Date.parse(acquisition.date)
+
+  return {
+    acquisition,
+    basis,
+    cost,
+    profit: cost === undefined ? undefined : proceeds - cost,
+    heldDays: Number.isNaN(bought)
+      ? 0
+      : Math.max(0, Math.floor((sold - bought) / 86_400_000)),
   }
 }
 

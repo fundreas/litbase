@@ -37,6 +37,10 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/matchday/ranking` | [Matchday — Rangliste](pages/matchday.md#rangliste) | Implemented |
 | `/leagues/:leagueId/matchday/:matchId` | [Match detail](pages/match-detail.md) | Implemented |
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Implemented |
+| `/leagues/:leagueId/managers/:managerId` | [Manager](pages/manager-detail.md) | Implemented |
+| `/leagues/:leagueId/managers/:managerId/squad` | [Manager — Kader](pages/manager-detail.md#kader) | Implemented |
+| `/leagues/:leagueId/managers/:managerId/events` | [Manager — Verlauf](pages/manager-detail.md#verlauf) | Implemented |
+| `/leagues/:leagueId/managers/:managerId/details` | [Manager — Details](pages/manager-detail.md#details) | Implemented |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
 | `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |
 | `/leagues/:leagueId/teams` | [Saison — Tabelle](pages/season.md) | Implemented |
@@ -54,13 +58,17 @@ came back — the API binding is proven, only the UI is missing. Stubs are
 URL until the screen exists. See
 [Navigation](routing-and-layout.md#navigation).
 
-Neither are the two **detail** pages, and for a different reason: a player and
-a club have no single subject a drawer entry could name. They are reached by
-tapping the thing that names them — a squad row for a player, a **crest** for a
-club, on the player header and on either side of a match's scoreline, or a row
-on [Saison](pages/season.md). The club page does now light an entry, since
-*Teams* is its parent route and the drawer's match is a prefix one; the player
-page still borrows *Mannschaft*.
+Neither are the three **detail** pages, and for a different reason: a player, a
+club and a manager have no single subject a drawer entry could name. They are
+reached by tapping the thing that names them — a squad row for a player, a
+**crest** for a club (on the player header, on either side of a match's
+scoreline, or a row on [Saison](pages/season.md)), and a **name or a face** for
+a [manager](pages/manager-detail.md#getting-there): a standings row, a duel's
+scoreline, a player's owner, a *joined* row in the feed. All three light an
+entry anyway, because the drawer's match is a prefix one and each has a list
+above it: *Teams* is the club page's parent route, the player page borrows
+*Mannschaft*, and the manager page names *Rangliste* in `alsoMatches` — the
+table every manager on it came out of.
 
 ## Conventions used throughout
 

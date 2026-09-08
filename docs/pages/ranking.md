@@ -37,6 +37,13 @@ saying nothing.
 Outside a duel league the third line is absent entirely and the row is two
 lines tall.
 
+**The whole row is a link to that manager** —
+[Manager](manager-detail.md), with their eleven, their squad, their transfers and
+their whole per-matchday season. Every part of the row is about the one manager,
+so there is nothing else a tap could mean, and a list row on a phone is the
+biggest target the page can offer. Until that page existed this table was a name
+and two numbers with no way to ask what was behind them.
+
 ## Ordering
 
 **The API does not return managers in placement order.** A real response led
@@ -145,6 +152,7 @@ inverted reading would be visible immediately rather than silent.
 | Placement change | `placementChange` (`ppc`), under the placement — hidden when `0` |
 | Avatar | `image` (`uim`), initials fallback |
 | Name | `name`, with a `du` tag in accent colour when `id === user?.id` |
+| Admin | not here — the crown is on the [manager page](manager-detail.md#the-header)'s header, from `isAdmin` |
 | Subtitle 1 | Matchday Kickbase points (`mdp`) |
 | Subtitle 2 | Duel outcome + opponent name — omitted outside duel leagues |
 | Points | `seasonPoints`, bold, right-aligned |
@@ -196,8 +204,9 @@ instantly.
 page shows:
 
 - **`lp`** — points per matchday, oldest first, `null` for matchdays not
-  played. Already mapped as `pointsPerMatchday`. This is the richest unused
-  data in the app.
+  played. Mapped as `pointsPerMatchday`, and no longer unused: it is the
+  matchday list on the [manager page](manager-detail.md#details), which was
+  where "the richest unused data in the app" finally went.
 - `hhmp` — the duel points awarded this matchday (3 for a win, 0 for a loss).
   Mapped, but unused now that the result is derived from the matchday
   comparison.
@@ -207,13 +216,20 @@ page shows:
 
 ## Possible extensions
 
-- **A sparkline per manager from `pointsPerMatchday`** — no new request needed,
-  and it turns a static table into a form guide.
 - Toggle between season and matchday standings (`mdpl` / `mdp` are both
   already mapped) — the duel/points toggle is the pattern to follow.
-- Show the duel opponent's name per row; `hhoui` is mapped as
-  `duelOpponentId` and the whole field is already addressable by id.
-- Tap a manager to open their squad. Kickbase exposes other managers' squads,
-  but the endpoint is not in [`endpoints.ts`](../../src/api/endpoints.ts) yet
-  and has not been probed.
-- Mark the league admin using `isAdmin`.
+
+Four earlier entries are **done**, all of them on the
+[manager page](manager-detail.md) rather than on this table — a row of a
+standings list has no room for a season's shape, and the tap that opens it now
+leads somewhere that does:
+
+- ~~a sparkline per manager from `pointsPerMatchday`~~ → the whole season, as a
+  bar per matchday, on [Details](manager-detail.md#details);
+- ~~tap a manager to open their squad~~ → [Kader](manager-detail.md#kader), and
+  the matchday's eleven besides. The endpoints are in
+  [`endpoints.ts`](../../src/api/endpoints.ts) and probed;
+- ~~show the duel opponent's name per row~~ → the row already says it in the
+  outcome line, and the [manager page's header](manager-detail.md#the-header)
+  draws the duel as a scoreline;
+- ~~mark the league admin using `isAdmin`~~ → a crown on that header.

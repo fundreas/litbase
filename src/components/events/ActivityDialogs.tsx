@@ -1,5 +1,11 @@
-import { ArrowRight, ChevronRight, SendHorizontal, Trophy } from 'lucide-react'
-import { useState } from 'react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronRight,
+  SendHorizontal,
+  Trophy,
+} from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router'
 
 import { useAchievement } from '@/api/hooks/useAchievements'
@@ -8,13 +14,15 @@ import {
   usePostActivityComment,
 } from '@/api/hooks/useActivityComments'
 import { useMatchdayStandings } from '@/api/hooks/useDuels'
-import { usePlayerMarketValue } from '@/api/hooks/usePlayer'
+import { usePlayerMarketValue, usePlayerTransfers } from '@/api/hooks/usePlayer'
 import { usePlayerOffers } from '@/api/hooks/usePlayerOffers'
 import {
   marketValueAt,
+  saleLedger,
   type LeagueActivity,
   type MarketValueDay,
   type RankedManager,
+  type SaleLedger,
 } from '@/api/models'
 import { ManagerRankingTab } from '@/components/ranking/ManagerRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
@@ -23,7 +31,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { money, moneyDelta, relativeTime, weekdayDate } from '@/lib/format'
+import {
+  date,
+  money,
+  moneyDelta,
+  relativeTime,
+  weekdayDate,
+} from '@/lib/format'
 
 /**
  * What a **purchase** opens: who bought whom for how much, **what he was worth
@@ -70,56 +84,19 @@ export function TransferDialog({
       }}
       title="Transfer"
     >
-      {/* The player, at the size the market draws him — this sheet is about
-          one player and there is room for his face.
+      <PlayerLink
+        leagueId={leagueId}
+        playerId={activity.playerId}
+        name={activity.playerName}
+        image={activity.playerImage}
+        detail={money(activity.price)}
+      />
 
-          **The face and the name are the link to his page.** A *Zum Spieler*
-          row at the foot of the sheet used to carry it, which put the way out
-          as far as possible from the thing it was about and spent a line saying
-          what a tap on a portrait says for free. Everywhere else in the app a
-          player's picture is how you get to a player, so it is here too.
-
-          Nothing here closes the sheet: it *is* the hash on this page's URL,
-          so navigating away closes it by construction. `replace` spends its
-          entry on the player, so the way back from him is the feed rather than
-          the sheet he was opened from. */}
-      <Link
-        to={`/leagues/${leagueId}/players/${activity.playerId}`}
-        replace
-        title={`${activity.playerName} – Spielerseite öffnen`}
-        className={cn(
-          '-m-1 flex items-center gap-3 rounded-card p-1',
-          'transition-colors hover:bg-surface-2/60',
-          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-        )}
-      >
-        <Avatar
-          src={activity.playerImage}
-          name={activity.playerName}
-          size={56}
-          className="bg-surface-2"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold text-ink">
-            {activity.playerName}
-          </p>
-          <p className="nums text-sm text-muted">{money(activity.price)}</p>
-        </div>
-        <ChevronRight
-          size={18}
-          aria-hidden="true"
-          className="shrink-0 text-faint"
-        />
-      </Link>
-
-      <div className="flex items-center gap-2 rounded-card border border-line bg-surface-2/40 px-3 py-2.5">
-        <ArrowRight size={16} aria-hidden="true" className="text-positive" />
-        <Avatar src={manager?.image} name={activity.managerName} size={28} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-          {activity.managerName}
-        </span>
-        <span className="shrink-0 text-xs text-faint">gekauft</span>
-      </div>
+      <DealerRow
+        name={activity.managerName}
+        image={manager?.image}
+        direction="bought"
+      />
 
       {/* What he was worth on the day, and what the fee was next to it — the
           thing that turns a price into a judgement. Today's market value would
@@ -131,7 +108,7 @@ export function TransferDialog({
       {history.isPending ? (
         <Skeleton className="h-[4.5rem]" />
       ) : standing !== undefined ? (
-        <TransferPremium paid={activity.price} standing={standing} />
+        <DealFigures fee={activity.price} standing={standing} side="buyer" />
       ) : history.isSuccess ? (
         <p className="text-xs text-muted">
           Für den Tag des Transfers liefert Kickbase keinen Marktwert – die
@@ -169,8 +146,282 @@ export function TransferDialog({
 }
 
 /**
- * The fee against the market value of the transfer day: what the player was
- * worth, then what the buyer paid over or under it.
+ * What a **sale** opens: the same sheet a purchase gets, plus the half of the
+ * deal the feed does not carry — **what the player had cost the seller, and
+ * what the sale therefore made or lost him**.
+ *
+ * A sale is to Kickbase, so there is no rival bid to report and no *Dein
+ * Gebot* line. What there is instead is a history: the seller bought him at
+ * some point, at some price, and the whole judgement of a sale sits in the
+ * difference. The row used to jump straight to the player's page for that,
+ * which meant leaving the feed and then finding the pair of rows on his
+ * transfer tab that happened to be this manager's spell.
+ *
+ * The purchase is dug out of the league's transfer history — one request,
+ * shared with the player page's Transfers tab — by
+ * [`saleLedger`](../../api/models.ts), which is also what pairs the right
+ * purchase with the right sale for a player who has been traded more than
+ * once.
+ */
+export function SaleDialog({
+  leagueId,
+  activity,
+  manager,
+  onClose,
+}: {
+  leagueId: string
+  activity: Extract<LeagueActivity, { kind: 'transfer' }>
+  /** The seller from the standings, when the name still resolves to a member. */
+  manager: RankedManager | undefined
+  onClose: () => void
+}) {
+  const history = usePlayerMarketValue(leagueId, activity.playerId)
+  const standing = marketValueAt(history.data, activity.at)
+  // Oldest first, so the last day is where the player stands now.
+  const today = history.data?.days.at(-1)
+
+  // Unfiltered by season on purpose: the spell this sale ends can have opened
+  // before the summer, and a cut list would hide the purchase that is the
+  // whole point of the sheet.
+  const transfers = usePlayerTransfers(leagueId, activity.playerId)
+  const ledger = saleLedger(
+    transfers.data,
+    history.data,
+    { id: manager?.id, name: activity.managerName },
+    activity.at,
+    activity.price,
+  )
+
+  return (
+    <InfoDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      title="Verkauf"
+    >
+      <PlayerLink
+        leagueId={leagueId}
+        playerId={activity.playerId}
+        name={activity.playerName}
+        image={activity.playerImage}
+        // His value **now**, not the fee: the fee is stated and labelled in
+        // the panel below, and what a reader wants beside a face is what the
+        // player is worth today — which is what his page opens on too.
+        detail={
+          today === undefined ? undefined : `Marktwert ${money(today.value)}`
+        }
+      />
+
+      <DealerRow
+        name={activity.managerName}
+        image={manager?.image}
+        direction="sold"
+      />
+
+      {/* The sale itself, and — once the year of values has landed — what he
+          was worth the day it went through. The fee is labelled here rather
+          than left under his name, because the head of this sheet carries his
+          value *today* and two bare figures would not say which was which. */}
+      <DealFigures
+        feeLabel="Verkauft für"
+        fee={activity.price}
+        standing={standing}
+        side="seller"
+      />
+
+      {history.isSuccess && standing === undefined && (
+        <p className="text-xs text-muted">
+          Für den Tag des Verkaufs liefert Kickbase keinen Marktwert – die
+          Historie reicht ein Jahr zurück.
+        </p>
+      )}
+
+      {/* The ledger. Quiet on an error and quiet on a purchase that cannot be
+          found — the sheet still has the sale itself and the thread. */}
+      {transfers.isPending ? (
+        <Skeleton className="h-24" />
+      ) : ledger !== undefined ? (
+        <SaleLedgerPanel ledger={ledger} />
+      ) : transfers.isSuccess ? (
+        <p className="text-xs text-muted">
+          Zu diesem Verkauf steht in der Transferhistorie kein Kauf durch{' '}
+          {activity.managerName}.
+        </p>
+      ) : null}
+
+      <ActivityCommentThread
+        leagueId={leagueId}
+        activityId={activity.id}
+        commentCount={activity.commentCount}
+      />
+    </InfoDialog>
+  )
+}
+
+/**
+ * The other end of the spell: **what he had cost the seller, when, and what
+ * the sale therefore settled.**
+ *
+ * The difference is the line the sheet exists for, so it sits below the rule
+ * and a size larger than the figure above it — green on a profit, red on a
+ * loss, from the seller's side.
+ *
+ * **A squad player has no purchase price.** Kickbase deals a starting eleven
+ * out for nothing and books the market value of that day as the basis; that is
+ * what the profit is measured against here, and the label says *Marktwert bei
+ * Zuteilung* rather than pretending to a fee. Where that day predates the year
+ * of values the API serves there is no basis at all — the row says so, and the
+ * profit line is dropped rather than measured against a zero that would read
+ * as the whole fee being profit.
+ */
+function SaleLedgerPanel({ ledger }: { ledger: SaleLedger }) {
+  const { acquisition, basis, cost, profit, heldDays } = ledger
+
+  return (
+    <dl className="rounded-card border border-line bg-surface-2/40 px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="min-w-0">
+          <span className="block truncate text-sm text-muted">
+            {basis === 'granted' ? 'Marktwert bei Zuteilung' : 'Gekauft für'}
+          </span>
+          <span className="block truncate text-xs text-faint">
+            {date(acquisition.date)} · {heldDays}{' '}
+            {heldDays === 1 ? 'Tag' : 'Tage'} im Kader
+          </span>
+        </dt>
+        <dd
+          className={cn(
+            'nums shrink-0 text-sm font-semibold',
+            cost === undefined ? 'text-faint' : 'text-ink',
+          )}
+        >
+          {cost === undefined ? '–' : money(cost)}
+        </dd>
+      </div>
+
+      {profit === undefined ? (
+        <p className="mt-2 border-t border-line pt-2 text-xs text-muted">
+          Für den Tag der Zuteilung liefert Kickbase keinen Marktwert, also auch
+          keinen Gewinn.
+        </p>
+      ) : (
+        <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line pt-2">
+          <dt className="min-w-0 truncate text-sm text-muted">
+            {profit > 0 ? 'Gewinn' : profit < 0 ? 'Verlust' : 'Null auf null'}
+          </dt>
+          <dd
+            className={cn(
+              'nums shrink-0 text-base font-semibold',
+              profit > 0 && 'text-positive',
+              profit < 0 && 'text-negative',
+              profit === 0 && 'text-faint',
+            )}
+          >
+            {moneyDelta(profit)}
+          </dd>
+        </div>
+      )}
+    </dl>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The player at the head of a transfer sheet, at the size the market draws him
+ * — the sheet is about one player and there is room for his face.
+ *
+ * **The face and the name are the link to his page.** A *Zum Spieler* row at
+ * the foot of the sheet used to carry it, which put the way out as far as
+ * possible from the thing it was about and spent a line saying what a tap on a
+ * portrait says for free. Everywhere else in the app a player's picture is how
+ * you get to a player, so it is here too.
+ *
+ * Nothing here closes the sheet: it *is* the hash on this page's URL, so
+ * navigating away closes it by construction. `replace` spends its entry on the
+ * player, so the way back from him is the feed rather than the sheet he was
+ * opened from.
+ */
+function PlayerLink({
+  leagueId,
+  playerId,
+  name,
+  image,
+  detail,
+}: {
+  leagueId: string
+  playerId: string
+  name: string
+  image?: string
+  /** The line under the name — a fee, a market value, or nothing yet. */
+  detail?: ReactNode
+}) {
+  return (
+    <Link
+      to={`/leagues/${leagueId}/players/${playerId}`}
+      replace
+      title={`${name} – Spielerseite öffnen`}
+      className={cn(
+        '-m-1 flex items-center gap-3 rounded-card p-1',
+        'transition-colors hover:bg-surface-2/60',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+      )}
+    >
+      <Avatar src={image} name={name} size={56} className="bg-surface-2" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-base font-semibold text-ink">{name}</p>
+        {detail !== undefined && (
+          <p className="nums truncate text-sm text-muted">{detail}</p>
+        )}
+      </div>
+      <ChevronRight
+        size={18}
+        aria-hidden="true"
+        className="shrink-0 text-faint"
+      />
+    </Link>
+  )
+}
+
+/**
+ * Who dealt, and which way the player went — the feed row's arrow, at sheet
+ * size: green and rightwards into the squad on a purchase, red and leftwards
+ * out of it on a sale.
+ */
+function DealerRow({
+  name,
+  image,
+  direction,
+}: {
+  name: string
+  image?: string
+  direction: 'bought' | 'sold'
+}) {
+  const isBuy = direction === 'bought'
+  const Arrow = isBuy ? ArrowRight : ArrowLeft
+
+  return (
+    <div className="flex items-center gap-2 rounded-card border border-line bg-surface-2/40 px-3 py-2.5">
+      <Arrow
+        size={16}
+        aria-hidden="true"
+        className={isBuy ? 'text-positive' : 'text-negative'}
+      />
+      <Avatar src={image} name={name} size={28} />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+        {name}
+      </span>
+      <span className="shrink-0 text-xs text-faint">
+        {isBuy ? 'gekauft' : 'verkauft'}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * The money on a transfer: the fee, the market value of the day it went
+ * through, and the distance between them.
  *
  * **The day is named on the label**, not left implicit — the snapshot is a
  * daily one and Kickbase moves values overnight, so a transfer late in the
@@ -178,49 +429,87 @@ export function TransferDialog({
  * [`marketValueAt`](../../api/models.ts). A dated label is honest about that in
  * a way a bare *Marktwert* would not be.
  *
- * **Colour is the buyer's side of it.** Paying over the market value is an
- * instant paper loss on the squad it lands in, so an *Aufpreis* is red and a
- * bargain green — the same direction the app's profit and loss run everywhere
- * else, read from the perspective of the manager who dealt.
+ * **Colour reads from the dealing manager's side, so it flips with the
+ * direction.** Paying over the market value is an instant paper loss on the
+ * squad it lands in, so an *Aufpreis* on a purchase is red and a bargain green;
+ * being paid over it is a win, so the same sign on a sale is green. The same
+ * reading the [player's transfer tab](../player/PlayerTransfersTab.tsx) uses,
+ * and the direction the app's profit and loss run everywhere else.
+ *
+ * The **fee row** is opt-in through `feeLabel`, because the purchase sheet
+ * already carries the fee under the player's name and the sale sheet does not
+ * — its head is the player's value today.
  */
-function TransferPremium({
-  paid,
+function DealFigures({
+  feeLabel,
+  fee,
   standing,
+  side,
 }: {
-  paid: number
-  standing: MarketValueDay
+  /** Names the fee row and turns it on — omitted where the head carries it. */
+  feeLabel?: string
+  fee: number
+  /** The valuation of the transfer day; absent outside the year served. */
+  standing: MarketValueDay | undefined
+  side: 'buyer' | 'seller'
 }) {
-  const premium = paid - standing.value
+  if (feeLabel === undefined && standing === undefined) return null
+
+  const premium = standing === undefined ? undefined : fee - standing.value
+  const favourable =
+    premium !== undefined && (side === 'seller' ? premium > 0 : premium < 0)
 
   return (
     <dl className="rounded-card border border-line bg-surface-2/40 px-3 py-2.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="min-w-0 truncate text-sm text-muted">
-          Marktwert am {weekdayDate(standing.date)}
-        </dt>
-        <dd className="nums shrink-0 text-sm font-semibold text-ink">
-          {money(standing.value)}
-        </dd>
-      </div>
-      <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line pt-2">
-        <dt className="min-w-0 truncate text-sm text-muted">
-          {premium > 0
-            ? 'Aufpreis'
-            : premium < 0
-              ? 'Abschlag'
-              : 'Zum Marktwert'}
-        </dt>
-        <dd
-          className={cn(
-            'nums shrink-0 text-sm font-semibold',
-            premium > 0 && 'text-negative',
-            premium < 0 && 'text-positive',
-            premium === 0 && 'text-faint',
-          )}
-        >
-          {moneyDelta(premium)}
-        </dd>
-      </div>
+      {feeLabel !== undefined && (
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="min-w-0 truncate text-sm text-muted">{feeLabel}</dt>
+          <dd className="nums shrink-0 text-sm font-semibold text-ink">
+            {money(fee)}
+          </dd>
+        </div>
+      )}
+
+      {standing !== undefined && premium !== undefined && (
+        <>
+          <div
+            className={cn(
+              'flex items-baseline justify-between gap-3',
+              feeLabel !== undefined && 'mt-2 border-t border-line pt-2',
+            )}
+          >
+            <dt className="min-w-0 truncate text-sm text-muted">
+              Marktwert am {weekdayDate(standing.date)}
+            </dt>
+            <dd className="nums shrink-0 text-sm font-semibold text-ink">
+              {money(standing.value)}
+            </dd>
+          </div>
+          <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line pt-2">
+            <dt className="min-w-0 truncate text-sm text-muted">
+              {premium === 0
+                ? 'Zum Marktwert'
+                : side === 'seller'
+                  ? premium > 0
+                    ? 'Über Marktwert'
+                    : 'Unter Marktwert'
+                  : premium > 0
+                    ? 'Aufpreis'
+                    : 'Abschlag'}
+            </dt>
+            <dd
+              className={cn(
+                'nums shrink-0 text-sm font-semibold',
+                premium === 0 && 'text-faint',
+                premium !== 0 &&
+                  (favourable ? 'text-positive' : 'text-negative'),
+              )}
+            >
+              {moneyDelta(premium)}
+            </dd>
+          </div>
+        </>
+      )}
     </dl>
   )
 }

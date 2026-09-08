@@ -173,6 +173,8 @@ export function DuelDetailPage() {
             isLeader={leader?.id === duel.sides[0].id}
             isViewer={duel.sides[0].id === user?.id}
             roster={rosters.data?.[0]}
+            leagueId={leagueId}
+            day={selectedDay}
           />
           <span className="shrink-0 pt-2 text-xs font-medium text-faint">
             :
@@ -184,6 +186,8 @@ export function DuelDetailPage() {
             isLeader={leader?.id === duel.sides[1].id}
             isViewer={duel.sides[1].id === user?.id}
             roster={rosters.data?.[1]}
+            leagueId={leagueId}
+            day={selectedDay}
           />
         </div>
 
@@ -215,7 +219,11 @@ export function DuelDetailPage() {
             description="Kickbase hat für diesen Spieltag keine Kader — vermutlich lag er vor der Gründung der Liga."
           />
         ) : rosters.data === undefined ? null : tab === TABS.ranking ? (
-          <DuelRankingTab rosters={rosters.data} />
+          <DuelRankingTab
+            rosters={rosters.data}
+            leagueId={leagueId}
+            day={selectedDay}
+          />
         ) : (
           <DuelLineupTab
             rosters={rosters.data}
@@ -323,6 +331,8 @@ function Scoreline({
   isLeader,
   isViewer,
   roster,
+  leagueId,
+  day,
 }: {
   side: DuelSide
   align: 'left' | 'right'
@@ -331,13 +341,25 @@ function Scoreline({
   isViewer: boolean
   /** Absent while the rosters are still loading. */
   roster?: DuelRoster
+  leagueId: string
+  /** Rides along to the manager's page, so it opens on this matchday. */
+  day: number | undefined
 }) {
   const isRight = align === 'right'
 
   return (
-    <div
+    /* **The whole half is the link to that manager.** On this page there is
+       nothing else it could mean — the duel is what you are already looking
+       at — so the face, the name and the total together are one target, which
+       is the largest one a two-column header can offer a thumb. The matchday
+       rides along, so their eleven opens on the day being read rather than on
+       the current one. See [the manager page](./ManagerDetailPage.tsx). */
+    <Link
+      to={`/leagues/${leagueId}/managers/${side.id}?day=${String(day ?? '')}`}
+      title={`${side.name} ansehen`}
       className={cn(
-        'flex min-w-0 flex-1 items-center gap-2',
+        '-m-1 flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1',
+        'transition-colors hover:bg-surface-2',
         isRight && 'flex-row-reverse',
       )}
     >
@@ -361,6 +383,6 @@ function Scoreline({
           </p>
         )}
       </div>
-    </div>
+    </Link>
   )
 }

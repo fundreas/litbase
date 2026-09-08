@@ -23,6 +23,7 @@ import { useAuth } from '@/auth/useAuth'
 import {
   AchievementDialog,
   MatchdayDialog,
+  SaleDialog,
   TransferDialog,
 } from '@/components/events/ActivityDialogs'
 import { Avatar } from '@/components/ui/Avatar'
@@ -62,8 +63,8 @@ import { useHashModal } from '@/lib/useHashModal'
  *
  *  - a **purchase** opens a sheet naming the buyer and, if the reader was
  *    bidding on the same player, what they bid;
- *  - a **sale** opens the player's page — it was a sale to Kickbase, so there
- *    is no contest to report;
+ *  - a **sale** opens a sheet with the other end of the deal — what the seller
+ *    had paid for him, when, and what the sale made or lost;
  *  - an **achievement** opens a sheet with its description, reward and count;
  *  - a **matchday** opens the matchday's manager ranking as a sheet, in every
  *    league — with a link in its head onwards to the day's duels, or to the
@@ -76,8 +77,41 @@ import { useHashModal } from '@/lib/useHashModal'
  * The managers on transfer rows come by **name** — the feed carries no ids or
  * avatars for them — and are matched against the standings for a face. A
  * manager who has since left the league keeps initials.
+ *
+ * ## One manager's slice of it
+ *
+ * Pass `manager` and the same feed becomes that manager's history — the
+ * [manager page](../../pages/ManagerDetailPage.tsx)'s Verlauf tab. There is
+ * **no server-side filter for this**: `userId`, `managerId` and a dozen other
+ * spellings all answer the unfiltered feed (see
+ * [`activitiesFeed`](../../api/endpoints.ts)), so the rows are picked here, out
+ * of the pages that have been loaded.
+ *
+ * Two consequences the tab lives with:
+ *
+ *  - **The list pages itself forward.** A page of 25 entries may hold nothing
+ *    about this manager, and the sentinel is then still on screen and asks for
+ *    the next one — so opening the tab walks the feed until it finds rows, or
+ *    reaches the end of the league's history. That is the cost of a filter the
+ *    API does not have, and it is bounded by the feed's own length.
+ *  - **Transfers are matched by name**, because that is all a transfer entry
+ *    carries — `byr`/`slr` are display names, not ids. Two managers with the
+ *    same display name in one league would share a history; Kickbase does not
+ *    stop that, and nothing here can tell them apart.
+ *
+ * The **personalised** entries — an achievement, a login bonus, a settled
+ * matchday — are the *viewer's* whoever else is on screen, so they appear only
+ * on the viewer's own page. Showing them on a rival's would be attributing the
+ * reader's own week to somebody else.
  */
-export function ActivityFeed({ leagueId }: { leagueId: string }) {
+export function ActivityFeed({
+  leagueId,
+  manager,
+}: {
+  leagueId: string
+  /** Show only what happened to this manager — see above. */
+  manager?: ActivityManagerFilter
+}) {
   const query = useActivities(leagueId)
   const ranking = useRanking(leagueId)
   const { user } = useAuth()
@@ -107,7 +141,10 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
   )
 
   const activities = (query.data ?? []).filter(
-    (activity) => activity.kind !== 'unknown' && activity.kind !== 'listed',
+    (activity) =>
+      activity.kind !== 'unknown' &&
+      activity.kind !== 'listed' &&
+      (manager === undefined || isAbout(activity, manager)),
   )
 
   const openActivity = activities.find((activity) => activity.id === sheet.id)
@@ -134,11 +171,30 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
             void query.refetch()
           }}
         />
+      ) : activities.length === 0 && query.hasNextPage ? (
+        /* Nothing matched *yet*. With a manager filter that is the normal
+           opening state — the first pages of a busy league can be all
+           transfers between other people — so the sentinel stays and keeps
+           asking rather than the tab claiming there is nothing. */
+        <LoadMore
+          hasMore
+          isLoading={query.isFetchingNextPage}
+          isError={query.isFetchNextPageError}
+          onLoad={() => {
+            void query.fetchNextPage()
+          }}
+        />
       ) : activities.length === 0 ? (
         <EmptyState
           className="py-8"
-          title="Noch nichts passiert"
-          description="Transfers, Spieltage und Erfolge erscheinen hier."
+          title={
+            manager === undefined ? 'Noch nichts passiert' : 'Nichts passiert'
+          }
+          description={
+            manager === undefined
+              ? 'Transfers, Spieltage und Erfolge erscheinen hier.'
+              : `Für ${manager.name} hat die Liga keine Transfers verzeichnet.`
+          }
         />
       ) : (
         <>
@@ -165,14 +221,22 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
         </>
       )}
 
-      {openActivity?.kind === 'transfer' && (
-        <TransferDialog
-          leagueId={leagueId}
-          activity={openActivity}
-          manager={managersByName.get(openActivity.managerName)}
-          onClose={sheet.close}
-        />
-      )}
+      {openActivity?.kind === 'transfer' &&
+        (openActivity.direction === 'bought' ? (
+          <TransferDialog
+            leagueId={leagueId}
+            activity={openActivity}
+            manager={managersByName.get(openActivity.managerName)}
+            onClose={sheet.close}
+          />
+        ) : (
+          <SaleDialog
+            leagueId={leagueId}
+            activity={openActivity}
+            manager={managersByName.get(openActivity.managerName)}
+            onClose={sheet.close}
+          />
+        ))}
       {openActivity?.kind === 'achievement' && (
         <AchievementDialog
           leagueId={leagueId}
@@ -197,6 +261,46 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
 }
 
 /* -------------------------------------------------------------------------- */
+
+/** Which manager a feed is narrowed to — see {@link ActivityFeed}. */
+export interface ActivityManagerFilter {
+  id: string
+  /** Their display name, which is how a transfer entry names them. */
+  name: string
+  /** Is this the signed-in user? Gates the personalised entries. */
+  isViewer: boolean
+}
+
+/**
+ * Is this entry about the manager the feed is narrowed to?
+ *
+ * Three of the seven kinds can be attributed to somebody. A **transfer** names
+ * the dealing manager, by display name. **Joining and leaving** name them by
+ * id, which is the one place the feed does. Everything else is either about the
+ * league (its founding) or about the **viewer** (an achievement, the login
+ * bonus, a settled matchday's placement) — so those go on the viewer's own page
+ * and nobody else's.
+ */
+function isAbout(
+  activity: LeagueActivity,
+  manager: ActivityManagerFilter,
+): boolean {
+  switch (activity.kind) {
+    case 'transfer':
+      return activity.managerName === manager.name
+    case 'joined':
+    case 'left':
+      return activity.managerId === manager.id
+    case 'achievement':
+    case 'bonus':
+    case 'matchday':
+      return manager.isViewer
+    case 'founded':
+    case 'listed':
+    case 'unknown':
+      return false
+  }
+}
 
 /**
  * The bottom of the list: a sentinel that loads the next page as it scrolls
@@ -307,7 +411,6 @@ function ActivityRow({
       return (
         <TransferRow
           activity={activity}
-          leagueId={leagueId}
           manager={managersByName.get(activity.managerName)}
           when={when}
           onOpen={onOpen}
@@ -332,7 +435,18 @@ function ActivityRow({
           }
           title={
             <>
-              <span className="font-semibold">{activity.managerName}</span>{' '}
+              {/* The **one kind of entry that names a manager by id**, so it
+                  is the one that can link them without guessing — and the
+                  row itself opens nothing, so a link inside it is free. A
+                  manager who has left still has a page: their squad is gone,
+                  their season is not. See
+                  [the manager page](../../pages/ManagerDetailPage.tsx). */}
+              <Link
+                to={`/leagues/${leagueId}/managers/${activity.managerId}`}
+                className="font-semibold hover:underline"
+              >
+                {activity.managerName}
+              </Link>{' '}
               {activity.kind === 'joined'
                 ? 'ist der Liga beigetreten'
                 : 'hat die Liga verlassen'}
@@ -515,21 +629,24 @@ function MatchdayRow({
  * an arrow that says which way the player went. **Green and rightwards** into
  * the manager's squad on a buy, **red and leftwards** out of it on a sale.
  *
- * **A purchase opens a sheet, a sale opens the player.** Only a purchase has a
- * second side worth a sheet: someone won the player, and the reader may have
- * been bidding against them — which is the one thing about a transfer that is
- * not already on the row. A sale is *to Kickbase*, there was no contest, and
- * the player's page is the useful destination.
+ * **Either direction opens a sheet**, and the two sheets answer the two
+ * different questions a transfer raises. A purchase was a contest: somebody
+ * won the player, and the reader may have been bidding against them. A sale is
+ * to Kickbase, so there was no contest — what it raises instead is whether the
+ * seller did well out of him, which needs the price he paid and the day he
+ * bought. Neither figure is on the row, and both are a request away.
+ *
+ * A sale used to navigate to the player's page for that, which left the feed
+ * and then left the reader to find this manager's spell among the rows of his
+ * transfer tab. The sheet's own head still links there.
  */
 function TransferRow({
   activity,
-  leagueId,
   manager,
   when,
   onOpen,
 }: {
   activity: Extract<LeagueActivity, { kind: 'transfer' }>
-  leagueId: string
   /** The dealing manager from the standings, when the name still resolves. */
   manager: RankedManager | undefined
   when: ReactNode
@@ -538,78 +655,64 @@ function TransferRow({
   const isBuy = activity.direction === 'bought'
   const Arrow = isBuy ? ArrowRight : ArrowLeft
 
-  const inner = (
-    <>
-      {/* Flush portrait, the market row's arrangement: the Kickbase cutouts
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => {
+          onOpen(activity)
+        }}
+        className="flex w-full items-stretch text-left transition-colors hover:bg-surface-2"
+      >
+        {/* Flush portrait, the market row's arrangement: the Kickbase cutouts
             are transparent PNGs, so a wash grounds the figure and the inner
             edge is masked to dissolve into the row rather than end on a
             line. */}
-      <span className="flex w-14 shrink-0 self-stretch">
-        <Avatar
-          src={activity.playerImage}
-          name={activity.playerName}
-          fill
-          className={cn(
-            'w-full self-stretch bg-transparent',
-            'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
-            '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
-          )}
-        />
-      </span>
-
-      <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 pl-1">
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-ink">
-            {activity.playerName}
-          </span>
-          <span className="nums mt-0.5 block text-xs text-muted">
-            {money(activity.price)}
-          </span>
-        </span>
-
-        <span
-          className="flex shrink-0 items-center gap-1"
-          title={`${activity.managerName} ${isBuy ? 'kauft' : 'verkauft'}`}
-        >
-          <Arrow
-            size={16}
-            aria-hidden="true"
-            className={isBuy ? 'text-positive' : 'text-negative'}
+        <span className="flex w-14 shrink-0 self-stretch">
+          <Avatar
+            src={activity.playerImage}
+            name={activity.playerName}
+            fill
+            className={cn(
+              'w-full self-stretch bg-transparent',
+              'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+              '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+            )}
           />
-          <Avatar src={manager?.image} name={activity.managerName} size={28} />
-          <span className="sr-only">
-            {activity.managerName} {isBuy ? 'kauft' : 'verkauft'}
-          </span>
         </span>
 
-        {when}
-      </span>
-    </>
-  )
+        <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-4 pl-1">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-ink">
+              {activity.playerName}
+            </span>
+            <span className="nums mt-0.5 block text-xs text-muted">
+              {money(activity.price)}
+            </span>
+          </span>
 
-  const className =
-    'flex w-full items-stretch text-left transition-colors hover:bg-surface-2'
+          <span
+            className="flex shrink-0 items-center gap-1"
+            title={`${activity.managerName} ${isBuy ? 'kauft' : 'verkauft'}`}
+          >
+            <Arrow
+              size={16}
+              aria-hidden="true"
+              className={isBuy ? 'text-positive' : 'text-negative'}
+            />
+            <Avatar
+              src={manager?.image}
+              name={activity.managerName}
+              size={28}
+            />
+            <span className="sr-only">
+              {activity.managerName} {isBuy ? 'kauft' : 'verkauft'}
+            </span>
+          </span>
 
-  return (
-    <li>
-      {isBuy ? (
-        <button
-          type="button"
-          onClick={() => {
-            onOpen(activity)
-          }}
-          className={className}
-        >
-          {inner}
-        </button>
-      ) : (
-        <Link
-          to={`/leagues/${leagueId}/players/${activity.playerId}`}
-          className={className}
-        >
-          {inner}
-        </Link>
-      )}
+          {when}
+        </span>
+      </button>
     </li>
   )
 }

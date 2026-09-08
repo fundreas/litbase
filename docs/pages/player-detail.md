@@ -662,6 +662,12 @@ purchase price as the figure on the right, the running profit or loss under it,
 and nothing else. It is one line by request — a breakdown of the purchase under
 it made a summary into a panel.
 
+**The manager's half of the line is a link to their page** —
+[Manager](manager-detail.md), where the rest of their squad and their eleven
+are. The price on the right stays put: it is a fact about *this deal*, not
+about the manager, and one target per meaning is the rule this app follows
+wherever a row has two of them.
+
 The model still computes more than the card shows —
 `marketValueAtPurchase` and `purchasePremium` — because the arithmetic is the
 interesting part and the wiring is done; nothing renders them at the moment.

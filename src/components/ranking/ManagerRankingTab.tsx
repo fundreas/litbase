@@ -121,6 +121,25 @@ export function ManagerRankingTab({
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * One manager's matchday — **two destinations in one row.**
+ *
+ * The row used to be a single link to the duel, which was right while the duel
+ * was the only thing behind it. Now that a manager has
+ * [a page of their own](../../pages/ManagerDetailPage.tsx) there are two things
+ * a reader could mean by tapping here, and nested links are not HTML — so the
+ * row splits along the line the layout already drew:
+ *
+ *  - **the manager** — placement, face, name, outcome — opens the manager, with
+ *    the matchday riding along, so their eleven for *this* day is what comes up;
+ *  - **the figures** — the points and the duel points they earned — open
+ *    [the duel](../../pages/DuelDetailPage.tsx) those numbers were scored in.
+ *
+ * Both targets clear the 44px minimum, and each sits under what it is about,
+ * which is the only way two targets in one row can be guessed rather than
+ * learned. Without an opponent (an odd-sized league) the second half is not a
+ * link: there is no duel to open.
+ */
 function ManagerRow({
   manager,
   rank,
@@ -138,73 +157,79 @@ function ManagerRow({
   leagueId: string
   day: number | undefined
 }) {
-  /* The whole row is the link, as on a duel card: a list row on a phone is a
-     big target and every part of it means "this manager's duel". The matchday
-     rides along, so the detail page opens on the day being ranked rather than
-     on the current one. */
-  const to =
+  const dayQuery = `?day=${String(day ?? '')}`
+  const managerTo = `/leagues/${leagueId}/managers/${manager.id}${dayQuery}`
+  const duelTo =
     opponent === undefined
       ? undefined
-      : `/leagues/${leagueId}/duels/${duelIdOf(manager.id, opponent.id)}?day=${String(day ?? '')}`
+      : `/leagues/${leagueId}/duels/${duelIdOf(manager.id, opponent.id)}${dayQuery}`
 
-  const body = (
+  /* The matchday's points are the headline — that is what the list is ranked
+     by — with the duel points they earned under it, where the league awards
+     any. */
+  const figures = (
     <>
-      {/* Placement and avatar are one group with a tight gap of their own, so
-          the row's `gap-3` separates them from the text rather than pushing
-          the number away from the face it belongs to — the season table's
-          arrangement, and for the same reason. */}
-      <span className="flex shrink-0 items-center gap-1.5">
-        <span className="nums w-6 text-center text-base font-bold text-faint">
-          {placement(rank)}
-        </span>
-        <Avatar src={manager.image} name={manager.name} size={44} />
+      <span className="nums block text-sm font-semibold text-ink">
+        {points(manager.matchdayPoints)}
       </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-ink">
-          {manager.name}
-          {isMe && <span className="ml-1.5 text-xs text-accent">du</span>}
-        </span>
-        {/* Renders nothing outside a duel league, where there is no duel and
-            no opponent to name — so the row is then the points and nothing
-            else, which is all the data says. */}
-        <DuelOutcomeLine result={duelResult} opponentName={opponent?.name} />
-      </span>
-
-      {/* The matchday's points are the headline — that is what the list is
-          ranked by — with the duel points they earned under it, where the
-          league awards any. */}
-      <span className="shrink-0 text-right">
-        <span className="nums block text-sm font-semibold text-ink">
-          {points(manager.matchdayPoints)}
-        </span>
-        <span className="nums block text-xs text-muted">
-          {manager.duelMatchdayPoints === undefined
-            ? 'Pkt'
-            : `${points(manager.duelMatchdayPoints)} Duellpkt`}
-        </span>
+      <span className="nums block text-xs text-muted">
+        {manager.duelMatchdayPoints === undefined
+          ? 'Pkt'
+          : `${points(manager.duelMatchdayPoints)} Duellpkt`}
       </span>
     </>
   )
 
-  const className = cn(
-    'flex items-center gap-3 rounded-card border bg-surface px-3 py-2.5',
-    isMe ? 'border-accent/50' : 'border-line',
-  )
-
   return (
-    <li>
-      {to === undefined ? (
-        <div className={className}>{body}</div>
+    <li
+      className={cn(
+        'flex items-stretch gap-1 rounded-card border bg-surface',
+        isMe ? 'border-accent/50' : 'border-line',
+      )}
+    >
+      <Link
+        to={managerTo}
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-3 rounded-l-card px-3 py-2.5',
+          'transition-colors hover:bg-surface-2',
+        )}
+      >
+        {/* Placement and avatar are one group with a tight gap of their own, so
+            the row's `gap-3` separates them from the text rather than pushing
+            the number away from the face it belongs to — the season table's
+            arrangement, and for the same reason. */}
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="nums w-6 text-center text-base font-bold text-faint">
+            {placement(rank)}
+          </span>
+          <Avatar src={manager.image} name={manager.name} size={44} />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-ink">
+            {manager.name}
+            {isMe && <span className="ml-1.5 text-xs text-accent">du</span>}
+          </span>
+          {/* Renders nothing outside a duel league, where there is no duel and
+              no opponent to name — so the row is then the points and nothing
+              else, which is all the data says. */}
+          <DuelOutcomeLine result={duelResult} opponentName={opponent?.name} />
+        </span>
+      </Link>
+
+      {duelTo === undefined ? (
+        <span className="shrink-0 self-center px-3 text-right">{figures}</span>
       ) : (
         <Link
-          to={to}
+          to={duelTo}
+          title={`Duell gegen ${opponent?.name ?? ''} ansehen`}
           className={cn(
-            className,
-            'transition-colors hover:border-accent/40 hover:bg-surface-2',
+            'flex shrink-0 flex-col items-end justify-center rounded-r-card px-3 py-2.5',
+            'border-l border-line/70 transition-colors hover:bg-surface-2',
           )}
         >
-          {body}
+          {figures}
+          <span className="sr-only">Duell ansehen</span>
         </Link>
       )}
     </li>

@@ -63,6 +63,11 @@ two list rows that happen to share a border. Both names truncate: a phone at
 selected matchday with it — not a chevron in the corner, because a duel row on
 a phone is a big target and every part of it means "this duel".
 
+It stayed that way when managers got [pages of their own](manager-detail.md):
+this card's subject is the **pairing**, not either manager, and splitting a
+mirrored two-column card into three targets would make every tap a question
+about which one you meant. The scoreline one tap in links both managers.
+
 **Your own duel is pulled to the front** and outlined in `border-accent/50`.
 It is the one the page was opened for; making it findable by scanning rather
 than reading is the whole point on a phone. The rest keep the hook's order,
@@ -280,13 +285,25 @@ it stands — cumulative, duel-table-ordered, unaffected by which matchday you
 were looking at. This is one matchday in isolation, which is the reading this
 page is already about.
 
-**The row is the duel.** Each one names the opponent, says how the duel went,
-and links to [that duel in detail](duel-detail.md) carrying `?day=` — the id is
-rebuilt from the pair with `duelIdOf()`, the same string
+**The row has two destinations**, and the split follows the line the layout
+already drew:
+
+| Half | Opens |
+| ---- | ----- |
+| placement, face, name, outcome | that [manager](manager-detail.md), `?day=` and all — so their eleven for *this* matchday comes up |
+| the two figures on the right | [the duel](duel-detail.md) those points were scored in, `?day=` and all |
+
+It was one link over the whole row while the duel was the only thing behind it.
+Once a manager had [a page of their own](manager-detail.md) there were two
+things a tap could mean, and nested links are not HTML — so each half sits under
+what it is about, which is the only way two targets in one row can be guessed
+rather than learned. Both clear the 44px minimum.
+
+The duel's id is rebuilt from the pair with `duelIdOf()`, the same string
 [`mapDuels`](../../src/api/hooks/useDuels.ts) produces, so no lookup table is
-needed. A manager without an opponent (an odd-sized league) is a plain row:
-there is nothing to open. The outcome is resolved by `duelResultOf()`, on the
-matchday points both managers actually scored — see
+needed. A manager without an opponent (an odd-sized league) keeps the manager
+link and loses the other half: there is no duel to open. The outcome is resolved
+by `duelResultOf()`, on the matchday points both managers actually scored — see
 [Which field is the duel points](ranking.md#which-field-is-the-duel-points).
 
 **The outcome is only claimed once the matchday is over.** *Gewonnen* is past

@@ -1,5 +1,6 @@
 import { ListOrdered, SquareSplitVertical } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router'
 
 import { rankDuelPlayers } from '@/api/hooks/useDuelRosters'
 import {
@@ -46,8 +47,14 @@ type RankingView = 'combined' | 'perManager'
  */
 export function DuelRankingTab({
   rosters,
+  leagueId,
+  day,
 }: {
   rosters: [DuelRoster, DuelRoster]
+  /** For the headings, which link each manager at their own page. */
+  leagueId: string
+  /** Rides along on those links, so a manager opens on this matchday. */
+  day: number | undefined
 }) {
   const [view, setView] = useRankingView()
   const ranked = useMemo(() => rankDuelPlayers(rosters), [rosters])
@@ -91,8 +98,8 @@ export function DuelRankingTab({
         /* First manager above second — the order the header's scoreline
            establishes, and the one the pitch stacks them in. */
         <div className="flex flex-col gap-4">
-          <ManagerRanking roster={rosters[0]} />
-          <ManagerRanking roster={rosters[1]} />
+          <ManagerRanking roster={rosters[0]} leagueId={leagueId} day={day} />
+          <ManagerRanking roster={rosters[1]} leagueId={leagueId} day={day} />
         </div>
       )}
     </div>
@@ -151,7 +158,15 @@ function useRankingView(): [RankingView, (view: RankingView) => void] {
  * thing telling two rows apart; under a heading that already names the manager
  * it is the same fact repeated down the whole column.
  */
-function ManagerRanking({ roster }: { roster: DuelRoster }) {
+function ManagerRanking({
+  roster,
+  leagueId,
+  day,
+}: {
+  roster: DuelRoster
+  leagueId: string
+  day: number | undefined
+}) {
   const players = useMemo(
     () => [...roster.lineup, ...roster.bench].sort(byMatchdayPoints),
     [roster],
@@ -160,23 +175,33 @@ function ManagerRanking({ roster }: { roster: DuelRoster }) {
 
   return (
     <section className="flex flex-col gap-1.5">
-      <h3 className="flex min-w-0 items-center gap-2 px-0.5" title={label}>
-        <Avatar
-          src={roster.manager.image}
-          name={roster.manager.name}
-          size={18}
-          className="shrink-0"
-        />
-        <span className="truncate text-xs font-semibold tracking-wide text-muted uppercase">
-          {roster.manager.name}
-        </span>
-        <span
-          aria-hidden="true"
-          className="nums ml-auto shrink-0 text-sm font-bold text-ink"
+      {/* The heading is **the way to the manager**, the whole row of it: it is
+          the one thing here that names them, the rows beneath are the players'
+          and lead to the players. See
+          [the manager page](../../pages/ManagerDetailPage.tsx). */}
+      <h3 className="min-w-0">
+        <Link
+          to={`/leagues/${leagueId}/managers/${roster.manager.id}?day=${String(day ?? '')}`}
+          title={`${label} — Manager ansehen`}
+          className="-mx-1 flex min-w-0 items-center gap-2 rounded-lg px-1 py-0.5 transition-colors hover:bg-surface-2"
         >
-          {points(roster.totalPoints)}
-        </span>
-        <span className="sr-only">{label}</span>
+          <Avatar
+            src={roster.manager.image}
+            name={roster.manager.name}
+            size={18}
+            className="shrink-0"
+          />
+          <span className="truncate text-xs font-semibold tracking-wide text-muted uppercase">
+            {roster.manager.name}
+          </span>
+          <span
+            aria-hidden="true"
+            className="nums ml-auto shrink-0 text-sm font-bold text-ink"
+          >
+            {points(roster.totalPoints)}
+          </span>
+          <span className="sr-only">{label}</span>
+        </Link>
       </h3>
 
       {players.length === 0 ? (
