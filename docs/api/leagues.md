@@ -14,6 +14,8 @@ league-scoped too and have their own pages:
 | `GET` | [`/v4/leagues/{leagueId}/me`](#get-v4leaguesleagueidme) | Bearer | You, inside one league |
 | `GET` | [`/v4/leagues/{leagueId}/overview`](#get-v4leaguesleagueidoverview) | Bearer | League metadata, rules and members |
 | `GET` | [`/v4/leagues/{leagueId}/ranking`](#get-v4leaguesleagueidranking) | Bearer | Standings, optionally for one matchday |
+| `GET` | [`/v4/leagues/{leagueId}/managers/{managerId}/performance`](#get-v4leaguesleagueidmanagersmanageridperformance) | Bearer | A manager's every season — the only route past the current one |
+| `GET` | [`/v4/leagues/{leagueId}/managers/{managerId}/dashboard`](#get-v4leaguesleagueidmanagersmanageriddashboard) | Bearer | One manager's current season at a glance |
 | `GET` | [`/v4/leagues/recommended`](#get-v4leaguesrecommended) | Bearer | Leagues Kickbase suggests |
 | `GET` | [`/v4/leagues/list`](#get-v4leagueslist) | Bearer | Browsable / searchable joinable leagues |
 | `POST` | [`/v4/leagues/{leagueId}/join`](#post-v4leaguesleagueidjoin) | Bearer | Join one |
@@ -263,6 +265,117 @@ and — with `dayNumber`, one cached response read two ways —
 [`useDuels`](../../src/api/hooks/useDuels.ts) for the pairings plus
 `useMatchdayStandings` for that matchday's manager ranking, both →
 [Duels](../pages/duels.md).
+
+---
+
+## `GET /v4/leagues/{leagueId}/managers/{managerId}/performance`
+
+A named manager's **whole history in the league** — one entry per season, each
+carrying that season's final placement, and inside it every matchday they
+played. Everything else in this reference stops at the current season; this is
+the only endpoint that does not.
+
+**Auth** Bearer. **Unused.** **Spec-only — never called.** The readings below
+are derived from the spec's captured example, so several are arithmetic
+(stated as such) and the rest are marked.
+
+### Path parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `leagueId` | string | League id |
+| `managerId` | string | The manager. **Any member** — unlike the achievements endpoints, which only ever describe the viewer |
+
+### Response `200`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `u` | string | User id |
+| `unm` | string | Display name |
+| `st` | number | **✗** Observed `1` |
+| `it` | array | One entry per season, **oldest first** |
+
+#### `it[]` — one season
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `sid` | string | Season id — `"15"`, `"20"`, `"25"`, `"30"` for 2022/23…2025/26. Steps by five, and is **neither** a year nor the `sn` label |
+| `sn` | string | Season label, `"2022/2023"`. The long form — the ranking's `sn` is `"26/27"` |
+| `pl` | number | **?** Final placement — see [How often has a manager won?](#how-often-has-a-manager-won-the-league) |
+| `tp` | number | Total points. **Confirmed arithmetically**: equals the sum of the season's `mdp` exactly, in all four sample seasons |
+| `ap` | number | Average points, truncated. `tp ÷ n` where *n* counts the matchdays actually scored — 33, 34, 34 for the finished seasons and 23 for the running one, matching to the unit each time. A matchday the manager **sat out still counts as a 0 in the denominator** |
+| `mdw` | number | Matchday wins. **Confirmed arithmetically**: equals the count of `tw: true` below, in all four sample seasons |
+| `it` | array | Every matchday of that season, nested |
+
+**The array starts where the manager joined**, not at matchday 1 — the sample's
+first season runs day 2…34, 33 entries.
+
+#### `it[].it[]` — one matchday
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `day` | number | Matchday number |
+| `mdp` | number | Points that matchday. `0` where the manager sat it out. **Absent entirely** for a matchday not yet played |
+| `tw` | boolean | Won the matchday. Confirmed by the `mdw` sum above |
+| `md` | string | Kick-off, ISO. **Only on the running season**; finished seasons carry no `md` at all |
+| `cur` | boolean | **✗** Nominally the current matchday, but it reads `true` on **day 23 of all four seasons**, finished ones included — so it is the live matchday index stamped across the history rather than a per-season fact. Do not render it |
+
+### How often has a manager won the league?
+
+**This endpoint is the only route to it for an arbitrary manager**, by counting
+the `it[]` entries whose `pl` is first place.
+
+**What "first place" is, is unresolved.** All four sample seasons read `pl: 0`,
+which is either a zero-based placement (three titles in a row) or "not
+recorded". Everywhere else in this reference `pl` is 1-based — see the
+[index](README.md) — with one documented exception, the matchday entries in the
+activity feed, which count from zero
+([Events](../pages/events.md)). The sibling `/dashboard` reads `pl: 4` for a
+different account, which leans 1-based, but that is a different sample.
+**Probe a manager with a known finishing position before counting anything.**
+
+**For the viewer only there is a second, better source.** Achievement type
+`2001` is *Meister* and `2002` *Vizemeister* — see
+[Achievement type](codes.md#achievement-type) — so
+`GET /v4/leagues/{leagueId}/user/achievements` answers the question outright in
+that achievement's `ac` counter, with no placement encoding to decode. It takes
+**no `managerId`**, though, so it cannot be asked about anyone else.
+
+Ruled out, all current-season only: `/ranking` (takes `dayNumber`, no season
+parameter), `/managers/{id}/dashboard`, and the `btls` battles on
+`/overview` — *Matchday Master*, *Transfer King* and the rest are side
+competitions, not the title.
+
+And there is **no cross-league endpoint at all**. Every path is scoped to one
+`leagueId`, so "won the league" can only ever mean *this* league; a manager's
+record in their other leagues is not reachable.
+
+---
+
+## `GET /v4/leagues/{leagueId}/managers/{managerId}/dashboard`
+
+One manager's current season at a glance, with the league they are in attached.
+
+**Auth** Bearer. **Unused.** **Spec-only — never called.**
+
+**It is the running season of `/performance`, pre-sliced.** In the spec's
+examples the two describe the same account and agree exactly — `ap` 544, `tp`
+12520, `mdw` 4 — and `ph` is that season's last five `mdp` values.
+
+### Response `200`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `u` · `unm` · `uim` | string | The manager — id, name, avatar |
+| `li` · `lnm` · `lim` | string | The league — id, name, avatar |
+| `pl` | number | **?** Placement. Observed `4`, which reads 1-based |
+| `tp` · `ap` · `mdw` | number | Season points, average and matchday wins — same meanings as `/performance` |
+| `tv` | number | Team value, in € |
+| `prft` | number | **?** Transfer profit. Observed `0` |
+| `ph` | (number\|null)[] | The **last five** matchdays' points, oldest first. `null` for one not yet played — where `/performance` reports the same matchday as `mdp: 0` |
+| `adm` | boolean | Is a league admin |
+| `st` | number | **✗** Observed `1` |
+| `fp` · `mds` | array | **✗** Both empty in the example |
 
 ---
 

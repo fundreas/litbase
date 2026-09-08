@@ -190,7 +190,7 @@ codes group by the hundred:
 | `600`–`603` | League level | Kreisliga · Regionalliga · 2. Liga · 1. Liga |
 | `700`–`704` | Transfer profit | Glückliches / Bronzenes / Silbernes / Goldenes Händchen · `704` Königstransfer |
 | `900` | Managerlizenz | |
-| `2001`, `2002` | Meister, Vizemeister | |
+| `2001`, `2002` | Meister, Vizemeister | League champion and runner-up — `2001`'s `ac` is **how often the viewer has won the league**, see [Leagues](leagues.md#how-often-has-a-manager-won-the-league) |
 | `3000` | Lange Bank | |
 | `4000`, `4001` | Panini, Choreo | |
 | `5001` | MVP | |
@@ -200,6 +200,10 @@ The list endpoint answers `{ t, n, ac, ise }` per achievement — `ac` a counter
 `ise` whether it is earned; `…/achievements/{type}` adds `d` (description),
 `er` (**?** the reward in €, `1000000` for Spieltagssieger), `dt` (when earned)
 and `isrp` (**✗**). `/v4/user/achievements` without a league is `404`.
+
+**Both paths are `/user/…` and take no `managerId`** — they only ever describe
+the viewer. For anyone else, a season history has to come from
+[`/managers/{managerId}/performance`](leagues.md#get-v4leaguesleagueidmanagersmanageridperformance).
 
 ## Match status (`st` on a fixture, `mst` on a match)
 

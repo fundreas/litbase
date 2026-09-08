@@ -40,6 +40,8 @@ the two marked *none*.
 | `GET` | `/v4/leagues/{leagueId}/me` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidme) |
 | `GET` | `/v4/leagues/{leagueId}/overview` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidoverview) |
 | `GET` | `/v4/leagues/{leagueId}/ranking` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidranking) |
+| `GET` | `/v4/leagues/{leagueId}/managers/{managerId}/performance` | | [Leagues](leagues.md#get-v4leaguesleagueidmanagersmanageridperformance) |
+| `GET` | `/v4/leagues/{leagueId}/managers/{managerId}/dashboard` | | [Leagues](leagues.md#get-v4leaguesleagueidmanagersmanageriddashboard) |
 | `GET` | `/v4/leagues/{leagueId}/activitiesFeed` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidactivitiesfeed) |
 | `GET` | `/v4/leagues/{leagueId}/activitiesFeed/{activityId}` | | [Leagues](leagues.md#get-v4leaguesleagueidactivitiesfeedactivityid) |
 | `GET` | `/v4/leagues/{leagueId}/user/achievements/{type}` | ✔ | [Codes](codes.md#achievement-type) |
@@ -202,8 +204,8 @@ Money is in **euros as an integer**. Dates are **ISO 8601 with a `Z`**, except
 
 ## What the app does not use
 
-The published spec lists **149 paths**. This reference documents **39** — the
-29 the app actually calls, plus ten neighbours that are declared, adjacent or
+The published spec lists **149 paths**. This reference documents **41** — the
+29 the app actually calls, plus twelve neighbours that are declared, adjacent or
 too useful to leave undescribed (each is marked *Used: no* on its page). The
 rest are whole
 product areas the app does not implement — `/v4/challenges/*` (Kickbase's
@@ -218,11 +220,11 @@ simply unbuilt:
 | ---- | --------------------- |
 | `GET /v4/base/predictions/teams/{competitionId}` | The lineup-probability posters keyed by team — the bulk source behind `plpim`. See [Codes](codes.md#lineup-probability-prob) |
 | `GET /v4/competitions/{id}/players/search` | Player search, which the [All players](../pages/players.md) stub would want |
-| `GET /v4/leagues/{id}/managers/{id}/performance` | A manager's season, which [Ranking](../pages/ranking.md) fakes out of `lp` |
+| `GET /v4/leagues/{id}/managers/{id}/performance` | Now [documented](leagues.md#get-v4leaguesleagueidmanagersmanageridperformance). A manager's every season, which [Ranking](../pages/ranking.md) fakes out of `lp` for the current one — and the only route to **how often they have won the league** |
 | `POST /v4/leagues/{id}/market/{playerId}/offers/{offerId}/accept` · `/decline` | Selling — accepting a bid on your own listing |
 | `POST /v4/leagues/{id}/market/{playerId}/sell` | Selling straight back to Kickbase |
 | `GET /v4/leagues/{id}/me/budget` | Budget on its own, without the rest of `/me` |
-| `GET /v4/leagues/{id}/user/achievements` | The viewer's 46 achievements with earned flags — the list behind the `/{type}` detail the events page reads. Type codes in [Codes](codes.md#achievement-type) |
+| `GET /v4/leagues/{id}/user/achievements` | The viewer's 46 achievements with earned flags — the list behind the `/{type}` detail the events page reads. Type codes in [Codes](codes.md#achievement-type). Type `2001` *Meister* makes its `ac` the viewer's **league-title count**, the one figure `/managers/{id}/performance` can only be decoded into |
 | `GET /v4/leagues/{id}/managers/{id}/transfer` | A manager's completed deals, `tty` 1 bought / 2 sold. Not their bids — see [Leagues](leagues.md#where-a-bid-of-your-own-can-be-read-back) |
 | `GET /v4/bonus/collect` | Claims the daily login bonus (*Auflaufprämie*) for every league at once — a **write dressed as a `GET`**, so it was read from the spec and never called |
 | `GET /v4/config` | Client configuration. Probed once — it names no game modes, which is why [`GAME_PLAY_MODE`](codes.md#game-modes-gpm) had to be inferred |
