@@ -2443,6 +2443,50 @@ export function purchasePremium(
 }
 
 /**
+ * The valuation that stood at `at` — the newest day in the history stamped no
+ * later than that moment.
+ *
+ * For dating a **transfer** against the market: what a manager paid only means
+ * something next to what the player was worth *that day*, not next to today's
+ * value, which has moved since.
+ *
+ * Walks to the last day at or before the moment rather than matching the date
+ * string, so a day missing from the series (the `mv: 0` placeholders are
+ * stripped, and `dt` does have gaps) falls back to the last real valuation
+ * instead of answering nothing.
+ *
+ * ## The one-day caveat
+ *
+ * Each day carries a single value and Kickbase recalculates them nightly at
+ * 20:00 UTC (`mvud` on the market response), so a day's entry covers a
+ * window that does not start at its own midnight. Which side of that recalc a
+ * given `dt` is stamped on is **not established** (**?**) — so for a transfer
+ * settled late in the evening this can be the valuation from either side of
+ * the day's move. Both are within one day's change of the truth, and the day
+ * the answer comes from is named wherever it is shown, rather than presented as
+ * exact.
+ *
+ * `undefined` when the moment predates the year of history the API serves, or
+ * the player's first valuation in the competition.
+ */
+export function marketValueAt(
+  history: MarketValueHistory | undefined,
+  at: string | undefined,
+): MarketValueDay | undefined {
+  if (history === undefined || at === undefined) return undefined
+  const moment = Date.parse(at)
+  if (Number.isNaN(moment)) return undefined
+
+  // Oldest first, so the last day that is not in the future wins.
+  let standing: MarketValueDay | undefined
+  for (const day of history.days) {
+    if (day.timestamp > moment) break
+    standing = day
+  }
+  return standing
+}
+
+/**
  * The slice of history a window covers, and the rows to list for it.
  *
  * Two different densities on purpose. The **chart** gets every day in the

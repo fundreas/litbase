@@ -60,8 +60,9 @@ is.
 | [`useAchievement(leagueId, type)`](../../src/api/hooks/useAchievements.ts) | Per achievement row: what it paid, how often it was earned |
 | [`useMatchdayStandings(leagueId, day)`](../../src/api/hooks/useDuels.ts) | The ranking sheet a matchday row opens |
 | [`usePlayerOffers(leagueId, playerId)`](../../src/api/hooks/usePlayerOffers.ts) | Your own bid, when a purchase sheet is opened |
+| [`usePlayerMarketValue(leagueId, playerId)`](../../src/api/hooks/usePlayer.ts) | The market value on the day of the transfer — the same year of history the [player page](player-detail.md)'s market tab draws, from the same cache entry |
 
-Only the first two load with the page. The other three are opened on demand, by
+Only the first two load with the page. The other four are opened on demand, by
 a row or by the sheet it opens.
 
 ## The rows
@@ -101,9 +102,10 @@ has since left keeps initials. A sale is always *to Kickbase* — the API has
 never shown a manager-to-manager sale — so there is one manager per row.
 
 **A purchase opens a sheet** with the player, the fee, the manager who won him,
-**what you bid** when the API still knows, and **the comment thread**. The bid
-is why the sheet exists: it is the only thing about a transfer that is not
-already on the row, and the question a feed of other people's purchases raises.
+**what he was worth that day**, **what you bid** when the API still knows, and
+**the comment thread**. The bid is why the sheet exists: it is the only thing
+about a transfer that is not already on the row, and the question a feed of
+other people's purchases raises.
 
 **The player's face and name are the link to his page.** There was a *Zum
 Spieler* row at the foot of the sheet, which put the way out as far as possible
@@ -135,6 +137,48 @@ player, and a feed of transfers would otherwise fan out over every one of them.
 
 A **sale** opens the player's page instead. It was a sale to Kickbase, so there
 was no contest and no bid of yours to report.
+
+### What the fee was worth on the day
+
+A fee on its own says nothing. `18,2 Mio. €` is a steal for one player and a
+panic buy for another, and the answer is the market value **at the moment of the
+transfer** — not today's, which has moved every night since and, for a transfer
+a reader scrolls back to, describes a different player.
+
+So the sheet reads the year of daily values
+[`usePlayerMarketValue`](../../src/api/hooks/usePlayer.ts) already serves the
+player page and quotes the one day the transfer fell on:
+
+| Line | Reads |
+| ---- | ----- |
+| **Marktwert am** *Fr., 4. Sep.* | The valuation standing that day |
+| **Aufpreis** / **Abschlag** | Fee minus that valuation, signed — `+1,2 Mio. €` |
+
+**Red for an *Aufpreis*, green for an *Abschlag*.** Paying over the market value
+is an instant paper loss in the squad the player lands in, so the colours run
+the same direction as profit and loss everywhere else in the app, read from the
+buying manager's side.
+
+[`marketValueAt`](../../src/api/models.ts) does the lookup by walking to the
+**last day stamped no later than the transfer**, rather than matching the date
+string: the series has gaps — days before the player entered the competition
+come back as `mv: 0` and are stripped — and a gap should fall back to the last
+real valuation instead of answering nothing.
+
+> **The snapshot is a day, so it can be a day off.** Kickbase recalculates
+> values nightly at 20:00 UTC (`mvud` on the market response) while the history
+> carries one value per `dt`, and **which side of that recalc a `dt` is stamped
+> on is unverified** (**?**). For a transfer settled late in the evening the
+> figure quoted can therefore be the valuation from either side of that night's
+> move — within one day's change of the truth. The label names the day it came
+> from for exactly that reason, rather than presenting itself as exact. A single
+> probe settles it: read `/marketvalue/365` for a player alongside his current
+> `mv` before and after 20:00 UTC and see which `dt` the new value lands on.
+
+It costs no extra request for a reader who then opens the player — same query
+key, same cache entry as the market tab. And when the transfer predates the year
+the API serves, or the player's first valuation in the competition, the sheet
+says so in a line instead of drawing an empty panel.
 
 ### The comment thread
 

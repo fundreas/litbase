@@ -8,8 +8,14 @@ import {
   usePostActivityComment,
 } from '@/api/hooks/useActivityComments'
 import { useMatchdayStandings } from '@/api/hooks/useDuels'
+import { usePlayerMarketValue } from '@/api/hooks/usePlayer'
 import { usePlayerOffers } from '@/api/hooks/usePlayerOffers'
-import type { LeagueActivity, RankedManager } from '@/api/models'
+import {
+  marketValueAt,
+  type LeagueActivity,
+  type MarketValueDay,
+  type RankedManager,
+} from '@/api/models'
 import { ManagerRankingTab } from '@/components/ranking/ManagerRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
 import { InfoDialog } from '@/components/ui/InfoDialog'
@@ -17,16 +23,21 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { money, moneyDelta, relativeTime } from '@/lib/format'
+import { money, moneyDelta, relativeTime, weekdayDate } from '@/lib/format'
 
 /**
- * What a **purchase** opens: who bought whom for how much, and — the reason
- * the sheet exists rather than a jump to the player — **what you bid**, if you
- * were in on it.
+ * What a **purchase** opens: who bought whom for how much, **what he was worth
+ * that day** — and, the reason the sheet exists rather than a jump to the
+ * player, **what you bid**, if you were in on it.
  *
- * The bid is a second request, made only when the sheet opens, because it is
- * one per player and a feed of transfers would otherwise fan out over all of
- * them. It is also the one figure here the feed entry does not carry.
+ * Two extra requests, both made only when the sheet opens, because both are one
+ * per player and a feed of transfers would otherwise fan out over all of them:
+ *
+ *  - the **bid**, which is the one figure here the feed entry does not carry at
+ *    all;
+ *  - the **market-value history**, read for the single day of the transfer. It
+ *    shares its query key with the player page's market tab, so a reader who
+ *    goes on to open the player pays for it once.
  *
  * Whether Kickbase keeps a *losing* bid once the listing settles is not
  * established — see [`playerOffers`](../../api/endpoints.ts). So the line is
@@ -47,6 +58,9 @@ export function TransferDialog({
 }) {
   const offers = usePlayerOffers(leagueId, activity.playerId)
   const ownOffer = offers.data?.ownOffer
+
+  const history = usePlayerMarketValue(leagueId, activity.playerId)
+  const standing = marketValueAt(history.data, activity.at)
 
   return (
     <InfoDialog
@@ -102,6 +116,24 @@ export function TransferDialog({
         <span className="shrink-0 text-xs text-faint">gekauft</span>
       </div>
 
+      {/* What he was worth on the day, and what the fee was next to it — the
+          thing that turns a price into a judgement. Today's market value would
+          not do: it has moved since, and by the time an old transfer is read
+          back it says nothing about the deal.
+
+          Silent on an error, because a missing panel costs the sheet nothing
+          while the rest of it — the bid, the thread — still answers. */}
+      {history.isPending ? (
+        <Skeleton className="h-[4.5rem]" />
+      ) : standing !== undefined ? (
+        <TransferPremium paid={activity.price} standing={standing} />
+      ) : history.isSuccess ? (
+        <p className="text-xs text-muted">
+          Für den Tag des Transfers liefert Kickbase keinen Marktwert – die
+          Historie reicht ein Jahr zurück.
+        </p>
+      ) : null}
+
       {/* Your own bid, when there was one. A skeleton while it loads, nothing
           at all when the answer is that there is none — an explicit "du hast
           nicht geboten" would be a claim the API cannot support for a
@@ -128,6 +160,63 @@ export function TransferDialog({
         commentCount={activity.commentCount}
       />
     </InfoDialog>
+  )
+}
+
+/**
+ * The fee against the market value of the transfer day: what the player was
+ * worth, then what the buyer paid over or under it.
+ *
+ * **The day is named on the label**, not left implicit — the snapshot is a
+ * daily one and Kickbase moves values overnight, so a transfer late in the
+ * evening can sit within a day of the figure quoted here; see
+ * [`marketValueAt`](../../api/models.ts). A dated label is honest about that in
+ * a way a bare *Marktwert* would not be.
+ *
+ * **Colour is the buyer's side of it.** Paying over the market value is an
+ * instant paper loss on the squad it lands in, so an *Aufpreis* is red and a
+ * bargain green — the same direction the app's profit and loss run everywhere
+ * else, read from the perspective of the manager who dealt.
+ */
+function TransferPremium({
+  paid,
+  standing,
+}: {
+  paid: number
+  standing: MarketValueDay
+}) {
+  const premium = paid - standing.value
+
+  return (
+    <dl className="rounded-card border border-line bg-surface-2/40 px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="min-w-0 truncate text-sm text-muted">
+          Marktwert am {weekdayDate(standing.date)}
+        </dt>
+        <dd className="nums shrink-0 text-sm font-semibold text-ink">
+          {money(standing.value)}
+        </dd>
+      </div>
+      <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line pt-2">
+        <dt className="min-w-0 truncate text-sm text-muted">
+          {premium > 0
+            ? 'Aufpreis'
+            : premium < 0
+              ? 'Abschlag'
+              : 'Zum Marktwert'}
+        </dt>
+        <dd
+          className={cn(
+            'nums shrink-0 text-sm font-semibold',
+            premium > 0 && 'text-negative',
+            premium < 0 && 'text-positive',
+            premium === 0 && 'text-faint',
+          )}
+        >
+          {moneyDelta(premium)}
+        </dd>
+      </div>
+    </dl>
   )
 }
 
