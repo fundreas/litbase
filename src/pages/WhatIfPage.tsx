@@ -1,6 +1,6 @@
 import { Calculator, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 
 import { useLeagueDetails, useLeagueManager } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
@@ -16,7 +16,6 @@ import {
   type PlayerDetail,
   type SquadMember,
 } from '@/api/models'
-import { PageHeading } from '@/components/PageHeading'
 import {
   OfferAmountField,
   OfferListingFacts,
@@ -26,6 +25,7 @@ import { PlayerListTab } from '@/components/squad/PlayerListTab'
 import { SquadLegendDialog } from '@/components/squad/SquadLegendDialog'
 import { SwapDialog } from '@/components/squad/SwapDialog'
 import { useLineupEditor } from '@/components/squad/useLineupEditor'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
@@ -33,7 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
 import { money, moneyExact } from '@/lib/format'
-import { checkOffer } from '@/lib/offerRules'
+import { checkOffer, debtAllowance, maximumOffer } from '@/lib/offerRules'
 
 /** The three views, sharing one scenario. */
 const TABS = { offer: 'offer', squad: 'squad', lineup: 'lineup' } as const
@@ -82,10 +82,20 @@ type Tab = (typeof TABS)[keyof typeof TABS]
  * The scenario is memory only, so a forward press builds a fresh one out of
  * whatever the squad and the market then say — the sales it imagined are not
  * waiting to be re-imagined.
+ *
+ * ## `?bid=` seeds the amount, once
+ *
+ * The dialog hands over whatever was already typed into it, so crossing to the
+ * page is not a retype. It is an **initial value and nothing more**: the field
+ * takes it at mount and the query is never written again, because a URL that
+ * tracked every keystroke would put a history entry behind each one. Absent,
+ * malformed or non-numeric, the amount falls back to {@link offerBaseline},
+ * exactly as the dialog's does.
  */
 export function WhatIfPage() {
   const { league, leagueId, competitionId } = useActiveLeague()
   const { playerId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
   const market = useMarket(leagueId)
@@ -108,30 +118,11 @@ export function WhatIfPage() {
   const listing = market.data?.listings.find((entry) => entry.id === playerId)
 
   const heading = (
-    <PageHeading
-      title="Was wäre wenn"
-      subtitle={
-        listing === undefined
-          ? 'Ein Kauf, durchgerechnet'
-          : `${listing.firstName ?? ''} ${listing.lastName}`.trim()
-      }
-      action={
-        <button
-          type="button"
-          onClick={() => {
-            void navigate(-1)
-          }}
-          title="Rechner schließen"
-          aria-label="Rechner schließen"
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-            'text-muted transition-colors hover:bg-surface-2 hover:text-ink',
-            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-          )}
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
-      }
+    <ScenarioHeading
+      listing={listing}
+      onLeave={() => {
+        void navigate(-1)
+      }}
     />
   )
 
@@ -189,6 +180,11 @@ export function WhatIfPage() {
 
       <WhatIfScenario
         listing={listing}
+        /* Digits only, and only ever the starting figure. Anything else in
+           `?bid=` — a word, a decimal, a hand-edited URL — falls through to
+           the listing's own baseline rather than seeding the field with
+           something that is not a number. */
+        initialBid={digitsOrUndefined(searchParams.get('bid'))}
         player={player.data}
         squad={squad.data ?? []}
         leagueId={leagueId}
@@ -230,6 +226,7 @@ export function WhatIfPage() {
  */
 function WhatIfScenario({
   listing,
+  initialBid,
   player,
   squad,
   leagueId,
@@ -241,6 +238,8 @@ function WhatIfScenario({
   onLeave,
 }: {
   listing: MarketListing
+  /** What the bid dialog already had in its field, if anything. */
+  initialBid: string | undefined
   /** The target's fuller self, once it lands. */
   player: PlayerDetail | undefined
   squad: SquadMember[]
@@ -254,7 +253,9 @@ function WhatIfScenario({
   onLeave: () => void
 }) {
   const [tab, setTab] = useState<Tab>(TABS.offer)
-  const [amount, setAmount] = useState(() => String(offerBaseline(listing)))
+  const [amount, setAmount] = useState(
+    () => initialBid ?? String(offerBaseline(listing)),
+  )
   /** Who would be sold to pay for him. Ids, as the sale calculator holds them. */
   const [sold, setSold] = useState<ReadonlySet<string>>(() => new Set())
   /**
@@ -301,17 +302,20 @@ function WhatIfScenario({
   )
 
   /**
-   * The scenario's squad: yours, plus him.
+   * **Your own players** — the Kader tab's list, and the only players the
+   * scenario can sell.
    *
-   * He is filtered out of your own side first. You cannot bid on your own
-   * listing, so this is defensive rather than expected — but a duplicate id
-   * would give two rows the same React key and put a player on the pitch
-   * twice.
+   * The target is filtered out. You cannot bid on your own listing, so he
+   * would not normally be in here at all; the guard is what keeps a duplicate
+   * id from giving two rows the same React key and putting one player on the
+   * pitch twice.
    */
-  const full = useMemo(
-    () => [...squad.filter((member) => member.id !== target.id), target],
-    [squad, target],
+  const own = useMemo(
+    () => squad.filter((member) => member.id !== target.id),
+    [squad, target.id],
   )
+  /** Those and him — the squad the scenario is arranged from. */
+  const full = useMemo(() => [...own, target], [own, target])
   /** …and what is left of it once the marked players are sold. */
   const remaining = useMemo(
     () => full.filter((member) => !sold.has(member.id)),
@@ -336,12 +340,8 @@ function WhatIfScenario({
   const statusReasons = useStatusReasons(leagueId, full)
 
   const bid = Number(amount)
-  const verdict = checkOffer(bid, listing.marketValue, {
-    allowsUnderpay,
-    budget,
-    teamValue,
-    committedElsewhere,
-  })
+  const rules = { allowsUnderpay, budget, teamValue, committedElsewhere }
+  const verdict = checkOffer(bid, listing.marketValue, rules)
   const proceeds = squad
     .filter((member) => sold.has(member.id))
     .reduce((sum, member) => sum + member.marketValue, 0)
@@ -350,9 +350,6 @@ function WhatIfScenario({
   const { ownOffer, ownOfferId } = listing
 
   const toggleSold = (playerId: string) => {
-    // The target is what the scenario is *buying*. Tapping him on the Kader
-    // does nothing rather than offering to sell a player nobody owns.
-    if (playerId === target.id) return
     setSold((current) => {
       const next = new Set(current)
       if (!next.delete(playerId)) next.add(playerId)
@@ -362,12 +359,19 @@ function WhatIfScenario({
 
   return (
     <>
-      <ProjectedBudget
-        budget={budget}
-        bid={Number.isFinite(bid) ? bid : 0}
-        proceeds={proceeds}
-        soldCount={sold.size}
-      />
+      {/* Everywhere but the pitch. The lineup view is the one that wants the
+          height — it sizes itself down to the window — and it is also the one
+          tab that changes nothing about the money. */}
+      {tab !== TABS.lineup && (
+        <ProjectedBudget
+          budget={budget}
+          bid={Number.isFinite(bid) ? bid : 0}
+          proceeds={proceeds}
+          soldCount={sold.size}
+          allowance={debtAllowance(teamValue)}
+          maximumBid={maximumOffer(rules)}
+        />
+      )}
 
       <Tabs
         value={tab}
@@ -402,12 +406,7 @@ function WhatIfScenario({
 
             <OfferAmountField
               listing={listing}
-              rules={{
-                allowsUnderpay,
-                budget,
-                teamValue,
-                committedElsewhere,
-              }}
+              rules={rules}
               amount={amount}
               setAmount={setAmount}
               verdict={verdict}
@@ -477,9 +476,14 @@ function WhatIfScenario({
           {/* Calculator mode, permanently: on this page a tap on a row means
               "sell him in this scenario", which is the only thing the Kader is
               here for. `forSale` is never `null`, so the mode never has to be
-              entered — the page *is* the mode. */}
+              entered — the page *is* the mode.
+
+              `own`, not `full`: the target has no business in a list whose
+              every row is a player you could sell. He is what the scenario is
+              buying, and he appears where that means something — on the bench
+              of the third tab, waiting to be brought on. */}
           <PlayerListTab
-            squad={full}
+            squad={own}
             editor={editor}
             leagueId={leagueId}
             fixtureByTeamId={fixtureByTeamId}
@@ -529,31 +533,140 @@ function WhatIfScenario({
 }
 
 /**
+ * The page's own heading, with **the player in it**.
+ *
+ * A scenario about one purchase should show who is being bought, and a name in
+ * a subtitle is the weakest way to do that: the market row, the squad row and
+ * the feed all identify a player by his portrait first. So the portrait sits
+ * flush on the left over the **full height of the header**, the way it does in
+ * every list in the app — grounded by a wash that fades out before the top,
+ * with its inner edge masked so the clipped shoulder dissolves into the header
+ * instead of ending on a line. The fade starts past 65 %, which keeps the face
+ * clear of it.
+ *
+ * A bordered block rather than the app's plain [`PageHeading`](../components/PageHeading.tsx):
+ * a portrait bled to an edge needs an edge to bleed to, and something has to
+ * clip it.
+ *
+ * The ✗ is the fourth way out, for the two tabs that have no buttons of their
+ * own — a scenario you cannot leave from the pitch would be a trap.
+ */
+function ScenarioHeading({
+  listing,
+  onLeave,
+}: {
+  /** `undefined` while the market is loading, or if it has no such listing. */
+  listing: MarketListing | undefined
+  onLeave: () => void
+}) {
+  return (
+    <div className="flex shrink-0 items-stretch overflow-hidden rounded-card border border-line bg-surface">
+      {listing !== undefined && (
+        <Avatar
+          src={listing.image}
+          name={listing.lastName}
+          fill
+          className={cn(
+            'w-20 shrink-0 self-stretch bg-transparent',
+            'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+            '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+          )}
+        />
+      )}
+
+      <div
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-2 py-3 pr-2',
+          listing === undefined ? 'pl-4' : 'pl-1',
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-bold tracking-tight text-ink">
+            Was wäre wenn
+          </h1>
+          <p className="mt-0.5 truncate text-xs text-muted">
+            {listing === undefined
+              ? 'Ein Kauf, durchgerechnet'
+              : `${listing.firstName ?? ''} ${listing.lastName}`.trim()}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onLeave}
+          title="Rechner schließen"
+          aria-label="Rechner schließen"
+          className={cn(
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+            'text-muted transition-colors hover:bg-surface-2 hover:text-ink',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+          )}
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** `?bid=1750000` → `"1750000"`; anything else → `undefined`. */
+function digitsOrUndefined(raw: string | null): string | undefined {
+  if (raw === null) return undefined
+  const digits = raw.replace(/\D/g, '')
+  return digits === '' ? undefined : digits
+}
+
+/**
  * **What the budget would be if all of it happened** — the scenario's answer,
- * above the three tabs that change it.
+ * above the tabs that change it.
  *
  * One figure, and the working under it. The bid is money out and the sales are
- * money in, and the sign of what is left is the question the page exists to
- * answer: green if the purchase fits, red if it does not. Kickbase does allow
- * a negative budget — it charges interest on one — so red is a state worth
- * seeing rather than a refusal.
+ * money in, and what is left is the question the page exists to answer.
  *
- * It is **not** what Kickbase checks a bid against; the offer tab's own rules
- * are, and they read the budget as it stands. This is the figure the manager is
- * planning with, which is a different thing and is why both are on screen.
+ * **Negative is not the same as too far.** Kickbase lends against team value
+ * and charges interest on the overdraft, so an overdrawn budget is a normal
+ * state and it takes three colours to say which one you are in — the same
+ * three the [market page](./MarketPage.tsx)'s heading uses, for the same
+ * reason: green while the purchase fits inside the budget, **amber** while it
+ * borrows, which is allowed, and **red** past `33 %` of team value, where
+ * Kickbase refuses the bid outright. Two of those look identical without the
+ * allowance to measure against, which is why it is printed underneath.
+ *
+ * The floor is stated as a **depth** (`−32,9 Mio.`) and the bid's own bound as
+ * a **maximum** (`höchstens 41,2 Mio.`). They are the same rule from the two
+ * ends a manager thinks about it from: how deep may I go, and what may I write
+ * in the field. The second differs from the first by the budget and by every
+ * bid already standing elsewhere, which is why neither can be deduced from the
+ * other on sight.
+ *
+ * The projection is **not** what Kickbase checks a bid against; the offer
+ * tab's own rules are, and they read the budget as it stands. This is the
+ * figure the manager is planning with, which is a different thing and is why
+ * both are on screen.
  */
 function ProjectedBudget({
   budget,
   bid,
   proceeds,
   soldCount,
+  allowance,
+  maximumBid,
 }: {
   budget: number
   bid: number
   proceeds: number
   soldCount: number
+  /** How far below zero this league lets the budget go. `undefined` = unknown. */
+  allowance: number | undefined
+  /** The most this listing could be bid, ceiling and other bids included. */
+  maximumBid: number | undefined
 }) {
   const projected = budget + proceeds - bid
+  const isOverdrawn = projected < 0
+  // Past the floor, or — with no allowance to compare against — simply in the
+  // red, which is the most that can honestly be said without team value.
+  const isPastFloor =
+    allowance === undefined ? isOverdrawn : projected < -allowance
 
   return (
     <div className="shrink-0 rounded-card border border-line bg-surface px-3 py-2.5">
@@ -567,7 +680,11 @@ function ProjectedBudget({
         aria-live="polite"
         className={cn(
           'nums mt-0.5 text-lg leading-tight font-bold',
-          projected < 0 ? 'text-negative' : 'text-positive',
+          isPastFloor
+            ? 'text-negative'
+            : isOverdrawn
+              ? 'text-warning'
+              : 'text-positive',
         )}
       >
         {moneyExact(projected)}
@@ -589,6 +706,31 @@ function ProjectedBudget({
           </>
         )}
       </p>
+
+      {/* The allowance, and what it leaves for *this* player. Only with team
+          value in hand, and only where there is an overdraft to speak of. */}
+      {allowance !== undefined && allowance > 0 && (
+        <p className="nums mt-1 flex flex-wrap gap-x-2 border-t border-line pt-1.5 text-xs text-faint">
+          <span>
+            Minus möglich bis{' '}
+            <span className="font-semibold text-warning">
+              −{money(allowance)}
+            </span>{' '}
+            (33 % vom Teamwert)
+          </span>
+          {maximumBid !== undefined && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>
+                Gebot höchstens{' '}
+                <span className="font-semibold text-ink">
+                  {money(maximumBid)}
+                </span>
+              </span>
+            </>
+          )}
+        </p>
+      )}
     </div>
   )
 }

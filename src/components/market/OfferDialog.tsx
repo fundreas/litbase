@@ -36,10 +36,11 @@ import { checkOffer, type OfferRules } from '@/lib/offerRules'
  *
  * **The fields are shared** with the what-if page's first tab, which asks the
  * same question with the whole squad behind it — see
- * [`OfferFields`](./OfferFields.tsx). *Durchrechnen* is the door to it, and it
- * navigates with `replace`: the page it opens is where the decision is now
- * being made, so the way back out of it should be the market, not this sheet
- * again.
+ * [`OfferFields`](./OfferFields.tsx). *Durchrechnen* is the door to it: it
+ * hands over the amount as `?bid=` so a half-typed figure survives the trip,
+ * and navigates with `replace`, because the page it opens is where the
+ * decision is now being made — the way back out of it should be the market,
+ * not this sheet again.
  *
  * Mount it with `key={listing.id}`: the amount is seeded once, at mount, and a
  * component per listing is what keeps a market refetch — every thirty seconds,
@@ -135,7 +136,12 @@ export function OfferDialog({
             fullWidth
             leadingIcon={<Calculator size={16} aria-hidden="true" />}
             onClick={() => {
-              void navigate(`/leagues/${leagueId}/whatif/${listing.id}`, {
+              // The figure travels with the tap: whatever is in the field is
+              // where the page starts, so crossing over is not a retype. It
+              // rides in the query rather than in state because the
+              // destination is a URL — see `?bid=` on the what-if page.
+              const bid = amount === '' ? '' : `?bid=${amount}`
+              void navigate(`/leagues/${leagueId}/whatif/${listing.id}${bid}`, {
                 replace: true,
               })
             }}

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
 import { money, moneyDelta, moneyDeltaExact, moneyExact } from '@/lib/format'
 import {
+  debtAllowance,
   maximumOffer,
   minimumOffer,
   type OfferRules,
@@ -35,6 +36,9 @@ import {
  * keystroke cannot be cleared to retype, which is exactly what someone
  * adjusting a seven-digit figure wants to do — so the value is a string of
  * digits and the non-digits are stripped on the way in.
+ *
+ * Under the field, along with the budget and the window the rules leave, sits
+ * **how far into the red the league lets you go** — see `allowance` below.
  *
  * `setAmount` is the caller's `useState` setter, passed whole: the
  * [step shortcuts](../ui/AmountSteps.tsx) hold a button down and fire an
@@ -72,6 +76,21 @@ export function OfferAmountField({
     minimumOffer(listing.marketValue, rules.allowsUnderpay),
     maximumOffer(rules),
   )
+  /**
+   * **How far into the red this league lets you go** — `33 %` of team value.
+   *
+   * Said out loud rather than left to be deduced from the upper bound: a
+   * manager with 2 Mio. in the bank looking at a 12 Mio. player reads *Erlaubt
+   * … – 34.000.000 €* and has no way to tell whether that is generosity or a
+   * mistake. It is neither; it is an overdraft Kickbase lends against team
+   * value and charges interest on, and it is the reason a bid can be four
+   * times the budget and still legal.
+   *
+   * Only when team value is known — the market response carries it — and only
+   * where there is any allowance at all: a league that lends nothing has
+   * nothing to say here.
+   */
+  const allowance = debtAllowance(rules.teamValue)
 
   // Functional, and stable across renders: see the note on `setAmount` above.
   const stepBy = useCallback(
@@ -111,6 +130,13 @@ export function OfferAmountField({
               <span className="nums text-warning">{verdict.note}</span>
             ) : (
               bounds !== undefined && <span className="nums">{bounds}</span>
+            )}
+            {allowance !== undefined && allowance > 0 && (
+              <span className="nums">
+                Minus möglich bis{' '}
+                <span className="text-warning">−{moneyExact(allowance)}</span>{' '}
+                (33 % vom Teamwert)
+              </span>
             )}
           </span>
         }

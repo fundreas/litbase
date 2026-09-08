@@ -69,14 +69,35 @@ export function minimumOffer(
   return allowsUnderpay ? Math.floor(marketValue * UNDERPAY_FLOOR) : marketValue
 }
 
+/**
+ * **How far below zero the budget may go**: `floor(teamValue × 0.33)`, as a
+ * positive figure.
+ *
+ * The 33 % ceiling seen from the other side. {@link maximumOffer} answers "how
+ * much may this bid be", which is the number a field needs; this answers "how
+ * deep may I go", which is the number a *manager* plans with — and the two
+ * differ by the budget and by every bid already standing.
+ *
+ * Kickbase lends against team value and charges interest on the overdraft, so
+ * this is a real allowance rather than a technicality. It moves nightly, with
+ * team value: an overdraft that was legal on Friday can be past the floor on
+ * Saturday without anyone bidding again.
+ *
+ * `undefined` when team value is unknown — the market response is what carries
+ * it — and then nothing about borrowing is claimed.
+ */
+export function debtAllowance(
+  teamValue: number | undefined,
+): number | undefined {
+  if (teamValue === undefined) return undefined
+  return Math.floor(teamValue * DEBT_CEILING)
+}
+
 /** The largest amount the ceiling leaves, or `undefined` if unknown. */
 export function maximumOffer(rules: OfferRules): number | undefined {
-  if (rules.teamValue === undefined) return undefined
-  return (
-    rules.budget +
-    Math.floor(rules.teamValue * DEBT_CEILING) -
-    rules.committedElsewhere
-  )
+  const allowance = debtAllowance(rules.teamValue)
+  if (allowance === undefined) return undefined
+  return rules.budget + allowance - rules.committedElsewhere
 }
 
 export interface OfferVerdict {

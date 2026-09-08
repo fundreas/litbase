@@ -21,13 +21,28 @@ only ask the first:
 
 The answers move each other, which is why they are on one page: a sale raises
 the budget the bid is spent from, and a purchase only earns its fee if it
-changes the XI. The figure that ties them together sits **above all three
-tabs** — the budget as it would stand once the transfer went through.
+changes the XI. The figure that ties them together sits **above the tabs** —
+the budget as it would stand once the transfer went through — on every view
+except the pitch, which wants the height and changes nothing about the money.
+
+The header carries the **player's portrait**, flush on the left over its full
+height with the wash and the fading inner edge every list in the app draws a
+player with: a page about buying one man should show which one, and a name in a
+subtitle is the weakest way to do it. It is why the heading is a bordered block
+rather than the app's plain `PageHeading` — a portrait bled to an edge needs an
+edge to bleed to.
 
 Reached from the **calculator button** (*Durchrechnen*) in the bid dialog,
 which navigates with `replace`, so the page it opens is what a back press
 leaves rather than the sheet it was opened from. The player is in the path and
 **required**: there is no scenario without a target.
+
+**`?bid=` carries the figure over.** Whatever was already typed into the dialog
+seeds the field here, so crossing to the page is not a retype. It is an initial
+value and nothing more — the field takes it at mount and the query is never
+written again, because a URL that tracked every keystroke would put a history
+entry behind each one. Absent or not a number, the amount falls back to the
+listing's baseline exactly as the dialog's does.
 
 ## Nothing happens here, except the bid
 
@@ -45,6 +60,22 @@ The **bid is real** and is the only thing on the page that is. *Bieten* /
 *Gebot ändern* fires `POST …/offers` and *Gebot zurückziehen* fires the
 `DELETE`, both the market's own mutations, unchanged. The asymmetry is the
 point: the scenario exists to be *decided*, and the decision is the bid.
+
+**The overdraft is named, not implied.** Kickbase lends against team value and
+charges interest on the overdraft, so a negative budget is a normal state and
+the projection takes **three** colours rather than two: green while the
+purchase fits, amber while it borrows, red past `floor(teamValue × 0.33)` where
+the bid would be refused outright. Under the figure sits the allowance itself —
+*Minus möglich bis −32,9 Mio. (33 % vom Teamwert)* — and beside it what the
+ceiling leaves for this player once every other standing bid is counted. Same
+rule from the two ends a manager thinks about it from: how deep may I go, and
+what may I write in the field. Both lines are absent when team value is
+unknown, which is the only honest thing to say then.
+
+The same allowance line is now under the field in the
+[bid dialog](market.md#the-bid-dialog) too, for the reader who never opens this
+page: *Erlaubt … – 34.000.000 €* on a budget of two million is unreadable
+without it.
 
 **The rules are the real ones.** The 90 % floor, the league's underpay setting
 and the 33 % ceiling — see [what Kickbase refuses](market.md#what-kickbase-refuses)
@@ -94,10 +125,11 @@ mode never has to be entered — the page *is* the mode. A tap on any row marks
 that player as sold in this scenario; the row takes the accent outline the sale
 calculator uses.
 
-The **target is in this list too**, because he is part of the scenario — but
-tapping him does nothing: he is what is being bought, not something to sell.
-His row carries one placeholder figure, a profit of `±0`, because there is no
-purchase price to be up or down on yet.
+The **target is not in this list.** Every row here is a player you could sell,
+and he is the one you are buying — he appears where that means something, on
+the bench of the third tab. (He carries one placeholder figure wherever he is
+drawn, a profit of `±0`, because there is no purchase price to be up or down on
+yet.)
 
 ### Aufstellung
 
@@ -113,12 +145,14 @@ of them the reason the tabs are on one page:
 
 The formation rules, the incomplete-lineup penalty and the swap dialog are the
 squad page's, unchanged. The one thing missing is the *Speichern …* line, and
-that is the sandbox: there is nothing to save.
+that is the sandbox: there is nothing to save. The projected-budget block is
+gone from this tab as well — the pitch sizes itself down to the window, and
+those were four lines of height taken from the view that has least of it.
 
 ## Not built
 
 **The scenario is not shareable and does not survive a refresh.** The target is
-in the URL; the sales and the arranged XI are not. Putting them there would
+in the URL and so is the opening bid; the sales and the arranged XI are not. Putting them there would
 mean a query string long enough to be its own bug, and the page is a decision
 taken in one sitting.
 

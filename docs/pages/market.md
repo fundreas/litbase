@@ -106,6 +106,14 @@ when it differs** from the market value, which on a computer listing it never
 does — the same number under two labels invites a hunt for a difference that is
 not there.
 
+Under the field, with the budget and the window the rules leave, sits **how far
+into the red the league lets you go**: `floor(teamValue × 0.33)`, printed as a
+depth. It is said out loud rather than left to be deduced from the upper bound
+— a manager with two million in the bank reading *Erlaubt … – 34.000.000 €* has
+no way to tell whether that is generosity or a bug. It is neither: it is the
+overdraft Kickbase lends against team value, and it is why a legal bid can be
+several times the budget. Absent when team value has not arrived.
+
 **Durchrechnen** leaves the dialog for the
 [what-if page](whatif.md): the same bid with the whole squad behind it — what
 you would sell to fund it, and who he would displace. The fields are literally
