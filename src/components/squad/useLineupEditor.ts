@@ -52,8 +52,10 @@ export interface LineupEditor {
  * list previously worked around that by reading the server's `lo` instead —
  * which lagged by a save round trip.
  *
- * Every change is saved via `POST /v4/leagues/{id}/lineup`, which replaces the
- * lineup wholesale. Two consequences shape the code below:
+ * Every change is saved via `POST /v4/leagues/{id}/lineup` — unless the editor
+ * is a **sandbox** (`persist: false`), which is the whole difference between
+ * arranging your team and asking what would happen if you bought someone. The
+ * save replaces the lineup wholesale. Two consequences shape the code below:
  *
  *  - **Edits are coalesced.** Building an eleven from scratch is eleven taps;
  *    without debouncing that is eleven requests, each superseded by the next.
@@ -69,9 +71,21 @@ export interface LineupEditor {
 export function useLineupEditor({
   squad,
   leagueId,
+  persist = true,
 }: {
   squad: SquadMember[]
   leagueId: string
+  /**
+   * Write edits back to Kickbase. **`false` makes the editor a sandbox**: the
+   * lineup is real, the rules are real, and nothing leaves the browser.
+   *
+   * That is what the [what-if page](../../pages/WhatIfPage.tsx) fields a
+   * player it does not own with — an XI built around a purchase that has not
+   * happened cannot be saved, because eleven of its slots may hold a player
+   * the server would refuse and one of them holds a player the manager does
+   * not have.
+   */
+  persist?: boolean
 }): LineupEditor {
   const [lineupIds, setLineupIds] = useState<string[]>(() => seedLineup(squad))
   const [incoming, setIncoming] = useState<SquadMember | null>(null)
@@ -156,8 +170,9 @@ export function useLineupEditor({
   const { mutateAsync } = save
 
   useEffect(() => {
-    // The seeded lineup came from the server; only user edits are worth saving.
-    if (!isDirty) return
+    // A sandbox never writes, and the seeded lineup came from the server —
+    // only a user's own edits, in an editor that persists, are worth saving.
+    if (!persist || !isDirty) return
 
     const timer = window.setTimeout(() => {
       const run = async () => {
@@ -192,7 +207,7 @@ export function useLineupEditor({
     return () => {
       window.clearTimeout(timer)
     }
-  }, [writeKey, isDirty, mutateAsync])
+  }, [writeKey, isDirty, mutateAsync, persist])
 
   /* ------------------------------------------------------------------ */
   /* Editing                                                             */

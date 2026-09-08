@@ -101,7 +101,17 @@ export const NAV_ITEMS: NavItem[] = [
     // the right entry on its way through.
     alsoMatches: ['players', 'lineup'],
   },
-  { to: 'market', label: 'Transfermarkt', icon: Store },
+  // `whatif` covers the [what-if page](../../pages/WhatIfPage.tsx), which is
+  // reached from a bid dialog on this page and has no entry of its own. It
+  // lives beside `/market` rather than under it — the scenario is about one
+  // player, not about the market's list — so the prefix test alone would light
+  // nothing while it is open.
+  {
+    to: 'market',
+    label: 'Transfermarkt',
+    icon: Store,
+    alsoMatches: ['whatif'],
+  },
   // `managers` covers the manager detail page, which is reached by tapping a
   // name — a standings row, a duel's scoreline, a player's owner — and has no
   // drawer entry of its own. The Rangliste is the list every one of those

@@ -106,6 +106,13 @@ when it differs** from the market value, which on a computer listing it never
 does — the same number under two labels invites a hunt for a difference that is
 not there.
 
+**Durchrechnen** leaves the dialog for the
+[what-if page](whatif.md): the same bid with the whole squad behind it — what
+you would sell to fund it, and who he would displace. The fields are literally
+the same component
+([`OfferFields`](../../src/components/market/OfferFields.tsx)), so the figure
+and the rules do not change on the way across.
+
 Eight shortcut buttons step the amount by ±1, ±1 000, ±10 000 and ±100 000, in
 **two rows of four** — every `+` together, every `−` beneath it, the steps in
 the same order both times, so a finger that has learnt where `+1k` is finds

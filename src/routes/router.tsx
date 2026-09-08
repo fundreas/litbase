@@ -23,6 +23,7 @@ import {
   SeasonPage,
   SquadPage,
   TeamDetailPage,
+  WhatIfPage,
 } from '@/routes/lazyPages'
 
 /**
@@ -52,6 +53,8 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/market              the transfer market, to buy from
  *   /leagues/:leagueId/market/offers       your own listings, and the bids on
  *                                          them
+ *   /leagues/:leagueId/whatif/:playerId    a purchase, with the squad and the
+ *                                          lineup rearranged around it
  *   /leagues/:leagueId/matchday            every fixture of a matchday
  *   /leagues/:leagueId/matchday/ranking    the matchday's 25 best players
  *   /leagues/:leagueId/duels               the matchday's duels
@@ -149,6 +152,14 @@ export const router = createBrowserRouter(
                 // with its bar intact rather than bouncing the URL.
                 { path: 'market', element: <MarketPage /> },
                 { path: 'market/offers', element: <MarketPage /> },
+                // "What if I bought him?" — the bid, the sales that would fund
+                // it and the lineup it would change, on one page. The player
+                // is in the path and **required**: the whole page is about one
+                // purchase, and there is no scenario without a target.
+                {
+                  path: 'whatif/:playerId',
+                  element: <WhatIfPage />,
+                },
                 { path: 'ranking', element: <RankingPage /> },
                 // The competition's own fixtures, and one match in detail.
                 // Three routes for the detail, one component — the tab comes

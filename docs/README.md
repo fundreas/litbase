@@ -37,6 +37,8 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/matchday/ranking` | [Matchday — Rangliste](pages/matchday.md#rangliste) | Implemented |
 | `/leagues/:leagueId/matchday/:matchId` | [Match detail](pages/match-detail.md) | Implemented |
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Implemented |
+| `/leagues/:leagueId/market/offers` | [Market — Gebote](pages/market.md#the-selling-side-when-there-is-one--gebote) | Implemented — only with a listing of your own |
+| `/leagues/:leagueId/whatif/:playerId` | [Was wäre wenn](pages/whatif.md) | Implemented |
 | `/leagues/:leagueId/managers/:managerId` | [Manager](pages/manager-detail.md) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/squad` | [Manager — Kader](pages/manager-detail.md#kader) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/events` | [Manager — Verlauf](pages/manager-detail.md#verlauf) | Implemented |
@@ -69,6 +71,11 @@ entry anyway, because the drawer's match is a prefix one and each has a list
 above it: *Teams* is the club page's parent route, the player page borrows
 *Mannschaft*, and the manager page names *Rangliste* in `alsoMatches` — the
 table every manager on it came out of.
+
+[Was wäre wenn](pages/whatif.md) is unlisted on the same grounds and lights
+*Transfermarkt* the same way. It is reached from the **Durchrechnen** button in
+a bid dialog, is about one purchase rather than a page's worth of them, and
+every way out of it is a back press.
 
 ## Conventions used throughout
 

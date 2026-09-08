@@ -644,6 +644,9 @@ Verified end-to-end: payloads built by the app's own `containerFormation()` +
 Two problems come with "save on every change", and both are handled in
 [`LineupTab`](../../src/components/squad/LineupTab.tsx):
 
+- **Sandboxable.** `persist: false` makes the editor write nothing at all,
+  which is what the [what-if page](whatif.md) fields a player the manager does
+  not own with. Everything below applies to the real editor only.
 - **Debounced (600 ms).** Building an eleven from scratch is eleven taps;
   naively that is eleven requests, each immediately superseded.
 - **Serialised.** Since each payload is the whole lineup, an out-of-order

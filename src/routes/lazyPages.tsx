@@ -28,6 +28,10 @@ export const MarketPage = lazy(async () => ({
   default: (await import('@/pages/MarketPage')).MarketPage,
 }))
 
+export const WhatIfPage = lazy(async () => ({
+  default: (await import('@/pages/WhatIfPage')).WhatIfPage,
+}))
+
 export const DuelsPage = lazy(async () => ({
   default: (await import('@/pages/DuelsPage')).DuelsPage,
 }))
