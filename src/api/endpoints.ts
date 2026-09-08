@@ -52,6 +52,18 @@ export const endpoints = {
     managerSquad: (leagueId: string, userId: string) =>
       `/v4/leagues/${leagueId}/managers/${userId}/squad`,
     /**
+     * **Any** manager's whole history in the league — one entry per season,
+     * each with its final placement, total and matchday wins, and every
+     * matchday nested inside with its points. The only endpoint that reaches
+     * past the current season, and the only per-manager source of
+     * **points per matchday**: the standings' `lp` is the lineup.
+     *
+     * Probed 2026-09-08: the running season lists every matchday to day 34,
+     * with `mdp` absent on the unplayed ones and `pl: 0` for every manager.
+     */
+    managerPerformance: (leagueId: string, userId: string) =>
+      `/v4/leagues/${leagueId}/managers/${userId}/performance`,
+    /**
      * One manager's squad **as it stood on a given matchday** — the historical
      * snapshot, including who was actually fielded.
      *

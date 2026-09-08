@@ -314,7 +314,12 @@ export interface RankedManager {
   teamValue: number
   /** Placement change since the previous matchday. */
   placementChange: number
-  pointsPerMatchday: Array<number | null>
+  /**
+   * The fielded eleven's player ids by lineup slot, `null` for an empty slot
+   * (`lp`). **Not matchday points** — see the wire type. Per-matchday points
+   * are {@link ManagerHistory}.
+   */
+  lineupPlayerIds: Array<string | null>
   isAdmin: boolean
   /**
    * How often the manager has **won this league** (`swc`, omitted at zero).
@@ -472,6 +477,48 @@ export interface Achievement {
   timesEarned: number
   /** When it was last earned, ISO 8601. */
   earnedAt?: string
+}
+
+/** One matchday of a manager's season, **played** — unplayed ones are dropped. */
+export interface ManagerMatchday {
+  day: number
+  /** Points scored; `0` for a matchday sat out. */
+  points: number
+  /** Won the matchday outright. */
+  isMatchdayWin: boolean
+}
+
+/** One season of a manager's time in the league. */
+export interface ManagerSeason {
+  /** Kickbase's season id — `"42"`; steps by five and is not a year. */
+  id: string
+  /** The long label, `"2026/2027"`. */
+  label: string
+  /**
+   * Final placement, 1-based. `undefined` while the season is running — the
+   * wire says `0` for every manager of an unfinished season, leader included.
+   */
+  placement?: number
+  totalPoints: number
+  /** Truncated average over the matchdays scored, sat-out ones counting as 0. */
+  averagePoints: number
+  matchdayWins: number
+  /** Oldest first, played matchdays only. */
+  matchdays: ManagerMatchday[]
+}
+
+/**
+ * A manager's whole history in one league — the per-matchday points the
+ * [Details tab](../components/manager/ManagerDetailsTab.tsx) draws, which the
+ * standings do not carry (their `lp` is the lineup, not points).
+ */
+export interface ManagerHistory {
+  id: string
+  name: string
+  /** Oldest first. */
+  seasons: ManagerSeason[]
+  /** The season under way — the last one, or `undefined` for a manager with no season yet. */
+  current?: ManagerSeason
 }
 
 /**
@@ -1528,10 +1575,10 @@ export interface SquadMember {
  * One player in **another** manager's squad.
  *
  * A smaller shape than {@link SquadMember}, because
- * `/managers/{uid}/squad` is a smaller payload: it carries no purchase price
- * (so no profit or loss), no `tfhmvt` (no daily change), no `prob` and no offer
- * count. Those four are the parts of one's *own* squad row that are about
- * managing it, and Kickbase does not hand them out about somebody else's.
+ * `/managers/{uid}/squad` is a smaller payload: no offer count, and no `prob`
+ * — the lineup probability is fetched per player, as the squad page does for
+ * its own gaps. The 24-hour change **is** on it (this comment said otherwise
+ * until 2026-09-08, and the Kader drew an arrow with no amount).
  *
  * Deliberately not `SquadMember` with zeros in the gaps: a profit of `0 €` is a
  * claim, and it would be drawn as one — a grey `±0` under every player on the
@@ -1545,6 +1592,13 @@ export interface ManagerSquadMember {
   position: PositionKey
   marketValue: number
   marketValueTrend: MarketValueTrend
+  /** Change over the last 24 hours, in € (`tfhmvt`). */
+  marketValueChangeDay?: number
+  /**
+   * Lineup-probability tier, when the payload carries `prob`. It has not so
+   * far; the Kader fills the gap per player with `useStartProbabilities`.
+   */
+  startProbability?: StartProbability
   /** Season total. `undefined` when the payload omits `p` entirely. */
   totalPoints?: number
   /** Per matchday. `undefined` for the same reason. */

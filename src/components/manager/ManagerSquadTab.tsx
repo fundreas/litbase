@@ -6,13 +6,16 @@ import {
   POSITION_NAME,
   type ManagerSquadMember,
   type PositionKey,
+  type StartProbability,
 } from '@/api/models'
+import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
+import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { StatTile } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { money, points } from '@/lib/format'
+import { money, moneyDelta, points } from '@/lib/format'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 
@@ -32,12 +35,20 @@ const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
  * standings' `tv` — the two agree, and the sum is the one that cannot go stale
  * against the list under it.
  *
- * **Rows are the same design as one's own squad**, minus everything Kickbase
- * only tells you about your own players: no daily change, no lineup
- * probability, no offer count, no shirt *control*. The rail stays as a marker —
+ * **Rows are the same design as one's own squad**: the 24-hour change under
+ * the market value and the lineup probability under the name, both of which
+ * this tab went without until 2026-09-08 — the change on the mistaken
+ * grounds that the payload lacked it, the probability because nobody fetched
+ * it. What stays off is what Kickbase only tells you about your own players:
+ * the offer count, and the shirt as a *control*. The rail stays as a marker —
  * whether a player is in the eleven is the first thing you want from someone
- * else's squad — and every row opens the player's own page, where the market
- * history and the ownership are laid out in full.
+ * else's squad — and every row opens the player's own page.
+ *
+ * **The probability costs a detail request per player**, the same gap-filling
+ * fan-out the squad page runs for its own rows: `prob` is not on this payload.
+ * Fifteen requests, once per half hour, against the `playerDetail` entries
+ * the player pages and the market read too — so opening a player from here
+ * finds his page already cached.
  */
 export function ManagerSquadTab({
   squad,
@@ -46,6 +57,8 @@ export function ManagerSquadTab({
   squad: ManagerSquadMember[]
   leagueId: string
 }) {
+  const startProbabilities = useStartProbabilities(leagueId, squad)
+
   if (squad.length === 0) {
     return (
       <EmptyState
@@ -95,6 +108,7 @@ export function ManagerSquadTab({
               <PlayerRow
                 key={player.id}
                 player={player}
+                startProbability={startProbabilities.get(player.id)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
               />
             ))}
@@ -108,17 +122,30 @@ export function ManagerSquadTab({
 /* -------------------------------------------------------------------------- */
 
 /**
- * One player: whether he is fielded, who he is, what he has scored and what he
- * is worth.
+ * One player: whether he is fielded, who he is, how likely he is to start,
+ * what he has scored and what he is worth — and what that moved overnight.
  *
  * The points line is the one thing this row says that the squad page's own does
  * not. There it would be noise — you know your own players — while about
  * somebody else's squad "what has this cost him all season" is half the reason
  * to look, and `p`/`ap` ride along on the payload either way.
+ *
+ * The probability and the 24-hour change are drawn exactly as the
+ * [squad page](../squad/PlayerListTab.tsx) draws them, so a player reads the
+ * same in his owner's squad as in yours.
  */
-function PlayerRow({ player, to }: { player: ManagerSquadMember; to: string }) {
-  const TrendIcon =
-    player.marketValueTrend === 'down' ? TrendingDown : TrendingUp
+function PlayerRow({
+  player,
+  startProbability,
+  to,
+}: {
+  player: ManagerSquadMember
+  startProbability: StartProbability | undefined
+  to: string
+}) {
+  const changeDay = player.marketValueChangeDay
+  const ChangeIcon =
+    changeDay !== undefined && changeDay < 0 ? TrendingDown : TrendingUp
 
   return (
     <li>
@@ -173,11 +200,20 @@ function PlayerRow({ player, to }: { player: ManagerSquadMember; to: string }) {
               </span>
               <PlayerStatusBadge status={player.status} size={13} />
             </span>
-            <span className="nums mt-0.5 block truncate text-xs text-muted">
-              {points(player.totalPoints)} Pkt
-              {player.averagePoints !== undefined && (
-                <> · ⌀ {points(player.averagePoints)}</>
+            {/* Probability first, then the points: an estimate about the
+                next matchday above a fact about the season so far. Both are
+                one line each, and the badge is absent — not blank — for a
+                player nobody has assessed. */}
+            <span className="mt-0.5 flex items-center gap-1.5">
+              {startProbability !== undefined && (
+                <StartProbabilityBadge tier={startProbability} size={13} />
               )}
+              <span className="nums truncate text-xs text-muted">
+                {points(player.totalPoints)} Pkt
+                {player.averagePoints !== undefined && (
+                  <> · ⌀ {points(player.averagePoints)}</>
+                )}
+              </span>
             </span>
           </span>
 
@@ -185,27 +221,25 @@ function PlayerRow({ player, to }: { player: ManagerSquadMember; to: string }) {
             <span className="nums block text-sm font-semibold text-ink">
               {money(player.marketValue)}
             </span>
-            {/* The trend Kickbase publishes, which is all this payload carries
-                — the squad page's own rows show the last 24 hours in euros,
-                and `tfhmvt` is not on this endpoint. A flat trend draws
-                nothing rather than a `→` that says the same as silence. */}
-            {player.marketValueTrend !== 'flat' && (
-              <span
-                className={cn(
-                  'mt-0.5 flex items-center justify-end gap-0.5 text-xs',
-                  player.marketValueTrend === 'up'
-                    ? 'text-positive'
-                    : 'text-negative',
-                )}
-              >
-                <TrendIcon size={12} aria-hidden="true" />
-                <span className="sr-only">
-                  {player.marketValueTrend === 'up'
-                    ? 'Marktwert steigend'
-                    : 'Marktwert fallend'}
-                </span>
-              </span>
-            )}
+            {/* The last 24 hours in euros, arrow and amount — `tfhmvt`, which
+                is on this payload after all. A flat day is a grey `±0`, as on
+                the squad page: it is a fact about a night, unlike a profit of
+                zero, which would be a claim about a trade. */}
+            <span
+              className={cn(
+                'nums flex items-center justify-end gap-0.5 text-xs',
+                changeDay !== undefined && changeDay > 0 && 'text-positive',
+                changeDay !== undefined && changeDay < 0 && 'text-negative',
+                (changeDay === undefined || changeDay === 0) && 'text-faint',
+              )}
+              title="Marktwertänderung in den letzten 24 Stunden"
+            >
+              {changeDay !== undefined && changeDay !== 0 && (
+                <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
+              )}
+              {moneyDelta(changeDay)}
+              <span className="sr-only"> in den letzten 24 Stunden</span>
+            </span>
           </span>
         </span>
       </Link>

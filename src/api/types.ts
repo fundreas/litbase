@@ -366,7 +366,18 @@ export interface RankingUser {
   mdpl: number
   /** Team value, in €. */
   tv: number
-  /** Points per matchday, oldest first. `null` = did not play. */
+  /**
+   * **The fielded eleven, as player ids by lineup slot** — `null` for an empty
+   * slot. Not points: verified 2026-09-08 against `/managers/{id}/squad`,
+   * where every fielded player's `lo` indexes his own `pi` here, for three of
+   * four managers (the fourth had presumably changed his lineup between the
+   * two requests). Eleven entries on matchday 2 of a 34-day season, and the
+   * spec's example has eleven too. This file said "points per matchday" until
+   * that probe, and the manager page drew eleven "matchdays" from it.
+   *
+   * Per-matchday points are on `/managers/{id}/performance` — see
+   * {@link ManagerPerformanceResponse}.
+   */
   lp?: Array<number | null>
   /** Is admin. */
   adm?: boolean
@@ -1352,6 +1363,25 @@ export interface ManagerSquadPlayer {
   /** Market value, in €. */
   mv: number
   mvt?: number
+  /** Gain or loss since purchase, in €. */
+  mvgl?: number
+  /**
+   * Change over the **last 24 hours**, in €, signed. **On this payload** —
+   * present on every player of every squad probed 2026-09-08 — although the
+   * model claimed otherwise for months and the Kader drew only the arrow.
+   */
+  tfhmvt?: number
+  /** Change over the last 7 days, in €, signed. */
+  sdmvt?: number
+  /** What this manager paid, in €. Not on every player. */
+  prc?: number
+  /**
+   * Lineup-probability tier, 1..5 — see {@link PlayerDetailResponse.prob}.
+   * **Not observed on this payload** (2026-09-08: absent on every player,
+   * while the viewer's own `/squad` carries it), so the Kader fetches it per
+   * player. Declared so the gap-filling hook is a no-op if it ever arrives.
+   */
+  prob?: number
   pim?: string
   iotm?: boolean
 }
@@ -2062,6 +2092,66 @@ export interface ActivityAchievementData {
   n: string
   /** Description — `"Werde Spieltagssieger"`. */
   d: string
+}
+
+/**
+ * `GET /v4/leagues/{leagueId}/managers/{managerId}/performance`.
+ *
+ * Probed 2026-09-08 for every manager of a first-season league; the shape of
+ * finished seasons is from the spec's captured example, which carries four.
+ */
+export interface ManagerPerformanceResponse {
+  /** User id. */
+  u: string
+  /** Display name. */
+  unm: string
+  /** Unknown — `1` in the spec, `3` live. */
+  st?: number
+  /**
+   * One entry per season, **oldest first**. Absent for a manager who joined
+   * this season and has not played yet — observed `[]`.
+   */
+  it?: ManagerPerformanceSeason[]
+}
+
+export interface ManagerPerformanceSeason {
+  /** Season id — `"15"`, `"20"`, … `"42"`. Steps by five; not a year. */
+  sid: string
+  /** Season label, the long form — `"2026/2027"`. */
+  sn: string
+  /**
+   * Final placement. **`0` for a season still running**, for every manager —
+   * the leader, whose `/dashboard` reads `pl: 1`, included. Finished seasons
+   * are expected to read 1-based like the rest of the API, but none has been
+   * observed live; see docs/api/leagues.md#how-often-has-a-manager-won-the-league.
+   */
+  pl: number
+  /** Total points — the sum of the season's `mdp`. */
+  tp: number
+  /** Average points, truncated; a sat-out matchday counts as `0`. */
+  ap: number
+  /** Matchday wins — the count of `tw: true` below. */
+  mdw: number
+  /**
+   * Every matchday of the season **from where the manager joined**, played or
+   * not — the running season lists them all the way to day 34.
+   */
+  it: ManagerPerformanceMatchday[]
+}
+
+export interface ManagerPerformanceMatchday {
+  day: number
+  /** Points that matchday; `0` when sat out, **absent** when not yet played. */
+  mdp?: number
+  /** Won the matchday. */
+  tw: boolean
+  /** Kick-off, ISO 8601. Only on the running season. */
+  md?: string
+  /**
+   * Unknown — stamped `true` on the live matchday's index across every
+   * season, finished ones included. Do not render.
+   */
+  cur?: boolean
 }
 
 /**

@@ -238,7 +238,7 @@ being played now" has to come from the competition, not from here.**
 | `mdp` | number | Points for **this response's matchday** — live while it is being played, `0` before kick-off |
 | `mdpl` | number | Placement on that matchday. `0` before it has been played |
 | `tv` | number | Team value, in € |
-| `lp` | (number\|null)[] | Points per matchday, **oldest first**. `null` = did not play. (The spec's example shows player ids here instead; live responses carry points, which is what [Ranking](../pages/ranking.md) charts) |
+| `lp` | (number\|null)[] | **The fielded eleven as player ids by lineup slot**, `null` for an empty slot — the spec's example was right. Verified 2026-09-08: for three of four managers every fielded player's `lo` on `/managers/{id}/squad` indexed his own `pi` here (the fourth had presumably re-arranged in between). Eleven entries on matchday 2 of 34. This row said "points per matchday" for months, and the manager page drew eleven matchdays from it. Points per matchday: [`/performance`](#get-v4leaguesleagueidmanagersmanageridperformance) |
 | `ppc` | number | Placement change vs. the previous matchday |
 | `adm` | boolean | Is a league admin |
 | `pa` | boolean | **✗** `true` for every member observed |
@@ -276,12 +276,16 @@ carrying that season's final placement, and inside it every matchday they
 played. Everything else in this reference stops at the current season; this is
 the only endpoint that does not.
 
-**Auth** Bearer. **Unused.** It carried the title stars for a few hours on
-2026-09-08, until `swc` on [`/ranking`](#us--one-manager) turned out to answer
-the question outright. Probed live that day for every manager of two
-first-season leagues; the readings of *finished* seasons below are still from
-the spec's captured example, so several are arithmetic (stated as such) and
-the rest are marked.
+**Auth** Bearer. **Used** by
+[`useManagerPerformance`](../../src/api/hooks/useManagerPerformance.ts) for the
+manager page's [Details tab](../pages/manager-detail.md#details): the running
+season's played matchdays, its average and its matchday wins. It is the **only
+per-manager source of points per matchday** — `/ranking`'s `lp` is the lineup.
+(It also carried the title stars for a few hours on 2026-09-08, until `swc` on
+[`/ranking`](#us--one-manager) turned out to answer that outright.) Probed live
+that day for every manager of two first-season leagues; the readings of
+*finished* seasons below are still from the spec's captured example, so several
+are arithmetic (stated as such) and the rest are marked.
 
 ### Path parameters
 

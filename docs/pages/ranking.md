@@ -224,10 +224,12 @@ instantly.
 `RankingUser` in [`types.ts`](../../src/api/types.ts) carries more than the
 page shows:
 
-- **`lp`** — points per matchday, oldest first, `null` for matchdays not
-  played. Mapped as `pointsPerMatchday`, and no longer unused: it is the
-  matchday list on the [manager page](manager-detail.md#details), which was
-  where "the richest unused data in the app" finally went.
+- **`lp`** — **the fielded eleven's player ids by lineup slot**, `null` for an
+  empty one. This bullet called it "points per matchday" and "the richest
+  unused data in the app" until 2026-09-08, when the manager page's matchday
+  list built on it turned out to show eleven matchdays scoring player ids; see
+  [Manager › Details](manager-detail.md#details). Mapped as `lineupPlayerIds`,
+  unused — the matchday snapshot is the better source of a lineup.
 - `hhmp` — the duel points awarded this matchday (3 for a win, 0 for a loss).
   Mapped, but unused now that the result is derived from the matchday
   comparison.

@@ -3,11 +3,7 @@ import { useMemo } from 'react'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import {
-  toStartProbability,
-  type SquadMember,
-  type StartProbability,
-} from '@/api/models'
+import { toStartProbability, type StartProbability } from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { PlayerDetailResponse } from '@/api/types'
 
@@ -35,7 +31,9 @@ const STALE_MS = 30 * 60_000
  */
 export function useStartProbabilities(
   leagueId: string | undefined,
-  squad: SquadMember[] | undefined,
+  // Structural rather than `SquadMember`, so another manager's Kader — whose
+  // payload never carries `prob` — can fill its rows the same way.
+  squad: Array<{ id: string; startProbability?: StartProbability }> | undefined,
 ): Map<string, StartProbability> {
   const missing = useMemo(
     () =>

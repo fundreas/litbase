@@ -26,7 +26,10 @@ export function toRankedManager(user: RankingUser): RankedManager {
     matchdayPlacement: user.mdpl,
     teamValue: user.tv,
     placementChange: user.ppc ?? 0,
-    pointsPerMatchday: user.lp ?? [],
+    // Ids arrive as numbers here and as strings everywhere else.
+    lineupPlayerIds: (user.lp ?? []).map((id) =>
+      id === null ? null : String(id),
+    ),
     isAdmin: user.adm ?? false,
     titles: user.swc ?? 0,
     duelPlacement: user.hhpl,

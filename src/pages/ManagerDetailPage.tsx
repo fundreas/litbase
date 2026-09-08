@@ -9,6 +9,7 @@ import {
 } from 'react-router'
 
 import { useMatchdayStandings } from '@/api/hooks/useDuels'
+import { useManagerPerformance } from '@/api/hooks/useManagerPerformance'
 import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import {
   useManagerRoster,
@@ -79,7 +80,10 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  *    lookup fills, so whichever of the two tabs is opened second is free.
  *  - **Verlauf — the league's event feed**, paged, which the events page has
  *    usually already loaded the first page of.
- *  - **Details — nothing.** It is arithmetic over the standings row.
+ *  - **Details — one request**, the manager's
+ *    [performance history](../api/hooks/useManagerPerformance.ts), for the
+ *    per-matchday points. The standings cannot supply them: their `lp` is the
+ *    lineup, not a score history.
  *
  * The gate is the tab on screen: the roster hook is handed `undefined` for the
  * side while another tab is showing, which switches its queries off — the same
@@ -179,6 +183,15 @@ export function ManagerDetailPage() {
       : undefined,
   )
 
+  /*
+   * The matchday-by-matchday history the Details tab draws. Gated to that tab
+   * like the squad is to its own: the other three have no use for it.
+   */
+  const history = useManagerPerformance(
+    leagueId,
+    tab === MANAGER_TABS.details ? managerId : undefined,
+  )
+
   const isDuelMode = ranking.data?.isDuelMode === true
 
   /*
@@ -214,12 +227,16 @@ export function ManagerDetailPage() {
   })()
 
   const day = `?day=${String(selectedDay ?? '')}`
+  // Details, Kader, Aufstellung, Verlauf — the manager first, then their
+  // squad, then one matchday of it, then what they did over the season. The
+  // bare route stays the Aufstellung: the order is how the bar reads, not
+  // where a tapped name lands.
   const tabs: BottomTab[] = [
     {
-      value: MANAGER_TABS.lineup,
-      label: 'Aufstellung',
-      icon: Shirt,
-      to: `${base}${day}`,
+      value: MANAGER_TABS.details,
+      label: 'Details',
+      icon: Info,
+      to: `${base}/${MANAGER_TABS.details}${day}`,
     },
     {
       value: MANAGER_TABS.squad,
@@ -228,16 +245,16 @@ export function ManagerDetailPage() {
       to: `${base}/${MANAGER_TABS.squad}${day}`,
     },
     {
+      value: MANAGER_TABS.lineup,
+      label: 'Aufstellung',
+      icon: Shirt,
+      to: `${base}${day}`,
+    },
+    {
       value: MANAGER_TABS.events,
       label: 'Verlauf',
       icon: History,
       to: `${base}/${MANAGER_TABS.events}${day}`,
-    },
-    {
-      value: MANAGER_TABS.details,
-      label: 'Details',
-      icon: Info,
-      to: `${base}/${MANAGER_TABS.details}${day}`,
     },
   ]
 
@@ -361,6 +378,7 @@ export function ManagerDetailPage() {
         {tab === MANAGER_TABS.details && (
           <ManagerDetailsTab
             manager={manager}
+            history={history}
             isDuelMode={isDuelMode}
             isViewer={isViewer}
             leagueId={leagueId}

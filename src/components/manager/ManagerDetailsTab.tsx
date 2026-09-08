@@ -1,35 +1,48 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 
-import type { RankedManager } from '@/api/models'
+import type {
+  ManagerHistory,
+  ManagerMatchday,
+  RankedManager,
+} from '@/api/models'
 import { Card, CardHeader, StatTile } from '@/components/ui/Card'
+import { SkeletonList } from '@/components/ui/Skeleton'
+import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { money, placement, points } from '@/lib/format'
 
 /**
  * **The manager in numbers** — the standings row, unpacked, plus every matchday
- * they have played.
+ * of the current season they have played.
  *
- * Everything here is one payload: `/leagues/{id}/ranking` carries a manager's
- * placement, both point totals, the team value and `lp`, the per-matchday
- * scores. The tab costs **no request of its own** — the page already holds the
- * standings to know whose page this is.
+ * Two payloads. The tiles on the standings row come from
+ * `/leagues/{id}/ranking`, which the page already holds to know whose page
+ * this is. The matchday list is
+ * [`useManagerPerformance`](../../api/hooks/useManagerPerformance.ts) →
+ * `/managers/{id}/performance`, one request gated to this tab — because the
+ * standings **do not carry a points history**. Their `lp` is the fielded
+ * eleven's player ids, and until 2026-09-08 this tab drew it as eleven
+ * "matchdays", most of them in the future.
  *
  * ## The matchday list is the point of the tab
  *
  * The tiles restate what the [header](./ManagerHeader.tsx) and the
- * [Rangliste](../../pages/RankingPage.tsx) say. `lp` says something neither
- * does: the *shape* of a season — the manager who is third on two big weekends
- * and nothing else, the one grinding out sixties. And each row **opens that
- * matchday's lineup**, which is the question the row raises: 291 points, from
- * whom?
+ * [Rangliste](../../pages/RankingPage.tsx) say. The list says something
+ * neither does: the *shape* of a season — the manager who is third on two big
+ * weekends and nothing else, the one grinding out sixties. And each row
+ * **opens that matchday's lineup**, which is the question the row raises: 291
+ * points, from whom?
  *
- * A `null` in `lp` is a matchday the manager did not play — they joined later,
- * or fielded nobody. Drawn as a dash with no bar rather than as a zero, because
- * zero is a thing that can happen to a team that played.
+ * **Only played matchdays, only this season.** The endpoint lists the running
+ * season to its last matchday and every earlier season in full; the hook keeps
+ * the current season and drops the matchdays without a score. A matchday the
+ * manager sat out is `0` and is drawn as one — zero is a thing that can happen
+ * to a team that played, and the tooltip says so.
  */
 export function ManagerDetailsTab({
   manager,
+  history,
   isDuelMode,
   isViewer,
   leagueId,
@@ -37,6 +50,14 @@ export function ManagerDetailsTab({
   matchday,
 }: {
   manager: RankedManager
+  /** The matchday history, `undefined` while it loads or if it failed. */
+  history: {
+    data: ManagerHistory | undefined
+    isPending: boolean
+    isError: boolean
+    error: unknown
+    refetch: () => unknown
+  }
   isDuelMode: boolean
   isViewer: boolean
   leagueId: string
@@ -56,16 +77,12 @@ export function ManagerDetailsTab({
    */
   matchday: { day: number; points: number; placement: number } | undefined
 }) {
-  const played = manager.pointsPerMatchday.filter(
-    (entry): entry is number => entry !== null,
-  )
-  const average =
+  const season = history.data?.current
+  const played = season?.matchdays ?? []
+  const best =
     played.length === 0
       ? undefined
-      : Math.round(
-          played.reduce((sum, entry) => sum + entry, 0) / played.length,
-        )
-  const best = played.length === 0 ? undefined : Math.max(...played)
+      : played.reduce((top, entry) => (entry.points > top.points ? entry : top))
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,23 +100,30 @@ export function ManagerDetailsTab({
           />
         )}
         <StatTile label="Teamwert" value={money(manager.teamValue)} />
+        {/* The season figures wait for the history rather than being faked
+            from the standings: the standings know the total, not the count
+            of matchdays it took. */}
         <StatTile
           label="Ø pro Spieltag"
-          value={points(average)}
+          value={season === undefined ? '…' : points(season.averagePoints)}
           hint={
-            played.length === 0
-              ? 'nichts gespielt'
-              : `${points(played.length)} Spieltage`
+            season === undefined
+              ? undefined
+              : played.length === 0
+                ? 'nichts gespielt'
+                : `${points(played.length)} Spieltage`
           }
         />
         <StatTile
           label="Bester Spieltag"
-          value={points(best)}
+          value={season === undefined ? '…' : points(best?.points)}
           hint={
-            best === undefined
-              ? undefined
-              : `${placement(manager.pointsPerMatchday.indexOf(best) + 1)} Spieltag`
+            best === undefined ? undefined : `${placement(best.day)} Spieltag`
           }
+        />
+        <StatTile
+          label="Spieltagssiege"
+          value={season === undefined ? '…' : points(season.matchdayWins)}
         />
         {matchday !== undefined && (
           <StatTile
@@ -114,11 +138,22 @@ export function ManagerDetailsTab({
         )}
       </div>
 
-      <MatchdayPoints
-        history={manager.pointsPerMatchday}
-        best={best}
-        matchdayBase={matchdayBase}
-      />
+      {history.isPending ? (
+        <SkeletonList rows={4} />
+      ) : history.isError ? (
+        <ErrorState
+          error={history.error}
+          onRetry={() => {
+            void history.refetch()
+          }}
+        />
+      ) : (
+        <MatchdayPoints
+          matchdays={played}
+          best={best}
+          matchdayBase={matchdayBase}
+        />
+      )}
 
       {/* The one thing a manager's own page cannot do, and the page it belongs
           on. Only for the viewer: everybody else's squad is read-only by
@@ -143,18 +178,19 @@ export function ManagerDetailsTab({
 /* -------------------------------------------------------------------------- */
 
 /**
- * Every matchday of the season, as a bar per row.
+ * Every played matchday of the season, as a bar per row.
  *
- * **Newest first**, which is the opposite of the array: `lp` is oldest first,
- * and the matchday a reader arrives asking about is the one just played. The
- * index is therefore the matchday number and has to be kept while reversing —
- * getting that backwards would link every row at the wrong matchday, and it
- * would look right for exactly the middle of the season.
+ * **Newest first**, which is the opposite of the payload: the matchday a reader
+ * arrives asking about is the one just played. Each row carries its own
+ * matchday number, so nothing depends on the array's index — the list starts
+ * where the manager joined, not at matchday 1.
  *
  * The bar is scaled against the manager's **own best** matchday rather than a
  * league-wide maximum. This is a portrait of one season, not a comparison — and
  * the comparison already exists, one tap away, in the matchday's own
- * [Rangliste](../ranking/ManagerRankingTab.tsx).
+ * [Rangliste](../ranking/ManagerRankingTab.tsx). A matchday the manager won
+ * outright carries a small trophy: `tw` is on the payload, and "won the
+ * weekend" is the one comparison worth folding into the portrait.
  *
  * A negative matchday is possible (a bench full of red cards) and is drawn
  * without a bar: a bar growing leftwards from a baseline the rest of the list
@@ -162,16 +198,17 @@ export function ManagerDetailsTab({
  * earn one.
  */
 function MatchdayPoints({
-  history,
+  matchdays,
   best,
   matchdayBase,
 }: {
-  history: Array<number | null>
+  /** Oldest first, played only. */
+  matchdays: ManagerMatchday[]
   /** The manager's own best matchday, which scales every bar. */
-  best: number | undefined
+  best: ManagerMatchday | undefined
   matchdayBase: string
 }) {
-  if (history.length === 0) {
+  if (matchdays.length === 0) {
     return (
       <Card>
         <CardHeader title="Spieltage" />
@@ -182,9 +219,7 @@ function MatchdayPoints({
     )
   }
 
-  const rows = history
-    .map((value, index) => ({ day: index + 1, value }))
-    .reverse()
+  const rows = [...matchdays].reverse()
 
   return (
     <Card>
@@ -192,22 +227,15 @@ function MatchdayPoints({
       <ul className="divide-y divide-line">
         {rows.map((row) => {
           const share =
-            row.value === null ||
-            best === undefined ||
-            best <= 0 ||
-            row.value <= 0
+            best === undefined || best.points <= 0 || row.points <= 0
               ? 0
-              : Math.max(2, Math.round((row.value / best) * 100))
+              : Math.max(2, Math.round((row.points / best.points) * 100))
 
           return (
             <li key={row.day}>
               <Link
                 to={`${matchdayBase}?day=${String(row.day)}`}
-                title={
-                  row.value === null
-                    ? `${String(row.day)}. Spieltag — nicht gespielt`
-                    : `${String(row.day)}. Spieltag — ${points(row.value)} Punkte`
-                }
+                title={`${String(row.day)}. Spieltag — ${points(row.points)} Punkte${row.isMatchdayWin ? ', Spieltagssieg' : ''}`}
                 className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-2/60"
               >
                 <span className="nums w-6 shrink-0 text-xs font-semibold text-faint">
@@ -222,28 +250,27 @@ function MatchdayPoints({
                     style={{ width: `${String(share)}%` }}
                     className={cn(
                       'block h-full rounded-full',
-                      row.value !== null && row.value === best
-                        ? 'bg-accent'
-                        : 'bg-accent/45',
+                      row.day === best?.day ? 'bg-accent' : 'bg-accent/45',
                     )}
                   />
                 </span>
 
-                {/* A dash for a matchday the manager did not play, with the
-                    row's tooltip spelling it out. The words themselves would
-                    need three times this column's width, and widening it for
-                    the rare row would narrow every bar. */}
-                <span
-                  className={cn(
-                    'nums w-14 shrink-0 text-right text-sm font-semibold',
-                    row.value === null
-                      ? 'text-faint'
-                      : row.value < 0
-                        ? 'text-negative'
-                        : 'text-ink',
+                <span className="flex w-16 shrink-0 items-center justify-end gap-1">
+                  {row.isMatchdayWin && (
+                    <Trophy
+                      size={12}
+                      aria-label="Spieltagssieg"
+                      className="shrink-0 text-gold"
+                    />
                   )}
-                >
-                  {row.value === null ? '–' : points(row.value)}
+                  <span
+                    className={cn(
+                      'nums text-right text-sm font-semibold',
+                      row.points < 0 ? 'text-negative' : 'text-ink',
+                    )}
+                  >
+                    {points(row.points)}
+                  </span>
                 </span>
               </Link>
             </li>

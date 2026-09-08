@@ -3,21 +3,26 @@
 [← Back to index](../README.md) · Route `/leagues/:leagueId/managers/:managerId` ·
 [`src/pages/ManagerDetailPage.tsx`](../../src/pages/ManagerDetailPage.tsx)
 
-One manager of the league, in four views:
+One manager of the league, in four views — in the bar's order, **Details ·
+Kader · Aufstellung · Verlauf** (rearranged 2026-09-08: the manager first, then
+their squad, then one matchday of it, then the season's events):
 
 | Route | View | Costs |
 | ----- | ---- | ----- |
+| `…/details` | Details | the manager's performance history — one request |
+| `…/squad` | Kader | one request, shared with the Aufstellung's squad lookup, plus a per-player detail fan-out for the lineup probability |
 | `/leagues/:leagueId/managers/:managerId` | Aufstellung, `?day=N` | the matchday snapshot + the per-player points fan-out |
-| `…/squad` | Kader | one request, shared with the Aufstellung's squad lookup |
 | `…/events` | Verlauf | the league's event feed, paged |
-| `…/details` | Details | — |
+
+The bare route is still the Aufstellung — the order is how the bar reads, not
+where a tapped name lands; see [`managerTabs`](../../src/components/manager/managerTabs.ts).
 
 The page itself is **three requests**, all of them shared: the season standings
 (the same entry the [Rangliste](ranking.md), the [event feed](events.md) and the
 nav drawer read), the season's fixture list (an hour-long cache most pages have
 filled), and the selected matchday's standings (the entry the
-[Duels](duels.md) page fills for the same `?day=`). Three of the four tabs add
-nothing to that; only the Aufstellung fetches.
+[Duels](duels.md) page fills for the same `?day=`). The Verlauf adds only the
+feed most readers already have; the other three each fetch, as the table says.
 
 Four routes, one component, the tab read out of the segment — the arrangement
 [Squad](squad.md), [Player detail](player-detail.md), [Club](team.md),
@@ -41,7 +46,7 @@ The API had all of it the whole time:
 | What did he field on matchday *n*? | `users/{uid}/teamcenter?dayNumber=` | works for **any** manager — see [Duel detail](duel-detail.md#the-squad-it-shows-is-the-matchdays) |
 | What has he got now? | `managers/{uid}/squad` | today's squad, values and `lo` |
 | What has he done? | `activitiesFeed` | the league's log, filtered here — see [Verlauf](#verlauf) |
-| Where does he stand? | `ranking` | `lp` carries **every matchday he has played** |
+| Where does he stand? | `ranking` | placement, both point totals, the team value |
 
 So the page is mostly a matter of pointing existing hooks at a manager who
 is not your opponent.
@@ -196,16 +201,27 @@ worth, how many are fielded.
 honest division between the two tabs: the Aufstellung is a *matchday*, the Kader
 is a *squad*, and a player bought yesterday is in the second and not the first.
 
-Rows are the [squad page](squad.md)'s design minus everything Kickbase only tells
-you about your own players — no daily change (`tfhmvt` is not on this payload),
-no lineup probability, no offer count, and the shirt rail is a **marker** rather
-than a control. What they add is a points line (`p`/`ap`), because "what has this
+Rows are the [squad page](squad.md)'s design: the **24-hour change** in euros
+under the market value, arrow and amount, and the **lineup probability** badge
+under the name. Both were missing until 2026-09-08 — the change because the
+model claimed `tfhmvt` was not on this payload (it is, on every player probed;
+see [Squad and lineup](../api/squad-and-lineup.md)), the probability because
+nobody fetched it. What stays off is what Kickbase only tells you about your own
+players: the offer count, and the shirt rail is a **marker** rather than a
+control. What the rows add is a points line (`p`/`ap`), because "what has this
 cost him all season" is half the reason to look at somebody else's squad. Every
 row opens the player.
 
+**The probability is a detail request per player**, the same gap-filling
+[`useStartProbabilities`](../../src/api/hooks/useStartProbabilities.ts) the squad
+page runs for its own rows — `prob` is not on this payload, and the hook is
+written so it becomes a no-op if that changes. Fifteen requests, once per half
+hour, into the `playerDetail` cache entries the player pages read, so opening a
+player from here finds his page already loaded.
+
 The domain model is [`ManagerSquadMember`](../../src/api/models.ts), a smaller
-shape than `SquadMember` on purpose: filling the four missing fields with zeros
-would draw a grey `±0` profit under every player, and that is a claim.
+shape than `SquadMember` on purpose: filling the missing profit with a zero
+would draw a grey `±0` under every player, and that is a claim.
 
 ## Verlauf
 
@@ -236,7 +252,8 @@ week to a rival would be worse than omitting it.
 
 ## Details
 
-The standings row, unpacked, and **every matchday the manager has played**.
+The standings row, unpacked, and **every matchday of the current season the
+manager has played**.
 
 ```
   ┌────────────┬────────────┬────────────┐
@@ -244,31 +261,45 @@ The standings row, unpacked, and **every matchday the manager has played**.
   │ 612        │ 12         │ 41,2 Mio.  │
   │ 2. Platz   │ 2. Platz   │            │
   ├────────────┼────────────┼────────────┤
-  │ Ø/SPIELTAG │ BESTER …   │ 2. SPIELT… │
-  │ 306        │ 410        │ 410        │
-  │ 2 Spieltage│ 1. Spieltag│ 1. Platz   │
+  │ Ø/SPIELTAG │ BESTER …   │ SPIELTAGS… │
+  │ 306        │ 410        │ 1          │
+  │ 2 Spieltage│ 1. Spieltag│            │
   └────────────┴────────────┴────────────┘
   ┌ Spieltage ───────────────────────────┐
-  │ 2. ████████████████████        410  │  → …?day=2
+  │ 2. ████████████████████     🏆 410  │  → …?day=2
   │ 1. ███████                      120  │
   └──────────────────────────────────────┘
 ```
 
-The tiles restate the header and the Rangliste. **`lp` says something neither
-does**: the shape of a season — the manager who is third on two big weekends and
-nothing else, the one grinding out sixties. It was called "the richest unused
-data in the app" in [Ranking](ranking.md#unmapped-fields-available) for months;
-this is where it is finally read.
+**Where the matchdays come from — and where they do not.** Until 2026-09-08
+this list was drawn from the standings' `lp`, believed to be points per
+matchday. It is not: `lp` is the **fielded eleven's player ids by lineup slot**,
+verified against `/managers/{id}/squad` where every fielded player's `lo`
+indexes his own `pi`. Eleven entries, so the tab showed eleven "matchdays" —
+on matchday 2, nine of them in the future, each scoring a player id. The list
+now reads
+[`useManagerPerformance`](../../src/api/hooks/useManagerPerformance.ts) →
+`/managers/{id}/performance`, the one endpoint that carries a manager's
+matchdays, keeps the **running season** (the last entry, oldest first) and
+drops every matchday without an `mdp` — the ones still to come. See
+[Leagues](../api/leagues.md#get-v4leaguesleagueidmanagersmanageridperformance).
+
+The same payload supplies the season tiles honestly: `ap` is Kickbase's own
+average, `mdw` the matchday wins (a new tile), and the best matchday is the
+maximum of what remains. They read `…` until the history lands rather than
+being faked from the standings, which know the total but not how many
+matchdays it took.
 
 Each row **opens that matchday's Aufstellung**, which is the question the row
-raises: 410 points, from whom? The list is newest first (the array is oldest
-first, and the index is the matchday number — reversing without keeping it would
-link every row at the wrong day). Bars are scaled against the manager's **own
-best** matchday: this is a portrait of one season, and the comparison against
-other managers already exists one tap away. A `null` is a matchday they did not
-play and draws a dash rather than a zero — zero is something that can happen to
-a team that played. A negative matchday draws no bar; an axis for one row in a
-season is not worth it.
+raises: 410 points, from whom? The list is newest first and every row carries
+its own matchday number — the payload starts where the manager joined, not at
+matchday 1, so nothing is derived from an index. Bars are scaled against the
+manager's **own best** matchday: this is a portrait of one season, and the
+comparison against other managers already exists one tap away. A matchday the
+manager **won** carries a small gold trophy (`tw`). A matchday sat out is a
+`0`, drawn as one — zero is something that can happen to a team that played. A
+negative matchday draws no bar; an axis for one row in a season is not worth
+it.
 
 For the viewer's own page there is one link out: **Eigene Aufstellung
 bearbeiten** → [`/squad/lineup`](squad.md#lineup-tab). It is the one thing this
@@ -303,11 +334,13 @@ name with no numbers behind it.
 
 | Hook | Endpoint | Used for |
 | ---- | -------- | -------- |
-| [`useRanking`](../../src/api/hooks/useRanking.ts) | `ranking` | identity, season figures, `lp`, duel mode |
+| [`useRanking`](../../src/api/hooks/useRanking.ts) | `ranking` | identity, season figures, duel mode |
+| [`useManagerPerformance`](../../src/api/hooks/useManagerPerformance.ts) | `managers/{uid}/performance` | the Details tab's matchdays and season tiles |
 | [`useSeasonSchedule`](../../src/api/hooks/useMatchday.ts) | `competitions/{id}/matchdays` | the matchday picker and the clock |
 | [`useMatchdayStandings`](../../src/api/hooks/useDuels.ts) | `ranking?dayNumber=` | the day's points, and the day's duel |
 | [`useManagerRoster`](../../src/api/hooks/useManagerRoster.ts) | `users/{uid}/teamcenter`, `managers/{uid}/squad`, `playercenter`, `players/{pid}` | the eleven and its points |
 | [`useManagerSquadMembers`](../../src/api/hooks/useManagerRoster.ts) | `managers/{uid}/squad` | the Kader — same cache entry as above |
+| [`useStartProbabilities`](../../src/api/hooks/useStartProbabilities.ts) | `players/{pid}` | the Kader's lineup-probability badges, one request per player |
 | [`useActivities`](../../src/api/hooks/useActivities.ts) | `activitiesFeed` | the Verlauf |
 
 ## Not built
@@ -320,5 +353,6 @@ name with no numbers behind it.
   The feed carries every fee, so it is a sum over the Verlauf's rows; what stops
   it is that the sum would be over *the pages that happen to be loaded*, and a
   number that grows as you scroll is worse than no number.
-- **A form guide in the header** from `lp`. The Details tab draws the whole
-  season; a sparkline above it would be the same data twice.
+- **A form guide in the header** from the performance history. The Details
+  tab draws the whole season; a sparkline above it would be the same data
+  twice — and it would cost the header a request the other tabs do not need.
