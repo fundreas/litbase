@@ -61,15 +61,16 @@ is.
 | [`useMatchdayStandings(leagueId, day)`](../../src/api/hooks/useDuels.ts) | The ranking sheet a matchday row opens |
 | [`usePlayerOffers(leagueId, playerId)`](../../src/api/hooks/usePlayerOffers.ts) | Your own bid, when a purchase sheet is opened |
 | [`usePlayerMarketValue(leagueId, playerId)`](../../src/api/hooks/usePlayer.ts) | The market value on the day of the transfer — the same year of history the [player page](player-detail.md)'s market tab draws, from the same cache entry |
+| [`usePlayerTransfers(leagueId, playerId)`](../../src/api/hooks/usePlayer.ts) | Every hand the player has passed through, when a **sale** sheet is opened — which is where the price the seller once paid is written down |
 
-Only the first two load with the page. The other four are opened on demand, by
+Only the first two load with the page. The other five are opened on demand, by
 a row or by the sheet it opens.
 
 ## The rows
 
 | Type | Row | Detail line | Leading | Tap |
 | ---- | --- | ----------- | ------- | --- |
-| Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | **Buy**: a sheet — see below. **Sale**: player page |
+| Transfer | **Adeline** | Fee | The player's cutout, flush, as on the [market](market.md); on the right the dealing manager's avatar behind an arrow — **green, rightwards** on a buy, **red, leftwards** on a sale | A sheet, either way — a different one per direction, see below |
 | Joined / left | **Marvin** ist der Liga beigetreten · hat die Liga verlassen | — | Avatar, or a person icon | the **name** opens that [manager](manager-detail.md) — the one kind of entry that carries a manager's id |
 | Matchday | **Spieltag 2** ist beendet | *Du wurdest 1.* — when you took part | **The manager who won the matchday, in a crown.** Flag until it lands | A sheet with the matchday's manager ranking, in **every** league — see below |
 | Achievement | **Tormaschine** | `+250.000 €` in green, when it paid anything | Trophy, accent | A sheet: description, reward, how often earned |
@@ -135,8 +136,52 @@ player, and a feed of transfers would otherwise fan out over every one of them.
 > there is an answer and is silently absent otherwise — the sheet never claims
 > you did not bid.
 
-A **sale** opens the player's page instead. It was a sale to Kickbase, so there
-was no contest and no bid of yours to report.
+### What a sale is worth to the manager who made it
+
+A **sale** opens a sheet of its own. There is no bid on it — the sale was to
+Kickbase, so there was no contest — and the question a sale raises instead is
+whether the seller did well out of the player. That takes the *other* end of
+the spell: what he had cost, and when.
+
+The sheet is the purchase sheet's shape with the bid swapped for a ledger:
+
+| Panel | Reads |
+| ----- | ----- |
+| Head | The player's face and name, over **his market value today** — the fee is labelled below, and the head is where a reader wants to know what he is worth now. Links to his page, as on the purchase sheet |
+| Dealer | Red arrow, leftwards, out of the seller's squad |
+| The sale | **Verkauft für** · the fee · then, when the day is inside the year of values, **Marktwert am** *Fr., 4. Sep.* and the distance to it |
+| The ledger | **Gekauft für** · the price he paid, dated, with how long the player stayed · then **Gewinn** or **Verlust** |
+| Thread | The same comments the purchase sheet has |
+
+The purchase behind the sale is not in the feed entry — it carries the seller,
+the player and the fee and nothing else — so it is dug out of the league's
+transfer history by
+[`saleLedger`](../../src/api/models.ts), which reads the chain
+[`usePlayerTransfers`](../../src/api/hooks/usePlayer.ts) already serves the
+player page's Transfers tab, from the same cache entry.
+
+**The acquisition is the newest one that is not newer than this sale.** That is
+what makes it right for a player traded more than once: a manager who bought,
+sold, bought again and sold again has two spells in the chain, and the older
+sale has to pair with the older purchase rather than with whatever he did next.
+A sale entry names nobody as receiver, so it can never be mistaken for a
+purchase.
+
+The seller is matched **by id where the standings still know him, by name
+otherwise** — the feed carries only a display name (`slr`), and a manager who
+has left the league no longer resolves to a member. Two managers sharing a
+display name would be indistinguishable, as everywhere else the feed names one.
+
+> **A squad player has no purchase price.** Kickbase deals the starting eleven
+> out for nothing and books the market value of that day as the basis — the
+> same reading `prlo` uses on the [player page](player-detail.md). So the
+> ledger's first line says **Marktwert bei Zuteilung** rather than pretending
+> to a fee, and where that day predates the year of values there is no basis at
+> all: the profit line is dropped and the sheet says why, rather than measuring
+> against a zero that would read as the whole fee being profit.
+
+When the chain holds no purchase by that manager, the ledger is replaced by one
+muted line saying so. The sale, its market value and the thread still answer.
 
 ### What the fee was worth on the day
 
@@ -158,6 +203,12 @@ player page and quotes the one day the transfer fell on:
 is an instant paper loss in the squad the player lands in, so the colours run
 the same direction as profit and loss everywhere else in the app, read from the
 buying manager's side.
+
+**On a sale the same panel flips**, because the sign means the opposite thing
+to the manager who dealt: being paid over the market value is a win, so *Über
+Marktwert* is green and *Unter Marktwert* red. The
+[player's transfer tab](player-detail.md) reads it the same way, for the same
+reason.
 
 [`marketValueAt`](../../src/api/models.ts) does the lookup by walking to the
 **last day stamped no later than the transfer**, rather than matching the date
@@ -183,7 +234,8 @@ says so in a line instead of drawing an empty panel.
 ### The comment thread
 
 Kickbase's feed carries a chat thread per entry and the app has never shown one.
-The purchase sheet does now: the comments, and a box that posts on Enter.
+Both transfer sheets do now — a purchase and a sale alike: the comments, and a
+box that posts on Enter.
 
 **It is fetched only when the entry says it has comments.** `coc` reads `0` on
 all 620 entries across both probed leagues, so fetching on open would be one
@@ -351,9 +403,11 @@ correctly without it.
   `/ranking`:
   [`GET …/activitiesFeed/{activityId}`](../api/leagues.md#get-v4leaguesleagueidactivitiesfeedactivityid)
   answers every manager's placement and points for a type-`17` entry.
-- **Comment threads.** `coc` is rendered as a count and the threads behind it
-  are readable and writable — see
-  [the API notes](../api/leagues.md#get-v4leaguesleagueidactivitiesfeed).
-  Nothing in the app opens one.
+- **Comment threads on the other kinds.** Both transfer sheets read and write
+  one — see
+  [the API notes](../api/leagues.md#get-v4leaguesleagueidactivitiesfeed) — but
+  the matchday and achievement sheets do not, and the rows that open no sheet
+  at all (a manager joining, the login bonus, the founding) have nowhere to put
+  one. `coc` is rendered as a count on every row regardless.
 - `unreadCount` is mapped on both the manager and league models and is still
   not surfaced anywhere.
