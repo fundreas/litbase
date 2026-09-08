@@ -687,7 +687,7 @@ all.
 | `t` | What the single entry adds |
 | --- | -------------------------- |
 | `3` | The player's stats — `tp`, `ap`, `pos`, `st`, `shn`, `tfhmvt` (the 24-hour market-value change), `smc`/`ismc`/`smdc` (**✗**) — and `mv` as it stands **now**, not at listing |
-| `15` | `byr` / `slr` become objects `{ i, n }`, plus `fn`, `ln`, `mv` (current). `isop` is **`true` on every buy and `false` on every sale** (9 and 19) — it tracks the direction, not the viewer's involvement; it is *not* "the viewer bid on this" |
+| `15` | `byr` / `slr` become objects `{ i, n }`, plus `fn`, `ln`, and **`mv` frozen at the deal** — see below. `isop` is **`true` on every buy and `false` on every sale** (9 and 19) — it tracks the direction, not the viewer's involvement; it is *not* "the viewer bid on this" |
 | `17` | **The whole matchday table**: `us[]` of `{ i, n, pl, p }` — every manager's placement and points — and `fp` (**✗**, empty). Note it listed **four of the five** members; the one missing had joined the day before the matchday (**?**) |
 | `5` | `uc` (**✗** `5`), `spld` (**?** `1` — starting players dealt), `ibun` (**✗** the name again) |
 | `13` | `uc`, `ds` (**✗** `1`) |
@@ -695,6 +695,43 @@ all.
 | `t` | Answer |
 | --- | ------ |
 | `26`, `28`, `16` | **`500 NotFound`** — there is no detail view for these |
+
+### On a transfer, `mv` is the value **at the moment of the deal**
+
+The two types disagree about which `mv` they mean, and the difference is the
+whole reason the detail is worth fetching for a transfer:
+
+| Type | `mv` is |
+| ---- | ------- |
+| `3` a listing | **Today's value.** Ten listing entries from 2026-09-04 all read back exactly the player's current `mv` — and exactly what the *list* row already carried, so the detail adds nothing here |
+| `15` a transfer | **The value that stood when the deal settled**, frozen. Across the 28 transfers in the test league it matched the current value **zero** times |
+
+Probed 2026-09-08 against the daily series from
+[`/players/{id}/marketvalue/365`](players.md): 25 of the 28 pinned an exact
+day, the other three were players whose value had not moved either side of the
+transfer. **Not one contradiction.**
+
+This is the number the [events page](../pages/events.md)'s purchase sheet
+reconstructs by walking a year of daily values to the transfer date. The server
+already knows it, in the same response as the rest of the sheet.
+
+#### Which resolves the `dt` stamp on the market-value series
+
+The 28 transfers pin it, because a transfer is a market value with a timestamp
+on it:
+
+> **A value stamped `dt = D` is the one the 20:00 UTC recalc on day `D`
+> produced, and it is in force from then until `D+1` 20:00 UTC.**
+
+Every transfer settled *before* that day's recalc matched `dt = D-1` (16 of 16
+decisive), every one settled *after* it matched `dt = D` (6 of 6). The boundary
+shows up to the minute in one batch of sales on 2026-09-02: the three at
+**20:02–20:03** read `D-1`, the six at **20:04** read `D`.
+
+That closes the open question in
+[events.md](../pages/events.md) — and it means walking the series to "the last
+day stamped no later than the transfer" lands **a day early** for any transfer
+before 20:00 UTC, which is nearly all of them.
 
 ### Used by
 
@@ -704,9 +741,31 @@ for that instead, which has avatars.
 
 ### Where a bid of your own can be read back
 
-**Not from the feed.** Neither the list entry nor the single-entry detail names
-anyone but the parties to the deal, and `isop` on the detail looks like the
-flag and is not: it is `true` on all nine buys and `false` on all nineteen
+> **The question this section exists to answer.** The Kickbase app, on a
+> transfer opened from the league feed, shows the fee and the winning manager
+> **and — when the viewer bid on that player and lost — the losing bid, marked
+> as exceeded.** Which request produces that number?
+>
+> **There is no third endpoint.** All 149 paths in the published spec were
+> enumerated on 2026-09-08 and only two can carry a bid at all: this section's
+> `/players/{playerId}/transfers`, and the
+> [transfer detail](#get-v4leaguesleagueidactivitiesfeedactivityid) itself.
+> `…/activitiesFeed/{id}/offers`, `/offer`, `/bids`, `/transfers` and `/detail`
+> are all `404`. No activity type announces an exceeded bid either: 652 feed
+> entries across two leagues carry only types `3`, `5`, `13`, `15`, `17`, `26`
+> and `28`.
+>
+> So the app's transfer sheet is **two requests keyed by `data.pi`** — the
+> detail for the deal, `/players/{pi}/transfers` for the viewer's own bid —
+> which is exactly the shape the [events page](../pages/events.md) already
+> uses. **Which of the two carries a *losing* bid is the one thing still
+> open**, and it needs a rival manager to outbid this account; see the box at
+> the end of this section for the protocol and for why the attempt on
+> 2026-09-08 produced nothing.
+
+**Not from the feed list.** Neither the list entry nor the single-entry detail
+names anyone but the parties to the deal, and `isop` on the detail looks like
+the flag and is not: it is `true` on all nine buys and `false` on all nineteen
 sales, so it tracks the direction.
 
 **Not from the manager's transfer log** either.
@@ -753,8 +812,40 @@ by listing a player of the test account's and withdrawing him again:
 > seller panel is built on it and renders an empty list as "none Kickbase is
 > showing you".
 
-> **Whether a *losing* bid survives the sale is unresolved** (**?**). Every
-> completed transfer probed answered `ofs: []` — but the account had bid on
-> none of them, and producing a lost bid costs a listing's full run. The
-> [events page](../pages/events.md) asks anyway and renders the
-> answer when there is one.
+> **Whether a *losing* bid survives the sale is still unresolved** (**?**).
+> Every completed transfer probed answered `ofs: []` — but the account had bid
+> on none of them. The [events page](../pages/events.md) asks anyway and
+> renders the answer when there is one.
+>
+> An attempt on 2026-09-08 came up empty for a reason worth recording. Minimum
+> bids (`mv + 1`) were placed on two Kickbase listings due to expire in seven
+> minutes — Koch at 24 413 363 and Bellingham at 18 267 264 — both accepted,
+> both readable in `ofs[]` while they stood. At expiry **neither settled**: no
+> `15` entry in the feed, budget unmoved to the euro, squad unchanged, and both
+> players left the market **unowned**. `mv + 1` is a winning bid on this market
+> (Ebnoutalib went for exactly that), so what blocked it was the squad: the
+> account sat at **16 of `mppu: 16`**.
+>
+> So **an offer from a full squad is accepted by the API and then silently
+> discarded at settlement** — no error, no notification, no trace. Which also
+> means a full squad is the *safe* way to run this experiment: such an account
+> can lose an auction but cannot win one, so the bids cost nothing and risk
+> nothing. What is still needed is a rival manager actually outbidding one,
+> and that cannot be manufactured from a single account.
+>
+> **To finish it**, from an account at the squad cap: bid `mv + 1` on a handful
+> of listings a rival would plausibly want, wait out `exs`, and when one of them
+> settles to *somebody else* — a `15` entry naming another `byr` — read both
+> candidates for that `pi` straight away:
+>
+> ```
+> GET /v4/leagues/{lid}/activitiesFeed/{activityId}   → an extra field on data?
+> GET /v4/leagues/{lid}/players/{pi}/transfers        → ofs[] / uop still set?
+> ```
+>
+> Read them **promptly**: if the losing bid is kept at all, it may well be
+> swept with the listing rather than kept for good. The two outcomes are
+> mutually exclusive and either one settles the question.
+>
+> The state to restore afterwards is nothing — bids from a capped squad never
+> debit. The 2026-09-08 run left the budget unchanged to the euro.

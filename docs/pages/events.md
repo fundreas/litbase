@@ -216,15 +216,23 @@ string: the series has gaps — days before the player entered the competition
 come back as `mv: 0` and are stripped — and a gap should fall back to the last
 real valuation instead of answering nothing.
 
-> **The snapshot is a day, so it can be a day off.** Kickbase recalculates
-> values nightly at 20:00 UTC (`mvud` on the market response) while the history
-> carries one value per `dt`, and **which side of that recalc a `dt` is stamped
-> on is unverified** (**?**). For a transfer settled late in the evening the
-> figure quoted can therefore be the valuation from either side of that night's
-> move — within one day's change of the truth. The label names the day it came
-> from for exactly that reason, rather than presenting itself as exact. A single
-> probe settles it: read `/marketvalue/365` for a player alongside his current
-> `mv` before and after 20:00 UTC and see which `dt` the new value lands on.
+> **The `dt` stamp is settled now, and the walk is a day early.** Kickbase
+> recalculates values nightly at 20:00 UTC (`mvud` on the market response), and
+> the 28 transfers in the test league pin what the stamp means:
+> **a value stamped `dt = D` is what that day's 20:00 UTC recalc produced, in
+> force until `D+1` 20:00 UTC** — see
+> [the API note](../api/leagues.md#which-resolves-the-dt-stamp-on-the-market-value-series).
+>
+> So for a transfer settled *before* 20:00 UTC — nearly all of them — the
+> valuation that stood is the one at `dt = D-1`, and "the last day stamped no
+> later than the transfer" picks `dt = D`: **one recalc too new**.
+>
+> The fix is not to shift the walk by a day. It is to stop doing the walk:
+> **`GET /activitiesFeed/{activityId}` returns the frozen valuation itself**,
+> in the same response as the buyer and the fee, and it matched the daily series
+> on all 25 transfers that could distinguish a day. That request also carries
+> the buyer's **user id**, which the feed row lacks and which the row currently
+> recovers by matching a display name against the standings.
 
 It costs no extra request for a reader who then opens the player — same query
 key, same cache entry as the market tab. And when the transfer predates the year

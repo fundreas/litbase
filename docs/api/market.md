@@ -221,6 +221,23 @@ is what makes it safe to expose as a plain button.
 it — probed: a bid at the full 33 % ceiling was accepted on a listing that
 already held one.
 
+> ### A full squad is not checked here — it is enforced by silence.
+>
+> `mppu` on [`/leagues/{id}/overview`](leagues.md#get-v4leaguesleagueidoverview)
+> caps the squad, `16` in the test league. With the squad **at** that cap the
+> endpoint still answers `200 { ofi }`, the bid reads back in `ofs[]`, and the
+> client is told nothing at all.
+>
+> It is at **settlement** that it fails, and it fails without a word: probed
+> 2026-09-08 with `mv + 1` on two listings expiring in seven minutes, both the
+> only bid standing. Neither sold. No `15` entry reached the feed, the budget
+> did not move by a euro, the squad stayed at 16, and both players left the
+> market unowned rather than going to the one manager who had bid for them.
+>
+> Nothing in the API says this is coming — not an error on the `POST`, not a
+> flag on the listing. A client that lets a full squad bid is offering a button
+> that does nothing, and the manager finds out by watching the listing expire.
+
 ### What Kickbase refuses
 
 Three rules, each with its own error name, **all served as HTTP 500**, and all
