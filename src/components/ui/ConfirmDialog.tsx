@@ -23,6 +23,7 @@ export function ConfirmDialog({
   isConfirmDisabled = false,
   error,
   confirmSlot,
+  actionsSlot,
   children,
 }: {
   open: boolean
@@ -46,6 +47,19 @@ export function ConfirmDialog({
    * slot's business, not this component's.
    */
   confirmSlot?: ReactNode
+  /**
+   * The **whole action row**, replacing cancel and confirm both.
+   *
+   * For a dialog that asks a second question before it will act: the
+   * [accepted bid](../player/PlayerSaleDialogs.tsx) puts *are you sure you want
+   * to decline?* here, and the two answers to it, because leaving the original
+   * pair on screen underneath would offer three conclusions to a question that
+   * has two.
+   *
+   * `Escape`, the overlay and `onOpenChange` are untouched — a dialog with no
+   * cancel button in the row is still closable.
+   */
+  actionsSlot?: ReactNode
   /** Extra content between the description and the actions. */
   children?: ReactNode
 }) {
@@ -96,23 +110,25 @@ export function ConfirmDialog({
             </p>
           )}
 
-          <div className="mt-1 flex gap-2">
-            <Dialog.Close asChild>
-              <Button variant="secondary" fullWidth disabled={isBusy}>
-                {cancelLabel}
-              </Button>
-            </Dialog.Close>
-            {confirmSlot ?? (
-              <Button
-                fullWidth
-                onClick={onConfirm}
-                isLoading={isBusy}
-                disabled={isConfirmDisabled}
-              >
-                {confirmLabel}
-              </Button>
-            )}
-          </div>
+          {actionsSlot ?? (
+            <div className="mt-1 flex gap-2">
+              <Dialog.Close asChild>
+                <Button variant="secondary" fullWidth disabled={isBusy}>
+                  {cancelLabel}
+                </Button>
+              </Dialog.Close>
+              {confirmSlot ?? (
+                <Button
+                  fullWidth
+                  onClick={onConfirm}
+                  isLoading={isBusy}
+                  disabled={isConfirmDisabled}
+                >
+                  {confirmLabel}
+                </Button>
+              )}
+            </div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

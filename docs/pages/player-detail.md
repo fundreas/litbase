@@ -600,10 +600,11 @@ entry in it gets made.
 | *Auf den Markt* / *Preis ändern* | [`POST …/market`](../api/market.md#post-v4leaguesleagueidmarket) | Tap |
 | *Vom Markt nehmen* | [`DELETE …/market/{pid}`](../api/market.md#delete-v4leaguesleagueidmarketplayerid) | Tap |
 | Tapping a bid | [`POST …/offers/{oid}/accept`](../api/market.md#post-v4leaguesleagueidmarketplayeridoffersofferidaccept) | **Two-second hold** |
+| *Gebot ablehnen*, in that dialog | [`POST …/offers/{oid}/decline`](../api/market.md#post-v4leaguesleagueidmarketplayeridoffersofferiddecline) | **A second question**, in place of the action row |
 
-All four live in
+All five live in
 [`PlayerSaleDialogs`](../../src/components/player/PlayerSaleDialogs.tsx) and all
-four invalidate the whole league key: a player changing hands moves the squad,
+five invalidate the whole league key: a player changing hands moves the squad,
 the budget, the market, this page and the feed at once.
 
 **Two ways out, presented as two buttons.** Selling to Kickbase is at the market
@@ -616,11 +617,38 @@ is made before the figure rather than inside one dialog with a mode.
 the accept's case doubly so, because its success path is the one request here
 nobody has ever watched work (see below).
 
+**A bid has two answers, and they are not the same weight.** Accepting is held.
+Declining is a plain button under the bid — the quiet position *Vom Markt
+nehmen* holds in its own dialog — and pressing it **takes the action row over**:
+the accept and the cancel go, a hairline is drawn, and the row asks *Gebot von
+… wirklich ablehnen?* over *Abbrechen* and a red *Ablehnen*. Leaving the
+original pair on screen underneath would offer three conclusions to a
+yes-or-no question, and *Annehmen* is the last thing that should sit within
+reach of a thumb aiming at *Ablehnen*. Backing out returns to the bid rather
+than closing the dialog: the question was about the decline, not about being
+here.
+
+Nothing changes hands when a bid is turned down — the player stays yours, the
+listing stays up — so a hold would be theatre. It is still somebody's bid being
+thrown away, which is more than one tap should be able to do. The dialog
+carries **no warning panel**: it had one, and it was about the accept, sitting
+under a dialog that now asks two questions and warning about only one of them.
+
 **Listing commits nothing**, so it is a plain tap, and withdrawing sits at the
 foot of the same dialog rather than becoming a third button on the page: it
 belongs to the listing, and only exists while there is one. Re-listing is how a
 price changes — Kickbase re-prices a standing listing on a second `POST` — so
 *Preis ändern* is the same call as *Auf den Markt*.
+
+**The price dialog rounds up as well as steps.** Above the market's eight
+[± shortcuts](market.md#the-bid-dialog) sits *Aufrunden auf* with two buttons,
+`1 Mio.` and `100k`, each marked with an arrow into a ceiling line. They are a
+destination rather than a delta: `4.837.000 €` becomes `5.000.000 €` or
+`4.900.000 €` in one tap, where the `+` rows ask the seller to work out the
+difference first — and an asking price is a figure picked out of the air, so the
+ones people pick are round. Already-round is left where it is; the tap means
+"make this round" and a figure sitting on a million should not jump to the next
+one. No hold-to-repeat, unlike the steps: a second tap does nothing.
 
 **A seller may ask what he likes.** The 90 % floor and the 33 % ceiling that
 govern [bidding](market.md#the-bid-dialog) say nothing about asking: probed
@@ -634,10 +662,11 @@ managers. The poll is driven by the response, so a player sitting quietly in a
 squad costs one request and then nothing. The bidders arrive as bare ids and are
 matched against the standings for a face, exactly as the transfer rows are.
 
-> **The accept path is implemented but unproven** (**?**). `OPTIONS` establishes
-> the verb and a made-up offer id answers `500 NotFound`, but producing a real
-> bid needs a second account bidding on the first, and accepting cannot be
-> undone. Equally, that `ofs` shows *other* managers' bids on one's own listing
+> **Neither answer to a bid is proven** (**?**). `OPTIONS` establishes both
+> verbs and a made-up offer id answers `500 NotFound` on both, but producing a
+> real bid needs a second account bidding on the first, and accepting cannot be
+> undone. Whether declining tells the bidder, and whether he may bid again, is
+> unknown for the same reason. Equally, that `ofs` shows *other* managers' bids on one's own listing
 > is read off the market payload's identical field rather than measured here —
 > so an empty list means "none Kickbase is showing you".
 

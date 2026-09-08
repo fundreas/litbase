@@ -24,7 +24,19 @@ Each row carries what a buying decision actually needs:
 
 name · position, and the manager who owns him when one does · **one** money
 figure and its overnight move · his club's next fixture, home or away · how
-long the listing has left, and the clock time that lands on.
+long the listing has left, and the clock time that lands on — or, on a
+manager's listing, **his face**.
+
+**The last panel says when this settles, and on a manager's listing that is a
+person.** A manager's listing has no countdown to show; it stands until he
+withdraws it or takes a bid, and the words that used to sit there (*offen · bis
+Verkauf*) spent the panel saying that nothing was known. His portrait says the
+same thing and answers something with it: the market's own division is
+Kickbase-or-a-manager, and a face in the last column is which one, from a scan
+down the list. His name stays on the row's second line, so the panel is the
+picture alone — and it is not a link, because the whole row bar the player's
+portrait is the bid button and a hole punched in it would cost more than the
+third destination is worth.
 
 **One figure, not three.** It is your own offer if you have made one, else what
 a manager is asking, else the market value — which is what a computer listing
@@ -194,6 +206,11 @@ instant** (`expiresAt`) against the clock at fetch time; seconds-left read back
 off a cached response would be as stale as the response. The page holds one
 interval for the whole list and passes `now` down, so twenty rows cannot drift
 apart. Under an hour the countdown takes the accent.
+
+Only computer listings reach the countdown at all — a manager's listing shows
+him instead. The "runs until it sells" wording survives as the fallback for a
+listing with no seller *and* no `exs`, which the wire has never sent: a dash
+there would read as a load still in flight.
 
 **Hours are the largest unit** — `41 Std.`, never `1 Tag`. The question a
 countdown answers is "can I still think about this", and that is arithmetic
@@ -380,11 +397,6 @@ That leaves this page what it has always been: the buying side.
 
 **Filters.** Position and price band are the obvious next ones; twenty-odd
 rows do not need them yet.
-
-**Declining a bid.** `POST …/offers/{offerId}/decline` exists on the same terms
-as accept — `OPTIONS` answers `405 allow: POST` — and nothing calls it.
-Declining and letting the offer stand until the listing is withdrawn end the
-same way, so it buys a button and no outcome.
 
 **Seeing a listing of your own from here.** The market rows are built for
 buying and say nothing about being the seller; the panel that does is on the

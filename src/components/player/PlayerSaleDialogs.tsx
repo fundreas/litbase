@@ -5,6 +5,7 @@ import {
   useListPlayer,
   useWithdrawListing,
   useAcceptOffer,
+  useDeclineOffer,
 } from '@/api/hooks/useMarketListing'
 import { useSellPlayers } from '@/api/hooks/useSellPlayers'
 import type { PlayerListingOffer } from '@/api/models'
@@ -258,10 +259,25 @@ export function ListPlayerDialog({
  * and the acting manager is the seller: being paid over the odds is the good
  * outcome.
  *
- * The success path of `POST …/offers/{id}/accept` has **never been fired**
- * against a real bid — see [`useAcceptOffer`](../../api/hooks/useMarketListing.ts).
- * The hold is the right control for that on its own merits, and doubly so
- * while the request is the one thing here nobody has watched work.
+ * **Two answers, and they are not the same weight.** Accepting is held;
+ * declining is a plain button that asks a second question. Nothing changes
+ * hands when a bid is turned down — the player stays yours and the listing
+ * stays up — so a hold would be theatre, but it is still somebody's bid being
+ * thrown away, which is more than a single tap should be able to do by
+ * accident.
+ *
+ * **The second question takes the action row over.** Once *Ablehnen* is
+ * pressed, the accept and the cancel go and the row asks the one thing that is
+ * now open — see [`actionsSlot`](../ui/ConfirmDialog.tsx). Leaving them in
+ * place would put three conclusions on screen for a yes-or-no question, and
+ * *Annehmen* is the last one that should be within reach of a thumb aiming at
+ * *Ablehnen*. Backing out returns to the bid, rather than closing the dialog:
+ * the answer to "are you sure?" is about the decline, not about being here.
+ *
+ * Neither success path has **ever been fired** against a real bid — see
+ * [`useAcceptOffer`](../../api/hooks/useMarketListing.ts). The hold is the
+ * right control for accepting on its own merits, and doubly so while the
+ * request is the one thing here nobody has watched work.
  */
 export function AcceptOfferDialog({
   player,
@@ -277,13 +293,19 @@ export function AcceptOfferDialog({
   onAccepted: () => void
 }) {
   const accept = useAcceptOffer(leagueId)
+  const decline = useDeclineOffer(leagueId)
+  // Whether the second question is on screen. Not a separate dialog: the bid
+  // it is about — who made it, and how it compares — is what the reader needs
+  // in front of them to answer it.
+  const [isDeclining, setIsDeclining] = useState(false)
   const premium = offer.amount - player.marketValue
+  const isBusy = accept.isPending || decline.isPending
 
   return (
     <ConfirmDialog
       open
       onOpenChange={(open) => {
-        if (!open && !accept.isPending) onClose()
+        if (!open && !isBusy) onClose()
       }}
       title={`${player.name} verkaufen`}
       description={
@@ -309,7 +331,7 @@ export function AcceptOfferDialog({
       }
       confirmLabel="Annehmen"
       onConfirm={onClose}
-      error={accept.error?.message ?? null}
+      error={(accept.error ?? decline.error)?.message ?? null}
       confirmSlot={
         accept.isPending ? (
           <Button fullWidth isLoading>
@@ -327,6 +349,47 @@ export function AcceptOfferDialog({
           />
         )
       }
+      actionsSlot={
+        isDeclining ? (
+          <div className="flex flex-col gap-3">
+            {/* The line is the point at which the dialog stopped being about
+                the bid and started being about one answer to it. */}
+            <span aria-hidden="true" className="h-px bg-line" />
+            <p className="text-sm leading-snug text-ink">
+              Gebot von{' '}
+              <span className="font-semibold">
+                {offer.managerName ?? 'diesem Manager'}
+              </span>{' '}
+              wirklich ablehnen?
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                fullWidth
+                disabled={decline.isPending}
+                onClick={() => {
+                  setIsDeclining(false)
+                }}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                variant="danger"
+                fullWidth
+                isLoading={decline.isPending}
+                onClick={() => {
+                  decline.mutate(
+                    { playerId: player.id, offerId: offer.id },
+                    { onSuccess: onClose },
+                  )
+                }}
+              >
+                Ablehnen
+              </Button>
+            </div>
+          </div>
+        ) : undefined
+      }
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 rounded-card border border-line bg-surface-2/40 px-3 py-2.5">
@@ -339,10 +402,23 @@ export function AcceptOfferDialog({
           </span>
         </div>
 
-        <FinalWarning>
-          Der Spieler wechselt sofort in dessen Kader. Das lässt sich nicht
-          rückgängig machen.
-        </FinalWarning>
+        {/* Declining is the quieter of the two answers, so it sits below the
+            bid rather than in the action row — the same place the listing
+            dialog keeps *Vom Markt nehmen*. Pressed, it takes the row over,
+            and takes its own trigger with it: the question underneath is the
+            only thing left to answer. */}
+        {!isDeclining && (
+          <Button
+            variant="ghost"
+            fullWidth
+            disabled={accept.isPending}
+            onClick={() => {
+              setIsDeclining(true)
+            }}
+          >
+            Gebot ablehnen
+          </Button>
+        )}
       </div>
     </ConfirmDialog>
   )

@@ -12,10 +12,10 @@ import type { ListPlayerRequest } from '@/api/types'
 
 /**
  * The **selling** side of the market: putting one of your own players up,
- * taking him down again, and accepting what somebody bids.
+ * taking him down again, and answering what somebody bids — either way.
  *
  * Bidding lives in [`useMarketOffers`](./useMarketOffers.ts) and selling to
- * Kickbase outright in [`useSellPlayers`](./useSellPlayers.ts). The three
+ * Kickbase outright in [`useSellPlayers`](./useSellPlayers.ts). The four
  * mutations here are the parts the app had documented and never called.
  *
  * All of them **invalidate the whole league key**, as the sale does: a player
@@ -84,7 +84,10 @@ export function useWithdrawListing(
   })
 }
 
-/** Accepting one bid on one of your listings. */
+/**
+ * One bid on one of your listings — the shape of both answers to it, accept
+ * and decline alike, which take the identical path and body.
+ */
 export interface AcceptOfferVariables {
   playerId: string
   /** The offer's id — `uoid` on the listing. */
@@ -121,6 +124,50 @@ export function useAcceptOffer(
       try {
         await post(
           endpoints.leagues.marketOfferAccept(leagueId, playerId, offerId),
+          {},
+        )
+      } catch (error) {
+        const apiError = toApiError(error)
+        if (apiError.apiError === 'NotFound') {
+          throw new Error(
+            'Dieses Gebot gibt es nicht mehr — es wurde zurückgezogen oder der Spieler ist schon weg.',
+          )
+        }
+        throw apiError
+      }
+    },
+    onSuccess: () => invalidateLeague(queryClient, leagueId),
+  })
+}
+
+/**
+ * Turn a bid down.
+ *
+ * The mirror of {@link useAcceptOffer}, and the quieter half of it: nothing
+ * changes hands, the player stays yours and the listing stays up, so the only
+ * thing lost is the bid itself. That is why the dialog asks with a
+ * [second question](../../components/player/PlayerSaleDialogs.tsx) rather than
+ * a two-second hold — reversible enough for a tap, deliberate enough not to be
+ * one tap.
+ *
+ * **Never fired against a real offer** either (**?**), for the same reason: a
+ * genuine bid needs a second account. The `NotFound` rewording is the accept's,
+ * because the state it describes is the accept's — the bid is gone, whether it
+ * was withdrawn or the listing has already settled.
+ */
+export function useDeclineOffer(
+  leagueId: string | undefined,
+): UseMutationResult<void, Error, AcceptOfferVariables> {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ playerId, offerId }: AcceptOfferVariables) => {
+      if (leagueId === undefined) {
+        throw new Error('Cannot decline an offer without a league.')
+      }
+      try {
+        await post(
+          endpoints.leagues.marketOfferDecline(leagueId, playerId, offerId),
           {},
         )
       } catch (error) {

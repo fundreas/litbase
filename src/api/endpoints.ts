@@ -148,9 +148,8 @@ export const endpoints = {
      * offered price and the player changes hands.
      *
      * `POST`, and only `POST`: `OPTIONS` answers `405 allow: POST`, as does
-     * `GET`. A `/decline` sibling exists on exactly the same terms and is not
-     * used — declining is the same outcome as leaving the offer standing until
-     * the listing is withdrawn.
+     * `GET`. {@link marketOfferDecline} is the sibling that ends the same bid
+     * the other way.
      *
      * **Never fired against a real offer** (**?**): producing one costs a
      * second account bidding on this one, and accepting cannot be undone. An
@@ -160,6 +159,21 @@ export const endpoints = {
      */
     marketOfferAccept: (leagueId: string, playerId: string, offerId: string) =>
       `/v4/leagues/${leagueId}/market/${playerId}/offers/${offerId}/accept`,
+    /**
+     * **Turn a bid down**, leaving the player yours and the listing standing.
+     *
+     * Same shape and same terms as {@link marketOfferAccept} — `POST`, empty
+     * body, `OPTIONS` answers `405 allow: POST` — and, like it, **never fired
+     * against a real offer** (**?**): a made-up offer id answers 500
+     * `NotFound`, which is as far as one account can get.
+     *
+     * Whether the bidder may then bid again, and whether he is told, is
+     * unknown. What is certain is that it is not the same act as accepting:
+     * nothing changes hands, so the dialog behind it is a plain two-step
+     * confirm rather than a hold.
+     */
+    marketOfferDecline: (leagueId: string, playerId: string, offerId: string) =>
+      `/v4/leagues/${leagueId}/market/${playerId}/offers/${offerId}/decline`,
     /**
      * One player, in the context of a league.
      *

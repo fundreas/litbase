@@ -15,6 +15,7 @@ is league-scoped, and the whole write surface was mapped by probing — an
 | `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/offers`](#post-v4leaguesleagueidmarketplayeridoffers) | Bearer | yes |
 | `DELETE` | [`/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}`](#delete-v4leaguesleagueidmarketplayeridoffersofferid) | Bearer | yes |
 | `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/accept`](#post-v4leaguesleagueidmarketplayeridoffersofferidaccept) | Bearer | yes |
+| `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/decline`](#post-v4leaguesleagueidmarketplayeridoffersofferiddecline) | Bearer | yes |
 | `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/sell`](#post-v4leaguesleagueidmarketplayeridsell) | Bearer | yes |
 
 **Two naming conventions, on adjacent endpoints.** Listing a player takes the
@@ -355,10 +356,35 @@ user id.
 > `NotFound` is re-worded on the way out: the shared copy for that name is
 > about a league that no longer exists, and here it means the bid is gone.
 
-A **`/decline`** sibling exists on identical terms — `OPTIONS` answers
-`405 allow: POST`, a bogus id answers `500 NotFound` — and nothing calls it.
-
 ### Used by
 
 [`useAcceptOffer`](../../src/api/hooks/useMarketListing.ts) → the
 [player page](../pages/player-detail.md#what-the-owner-can-do).
+
+---
+
+## `POST /v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/decline`
+
+Turn a bid down. The player stays yours, the listing stays up, and the bid is
+gone.
+
+**Auth** Bearer. **Request body: none**, sent empty.
+
+| | |
+| --- | --- |
+| Verb | `POST`, and only `POST`: `OPTIONS` answers `405 allow: POST`, as on the accept |
+| Answers | `500 NotFound` for an offer id that does not exist. The success path is **unproven** (**?**), for the accept's reason — a real bid needs a second account |
+
+**Identical to the accept in every respect the wire shows** — path bar the last
+segment, verb, empty body, existence check — and the opposite of it in outcome.
+Two things about it are **unknown** and cannot be settled from one account:
+whether the bidder is told, and whether he may then bid again.
+
+Declining and simply leaving the bid to stand are not quite the same: the bid
+that stands can still be accepted later, by a tap on the same row.
+
+### Used by
+
+[`useDeclineOffer`](../../src/api/hooks/useMarketListing.ts) → the
+[player page](../pages/player-detail.md#what-the-owner-can-do), behind the
+second question in the bid dialog.
