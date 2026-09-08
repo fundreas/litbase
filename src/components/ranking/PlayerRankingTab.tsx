@@ -223,49 +223,69 @@ export function PlayerRankingTab({
           <li key={player.id}>
             <Link
               to={`/leagues/${leagueId}/players/${player.id}`}
-              className="flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-surface-2/60"
+              className="flex items-stretch transition-colors hover:bg-surface-2/60"
             >
-              {/* The top three carry the accent and nothing else does. A
-                  podium needs no medal glyphs to read as a podium, and three
-                  coloured rows in twenty-five stay legible where three icons
-                  would just be more to look at. */}
+              {/* The rank is a rail, the same flush left-hand column the squad
+                  row puts its shirt in — which is what lets the portrait beside
+                  it butt against an edge rather than end on a cut.
+
+                  The top three carry the accent and nothing else does. A podium
+                  needs no medal glyphs to read as a podium, and three coloured
+                  numbers in twenty-five stay legible where three icons would
+                  just be more to look at. */}
               <span
                 className={cn(
-                  'nums w-5 shrink-0 text-right text-xs font-semibold',
+                  'nums flex w-7 shrink-0 items-center justify-center self-stretch',
+                  'border-r border-line bg-surface-2/40 text-xs font-semibold',
                   rank <= 3 ? 'text-accent' : 'text-faint',
                 )}
               >
                 {rank}
               </span>
 
-              <Avatar
-                src={player.image}
-                name={player.lastName}
-                size={32}
-                square
-                className="shrink-0 bg-surface-2"
-              />
-
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-ink">
-                  {player.lastName}
-                </p>
-                <p className="truncate text-[0.6875rem] text-faint">
-                  {POSITION_LABEL[player.position]}
-                  {team !== undefined && ` · ${team.name}`}
-                </p>
-              </div>
-
-              {/* Fixed width whether or not it is filled, so the scores stay in
-                  a column: a badge that shifted every row it appeared on would
-                  cost more than it tells. */}
-              <span className="flex w-5 shrink-0 justify-center">
-                {owner !== undefined && <OwnerBadge owner={owner} size={20} />}
+              {/* Flush portrait, as on the squad, market and activity rows: the
+                  Kickbase cutouts are transparent PNGs, so a wash grounds the
+                  figure and the inner edge is masked to dissolve into the row
+                  instead of ending on a line. The figure gets the row's full
+                  height, which at this width is the difference between a
+                  thumbnail of a face and a player standing in the list. */}
+              <span className="flex w-14 shrink-0 self-stretch">
+                <Avatar
+                  src={player.image}
+                  name={player.lastName}
+                  fill
+                  className={cn(
+                    'w-full self-stretch bg-transparent',
+                    'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+                    '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+                  )}
+                />
               </span>
 
-              <p className="nums w-12 shrink-0 text-right text-sm font-semibold text-ink">
-                {points(player.points)}
-              </p>
+              <span className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pr-3 pl-1">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-ink">
+                    {player.lastName}
+                  </span>
+                  <span className="block truncate text-[0.6875rem] text-faint">
+                    {POSITION_LABEL[player.position]}
+                    {team !== undefined && ` · ${team.name}`}
+                  </span>
+                </span>
+
+                {/* Fixed width whether or not it is filled, so the scores stay
+                    in a column: a badge that shifted every row it appeared on
+                    would cost more than it tells. */}
+                <span className="flex w-5 shrink-0 justify-center">
+                  {owner !== undefined && (
+                    <OwnerBadge owner={owner} size={20} />
+                  )}
+                </span>
+
+                <span className="nums w-12 shrink-0 text-right text-sm font-semibold text-ink">
+                  {points(player.points)}
+                </span>
+              </span>
             </Link>
           </li>
         )
