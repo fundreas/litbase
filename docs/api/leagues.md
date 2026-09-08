@@ -243,6 +243,7 @@ being played now" has to come from the competition, not from here.**
 | `adm` | boolean | Is a league admin |
 | `pa` | boolean | **✗** `true` for every member observed |
 | `iapl`, `hll` | boolean | **✗** |
+| `swc` | number | **Season wins — how often the manager has won this league.** Pointed out by Andreas from the app (2026-09-08). **Omitted at zero**: absent from the spec's example and from every manager of two first-season leagues, so it has not been observed live; read it as `swc ?? 0`. The source of the gold stars on manager avatars — [Ranking](../pages/ranking.md#title-stars), [Duels](../pages/duels.md#title-stars) |
 | `lipc` | number | **✗** |
 | `shp` | number | **✗** |
 
@@ -275,14 +276,12 @@ carrying that season's final placement, and inside it every matchday they
 played. Everything else in this reference stops at the current season; this is
 the only endpoint that does not.
 
-**Auth** Bearer. **Used** by
-[`useManagerHistory`](../../src/api/hooks/useManagerHistory.ts) for one thing:
-the **gold title stars** on a manager's avatar in the
-[Ranking](../pages/ranking.md#title-stars), on the duel cards and in the
-matchday Rangliste of [Duels](../pages/duels.md#title-stars). Probed live on
-2026-09-08 for every manager of two first-season leagues; the readings of
-*finished* seasons below are still from the spec's captured example, so several
-are arithmetic (stated as such) and the rest are marked.
+**Auth** Bearer. **Unused.** It carried the title stars for a few hours on
+2026-09-08, until `swc` on [`/ranking`](#us--one-manager) turned out to answer
+the question outright. Probed live that day for every manager of two
+first-season leagues; the readings of *finished* seasons below are still from
+the spec's captured example, so several are arithmetic (stated as such) and
+the rest are marked.
 
 ### Path parameters
 
@@ -327,31 +326,31 @@ first season runs day 2…34, 33 entries.
 
 ### How often has a manager won the league?
 
-**This endpoint is the only route to it for an arbitrary manager**, by counting
-the `it[]` entries whose `pl` is first place.
+**`swc` on `/ranking`** — see [`us[]`](#us--one-manager). One number per
+manager, for every member of the league, in a payload the app already holds.
+Andreas pointed it out from the app on 2026-09-08; it is omitted at zero, which
+is why a sweep of two first-season leagues never surfaced it.
 
-**`pl: 0` is "not settled", not a placement — probed 2026-09-08.** In a
-league on matchday 2 of its first season, **every** manager's running season
-read `pl: 0`: the one sitting 1st by `spl`, whose own `/dashboard` said `pl: 1`
-at the same moment, and the one sitting 5th alike. A zero-based placement would
-have put `4` on the fifth; a live placement would have put `1` on the leader.
-So the running season carries no placement at all, and can never count as a
-title — which also explains the spec's sample, where the running season reads
-`0` like the other three.
+This endpoint can derive the same count, by counting the `it[]` entries whose
+`pl` is first place, and was the app's source for an afternoon. What the probe
+of it established still stands:
 
-**A finished season has not been observed live** — neither test league has one
-— so the 1-based reading of a settled `pl` rests on the rest of the API
-(`/dashboard` above, `spl`, `mdpl`) rather than on a probe. The app counts
-`pl === 1` on that basis. If a settled season turns out to read `0` for its
-champion too, the stars would simply never appear; nothing would be drawn
-wrongly. **Check the first league that carries a finished season.**
+**`pl: 0` is "not settled", not a placement.** In a league on matchday 2 of
+its first season, **every** manager's running season read `pl: 0`: the one
+sitting 1st by `spl`, whose own `/dashboard` said `pl: 1` at the same moment,
+and the one sitting 5th alike. A zero-based placement would have put `4` on the
+fifth; a live placement would have put `1` on the leader. So the running
+season carries no placement at all — which also explains the spec's sample,
+where the running season reads `0` like the other three. **A finished season
+has not been observed live**, so whether a settled `pl` is 1-based rests on the
+rest of the API rather than on a probe.
 
-**For the viewer only there is a second, better source.** Achievement type
-`2001` is *Meister* and `2002` *Vizemeister* — see
+**For the viewer only there is a third source.** Achievement type `2001` is
+*Meister* and `2002` *Vizemeister* — see
 [Achievement type](codes.md#achievement-type) — so
-`GET /v4/leagues/{leagueId}/user/achievements` answers the question outright in
-that achievement's `ac` counter, with no placement encoding to decode. It takes
-**no `managerId`**, though, so it cannot be asked about anyone else.
+`GET /v4/leagues/{leagueId}/user/achievements` carries the viewer's count in
+that achievement's `ac`. It takes **no `managerId`**, so it cannot be asked
+about anyone else.
 
 Ruled out, all current-season only: `/ranking` (takes `dayNumber`, no season
 parameter), `/managers/{id}/dashboard`, and the `btls` battles on

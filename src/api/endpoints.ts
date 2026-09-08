@@ -52,21 +52,6 @@ export const endpoints = {
     managerSquad: (leagueId: string, userId: string) =>
       `/v4/leagues/${leagueId}/managers/${userId}/squad`,
     /**
-     * **Any** manager's whole history in the league — one entry per season,
-     * each with its final placement, total and matchday wins, and every
-     * matchday nested inside. The only endpoint that reaches past the current
-     * season, and so the only way to count how often somebody has **won the
-     * league** — see docs/api/leagues.md#how-often-has-a-manager-won-the-league.
-     *
-     * Probed 2026-09-08 against a league in its first season: the running
-     * season reads `pl: 0` for *every* manager, the leader included, while the
-     * sibling `/dashboard` says `pl: 1` for that same leader. So `pl` here is
-     * not a live placement and `0` means "not settled"; a finished season is
-     * expected to carry the 1-based final placement the rest of the API uses.
-     */
-    managerPerformance: (leagueId: string, userId: string) =>
-      `/v4/leagues/${leagueId}/managers/${userId}/performance`,
-    /**
      * One manager's squad **as it stood on a given matchday** — the historical
      * snapshot, including who was actually fielded.
      *

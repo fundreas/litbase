@@ -28,6 +28,7 @@ export function toRankedManager(user: RankingUser): RankedManager {
     placementChange: user.ppc ?? 0,
     pointsPerMatchday: user.lp ?? [],
     isAdmin: user.adm ?? false,
+    titles: user.swc ?? 0,
     duelPlacement: user.hhpl,
     duelPoints: user.hhsp,
     duelMatchdayPoints: user.hhmp,

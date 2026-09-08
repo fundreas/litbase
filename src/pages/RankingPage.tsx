@@ -208,7 +208,7 @@ function ManagerRow({
               nothing. */}
             <PlacementChange value={manager.placementChange} />
           </span>
-          <ManagerAvatar leagueId={leagueId} manager={manager} size={48} />
+          <ManagerAvatar manager={manager} size={48} />
         </span>
 
         {/* Name, then two subtitles: what was scored this matchday, then how

@@ -1,6 +1,5 @@
 import { Star } from 'lucide-react'
 
-import { useManagerHistory } from '@/api/hooks/useManagerHistory'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
 
@@ -15,29 +14,24 @@ const MAX_STARS = 5
  *
  * The standings, the duel cards and the matchday ranking all show the same
  * faces, and a champion should look like one on each of them — so the stars
- * live here, on the avatar, rather than in three row layouts. The component
- * asks for the manager's history itself: React Query holds one entry per
- * manager for an hour, so ten rows on three pages cost ten requests, once.
+ * live here, on the avatar, rather than in three row layouts.
  *
- * The stars are the finished seasons the manager ended in first place **in
- * this league** — see [`useManagerHistory`](../../api/hooks/useManagerHistory.ts)
- * for why the running season can never be one. Nothing is drawn while the
- * history is loading or for a manager without a title, so a row never flashes
- * a badge it then takes back.
+ * The count is `swc` on the standings payload, mapped to `titles` on both
+ * [`RankedManager` and `DuelSide`](../../api/models.ts) so anything that can
+ * be drawn as a face carries it. It is **this league's** titles: the field
+ * sits on a league-scoped response. Nothing is drawn for a manager without
+ * one.
  */
 export function ManagerAvatar({
-  leagueId,
   manager,
   size = 36,
   className,
 }: {
-  leagueId: string
-  manager: { id: string; name: string; image?: string }
+  manager: { name: string; image?: string; titles: number }
   size?: number
   className?: string
 }) {
-  const history = useManagerHistory(leagueId, manager.id)
-  const titles = history.data?.titles ?? 0
+  const { titles } = manager
 
   return (
     <span

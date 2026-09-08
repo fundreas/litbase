@@ -174,19 +174,14 @@ while the count is loading, so a row never flashes a badge it then takes back.
 The avatar is
 [`ManagerAvatar`](../../src/components/manager/ManagerAvatar.tsx), which the
 [duel cards, the byes and the matchday Rangliste](duels.md#title-stars) share —
-a champion looks like one wherever their face appears. It asks for the count
-itself through
-[`useManagerHistory`](../../src/api/hooks/useManagerHistory.ts) →
-`/v4/leagues/{leagueId}/managers/{managerId}/performance`, the one endpoint
-that reaches past the current season; one request per manager, held for an
-hour, so the three pages share it.
+a champion looks like one wherever their face appears.
 
-A title is a **finished** season the manager ended in first place. The running
-season reads `pl: 0` for everybody, leader included, and so never counts — see
-[How often has a manager won the league?](../api/leagues.md#how-often-has-a-manager-won-the-league)
-for the probe, and for the one reading still unconfirmed: no finished season
-has been observed live yet. And it is **this league only**; the API has no
-cross-league view, so a champion elsewhere carries no star here.
+The count is **`swc` on the standings payload** — see
+[Leagues](../api/leagues.md#how-often-has-a-manager-won-the-league) — mapped to
+`titles` on `RankedManager` and carried onto `DuelSide`, so every face the app
+draws already knows its stars and no extra request is made. Kickbase omits the
+field at zero, so it is read as `swc ?? 0`. It is **this league's** titles: the
+field sits on a league-scoped response, and the API has no cross-league view.
 
 ## Placement change
 

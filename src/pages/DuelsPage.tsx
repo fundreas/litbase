@@ -319,7 +319,6 @@ export function DuelsPage() {
                 <DuelCard
                   key={duel.id}
                   duel={duel}
-                  leagueId={leagueId}
                   to={`/leagues/${leagueId}/duels/${duel.id}?day=${String(activeDay)}`}
                   hasStarted={hasStarted}
                   isFinished={state === 'finished'}
@@ -341,11 +340,7 @@ export function DuelsPage() {
                     key={side.id}
                     className="flex items-center gap-2.5 rounded-card border border-line bg-surface px-3 py-3"
                   >
-                    <ManagerAvatar
-                      leagueId={leagueId}
-                      manager={side}
-                      size={44}
-                    />
+                    <ManagerAvatar manager={side} size={44} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-ink">
                         {side.name}

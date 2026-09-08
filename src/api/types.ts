@@ -409,6 +409,13 @@ export interface RankingUser {
    */
   hhoui?: string
   hll?: boolean
+  /**
+   * **Season wins — how often this manager has won the league.** Pointed out
+   * by Andreas from the app (2026-09-08); absent from the spec's example and
+   * from every manager of two first-season leagues, so it is **omitted at
+   * zero** rather than sent as `0`. Drives the gold stars on the avatar.
+   */
+  swc?: number
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2055,57 +2062,6 @@ export interface ActivityAchievementData {
   n: string
   /** Description — `"Werde Spieltagssieger"`. */
   d: string
-}
-
-/**
- * `GET /v4/leagues/{leagueId}/managers/{managerId}/performance`.
- *
- * Probed 2026-09-08 for every manager of a first-season league; the shape of
- * finished seasons is from the spec's captured example, which carries four.
- */
-export interface ManagerPerformanceResponse {
-  /** User id. */
-  u: string
-  /** Display name. */
-  unm: string
-  /** Unknown — `1` in the spec, `3` live. */
-  st?: number
-  /** One entry per season, **oldest first**. Absent for a manager who joined this season and has not played yet — observed `[]`. */
-  it?: ManagerPerformanceSeason[]
-}
-
-export interface ManagerPerformanceSeason {
-  /** Season id — `"15"`, `"20"`, … `"42"`. Steps by five; neither a year nor the label. */
-  sid: string
-  /** Season label, the long form — `"2026/2027"`. */
-  sn: string
-  /**
-   * Final placement. **`0` for a season still running**, for every manager —
-   * the leader, whose `/dashboard` reads `pl: 1`, included. Finished seasons
-   * are expected to read 1-based like the rest of the API, but none has been
-   * observed live; see docs/api/leagues.md#how-often-has-a-manager-won-the-league.
-   */
-  pl: number
-  /** Total points — the sum of the season's `mdp`. */
-  tp: number
-  /** Average points, truncated; a sat-out matchday counts as `0`. */
-  ap: number
-  /** Matchday wins — the count of `tw: true` below. */
-  mdw: number
-  /** Every matchday of the season, from where the manager joined. */
-  it: ManagerPerformanceMatchday[]
-}
-
-export interface ManagerPerformanceMatchday {
-  day: number
-  /** Points that matchday; `0` when sat out, **absent** when not yet played. */
-  mdp?: number
-  /** Won the matchday. */
-  tw: boolean
-  /** Kick-off, ISO 8601. Only on the running season. */
-  md?: string
-  /** Unknown — stamped `true` on the live matchday's index across every season. Do not render. */
-  cur?: boolean
 }
 
 /**

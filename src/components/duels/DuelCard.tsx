@@ -24,7 +24,6 @@ import { placement, points } from '@/lib/format'
  */
 export function DuelCard({
   duel,
-  leagueId,
   to,
   hasStarted,
   isFinished,
@@ -32,8 +31,6 @@ export function DuelCard({
   activePlayers,
 }: {
   duel: Duel
-  /** For the title stars on each side's avatar — the history is per league. */
-  leagueId: string
   /** Detail route for this duel, matchday included. */
   to: string
   hasStarted: boolean
@@ -64,7 +61,6 @@ export function DuelCard({
         )}
       >
         <Side
-          leagueId={leagueId}
           side={duel.sides[0]}
           align="left"
           hasStarted={hasStarted}
@@ -84,7 +80,6 @@ export function DuelCard({
         />
 
         <Side
-          leagueId={leagueId}
           side={duel.sides[1]}
           align="right"
           hasStarted={hasStarted}
@@ -115,7 +110,6 @@ export function DuelCard({
  */
 function Side({
   side,
-  leagueId,
   align,
   hasStarted,
   isFinished,
@@ -124,7 +118,6 @@ function Side({
   activePlayers,
 }: {
   side: DuelSide
-  leagueId: string
   align: 'left' | 'right'
   hasStarted: boolean
   isFinished: boolean
@@ -142,7 +135,7 @@ function Side({
         isRight && 'flex-row-reverse',
       )}
     >
-      <ManagerAvatar leagueId={leagueId} manager={side} size={44} />
+      <ManagerAvatar manager={side} size={44} />
       <div className={cn('min-w-0 flex-1', isRight && 'text-right')}>
         <p className="truncate text-sm font-semibold text-ink">
           {side.name}

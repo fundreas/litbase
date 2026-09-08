@@ -202,7 +202,7 @@ function ManagerRow({
           <span className="nums w-6 text-center text-base font-bold text-faint">
             {placement(rank)}
           </span>
-          <ManagerAvatar leagueId={leagueId} manager={manager} size={44} />
+          <ManagerAvatar manager={manager} size={44} />
         </span>
 
         <span className="min-w-0 flex-1">

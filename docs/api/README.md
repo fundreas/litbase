@@ -220,7 +220,7 @@ simply unbuilt:
 | ---- | --------------------- |
 | `GET /v4/base/predictions/teams/{competitionId}` | The lineup-probability posters keyed by team — the bulk source behind `plpim`. See [Codes](codes.md#lineup-probability-prob) |
 | `GET /v4/competitions/{id}/players/search` | Player search, which the [All players](../pages/players.md) stub would want |
-| `GET /v4/leagues/{id}/managers/{id}/performance` | **Used** since 2026-09-08 — [documented](leagues.md#get-v4leaguesleagueidmanagersmanageridperformance), and read by `useManagerHistory` for the **gold title stars** on manager avatars. A manager's every season, which [Ranking](../pages/ranking.md) fakes out of `lp` for the current one — and the only route to **how often they have won the league** |
+| `GET /v4/leagues/{id}/managers/{id}/performance` | [Documented](leagues.md#get-v4leaguesleagueidmanagersmanageridperformance) and probed live 2026-09-08. A manager's every season, which [Ranking](../pages/ranking.md) fakes out of `lp` for the current one. Briefly the source of the title stars, until `swc` on `/ranking` turned out to carry **how often a manager has won the league** directly |
 | `POST /v4/leagues/{id}/market/{playerId}/offers/{offerId}/accept` · `/decline` | Selling — accepting a bid on your own listing |
 | `POST /v4/leagues/{id}/market/{playerId}/sell` | Selling straight back to Kickbase |
 | `GET /v4/leagues/{id}/me/budget` | Budget on its own, without the rest of `/me` |

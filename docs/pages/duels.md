@@ -66,8 +66,8 @@ rows and the Rangliste — is the
 [`ManagerAvatar`](../../src/components/manager/ManagerAvatar.tsx) of the
 [season standings](ranking.md#title-stars), so a manager who has won this
 league carries one small gold star per title on the avatar's rim here as well.
-The count comes from `/managers/{id}/performance`, one request per manager held
-for an hour, which the standings page has usually already made.
+The count is `swc` on the same `/ranking` payload the duels are built from,
+carried onto each `DuelSide` as `titles` — so it costs nothing extra here.
 
 **The whole card is a link** to [Duel detail](duel-detail.md), carrying the
 selected matchday with it — not a chevron in the corner, because a duel row on
