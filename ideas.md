@@ -38,3 +38,5 @@
 
 # landscape mode
   - in landscape mode (or wide screen) rotate the field and increase the size
+
+# bake build version/time into code show in user dropdown
