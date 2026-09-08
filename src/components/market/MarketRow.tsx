@@ -104,7 +104,11 @@ export function MarketRow({
                 anyone. A computer listing has no seller on the wire, and
                 naming Kickbase in that slot says nothing you could act on:
                 the absence of a manager *is* the fact. The position takes the
-                line instead, and shares it when a manager is there. */}
+                line instead, and shares it when a manager is there.
+
+                His **name** only: the portrait that used to sit here now
+                holds the panel at the end of the row, where the expiry would
+                be, and the same face twice in one row is one face too many. */}
             <span className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted">
               <span className="shrink-0 tracking-wide uppercase">
                 {POSITION_LABEL[listing.position]}
@@ -114,7 +118,6 @@ export function MarketRow({
                   <span aria-hidden="true" className="text-faint">
                     ·
                   </span>
-                  <Avatar src={seller.image} name={seller.name} size={14} />
                   <span className="truncate">{seller.name}</span>
                 </>
               )}
@@ -166,9 +169,51 @@ export function MarketRow({
           <FixtureBadge fixture={fixture} size="md" />
         </span>
 
-        <Countdown expiresAt={listing.expiresAt} now={now} />
+        {/* The last panel answers "when does this settle?" — and on a
+            manager's listing the answer is *he decides*, so it shows him
+            instead. See {@link SellerPanel}. */}
+        {seller === undefined ? (
+          <Countdown expiresAt={listing.expiresAt} now={now} />
+        ) : (
+          <SellerPanel seller={seller} />
+        )}
       </button>
     </li>
+  )
+}
+
+/**
+ * The last column of the row, whatever ends up in it. Fixed width so the
+ * figures above stop in the same place on every row, expiring or not.
+ */
+const PANEL =
+  'flex w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1.5 text-center'
+
+/**
+ * **Whose listing this is**, in the slot a computer listing gives its expiry.
+ *
+ * A manager's listing has no clock to show — it stands until he withdraws it
+ * or takes a bid — and the words that used to sit here (*offen · bis Verkauf*)
+ * spent the room saying that nothing was known. His face says the same thing
+ * and says something usable with it: the market's own division is
+ * Kickbase-or-a-manager, and on a scan down the list a portrait in the last
+ * column is which one, before a single word is read.
+ *
+ * The name is on the row's second line, so this is the picture alone. It is not
+ * a link: the whole row bar the player's portrait is the bid button, and a
+ * second target inside it — for the least useful of the three destinations —
+ * would put a hole in the one you are aiming at.
+ */
+function SellerPanel({
+  seller,
+}: {
+  seller: NonNullable<MarketListing['seller']>
+}) {
+  return (
+    <span className={PANEL} title={`Angebot von ${seller.name}`}>
+      <Avatar src={seller.image} name={seller.name} size={34} />
+      <span className="sr-only">Angeboten von {seller.name}</span>
+    </span>
   )
 }
 
@@ -176,9 +221,12 @@ export function MarketRow({
  * How long the listing has left, and when that is.
  *
  * Both, because they answer different questions: "3 Std." is what you plan
- * around, "22:48" is what you set an alarm for. A manager's listing has
- * neither — it runs until they withdraw it or accept — and says so rather than
- * showing a dash that would read as missing data.
+ * around, "22:48" is what you set an alarm for.
+ *
+ * Only computer listings get here — a manager's is {@link SellerPanel} — but
+ * the wire is the wire: an expiry that fails to arrive on a listing with no
+ * seller either falls back to the same "runs until it sells" wording rather
+ * than a dash that would read as a load still in flight.
  */
 function Countdown({
   expiresAt,
@@ -187,12 +235,9 @@ function Countdown({
   expiresAt: number | undefined
   now: number
 }) {
-  const panel =
-    'flex w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1.5 text-center'
-
   if (expiresAt === undefined) {
     return (
-      <span className={panel}>
+      <span className={PANEL}>
         <span className="text-[0.6875rem] leading-tight text-muted">offen</span>
         <span className="text-[0.625rem] leading-tight text-faint">
           bis Verkauf
@@ -207,7 +252,7 @@ function Countdown({
   const isUrgent = secondsLeft > 0 && secondsLeft < 3600
 
   return (
-    <span className={panel}>
+    <span className={PANEL}>
       <span
         className={cn(
           'nums text-[0.6875rem] leading-tight font-semibold',
