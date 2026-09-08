@@ -41,9 +41,9 @@ export function PlayerMarketTab({
   history: MarketValueHistory
 }) {
   const [window, setWindow] = useState<MarketValueWindow>(
-    // 3 months: long enough to show a trend, short enough that a single day's
-    // move is still visible on it.
-    MARKET_VALUE_WINDOWS[1],
+    // 1 month: the window a manager weighing a buy or sell actually cares
+    // about — every day is plotted, so the last few moves read clearly.
+    MARKET_VALUE_WINDOWS[0],
   )
 
   if (history.days.length === 0) {
