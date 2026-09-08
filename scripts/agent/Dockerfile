@@ -29,12 +29,6 @@ RUN userdel -r node 2>/dev/null || true \
  && groupadd --gid "${USER_GID}" "${USER_NAME}" \
  && useradd --uid "${USER_UID}" --gid "${USER_GID}" --create-home --shell /bin/bash "${USER_NAME}"
 
-# The hook and its settings live outside the mounted project, root-owned, so
-# the agent cannot edit its own guard rails. Rebuild the image after changing
-# them (run-agent does that on its own when these files are newer than the image).
-COPY --chmod=0755 guard.py /opt/agent/guard.py
-COPY --chmod=0644 settings.json /opt/agent/settings.json
-
 # --dangerously-skip-permissions refuses to run as root, so Claude Code is
 # installed as the user via the native installer (~/.local/bin/claude).
 USER ${USER_NAME}
@@ -44,5 +38,12 @@ ENV HOME=/home/${USER_NAME} \
     CLAUDE_CODE_DISABLE_MOUSE_CLICKS=1
 RUN curl -fsSL https://claude.ai/install.sh | bash \
  && claude --version
+
+# The hook and its settings live outside the mounted project, root-owned (COPY
+# ignores USER), so the agent cannot edit its own guard rails. Last, so an edit
+# here only rebuilds this layer — run-agent rebuilds on its own when these files
+# are newer than the image.
+COPY --chmod=0755 guard.py /opt/agent/guard.py
+COPY --chmod=0644 settings.json /opt/agent/settings.json
 
 CMD ["claude"]

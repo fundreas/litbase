@@ -61,6 +61,7 @@ scripts/run-agent                  # interactive session in the container
 scripts/run-agent "add a dark mode"
 scripts/run-agent -p "fix the lint" # headless: runs, prints, exits
 scripts/run-agent --build          # rebuild the image (pulls the current Claude)
+scripts/run-agent --model fable    # Opus at high effort is the default in there
 ```
 
 [scripts/run-agent](scripts/run-agent) starts a throwaway container from

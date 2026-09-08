@@ -23,6 +23,9 @@
 #     keys, no credential helpers, so `git push` has nothing to push with
 #   * host networking, so `npm run dev` on 3011 is reachable from your browser
 #
+# Model and effort default to Opus at high effort (scripts/agent/settings.json),
+# not the host's user setting; `scripts/run-agent --model fable` overrides.
+#
 # Claude runs with --dangerously-skip-permissions. The only gate left is the
 # PreToolUse hook baked into the image (scripts/agent/guard.py): git push and
 # any git command that discards work are refused, everything else just runs.

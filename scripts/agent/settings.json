@@ -1,6 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "_comment": "Loaded via `claude --settings /opt/agent/settings.json` inside the agent container only. The hook is the real gate (it runs even under --dangerously-skip-permissions); the deny list is belt and braces.",
+  "_comment": "Loaded via `claude --settings /opt/agent/settings.json` inside the agent container only. Ranks above the shared user settings, so model and effort here win over ~/.claude/settings.json; a --model/--effort flag on run-agent still wins over these. The hook is the real gate (it runs even under --dangerously-skip-permissions); the deny list is belt and braces.",
+  "model": "opus",
+  "effortLevel": "high",
   "hooks": {
     "PreToolUse": [
       {
