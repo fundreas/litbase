@@ -1,3 +1,4 @@
+import { ArrowUpToLine } from 'lucide-react'
 import { useCallback, useEffect, useRef } from 'react'
 
 import { cn } from '@/lib/cn'
@@ -167,5 +168,75 @@ export function AmountSteps({ onStep }: { onStep: (delta: number) => void }) {
         </div>
       ))}
     </>
+  )
+}
+
+/**
+ * The units the round-up row offers, coarsest first — same order as
+ * {@link STEPS}, so the whole block reads big-to-small top to bottom.
+ *
+ * A million and a hundred thousand, because those are the two figures a price
+ * gets tidied to: an asking price of `4.837.000 €` is a number nobody chose,
+ * and the two taps that would fix it with {@link STEPS} are arithmetic done in
+ * your head first.
+ */
+const ROUND_UNITS = [1_000_000, 100_000] as const
+
+/** `1 Mio.`, `100k` — the unit, in the notation the market uses for it. */
+function unitLabel(unit: number): string {
+  if (unit >= 1_000_000) return `${String(unit / 1_000_000)} Mio.`
+  return `${String(unit / 1_000)}k`
+}
+
+/**
+ * **Round the figure up** to the next million, or the next hundred thousand.
+ *
+ * A row above the [step shortcuts](#AmountSteps), and deliberately not one of
+ * them: a step is a delta and these are a *destination*. `4.837.000 €` becomes
+ * `5.000.000 €` or `4.900.000 €` in one tap, where the `+` rows get there by
+ * asking the reader to work out the difference first.
+ *
+ * **Already-round is left alone.** A ceiling, not a bump: a figure sitting
+ * exactly on a million stays where it is rather than jumping to the next one,
+ * because the tap means "make this round" and it already is.
+ *
+ * The arrow-to-line mark is what says *up to*, and it carries the meaning on
+ * its own — the label beside it is the unit, so the button reads `↥ 1 Mio.`
+ * even before the row's own label is read.
+ *
+ * No hold-to-repeat here, unlike the steps: a second tap on a rounded figure
+ * does nothing at all, so there is nothing to repeat.
+ */
+export function AmountRoundUp({
+  onRoundUp,
+}: {
+  onRoundUp: (unit: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="shrink-0 text-xs text-faint">Aufrunden auf</span>
+      {ROUND_UNITS.map((unit) => (
+        <button
+          key={String(unit)}
+          type="button"
+          aria-label={`Auf ${unitLabel(unit)} aufrunden`}
+          onClick={() => {
+            onRoundUp(unit)
+          }}
+          /* Neutral where the step rows are tinted: nothing about rounding is
+             a direction the way `+` and `−` are, and a third coloured row
+             would compete with the two that carry a sign. */
+          className={cn(
+            'nums flex h-10 min-w-0 flex-1 items-center justify-center gap-1',
+            'rounded-xl border border-line bg-surface text-sm font-semibold',
+            'text-muted transition-colors select-none',
+            'hover:border-muted hover:bg-surface-2 hover:text-ink',
+          )}
+        >
+          <ArrowUpToLine size={14} aria-hidden="true" className="shrink-0" />
+          {unitLabel(unit)}
+        </button>
+      ))}
+    </div>
   )
 }

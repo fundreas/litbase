@@ -9,7 +9,7 @@ import {
 import { useSellPlayers } from '@/api/hooks/useSellPlayers'
 import type { PlayerListingOffer } from '@/api/models'
 import { Avatar } from '@/components/ui/Avatar'
-import { AmountSteps } from '@/components/ui/AmountSteps'
+import { AmountRoundUp, AmountSteps } from '@/components/ui/AmountSteps'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { HoldButton } from '@/components/ui/HoldButton'
@@ -109,7 +109,9 @@ export function SellToKickbaseDialog({
  * The amount starts at the standing asking price, or at the market value when
  * there is no listing yet, so the default action is "offer him at what he is
  * worth". The [shortcut rows](../ui/AmountSteps.tsx) are the market's, down to
- * the hold-to-repeat.
+ * the hold-to-repeat, with a
+ * [round-up row](../ui/AmountSteps.tsx) above them: an asking price is a number
+ * the seller picks out of the air, and the ones people pick are round.
  *
  * **Re-listing is how a price is changed.** Kickbase re-prices a standing
  * listing on a second `POST` rather than refusing it, so *Preis ändern* is the
@@ -154,6 +156,17 @@ export function ListPlayerDialog({
     setAmount((current) => {
       const parsed = Number(current)
       return String(Math.max(0, (Number.isFinite(parsed) ? parsed : 0) + delta))
+    })
+  }, [])
+
+  // A destination rather than a delta, so it reads the field instead of adding
+  // to it: the next whole million or hundred thousand at or above the figure
+  // standing there. Stable for the same reason `stepBy` is.
+  const roundUpTo = useCallback((unit: number) => {
+    setAmount((current) => {
+      const parsed = Number(current)
+      const from = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
+      return String(Math.ceil(from / unit) * unit)
     })
   }, [])
 
@@ -210,6 +223,8 @@ export function ListPlayerDialog({
             )
           }
         />
+
+        <AmountRoundUp onRoundUp={roundUpTo} />
 
         <AmountSteps onStep={stepBy} />
 
