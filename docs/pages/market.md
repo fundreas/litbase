@@ -364,20 +364,28 @@ both invalidating `qk.market(leagueId)`. `useWithdrawOffer` is the app's only
 `DELETE` and calls the axios instance directly rather than growing a `del()`
 helper for one caller.
 
+## The selling side is not here
+
+**Listing a player, re-pricing him, withdrawing him and accepting a bid** are
+all built — on the
+[player page's Transfers tab](player-detail.md#what-the-owner-can-do), next to
+the player being sold rather than in a market of twenty other people's. Selling
+**back to Kickbase** at market value is on the same panel and on the squad's
+[sale calculator](squad.md#selling), which fires `POST /market/{playerId}/sell`
+per player behind a two-second hold.
+
+That leaves this page what it has always been: the buying side.
+
 ## Not built yet
-
-**Listing a player.** `POST /market` and `DELETE /market/{playerId}` are probed
-and in [`endpoints.ts`](../../src/api/endpoints.ts), but nothing calls them —
-putting a player *up for auction* belongs on the squad page, next to the player
-you would be listing, not here.
-
-Selling **back to Kickbase** at market value is built, and lives there too: the
-squad's [sale calculator](squad.md#selling) marks players and its dialog fires
-`POST /market/{playerId}/sell` per player behind a two-second hold.
 
 **Filters.** Position and price band are the obvious next ones; twenty-odd
 rows do not need them yet.
 
-**Offers on your own listings.** `ofs[]` carries the bids made *to* you with
-the bidder's name, and accepting one is presumably a verb on the same paths.
-Neither was probed, because the test account had nothing listed at the time.
+**Declining a bid.** `POST …/offers/{offerId}/decline` exists on the same terms
+as accept — `OPTIONS` answers `405 allow: POST` — and nothing calls it.
+Declining and letting the offer stand until the listing is withdrawn end the
+same way, so it buys a button and no outcome.
+
+**Seeing a listing of your own from here.** The market rows are built for
+buying and say nothing about being the seller; the panel that does is on the
+player page.

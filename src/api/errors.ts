@@ -104,6 +104,13 @@ const MESSAGE_BY_API_ERROR: Record<string, string> = {
   /** `err: 5050` — all standing offers together, past budget + 33 % of team value. */
   ThirtyThreePercentRuleExceeded:
     'Deine offenen Gebote zusammen gehen weiter ins Minus als 33 % deines Teamwerts.',
+
+  /**
+   * `err: 5020` — an **asking price** outside the wire's integer, on
+   * `POST /market`. Not a rule about value: negative, or past `2^31 − 1`.
+   * The dialog refuses the same range first; see `checkAskingPrice`.
+   */
+  InvalidMarketValue: 'Diesen Preis nimmt Kickbase nicht.',
 }
 
 /** Turn anything thrown by axios into an {@link ApiError}. */

@@ -16,7 +16,7 @@ instance, the query hooks, the domain models — is
 | [User](user.md) | 2 | The signed-in account |
 | [Leagues](leagues.md) | 9 | Membership, metadata, standings, joining, the activity feed |
 | [Squad and lineup](squad-and-lineup.md) | 9 | Who you own, who you field, historical snapshots |
-| [Transfer market](market.md) | 5 | Listings, bids, withdrawals |
+| [Transfer market](market.md) | 6 | Listings, bids, selling — both sides of a deal |
 | [Players](players.md) | 4 | One player: detail, history, market value, owners |
 | [Competitions](competitions.md) | 5 | Bundesliga & co: table, fixtures, one club's whole squad |
 | [Matches](matches.md) | 2 | One match live, and the scoring-event catalogue |
@@ -54,10 +54,11 @@ the two marked *none*.
 | `POST` | `/v4/leagues/{leagueId}/lineup/fill` | | [Lineup](squad-and-lineup.md#post-v4leaguesleagueidlineupfill) |
 | `GET` | `/v4/leagues/{leagueId}/lineup/overview` | | [Lineup](squad-and-lineup.md#get-v4leaguesleagueidlineupoverview) |
 | `GET` | `/v4/leagues/{leagueId}/market` | ✔ | [Market](market.md#get-v4leaguesleagueidmarket) |
-| `POST` | `/v4/leagues/{leagueId}/market` | | [Market](market.md#post-v4leaguesleagueidmarket) |
-| `DELETE` | `/v4/leagues/{leagueId}/market/{playerId}` | | [Market](market.md#delete-v4leaguesleagueidmarketplayerid) |
+| `POST` | `/v4/leagues/{leagueId}/market` | ✔ | [Market](market.md#post-v4leaguesleagueidmarket) |
+| `DELETE` | `/v4/leagues/{leagueId}/market/{playerId}` | ✔ | [Market](market.md#delete-v4leaguesleagueidmarketplayerid) |
 | `POST` | `/v4/leagues/{leagueId}/market/{playerId}/offers` | ✔ | [Market](market.md#post-v4leaguesleagueidmarketplayeridoffers) |
 | `DELETE` | `/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}` | ✔ | [Market](market.md#delete-v4leaguesleagueidmarketplayeridoffersofferid) |
+| `POST` | `/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/accept` | ✔ | [Market](market.md#post-v4leaguesleagueidmarketplayeridoffersofferidaccept) |
 | `GET` | `/v4/leagues/{leagueId}/players/{playerId}` | ✔ | [Players](players.md#get-v4leaguesleagueidplayersplayerid) |
 | `GET` | `/v4/leagues/{leagueId}/players/{playerId}/performance` | ✔ | [Players](players.md#get-v4leaguesleagueidplayersplayeridperformance) |
 | `GET` | `/v4/leagues/{leagueId}/players/{playerId}/marketvalue/{timeframe}` | ✔ | [Players](players.md#get-v4leaguesleagueidplayersplayeridmarketvaluetimeframe) |
@@ -178,6 +179,7 @@ Error names seen so far, all mapped to German copy in
 | `LineupNotEnoughPlayers` | 4020 | 500 | Fewer than eleven players in a lineup write |
 | `UnderpayNotAllowed` | 5080 | 500 | Bid below market value in a league that forbids it |
 | `NinetyPercentRuleExceeded` | 5060 | 500 | Bid below 90 % of market value |
+| `InvalidMarketValue` | 5020 | 500 | Asking price outside `0 … 2³¹−1`, on `POST /market` |
 | `ThirtyThreePercentRuleExceeded` | 5050 | 500 | Standing bids exceed budget + 33 % of team value |
 
 ## Reading the payloads

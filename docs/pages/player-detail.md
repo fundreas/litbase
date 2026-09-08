@@ -40,9 +40,10 @@ bottom of the viewport while the page scrolls.
 
 ## Requests
 
-Four, all keyed under `qk.playerDetail(leagueId, playerId)` so one
-`invalidateQueries` drops the whole page. Three of them are gated on the tab
-that needs them.
+Five, all keyed under `qk.playerDetail(leagueId, playerId)` so one
+`invalidateQueries` drops the whole page — which is exactly what every write on
+the [seller panel](#what-the-owner-can-do) does. Four of them are gated on the
+tab that needs them.
 
 | Endpoint | Fetched | Carries |
 | -------- | ------- | ------- |
@@ -50,6 +51,7 @@ that needs them.
 | `/v4/leagues/{lid}/players/{pid}/performance` | Details + Leistung | Every season, every fixture |
 | `/v4/leagues/{lid}/players/{pid}/marketvalue/365` | everywhere but Leistung | A year of daily values, purchase price, profit/loss |
 | `/v4/leagues/{lid}/players/{pid}/transferHistory` | when owned, and on Transfers | Every hand the player has passed through |
+| `/v4/leagues/{lid}/players/{pid}/transfers` | on Transfers, **for one's own player** | Whether he is listed, at what, and the bids standing on him — polled at 30 s while a listing stands |
 | `/v4/leagues/{lid}/playercenter/{pid}?dayNumber=&seasonId=` | on opening a [match breakdown](#the-match-breakdown) | Every scoring action of one match, and what each was worth |
 | `/v4/live/eventtypes` | with the first breakdown | Names for all 621 event types. One shared entry, cached for a day |
 
@@ -558,6 +560,61 @@ Faces come from the [standings](../api/leagues.md#get-v4leaguesleagueidranking),
 not the payload: `uim` arrived on about one manager in five, so without the fill
 the tab is a column of initials. A manager who has since **left the league** is
 not in the standings any more and keeps whatever the history carried.
+
+### What the owner can do
+
+Above the list, and **only for the manager who owns the player**, sits the one
+part of this page that writes anything:
+[`PlayerOwnerActions`](../../src/components/player/PlayerOwnerActions.tsx). The
+tab is otherwise a record of what has already happened; this is where the next
+entry in it gets made.
+
+| Control | Endpoint | Confirmation |
+| ------- | -------- | ------------ |
+| *An Kickbase* | [`POST …/market/{pid}/sell`](../api/market.md#post-v4leaguesleagueidmarketplayeridsell) | **Two-second hold** |
+| *Auf den Markt* / *Preis ändern* | [`POST …/market`](../api/market.md#post-v4leaguesleagueidmarket) | Tap |
+| *Vom Markt nehmen* | [`DELETE …/market/{pid}`](../api/market.md#delete-v4leaguesleagueidmarketplayerid) | Tap |
+| Tapping a bid | [`POST …/offers/{oid}/accept`](../api/market.md#post-v4leaguesleagueidmarketplayeridoffersofferidaccept) | **Two-second hold** |
+
+All four live in
+[`PlayerSaleDialogs`](../../src/components/player/PlayerSaleDialogs.tsx) and all
+four invalidate the whole league key: a player changing hands moves the squad,
+the budget, the market, this page and the feed at once.
+
+**Two ways out, presented as two buttons.** Selling to Kickbase is at the market
+value, now, to nobody; listing is an ask that other managers answer. The choice
+is made before the figure rather than inside one dialog with a mode.
+
+**Held, not tapped, for the two that cannot be undone.** The same
+[`HoldButton`](../../src/components/ui/HoldButton.tsx) the
+[squad's sale calculator](squad.md#selling) uses, for the same reason — and in
+the accept's case doubly so, because its success path is the one request here
+nobody has ever watched work (see below).
+
+**Listing commits nothing**, so it is a plain tap, and withdrawing sits at the
+foot of the same dialog rather than becoming a third button on the page: it
+belongs to the listing, and only exists while there is one. Re-listing is how a
+price changes — Kickbase re-prices a standing listing on a second `POST` — so
+*Preis ändern* is the same call as *Auf den Markt*.
+
+**A seller may ask what he likes.** The 90 % floor and the 33 % ceiling that
+govern [bidding](market.md#the-bid-dialog) say nothing about asking: probed
+across the whole integer range, and only the integer bounds it. A price under
+the market value gets a note — Kickbase would have paid more outright — not a
+block, because underselling to a particular manager is a real move.
+
+**The bids poll at thirty seconds while a listing stands**, the market page's
+cadence for the market page's reason: the interesting change comes from other
+managers. The poll is driven by the response, so a player sitting quietly in a
+squad costs one request and then nothing. The bidders arrive as bare ids and are
+matched against the standings for a face, exactly as the transfer rows are.
+
+> **The accept path is implemented but unproven** (**?**). `OPTIONS` establishes
+> the verb and a made-up offer id answers `500 NotFound`, but producing a real
+> bid needs a second account bidding on the first, and accepting cannot be
+> undone. Equally, that `ofs` shows *other* managers' bids on one's own listing
+> is read off the market payload's identical field rather than measured here —
+> so an empty list means "none Kickbase is showing you".
 
 ### The colour flips with the direction
 

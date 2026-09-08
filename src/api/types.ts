@@ -627,6 +627,26 @@ export interface PlaceOfferResponse {
 }
 
 /**
+ * `POST /v4/leagues/{leagueId}/market` — put one of your own players up.
+ *
+ * **The abbreviated convention**, the opposite of {@link PlaceOfferRequest}
+ * one path segment away: `{ playerId, price }` answers 500 `NotFound`.
+ *
+ * Sending it again for a player already listed **re-prices** the standing
+ * listing. Answers `{}` either way.
+ */
+export interface ListPlayerRequest {
+  /** Player id. Must be one of yours — anybody else's answers 500 `NotFound`. */
+  pi: string
+  /**
+   * Asking price, in €. Accepted across the whole of `0 … 2_147_483_647`;
+   * outside it, 500 `InvalidMarketValue`. Probed 2026-09-08 — there is no
+   * floor at the market value and no ceiling below the wire's own.
+   */
+  prc: number
+}
+
+/**
  * Availability, as `st` on any player payload and as the entries of `stl`.
  *
  * Probed live across all 18 Bundesliga squads (467 players) and confirmed
@@ -1905,7 +1925,12 @@ export interface PlayerOffersResponse {
   n: string
   /** Current owner's user id. `null` when nobody owns him. */
   oui?: string | null
-  /** Market value, in €. Only while he is listed. */
+  /**
+   * The owner's display name. **Only while he is listed** — it appeared the
+   * moment a listing went up and was gone again when it was withdrawn.
+   */
+  onm?: string
+  /** Market value, in €. Also served for a player who is not listed. */
   mv?: number
   /** Listing price, in €. `0` when he is not on the market. */
   prc?: number
@@ -1921,7 +1946,13 @@ export interface PlayerOffersResponse {
   uop?: number | null
   /** The viewer's offer id — their own user id. */
   uoid?: string | null
-  /** Offers this account may see. Empty unless the viewer has bid. */
+  /**
+   * The offers this account may see: **its own bid on somebody else's
+   * listing, and — presumably — every bid on its own** (**?**). The second
+   * half is the reading the seller panel is built on and is *not* proven: the
+   * probe put a player up and got `ofs: []` back, because no second account
+   * bid on him. The market payload's `ofs` follows the same visibility rule.
+   */
   ofs?: PlayerOffer[] | null
   iposl?: boolean
   ipl?: boolean
@@ -1932,6 +1963,14 @@ export interface PlayerOffersResponse {
 export interface PlayerOffer {
   /** Bidder's user id. */
   u: string
+  /**
+   * Bidder's display name. Carried by the market payload's `ofs`; **not seen
+   * on this one**, where the only observed entry was the viewer's own — so
+   * anything drawing a name falls back to the standings.
+   */
+  unm?: string
+  /** Bidder's avatar, CDN-relative. Same caveat as {@link PlayerOffer.unm}. */
+  uim?: string
   /** Offer id — the same as `u` for one's own offer. */
   uoid: string
   /** Offered price, in €. */

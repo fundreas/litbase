@@ -8,7 +8,13 @@ import { cn } from '@/lib/cn'
 import { money, moneyDelta, time, weekdayDate } from '@/lib/format'
 
 /**
- * Every hand the player has passed through in this league, newest first.
+ * Every hand the player has passed through in this league, newest first — and,
+ * when he is the viewer's own, the controls for the next one.
+ *
+ * The seller's panel above it is the page's, not this component's: what a
+ * manager may do with his player needs the market state and three mutations,
+ * and it must not disappear when a request for what *other* managers did with
+ * him fails. See [`PlayerOwnerActions`](./PlayerOwnerActions.tsx).
  *
  * ## One row per event, not per owner
  *

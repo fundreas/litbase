@@ -427,6 +427,32 @@ export interface PlayerOfferState {
   isListed: boolean
   /** What the viewer offered, in €. Absent when they did not bid. */
   ownOffer?: number
+  /**
+   * The bids standing on the listing, **highest first** — the viewer's own on
+   * somebody else's listing, and the other managers' on the viewer's own.
+   *
+   * Empty is the normal case and means "none this account may see", which on a
+   * listing that is not the viewer's is not the same as "none".
+   */
+  offers: PlayerListingOffer[]
+  /** Who owns him, or `undefined` when nobody does. */
+  ownerId?: string
+  /** The owner's name — served only while he is listed. */
+  ownerName?: string
+}
+
+/** One bid standing on a listing. */
+export interface PlayerListingOffer {
+  /** The offer's own id — what accepting or withdrawing it needs. */
+  id: string
+  /** The bidding manager. Equals {@link id} for one's own offer. */
+  managerId: string
+  /** Their name, when the payload carried one; filled from the standings. */
+  managerName?: string
+  /** Their avatar, CDN-relative. Same caveat. */
+  managerImage?: string
+  /** What they bid, in €. */
+  amount: number
 }
 
 /** One of Kickbase's achievements, as it stands for the viewer. */

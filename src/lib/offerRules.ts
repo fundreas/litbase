@@ -139,3 +139,54 @@ export function checkOffer(
         : undefined,
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Asking a price, which is a different question                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The most Kickbase will take as an **asking price**: `2^31 − 1`.
+ *
+ * Not a rule about football — it is the wire's own integer. A price past it,
+ * or a negative one, answers 500 `InvalidMarketValue` (`err: 5020`); every
+ * value from `0` up to this was accepted. Probed 2026-09-08.
+ */
+export const ASKING_PRICE_MAX = 2_147_483_647
+
+/**
+ * Judge an asking price.
+ *
+ * **None of the three bid rules apply.** They govern what may be *offered* —
+ * the 90 % floor protects a seller from being lowballed, the 33 % ceiling
+ * stops a buyer borrowing too far — and neither has anything to say about the
+ * number a seller writes on his own player. Probed rather than assumed: a
+ * player worth 500 000 was listed at 1 €, at 250 000 and at two billion, all
+ * accepted.
+ *
+ * So the only hard bound is the wire's, and the only other thing worth saying
+ * is that a price under the market value is one Kickbase would have paid
+ * outright — a note, not a refusal, because underselling on purpose to a
+ * particular manager is a real move in a league that trades.
+ */
+export function checkAskingPrice(
+  amount: number,
+  marketValue: number,
+): OfferVerdict {
+  // An empty field is not an error, it is an unfinished sentence.
+  if (!Number.isFinite(amount) || amount <= 0) return { isAllowed: false }
+
+  if (amount > ASKING_PRICE_MAX) {
+    return {
+      isAllowed: false,
+      problem: `Kickbase nimmt höchstens ${moneyExact(ASKING_PRICE_MAX)}.`,
+    }
+  }
+
+  return {
+    isAllowed: true,
+    note:
+      amount < marketValue
+        ? `Unter dem Marktwert — Kickbase zahlt dir dafür ${moneyExact(marketValue)}.`
+        : undefined,
+  }
+}

@@ -10,10 +10,12 @@ import {
   usePlayerPerformance,
   usePlayerTransfers,
 } from '@/api/hooks/usePlayer'
+import { usePlayerOffers } from '@/api/hooks/usePlayerOffers'
 import { useRanking } from '@/api/hooks/useRanking'
 import {
   matchdayState,
   pointsScaleFor,
+  type PlayerOfferState,
   type PlayerOwnership,
   type PlayerTransfer,
   type TransferParty,
@@ -22,6 +24,7 @@ import { useAuth } from '@/auth/useAuth'
 import { PlayerDetailsTab } from '@/components/player/PlayerDetailsTab'
 import { PlayerHeader } from '@/components/player/PlayerHeader'
 import { PlayerMarketTab } from '@/components/player/PlayerMarketTab'
+import { PlayerOwnerActions } from '@/components/player/PlayerOwnerActions'
 import { PlayerPerformanceTab } from '@/components/player/PlayerPerformanceTab'
 import { PlayerTabBar } from '@/components/player/PlayerTabBar'
 import { PLAYER_TABS, playerTabFromPath } from '@/components/player/playerTabs'
@@ -108,6 +111,16 @@ export function PlayerDetailPage() {
     marketValue.data,
   )
 
+  // Whether the viewer may sell him, and at what he is currently offered.
+  // Only for his own player, and only on the tab that acts on it: for anybody
+  // else's the response says nothing this page shows.
+  const isOwnPlayer =
+    player.data?.ownerId !== undefined && player.data.ownerId === user?.id
+  const market = usePlayerOffers(leagueId, playerId, {
+    enabled: isOwnPlayer && tab === PLAYER_TABS.transfers,
+    watch: true,
+  })
+
   // `transferHistory` names the owner, but a manager who has never renamed
   // themselves arrives without `unm` on some entries — the standings always
   // have a name and an avatar, so they fill the gaps.
@@ -116,6 +129,13 @@ export function PlayerDetailPage() {
   const transferRows = useMemo(
     () => withManagersOnTransfers(transfers.data, ranking.data?.managers),
     [transfers.data, ranking.data],
+  )
+  // Bidders arrive as bare ids on this endpoint — the market payload names
+  // them, this one has only ever been seen carrying the viewer's own offer —
+  // so the same standings fill the faces on the offer rows.
+  const marketState = useMemo(
+    () => withManagersOnOffers(market.data, ranking.data?.managers),
+    [market.data, ranking.data],
   )
 
   // The running season is the first entry — the hook reverses the API's
@@ -228,22 +248,44 @@ export function PlayerDetailPage() {
             <PlayerMarketTab player={player.data} history={marketValue.data} />
           ))}
 
-        {/* The market values are not waited for: the rows carry their fees
-            without them and grow the comparison when they land. Only the
-            history itself gates the panel. */}
-        {tab === PLAYER_TABS.transfers &&
-          (transfers.isPending ? (
-            <SkeletonList rows={6} />
-          ) : transfers.isError ? (
-            <ErrorState
-              error={transfers.error}
-              onRetry={() => {
-                void transfers.refetch()
-              }}
-            />
-          ) : (
-            <PlayerTransfersTab transfers={transferRows} viewerId={user?.id} />
-          ))}
+        {tab === PLAYER_TABS.transfers && (
+          <div className="flex flex-col gap-4">
+            {/* Outside the gate below on purpose: what a manager may do with
+                his own player must not wait on — or vanish with — a request
+                for what other managers did with him in the past. */}
+            {isOwnPlayer && leagueId !== undefined && (
+              <PlayerOwnerActions
+                player={{
+                  id: player.data.id,
+                  name: player.data.lastName,
+                  marketValue: player.data.marketValue,
+                }}
+                market={marketState}
+                isLoading={market.isPending}
+                leagueId={leagueId}
+              />
+            )}
+
+            {/* The market values are not waited for: the rows carry their fees
+                without them and grow the comparison when they land. Only the
+                history itself gates the list. */}
+            {transfers.isPending ? (
+              <SkeletonList rows={6} />
+            ) : transfers.isError ? (
+              <ErrorState
+                error={transfers.error}
+                onRetry={() => {
+                  void transfers.refetch()
+                }}
+              />
+            ) : (
+              <PlayerTransfersTab
+                transfers={transferRows}
+                viewerId={user?.id}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <PlayerTabBar basePath={basePath} active={tab} />
@@ -277,6 +319,38 @@ function withManagerFromRanking(
     ...ownership,
     managerName: ownership.managerName ?? manager.name,
     managerImage: ownership.managerImage ?? manager.image,
+  }
+}
+
+/**
+ * The same fill again, for the managers bidding on the viewer's own listing.
+ *
+ * `ofs` on the per-player endpoint carries ids and amounts and — on every
+ * response anybody has seen — no names at all, because the only offer it has
+ * ever been observed carrying is the viewer's own. The market payload's
+ * equivalent does name them, so a name may yet appear here; whichever arrives
+ * first wins, and the standings cover the gap.
+ */
+function withManagersOnOffers(
+  market: PlayerOfferState | undefined,
+  managers: Array<{ id: string; name: string; image?: string }> | undefined,
+): PlayerOfferState | undefined {
+  if (market === undefined) return undefined
+  if (managers === undefined || market.offers.length === 0) return market
+
+  const byId = new Map(managers.map((manager) => [manager.id, manager]))
+
+  return {
+    ...market,
+    offers: market.offers.map((offer) => {
+      const manager = byId.get(offer.managerId)
+      if (manager === undefined) return offer
+      return {
+        ...offer,
+        managerName: offer.managerName ?? manager.name,
+        managerImage: offer.managerImage ?? manager.image,
+      }
+    }),
   }
 }
 

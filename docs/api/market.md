@@ -10,10 +10,11 @@ is league-scoped, and the whole write surface was mapped by probing — an
 | Method | Path | Auth | Used |
 | ------ | ---- | ---- | ---- |
 | `GET` | [`/v4/leagues/{leagueId}/market`](#get-v4leaguesleagueidmarket) | Bearer | yes |
-| `POST` | [`/v4/leagues/{leagueId}/market`](#post-v4leaguesleagueidmarket) | Bearer | no |
-| `DELETE` | [`/v4/leagues/{leagueId}/market/{playerId}`](#delete-v4leaguesleagueidmarketplayerid) | Bearer | no |
+| `POST` | [`/v4/leagues/{leagueId}/market`](#post-v4leaguesleagueidmarket) | Bearer | yes |
+| `DELETE` | [`/v4/leagues/{leagueId}/market/{playerId}`](#delete-v4leaguesleagueidmarketplayerid) | Bearer | yes |
 | `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/offers`](#post-v4leaguesleagueidmarketplayeridoffers) | Bearer | yes |
 | `DELETE` | [`/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}`](#delete-v4leaguesleagueidmarketplayeridoffersofferid) | Bearer | yes |
+| `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/accept`](#post-v4leaguesleagueidmarketplayeridoffersofferidaccept) | Bearer | yes |
 | `POST` | [`/v4/leagues/{leagueId}/market/{playerId}/sell`](#post-v4leaguesleagueidmarketplayeridsell) | Bearer | yes |
 
 **Two naming conventions, on adjacent endpoints.** Listing a player takes the
@@ -108,9 +109,8 @@ response would be as stale as the response.
 
 ## `POST /v4/leagues/{leagueId}/market`
 
-Put one of your own players up **for auction**, at a price you set. **Unused** —
-the app sells straight back to Kickbase instead, via
-[`/market/{playerId}/sell`](#post-v4leaguesleagueidmarketplayeridsell).
+Put one of your own players up **for auction**, at a price you set. Fired by
+the [player page's seller panel](../pages/player-detail.md#what-the-owner-can-do).
 
 **Auth** Bearer.
 
@@ -118,7 +118,7 @@ the app sells straight back to Kickbase instead, via
 
 | Field | Type | Required | Description |
 | ----- | ---- | -------- | ----------- |
-| `pi` | string | yes | Player id |
+| `pi` | string | yes | Player id. One of **yours** — anybody else's answers `500 NotFound` |
 | `prc` | number | yes | Asking price, in € |
 
 ```json
@@ -127,18 +127,57 @@ the app sells straight back to Kickbase instead, via
 
 **Wire-style names.** `{ playerId, price }` answers `500 NotFound`.
 
-Whether the price is bounded — a floor at some fraction of market value, a
-ceiling — has not been probed (**✗**).
+### Response `200`
+
+`{}`. Nothing to read back — the listing shows up on
+[`GET /market`](#get-v4leaguesleagueidmarket) and, per player, on
+[`/players/{id}/transfers`](leagues.md#where-a-bid-of-your-own-can-be-read-back)
+as `iotm: true` with `prc` set.
+
+> ### Sending it again **re-prices** the listing.
+>
+> It is not refused and it does not stack: five prices in a row on one already
+> listed player, each read back on the next request. So there is no
+> withdraw-then-relist dance, and the app's *Preis ändern* is this same call.
+
+> ### The price is bounded by the integer, and by nothing else.
+>
+> Probed 2026-09-08 on a player worth 500 000, each value read back afterwards:
+>
+> | `prc` | Answer |
+> | ----- | ------ |
+> | `0`, `1`, `100`, `250 000` (half the value), `2 000 000 000` | `200`, listed at exactly that |
+> | `2 147 483 647` (`2³¹ − 1`) | `200` |
+> | `2 147 483 648`, `-1` | `500` `err: 5020` `InvalidMarketValue` |
+>
+> **None of the three bid rules apply here.** The 90 % floor and the 33 %
+> ceiling govern what may be *offered*; what a seller *asks* is his own
+> business, and a player may be listed at a euro. See
+> [`checkAskingPrice`](../../src/lib/offerRules.ts), which enforces the integer
+> bound and says nothing else.
+
+### Used by
+
+[`useListPlayer`](../../src/api/hooks/useMarketListing.ts) → the
+[player page](../pages/player-detail.md#what-the-owner-can-do).
 
 ---
 
 ## `DELETE /v4/leagues/{leagueId}/market/{playerId}`
 
-Withdraw your own listing. **Unused.** No request body.
+Withdraw your own listing. No request body; answers `200 {}`.
 
-The spec claims the call is **idempotent**, and that a repeat may answer either
-`204` or `404` depending on implementation — which is to say it does not know
-(**?**). Not probed.
+**The spec's guess that it might be idempotent is correct** — it wondered
+whether a repeat answers `204` or `404`. Probed 2026-09-08: a second `DELETE`
+answers `200 {}` again, so a double tap is harmless.
+
+Standing bids go with the listing. What Kickbase tells the bidders, if
+anything, has not been established (**?**).
+
+### Used by
+
+[`useWithdrawListing`](../../src/api/hooks/useMarketListing.ts) → *Vom Markt
+nehmen*, at the foot of the price dialog.
 
 ---
 
@@ -272,13 +311,37 @@ it.
 
 ---
 
-## Selling, the parts the app does not do
+## `POST /v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/accept`
 
-| Path | Purpose |
-| ---- | ------- |
-| `POST /v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/accept` | Accept a bid on your own listing |
-| `POST /v4/leagues/{leagueId}/market/{playerId}/offers/{offerId}/decline` | Decline one |
+Accept a bid on your own listing: the player goes to that manager, the money
+comes to you.
 
-Neither has been probed. Note that accepting requires knowing the other
-manager's `uoid`, which `ofs` only supplies for offers this account may see — on
-your own listing, presumably all of them (**?**).
+**Auth** Bearer. **Request body: none**, sent empty.
+
+| | |
+| --- | --- |
+| Verb | `POST`, and only `POST`: `OPTIONS` and `GET` both answer `405` with `allow: POST` |
+| Answers | `500 NotFound` for an offer id that does not exist. The success path is **unproven** — see below |
+
+`offerId` is `uoid` on the listing, which for a manager's own offer is their
+user id.
+
+> ### The success path has never been fired (**?**).
+>
+> Producing a real bid needs a second account bidding on the first, and
+> accepting cannot be undone — so what was established is the verb, and that a
+> made-up offer id hits the existence check rather than a validation error. If
+> Kickbase wants a body here, that is the first thing to try.
+>
+> This is why the dialog behind it is a
+> [two-second hold](../../src/components/ui/HoldButton.tsx), and why
+> `NotFound` is re-worded on the way out: the shared copy for that name is
+> about a league that no longer exists, and here it means the bid is gone.
+
+A **`/decline`** sibling exists on identical terms — `OPTIONS` answers
+`405 allow: POST`, a bogus id answers `500 NotFound` — and nothing calls it.
+
+### Used by
+
+[`useAcceptOffer`](../../src/api/hooks/useMarketListing.ts) → the
+[player page](../pages/player-detail.md#what-the-owner-can-do).

@@ -611,7 +611,7 @@ GET /v4/leagues/{leagueId}/players/{playerId}/transfers
 
 Note the spelling — `transfers`, *not* the `transferHistory` documented under
 [Players](players.md). It answers
-`{ n, oui, mv, prc, iotm, exs, uop, uoid, ofs[], iposl, ipl, plpim, ts }`,
+`{ n, oui, onm?, mv, prc, iotm, exs, uop, uoid, ofs[], iposl, ipl, plpim, ts }`,
 where **`uop` is what the viewer offered**, `uoid` their offer id (their own
 user id), and `ofs[]` the offers this account may see — `{ u, uoid, uop, st }`,
 `st` `0` on every one observed.
@@ -620,6 +620,25 @@ Verified on 2026-09-07 by placing an offer on a live listing and withdrawing it
 again: with no bid the response carries `ofs: []` and no `uop` at all, and with
 one both appear. The market listing shows the same pair, but only while the
 listing stands and only inside a list of twenty.
+
+**It is also the per-player read of one's own listing**, which is what the
+[player page's seller panel](../pages/player-detail.md#what-the-owner-can-do)
+runs on: `iotm` says whether he is up, `prc` at what — `0`, not absent, when he
+is not — and `mv` comes even for a player nobody has listed. Probed 2026-09-08
+by listing a player of the test account's and withdrawing him again:
+
+- **`onm`, the owner's display name, appears with the listing** and is gone
+  again with it. `oui` is there either way.
+- **No `exs`.** A manager's listing has no countdown; it stands until it is
+  withdrawn or a bid is accepted, which the market payload says too.
+- `ofs` stayed `[]` throughout, because no second account bid.
+
+> **That `ofs` carries *other* managers' bids on your own listing is the
+> documented reading, not a probed one** (**?**). The market payload's `ofs`
+> follows the same "offers this account may see" rule and is where the phrasing
+> comes from; producing a real one here costs a second account bidding. The
+> seller panel is built on it and renders an empty list as "none Kickbase is
+> showing you".
 
 > **Whether a *losing* bid survives the sale is unresolved** (**?**). Every
 > completed transfer probed answered `ofs: []` — but the account had bid on

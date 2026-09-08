@@ -79,14 +79,26 @@ export const endpoints = {
     /**
      * Transfer market listings. `GET` reads them; `POST` puts one of your own
      * players up, body `{ pi, prc }` — wire-style names, `{ playerId, price }`
-     * answers 500 `NotFound`.
+     * answers 500 `NotFound`, and so does a player somebody else owns.
+     *
+     * **A second `POST` re-prices the standing listing** rather than being
+     * refused, which is why the price dialog has no separate "change price"
+     * call. Answers `{}` either way.
+     *
+     * `prc` is bounded only by the wire: `0 … 2_147_483_647` are all taken,
+     * and anything negative or past that answers 500 `InvalidMarketValue`
+     * (`err: 5020`). **The bid rules do not apply here** — the 90 % floor and
+     * the 33 % ceiling govern what may be *offered*, not what may be *asked*.
      *
      * The rest of the surface was read off the `Allow` header an `OPTIONS`
      * request returns: a wrong verb answers 405 and names the right one. See
      * [docs/pages/market.md](../../docs/pages/market.md).
      */
     market: (leagueId: string) => `/v4/leagues/${leagueId}/market`,
-    /** One listing. `DELETE` only — withdraws your own. */
+    /**
+     * One listing. `DELETE` only — withdraws your own, and **is idempotent**:
+     * a second one answers `200 {}` again rather than 404. Probed 2026-09-08.
+     */
     marketListing: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/market/${playerId}`,
     /**
@@ -119,6 +131,23 @@ export const endpoints = {
     /** One offer. `DELETE` withdraws it; the id is `uoid` on the listing. */
     marketOffer: (leagueId: string, playerId: string, offerId: string) =>
       `/v4/leagues/${leagueId}/market/${playerId}/offers/${offerId}`,
+    /**
+     * **Accept a bid on your own listing** — the sale goes through at the
+     * offered price and the player changes hands.
+     *
+     * `POST`, and only `POST`: `OPTIONS` answers `405 allow: POST`, as does
+     * `GET`. A `/decline` sibling exists on exactly the same terms and is not
+     * used — declining is the same outcome as leaving the offer standing until
+     * the listing is withdrawn.
+     *
+     * **Never fired against a real offer** (**?**): producing one costs a
+     * second account bidding on this one, and accepting cannot be undone. An
+     * offer id that does not exist answers 500 `NotFound`, which is the
+     * ownership/existence check — the same wall {@link marketSell} stops at,
+     * and the reason the dialog behind this is a two-second hold.
+     */
+    marketOfferAccept: (leagueId: string, playerId: string, offerId: string) =>
+      `/v4/leagues/${leagueId}/market/${playerId}/offers/${offerId}/accept`,
     /**
      * One player, in the context of a league.
      *
