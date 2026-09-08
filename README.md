@@ -53,6 +53,29 @@ docker build --build-arg VITE_API_BASE_URL=https://api.example.com -t litbase:st
 allowlist [.dockerignore](.dockerignore) that keeps `.env` and
 `kickbase-api.md` out of image layers, and what to expect when hosting it.
 
+## Letting Claude work unattended
+
+```bash
+cp .env.example .env               # once — the Kickbase token the agent probes with
+scripts/run-agent                  # interactive session in the container
+scripts/run-agent "add a dark mode"
+scripts/run-agent -p "fix the lint" # headless: runs, prints, exits
+scripts/run-agent --build          # rebuild the image (pulls the current Claude)
+```
+
+[scripts/run-agent](scripts/run-agent) starts a throwaway container from
+[scripts/agent/Dockerfile](scripts/agent/Dockerfile) — Node 22, Python 3, git,
+Claude Code — with this repo bind-mounted at its host path, your `~/.claude`
+login and memory shared in, `.env` injected, and Claude running with
+`--dangerously-skip-permissions`. The one gate left is the PreToolUse hook
+baked into the image, [scripts/agent/guard.py](scripts/agent/guard.py): it
+refuses `git push` and every git command that throws work away (branch and tag
+deletion, `reset --hard`, `checkout --`/`restore`, `clean`, `stash drop`,
+`rm`, `commit --amend`, reflog pruning). The container also carries no ssh key
+and no git credential, so a push has nothing to authenticate with even if the
+hook were sidestepped. Everything else — files, npm, curl, commits — runs
+without asking.
+
 ## Documentation
 
 **[docs/](docs/README.md)** is the index: infrastructure, the API layer,
