@@ -15,6 +15,7 @@ import { useActiveLeague } from '@/league/useActiveLeague'
 import { nowMs } from '@/lib/clock'
 import { COUNTDOWN_SECONDS_FROM, kickoff, money } from '@/lib/format'
 import { maximumOffer } from '@/lib/offerRules'
+import { useHashModal } from '@/lib/useHashModal'
 
 /**
  * How often the countdowns are redrawn, at rest.
@@ -84,12 +85,19 @@ export function MarketPage() {
     soonestExpiry - nowMs() < FAST_FROM_SECONDS * 1000
   const now = useTick(isClosing ? TICK_FAST_MS : TICK_MS)
 
-  // The id, not the listing: the market refetches every half minute, and the
-  // dialog has to keep showing the *current* offer state of the player it was
-  // opened for rather than a snapshot from whenever it was tapped.
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected =
-    listings?.find((listing) => listing.id === selectedId) ?? null
+  /**
+   * Which listing's bid dialog is open — `#offer:<playerId>`, so the back
+   * gesture closes it and a refresh under it reopens it on the same player.
+   * See [`useHashModal`](../lib/useHashModal.ts).
+   *
+   * The hash carries the id, not the listing: the market refetches every half
+   * minute, and the dialog has to keep showing the *current* offer state of
+   * the player it was opened for rather than a snapshot from whenever it was
+   * tapped. A player whose listing has since expired is no longer in the list,
+   * and the dialog then stays shut rather than bidding into a closed auction.
+   */
+  const offer = useHashModal('offer')
+  const selected = listings?.find((listing) => listing.id === offer.id) ?? null
 
   // What every standing bid would cost together, if every one of them won.
   const committed = (listings ?? []).reduce(
@@ -193,7 +201,7 @@ export function MarketPage() {
                 marketValueChange={marketValueChanges.get(entry.listing.id)}
                 now={now}
                 onOffer={() => {
-                  setSelectedId(entry.listing.id)
+                  offer.open(entry.listing.id)
                 }}
               />
             ),
@@ -219,9 +227,7 @@ export function MarketPage() {
             committedElsewhere: committed - (selected.ownOffer ?? 0),
           }}
           marketValueChange={marketValueChanges.get(selected.id)}
-          onClose={() => {
-            setSelectedId(null)
-          }}
+          onClose={offer.close}
         />
       )}
     </div>

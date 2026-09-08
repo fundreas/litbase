@@ -33,6 +33,7 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
 import { money } from '@/lib/format'
+import { useHashModal } from '@/lib/useHashModal'
 
 /** View value ⇄ route segment. Deliberately identical strings. */
 const VIEWS = { squad: 'squad', lineup: 'lineup', live: 'live' } as const
@@ -86,7 +87,17 @@ export function SquadPage() {
   const schedule = useSeasonSchedule(competitionId)
   const live = liveMatchday(schedule.data)
   // Above the early returns below, as every hook here has to be.
-  const [isLegendOpen, setIsLegendOpen] = useState(false)
+  /**
+   * The legend — `#legend`, so the back gesture closes it rather than leaving
+   * the page, and a refresh under it puts it back. It needs no subject: there
+   * is one legend and it explains the marks the page is already showing. See
+   * [`useHashModal`](../lib/useHashModal.ts).
+   *
+   * The sale calculator and its dialog stay on `useState` below: they are
+   * asked about a selection, and a selection is exactly what a refresh throws
+   * away.
+   */
+  const legend = useHashModal('legend')
   /**
    * The sale calculator: `null` when off, otherwise the ids marked for sale.
    *
@@ -188,7 +199,7 @@ export function SquadPage() {
   )
 
   const showLegend = () => {
-    setIsLegendOpen(true)
+    legend.open()
   }
 
   const toggleForSale = (playerId: string) => {
@@ -293,8 +304,8 @@ export function SquadPage() {
       )}
 
       <SquadLegendDialog
-        open={isLegendOpen}
-        onOpenChange={setIsLegendOpen}
+        open={legend.isOpen}
+        onOpenChange={legend.setOpen}
         showShirtRail={view === VIEWS.squad}
       />
 

@@ -1,5 +1,5 @@
 import { House, Info, PlaneTakeoff, Shirt, Timer } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { breakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
@@ -27,6 +27,7 @@ import {
   points as formatPoints,
   weekdayDate,
 } from '@/lib/format'
+import { useHashModal } from '@/lib/useHashModal'
 
 /**
  * The player at a glance: what they cost, what they score, what they have
@@ -60,7 +61,18 @@ export function PlayerDetailsTab({
   /** For the match-breakdown dialog a played row opens, and its link out. */
   leagueId: string | undefined
 }) {
-  const [openMatch, setOpenMatch] = useState<PlayerMatch | undefined>(undefined)
+  /**
+   * Which match's breakdown is open — `#match:<matchId>`, so a refresh reopens
+   * it and the back gesture closes it. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   *
+   * Resolved against the fixtures this tab already has, so a hash naming a
+   * match the player has no row for simply opens nothing.
+   */
+  const breakdown = useHashModal('match')
+  const openMatch = [...(matchesByDay?.values() ?? [])].find(
+    (match) => match.matchId === breakdown.id,
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -157,7 +169,7 @@ export function PlayerDetailsTab({
                         teams={teams}
                         pointsScale={pointsScale}
                         onOpen={() => {
-                          setOpenMatch(match)
+                          breakdown.open(match.matchId)
                         }}
                       />
                     )}
@@ -184,9 +196,7 @@ export function PlayerDetailsTab({
               ? undefined
               : `/leagues/${leagueId}/matchday/${openMatch.matchId}`
           }
-          onClose={() => {
-            setOpenMatch(undefined)
-          }}
+          onClose={breakdown.close}
         />
       )}
 

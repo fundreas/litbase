@@ -18,10 +18,15 @@ import { cn } from '@/lib/cn'
  * Full-size is a way of *looking* at the thing already on screen, not a
  * different place — there is nothing here that is not on the page behind it, and
  * closing it must land you exactly where you were, mid-scroll and mid-tab. A
- * route would have to reproduce the page's whole state to come back to it, and
- * would put a screen in the history stack that the back gesture then has to
- * spend itself on. This way Escape, the back gesture and the ✗ all do the one
- * obvious thing.
+ * route would have to reproduce the page's whole state to come back to it; a
+ * dialog leaves the page mounted underneath, untouched.
+ *
+ * It is addressable all the same: the pages that raise it hold `open` in the
+ * URL hash — `#fullscreen`, via
+ * [`useHashModal`](../../lib/useHashModal.ts) — so the back gesture closes it
+ * rather than leaving the pitch, a refresh comes back into it, and Escape and
+ * the ✗ do what they always did. A hash is not a route: nothing remounts and
+ * no query is refetched to get back out of it.
  *
  * ## The bar replaces the app's header
  *

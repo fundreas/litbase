@@ -3,11 +3,7 @@ import { useState } from 'react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { breakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
-import {
-  pointsScaleFor,
-  type PlayerMatch,
-  type PlayerSeason,
-} from '@/api/models'
+import { pointsScaleFor, type PlayerSeason } from '@/api/models'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { PlayerMatchRow } from '@/components/player/PlayerMatchRow'
 import { Drawer } from '@/components/ui/Drawer'
@@ -15,6 +11,7 @@ import { StepButton } from '@/components/ui/StepButton'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { points as formatPoints } from '@/lib/format'
+import { useHashModal } from '@/lib/useHashModal'
 
 /**
  * Every match of a season, from this player's side of it.
@@ -57,7 +54,17 @@ export function PlayerPerformanceTab({
   leagueId: string | undefined
 }) {
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
-  const [openMatch, setOpenMatch] = useState<PlayerMatch | undefined>(undefined)
+  /**
+   * Which match's breakdown is open — `#match:<matchId>`, so a refresh reopens
+   * it and the back gesture closes it. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   *
+   * Looked up in the **selected** season only, which the URL does not carry: a
+   * season is a preference like the Kader's layout, not a place. So a hash
+   * kept from a season nobody has picked back up opens nothing, which is the
+   * same answer this tab gives for any match it cannot find a row for.
+   */
+  const breakdown = useHashModal('match')
   // Across every season, so switching seasons does not rescale the bars.
   const pointsScale = pointsScaleFor(seasons)
 
@@ -80,6 +87,10 @@ export function PlayerPerformanceTab({
   // match page can resolve, and so the only one whose breakdown header links.
   const isRunningSeason = selected.id === seasons[0]?.id
 
+  const openMatch = selected.matches.find(
+    (match) => match.matchId === breakdown.id,
+  )
+
   return (
     <div className="flex flex-col gap-3">
       <SeasonPicker
@@ -96,7 +107,7 @@ export function PlayerPerformanceTab({
               teams={teams}
               pointsScale={pointsScale}
               onOpen={() => {
-                setOpenMatch(match)
+                breakdown.open(match.matchId)
               }}
             />
           </li>
@@ -118,9 +129,7 @@ export function PlayerPerformanceTab({
               ? `/leagues/${leagueId}/matchday/${openMatch.matchId}`
               : undefined
           }
-          onClose={() => {
-            setOpenMatch(undefined)
-          }}
+          onClose={breakdown.close}
         />
       )}
     </div>

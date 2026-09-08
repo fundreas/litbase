@@ -177,9 +177,13 @@ export function PlayerMatchEventsDialog({
                 {header}
               </div>
             ) : (
+              // `replace`, and nothing that closes the sheet: it is the hash
+              // on the page's URL, so leaving the page closes it — and the
+              // entry it lives in is better spent on the match than on a
+              // sheet to come back through. See `useHashModal`.
               <Link
                 to={to}
-                onClick={onClose}
+                replace
                 title={`${spoken} – Spiel öffnen`}
                 className={cn(
                   '-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1',

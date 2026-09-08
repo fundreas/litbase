@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import { breakdownFixtureFrom } from '@/api/hooks/usePlayerMatchEvents'
@@ -39,6 +39,7 @@ import {
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
+import { useHashModal } from '@/lib/useHashModal'
 
 /** Which half of the pitch a team is drawn on. */
 type Side = 'home' | 'away'
@@ -189,10 +190,28 @@ export function MatchLineupTab({
   fixtures: Map<string, MatchdayFixture> | undefined
 }) {
   const { ref, box } = usePitchBox()
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [openPlayer, setOpenPlayer] = useState<MatchPlayer | undefined>(
-    undefined,
+  /**
+   * Both of this tab's modals live in the URL — `#fullscreen`, and
+   * `#player:<id>` for a portrait's breakdown, stacking as
+   * `#fullscreen/player:4711` when the sheet is opened from the big pitch, as
+   * on the [duel pitch](../duels/DuelLineupTab.tsx). The back gesture peels
+   * them off one at a time, and a refresh lands back where the reader was. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   */
+  const fullscreen = useHashModal('fullscreen')
+  const breakdown = useHashModal('player')
+
+  /*
+   * The tapped portrait, found back among the 22 on the pitch. The benches
+   * open nothing — they are rows of names — so a hash naming one of those
+   * opens nothing either.
+   */
+  const openPlayer = [...home.starters, ...away.starters].find(
+    (player) => player.id === breakdown.id,
   )
+  const openBreakdown = (player: MatchPlayer) => {
+    breakdown.open(player.id)
+  }
 
   /**
    * The busiest band across **both** halves — five defenders on either side
@@ -225,17 +244,19 @@ export function MatchLineupTab({
    * it comes off and the pitch takes the viewport exactly.
    */
   const pitch = (
-    <Pitch className={isFullscreen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}>
+    <Pitch
+      className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}
+    >
       <SideLabel lineup={home} side="home" />
 
       {/* The corner the two side labels leave free. Gone once full screen:
           there is nothing further to expand into, and the bar's ✗ is the way
           back. */}
-      {!isFullscreen && (
+      {!fullscreen.isOpen && (
         <FullscreenButton
           label="Aufstellung im Vollbild"
           onClick={() => {
-            setIsFullscreen(true)
+            fullscreen.open()
           }}
         />
       )}
@@ -249,7 +270,7 @@ export function MatchLineupTab({
                 players={home.starters.filter((p) => p.position === position)}
                 metrics={metrics}
                 side="home"
-                onOpen={setOpenPlayer}
+                onOpen={openBreakdown}
               />
             ))}
             {ROW_ORDER.map((position) => (
@@ -258,7 +279,7 @@ export function MatchLineupTab({
                 players={away.starters.filter((p) => p.position === position)}
                 metrics={metrics}
                 side="away"
-                onOpen={setOpenPlayer}
+                onOpen={openBreakdown}
               />
             ))}
           </>
@@ -292,20 +313,18 @@ export function MatchLineupTab({
         playerName={openPlayer.name}
         leagueId={leagueId}
         to={`/leagues/${leagueId}/players/${openPlayer.id}`}
-        onClose={() => {
-          setOpenPlayer(undefined)
-        }}
+        onClose={breakdown.close}
       />
     )
 
-  if (isFullscreen) {
+  if (fullscreen.isOpen) {
     /* The benches stay behind, as on the duel pitch: they are rows of names,
        which the page underneath already does well, and this screen exists to
        make the grass bigger. */
     return (
       <FullscreenPane
         open
-        onOpenChange={setIsFullscreen}
+        onOpenChange={fullscreen.setOpen}
         title="Aufstellung im Vollbild"
         summary={summary}
       >

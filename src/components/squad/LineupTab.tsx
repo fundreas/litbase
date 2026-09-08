@@ -1,5 +1,5 @@
 import { AlertTriangle, Armchair, Info, UserMinus } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 
 import {
@@ -38,6 +38,7 @@ import {
   LINEUP_SIZE,
   missingAtPosition,
 } from '@/lib/lineup'
+import { useHashModal } from '@/lib/useHashModal'
 
 /** Bench grouping, and the order player ids are sent to the API in. */
 const BENCH_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
@@ -98,7 +99,15 @@ export function LineupTab({
    */
   const drag = useLineupDrag({ items: lineup, onReorder: editor.reorder })
 
-  const [isFormationsOpen, setIsFormationsOpen] = useState(false)
+  /**
+   * The formation reference — `#formations`, so the back gesture closes the
+   * sheet instead of leaving the pitch, and a refresh under it puts it back.
+   * See [`useHashModal`](../../lib/useHashModal.ts).
+   *
+   * The swap dialog the editor raises stays local: it is a question about the
+   * player just tapped, which no URL carries.
+   */
+  const formations = useHashModal('formations')
 
   // The pitch is measured rather than guessed at, so the avatars scale with
   // whatever height the flex chain actually hands it.
@@ -197,7 +206,7 @@ export function LineupTab({
         <button
           type="button"
           onClick={() => {
-            setIsFormationsOpen(true)
+            formations.open()
           }}
           title="Alle Formationen anzeigen"
           aria-label={`Formation ${formationLabel(formation)} – alle Formationen anzeigen`}
@@ -213,8 +222,8 @@ export function LineupTab({
       </div>
 
       <FormationsDialog
-        open={isFormationsOpen}
-        onOpenChange={setIsFormationsOpen}
+        open={formations.isOpen}
+        onOpenChange={formations.setOpen}
         current={formation}
       />
 

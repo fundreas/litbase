@@ -11,7 +11,7 @@ import {
   UserPlus,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import { useAchievement } from '@/api/hooks/useAchievements'
@@ -40,6 +40,7 @@ import {
   points,
   relativeTime,
 } from '@/lib/format'
+import { useHashModal } from '@/lib/useHashModal'
 
 /**
  * **The league's event log** — Kickbase's *Aktivitäten* tab, and the whole
@@ -82,7 +83,17 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
   const { user } = useAuth()
   const now = nowMs()
 
-  const [openActivity, setOpenActivity] = useState<LeagueActivity>()
+  /**
+   * Which entry's sheet is open — `#activity:<id>`, so a refresh reopens it
+   * and the back gesture closes it. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   *
+   * The id is resolved against the entries **already loaded**. A link to
+   * something far enough down the feed to sit on a page nobody has scrolled to
+   * yet therefore opens the feed and no sheet, rather than the feed paging
+   * itself forward hunting for one entry.
+   */
+  const sheet = useHashModal('activity')
 
   const managersByName = useMemo(
     () =>
@@ -98,6 +109,11 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
   const activities = (query.data ?? []).filter(
     (activity) => activity.kind !== 'unknown' && activity.kind !== 'listed',
   )
+
+  const openActivity = activities.find((activity) => activity.id === sheet.id)
+  const openSheet = (activity: LeagueActivity) => {
+    sheet.open(activity.id)
+  }
 
   return (
     <Card>
@@ -134,7 +150,7 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
                 leagueId={leagueId}
                 now={now}
                 managersByName={managersByName}
-                onOpen={setOpenActivity}
+                onOpen={openSheet}
               />
             ))}
           </ul>
@@ -154,9 +170,7 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
           leagueId={leagueId}
           activity={openActivity}
           manager={managersByName.get(openActivity.managerName)}
-          onClose={() => {
-            setOpenActivity(undefined)
-          }}
+          onClose={sheet.close}
         />
       )}
       {openActivity?.kind === 'achievement' && (
@@ -165,9 +179,7 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
           achievementType={openActivity.achievementType}
           title={openActivity.title}
           description={openActivity.description}
-          onClose={() => {
-            setOpenActivity(undefined)
-          }}
+          onClose={sheet.close}
         />
       )}
       {openActivity?.kind === 'matchday' && (
@@ -177,9 +189,7 @@ export function ActivityFeed({ leagueId }: { leagueId: string }) {
           label={openActivity.label}
           viewerId={user?.id}
           isDuelMode={ranking.data?.isDuelMode === true}
-          onClose={() => {
-            setOpenActivity(undefined)
-          }}
+          onClose={sheet.close}
         />
       )}
     </Card>

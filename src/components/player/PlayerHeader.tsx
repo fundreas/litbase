@@ -1,5 +1,4 @@
 import { ChevronRight, House, PlaneTakeoff, Timer } from 'lucide-react'
-import { useState } from 'react'
 import { Link } from 'react-router'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
@@ -22,6 +21,7 @@ import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
 import { kickoff as formatKickoff, points as formatPoints } from '@/lib/format'
+import { useHashModal } from '@/lib/useHashModal'
 
 /**
  * Who this page is about — shown above all three tabs.
@@ -207,7 +207,12 @@ function ProbabilityChip({
   label: string
   player: PlayerDetail
 }) {
-  const [isOpen, setIsOpen] = useState(false)
+  /**
+   * `#poster` — one poster per page, so the layer needs no subject, and a
+   * refresh or a shared link opens the eleven the reader was looking at. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   */
+  const dialog = useHashModal('poster')
   const poster = player.lineupPoster
 
   const content = (
@@ -229,7 +234,7 @@ function ProbabilityChip({
       <button
         type="button"
         onClick={() => {
-          setIsOpen(true)
+          dialog.open()
         }}
         aria-haspopup="dialog"
         title="Voraussichtliche Aufstellung ansehen"
@@ -245,8 +250,8 @@ function ProbabilityChip({
       </button>
 
       <LineupPosterDialog
-        open={isOpen}
-        onOpenChange={setIsOpen}
+        open={dialog.isOpen}
+        onOpenChange={dialog.setOpen}
         poster={poster}
         teamName={player.teamName}
         source={player.probabilitySource}

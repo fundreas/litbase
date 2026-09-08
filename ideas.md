@@ -32,8 +32,3 @@
   - in landscape mode (or wide screen) rotate the field and increase the size
 
 # bake build version/time into code show in user dropdown
-
-# modals with hashtag in URL
-  - add hashtag+modal-details-id to URL
-  - when refreshing we see the modal already open
-  - when going back, it should always just close the modal by removing the hashtag from URL

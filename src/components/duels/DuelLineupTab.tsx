@@ -32,7 +32,8 @@ import {
   FullscreenPane,
 } from '@/components/ui/FullscreenPane'
 import { cn } from '@/lib/cn'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useHashModal } from '@/lib/useHashModal'
+import { useMemo, type ReactNode } from 'react'
 
 /**
  * Which half of the pitch a player belongs to, and therefore how they are
@@ -94,10 +95,28 @@ export function DuelLineupTab({
 }) {
   const [top, bottom] = rosters
   const { ref, box } = usePitchBox()
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [openPlayer, setOpenPlayer] = useState<DuelPlayer | undefined>(
-    undefined,
+  /**
+   * Both of this tab's modals live in the URL — `#fullscreen`, and
+   * `#player:<id>` for a portrait's breakdown, stacking as
+   * `#fullscreen/player:4711` when the sheet is opened from the big pitch. So
+   * the back gesture peels them off one at a time in the order they went on,
+   * and a refresh lands back on the pitch, full screen and all. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   */
+  const fullscreen = useHashModal('fullscreen')
+  const breakdown = useHashModal('player')
+
+  /*
+   * The tapped portrait, found back among the 22 on the pitch. The benches
+   * carry no breakdown — they are rows of names — so a hash naming one of
+   * those, or a player since substituted out of the payload, opens nothing.
+   */
+  const openPlayer = [...top.lineup, ...bottom.lineup].find(
+    (player) => player.id === breakdown.id,
   )
+  const openBreakdown = (player: DuelPlayer) => {
+    breakdown.open(player.id)
+  }
 
   /**
    * The busiest band across **both** halves — five defenders on either side
@@ -127,7 +146,9 @@ export function DuelLineupTab({
    * room for, so the floor comes off and the pitch takes the viewport exactly.
    */
   const pitch = (
-    <Pitch className={isFullscreen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}>
+    <Pitch
+      className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}
+    >
       {/* Name plates in the corners rather than a legend: the header pairs
           the managers left and right, the pitch stacks them top and bottom,
           and something has to bridge those two arrangements. */}
@@ -140,11 +161,11 @@ export function DuelLineupTab({
       {/* The one corner the two name plates leave free. Gone once the pitch is
           full screen: there is nothing further to expand into, and the bar's ✗
           is the way back. */}
-      {!isFullscreen && (
+      {!fullscreen.isOpen && (
         <FullscreenButton
           label="Aufstellung im Vollbild"
           onClick={() => {
-            setIsFullscreen(true)
+            fullscreen.open()
           }}
         />
       )}
@@ -156,7 +177,7 @@ export function DuelLineupTab({
             players={top.lineup.filter((p) => p.position === position)}
             metrics={metrics}
             side="top"
-            onOpen={setOpenPlayer}
+            onOpen={openBreakdown}
           />
         ))}
         {ROW_ORDER.map((position) => (
@@ -165,7 +186,7 @@ export function DuelLineupTab({
             players={bottom.lineup.filter((p) => p.position === position)}
             metrics={metrics}
             side="bottom"
-            onOpen={setOpenPlayer}
+            onOpen={openBreakdown}
           />
         ))}
       </div>
@@ -204,22 +225,20 @@ export function DuelLineupTab({
               ? undefined
               : `/leagues/${leagueId}/players/${openPlayer.id}`
           }
-          onClose={() => {
-            setOpenPlayer(undefined)
-          }}
+          onClose={breakdown.close}
         />
       )}
     </>
   )
 
-  if (isFullscreen) {
+  if (fullscreen.isOpen) {
     /* The benches stay behind. They are rows of names, which is what the page
        underneath is for; this screen exists to make the *grass* bigger, and
        eight bands plus two columns would put us back where we started. */
     return (
       <FullscreenPane
         open
-        onOpenChange={setIsFullscreen}
+        onOpenChange={fullscreen.setOpen}
         title="Aufstellung im Vollbild"
         summary={summary}
       >

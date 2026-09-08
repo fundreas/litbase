@@ -1,5 +1,4 @@
 import { House, PlaneTakeoff } from 'lucide-react'
-import { useState } from 'react'
 import { Link } from 'react-router'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
@@ -19,6 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { cn } from '@/lib/cn'
 import { kickoff as kickoffLabel, minute as minuteLabel } from '@/lib/format'
+import { useHashModal } from '@/lib/useHashModal'
 
 /**
  * Which club this is, where it stands, and what it is doing right now — above
@@ -183,7 +183,13 @@ function FixtureStrip({
   poster: TeamPoster | undefined
   leagueId: string
 }) {
-  const [isPosterOpen, setIsPosterOpen] = useState(false)
+  /**
+   * `#poster` — the same layer the [player header](../player/PlayerHeader.tsx)
+   * uses, on a page that has one poster too, so a refresh or a shared link
+   * opens the eleven the reader was looking at. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   */
+  const posterDialog = useHashModal('poster')
 
   const state = fixtureState(fixture)
   const isRunning = state === 'running'
@@ -304,7 +310,7 @@ function FixtureStrip({
       <button
         type="button"
         onClick={() => {
-          setIsPosterOpen(true)
+          posterDialog.open()
         }}
         aria-haspopup="dialog"
         title="Voraussichtliche Aufstellung ansehen"
@@ -314,8 +320,8 @@ function FixtureStrip({
       </button>
 
       <LineupPosterDialog
-        open={isPosterOpen}
-        onOpenChange={setIsPosterOpen}
+        open={posterDialog.isOpen}
+        onOpenChange={posterDialog.setOpen}
         poster={poster.image}
         teamName={teamName}
         sourceLogo={poster.sourceLogo}

@@ -45,6 +45,7 @@ import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
 import { emptySlotPenalty, LINEUP_SIZE } from '@/lib/lineup'
 import { readString, writeString } from '@/lib/storage'
+import { useHashModal } from '@/lib/useHashModal'
 
 /** Which of the two live layouts is on screen. */
 type LiveView = 'pitch' | 'list'
@@ -114,9 +115,15 @@ export function LiveTab({
   day: number
 }) {
   const [view, setView] = useLiveView()
-  const [openPlayer, setOpenPlayer] = useState<DuelPlayer | undefined>(
-    undefined,
-  )
+  /**
+   * Which portrait's breakdown is open — `#player:<id>`, the same layer the
+   * [match](../matchday/MatchLineupTab.tsx) and
+   * [duel](../duels/DuelLineupTab.tsx) pitches use. So the back gesture
+   * closes the sheet instead of leaving a running matchday, and a refresh
+   * — this view refetches every minute anyway — puts it back. See
+   * [`useHashModal`](../../lib/useHashModal.ts).
+   */
+  const breakdown = useHashModal('player')
   const fixtures = useMatchdayFixtures(competitionId, day)
 
   /**
@@ -258,6 +265,9 @@ export function LiveTab({
 
   // Straight from whichever source's own split, in its own order.
   const lineup = roster.fielded.map((player) => toPlayer(player, true))
+  // The tapped portrait, found back in the eleven on the pitch. A hash naming
+  // a player no longer fielded — sold, or benched since — opens nothing.
+  const openPlayer = lineup.find((player) => player.id === breakdown.id)
   const ranked = [
     ...lineup,
     ...roster.bench.map((player) => toPlayer(player, false)),
@@ -294,7 +304,12 @@ export function LiveTab({
       />
 
       {view === 'pitch' ? (
-        <LivePitch lineup={lineup} onOpen={setOpenPlayer} />
+        <LivePitch
+          lineup={lineup}
+          onOpen={(player) => {
+            breakdown.open(player.id)
+          }}
+        />
       ) : (
         <LiveRanking players={ranked} leagueId={leagueId} />
       )}
@@ -317,9 +332,7 @@ export function LiveTab({
           playerName={openPlayer.name}
           leagueId={leagueId}
           to={`/leagues/${leagueId}/matchday/${openPlayer.fixture.matchId}`}
-          onClose={() => {
-            setOpenPlayer(undefined)
-          }}
+          onClose={breakdown.close}
         />
       )}
     </div>

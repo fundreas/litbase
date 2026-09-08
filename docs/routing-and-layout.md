@@ -51,6 +51,71 @@ useless, and a link shared between managers opens the wrong league. With it in
 the path, all three resolve correctly, and the context is *derived* from the
 URL rather than the other way round.
 
+## Modals in the URL
+
+The same argument one level down: an open sheet is part of where you are, so it
+belongs in the address rather than in a component's `useState`.
+[`useHashModal`](../src/lib/useHashModal.ts) keeps it in the **hash** —
+`/leagues/1/events#activity:9f2c` — and reads `isOpen` back out of it instead
+of remembering it:
+
+```tsx
+const sheet = useHashModal('activity')       // #activity or #activity:<id>
+
+sheet.open(activity.id) //  push  → the sheet opens
+sheet.isOpen            //  read  → is this modal's layer in the hash
+sheet.id                //  read  → what it was opened for, decoded
+sheet.close()           //  pop   → back to the URL it was opened from
+<Dialog open={sheet.isOpen} onOpenChange={sheet.setOpen} />
+```
+
+Three things follow that a boolean cannot give:
+
+- a **refresh** — or a link sent to someone else — reopens the sheet the reader
+  was in, however deep;
+- the **back gesture** dismisses what is on top of the page instead of leaving
+  the page, which is what it means everywhere else on a phone;
+- and the thing being looked at is **named**, so "the transfer I was just
+  reading" has an address.
+
+The page does not remount on a hash change, so scroll position, the tab in view
+and the query cache all survive in both directions.
+
+**The hash is a stack.** `#fullscreen/player:4711` is the full-screen pitch
+with a player's breakdown on top of it — the one case where a sheet opens over
+another one. Each layer is `key` or `key:id`, outermost first; opening pushes a
+layer and closing drops it *and anything above it*. Where the hook pushed the
+entry the app is on, closing goes **back** rather than replacing, so a back
+press after closing does not spend itself repainting the same screen. Where it
+did not — a refresh, a shared link — the hash is dropped in place instead.
+
+A link *inside* a hash modal needs no `onClose`: it changes the URL, the hash
+goes with it, and the modal closes by construction. Those links carry `replace`
+so the destination swallows the modal's entry — otherwise the way back out of a
+player's page leads through the sheet it was opened from.
+
+| Hash | Where |
+| ---- | ----- |
+| `#activity:<id>` | [Events](pages/events.md) — the transfer, achievement and matchday sheets |
+| `#match:<matchId>` | [Player](pages/player-detail.md) — a match's points breakdown |
+| `#player:<playerId>` | The breakdown behind a portrait on the [squad's live](pages/squad.md#live-tab), [duel](pages/duels.md) and [match](pages/match-detail.md) pitches |
+| `#fullscreen` | The duel and match pitches, full screen |
+| `#poster` | The projected eleven, on a [player](pages/player-detail.md) and on a [club](pages/team.md) |
+| `#legend`, `#formations` | The [squad](pages/squad.md)'s symbol legend and formation reference |
+| `#offer:<playerId>` | [Transfermarkt](pages/market.md) — the bid dialog |
+
+**Two kinds of modal are deliberately left on `useState`**, and both fail the
+one test that matters — whatever the modal shows has to be recoverable from the
+URL, because a refresh will reopen it with nothing but an id in hand:
+
+- the **confirmations** — a sale, a swap, taking a player off the pitch,
+  joining a league — are asked about a selection that a refresh throws away,
+  and re-asking a question about a selection nobody can see is worse than not
+  restoring it;
+- the **pickers** — matchday, season, and the nav drawer — exist to change
+  where you are, and their way out is a choice rather than a dismissal. Their
+  selection navigates, and a close racing that navigation would undo it.
+
 ## Landing without a league
 
 Three components cooperate so the user never has to choose a league when there

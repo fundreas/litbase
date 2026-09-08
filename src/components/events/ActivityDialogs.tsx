@@ -77,10 +77,15 @@ export function TransferDialog({
           row at the foot of the sheet used to carry it, which put the way out
           as far as possible from the thing it was about and spent a line saying
           what a tap on a portrait says for free. Everywhere else in the app a
-          player's picture is how you get to a player, so it is here too. */}
+          player's picture is how you get to a player, so it is here too.
+
+          Nothing here closes the sheet: it *is* the hash on this page's URL,
+          so navigating away closes it by construction. `replace` spends its
+          entry on the player, so the way back from him is the feed rather than
+          the sheet he was opened from. */}
       <Link
         to={`/leagues/${leagueId}/players/${activity.playerId}`}
-        onClick={onClose}
+        replace
         title={`${activity.playerName} – Spielerseite öffnen`}
         className={cn(
           '-m-1 flex items-center gap-3 rounded-card p-1',
@@ -523,14 +528,17 @@ export function MatchdayDialog({
           <span className="min-w-0 truncate">{label}</span>
           {/* Closed on the way out: the sheet is a view of the page being
               opened, and leaving it stacked behind the destination would put
-              an overlay over the answer. */}
+              an overlay over the answer. Nothing here has to close it — the
+              sheet is this page's hash and the link leaves the page — and
+              `replace` spends its history entry on the destination, so back
+              from the duels lands on the feed rather than back inside here. */}
           <Link
+            replace
             to={
               isDuelMode
                 ? `/leagues/${leagueId}/duels?day=${String(day)}`
                 : `/leagues/${leagueId}/ranking`
             }
-            onClick={onClose}
             className={cn(
               '-mr-1 flex shrink-0 items-center gap-0.5 rounded-card px-1.5 py-1',
               'text-xs font-medium text-accent transition-colors hover:bg-surface-2/60',
