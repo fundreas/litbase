@@ -368,7 +368,18 @@ record in their other leagues is not reachable.
 
 One manager's current season at a glance, with the league they are in attached.
 
-**Auth** Bearer. **Unused.** **Spec-only — never called.**
+**Auth** Bearer. **Unused.** Probed live 2026-09-08 for all five managers of a
+first-season league; the shape matched the spec, with one extra field (`t`,
+below).
+
+**It does not carry a title count.** Asked whether a manager's league wins
+could be read here instead of from `/performance` (2026-09-08): every field
+was checked against the achievements endpoint's `2001` *Meister* counter for
+the viewer, and none matches — see the `t` row for the one undocumented
+candidate. `/ranking` has none either; its unmapped fields (`shp`, `lipc`,
+`iapl`, `hll`, `pa`) all read `0`/`false` for a manager who has won nothing and
+were checked against the spec's example, where the manager sitting 1st reads
+the same.
 
 **It is the running season of `/performance`, pre-sliced.** In the spec's
 examples the two describe the same account and agree exactly — `ap` 544, `tp`
@@ -380,7 +391,8 @@ examples the two describe the same account and agree exactly — `ap` 544, `tp`
 | ----- | ---- | ----------- |
 | `u` · `unm` · `uim` | string | The manager — id, name, avatar |
 | `li` · `lnm` · `lim` | string | The league — id, name, avatar |
-| `pl` | number | **?** Placement. Observed `4`, which reads 1-based |
+| `pl` | number | Placement, 1-based — `1` for the manager `/ranking` puts 1st by `spl`. **Skips managers who have never scored**: one who sat 5th by `spl` with an `lp` of `[]` read `pl: 0`, and the 5th-placed scorer read `4`. Also `0` for the viewer in a league they have not played in |
+| `t` | number | **?** Undocumented — **not in the spec's example**, and present on 2 of 5 managers: `5` and `12`, absent on the other three, including the viewer in both their leagues. **Not a title count**: the viewer has six achievements and no title, and the two carriers are in a league in its first season, so `12` cannot be league wins here. Most likely the **favourite club's team id** — `5` is Freiburg, and the probe account has no favourite club set. `12` is in no current competition table, which fits a club that is not in the top three leagues this season rather than refuting it. Unconfirmed either way |
 | `tp` · `ap` · `mdw` | number | Season points, average and matchday wins — same meanings as `/performance` |
 | `tv` | number | Team value, in € |
 | `prft` | number | **?** Transfer profit. Observed `0` |
