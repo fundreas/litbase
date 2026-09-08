@@ -1210,35 +1210,67 @@ export interface MarketValuePoint {
 /**
  * What kind of ownership event a {@link PlayerTransferItem} describes.
  *
- * Only these three have been observed. `1` and anything above `3` presumably
- * exist — a sale back to the market is the obvious gap — so unknown values
- * are rendered as a neutral "Wechsel" rather than guessed at.
+ * **The type alone does not say which way the money went** — `u` does.
+ * `TRANSFER_TYPE.TRADED` is stamped on both halves of a deal: with a `u` a
+ * manager took the player on for `trp`, and *without* one the owner sold them
+ * back to Kickbase for `trp`. Probed on 2026-09-08 against the league's
+ * activity feed, whose `t: 15` entries name the direction outright: every
+ * `u`-less `2` here matched a feed sale, seller and fee to the euro.
+ *
+ * Only these three values have been observed. `1` and anything above `3`
+ * presumably exist, so unknown ones are rendered as a neutral "Wechsel" rather
+ * than guessed at.
  */
 export const TRANSFER_TYPE = {
   /** Handed to a manager without a fee — the squad dealt at league start. */
   GRANTED: 0,
-  /** Bought. The only type observed with a non-zero `trp`. */
-  BOUGHT: 2,
-  /** Released back to the market; carries no `u`, because nobody received them. */
+  /**
+   * Money changed hands. **Both directions**: a purchase when `u` names the
+   * manager who received the player, a sale back to Kickbase when it does not.
+   * The only type observed with a non-zero `trp`, whichever way it points.
+   */
+  TRADED: 2,
+  /**
+   * Given up for nothing — `trp: 0` and no `u`, because nobody received them.
+   * Observed a minute after a `GRANTED`, i.e. a manager leaving the league.
+   */
   RELEASED: 3,
 } as const
 
-/** `GET /v4/leagues/{leagueId}/players/{playerId}/transferHistory`. */
+/**
+ * `GET /v4/leagues/{leagueId}/players/{playerId}/transferHistory`.
+ *
+ * The whole chain in one response: the spec's `start` is a **page index**, not
+ * an offset, and page 1 is already empty for a three-entry history. Nothing
+ * pages it, and no `max` or `seasonId` is honoured.
+ */
 export interface PlayerTransferHistoryResponse {
-  /** Ownership events, **oldest first**. Empty for an unowned player. */
+  /**
+   * Ownership events, **oldest first**. Empty for a player nobody has ever
+   * owned — and for an unknown player id, which is not an error either.
+   */
   it: PlayerTransferItem[]
 }
 
 export interface PlayerTransferItem {
-  /** Manager's user id. Absent on a `TRANSFER_TYPE.RELEASED` entry. */
+  /**
+   * The manager who **received** the player. Absent whenever nobody did — a
+   * `TRANSFER_TYPE.RELEASED` entry, and equally a `TRANSFER_TYPE.TRADED` sale
+   * back to Kickbase. Who gave them up is never named here; it is the owner
+   * the entries before this one left in place.
+   */
   u?: string
   /** Manager's display name. */
   unm?: string
-  /** Manager's avatar, CDN-relative. */
+  /** Manager's avatar, CDN-relative. Usually absent — see `withManagerFromRanking`. */
   uim?: string
   /** When it happened, ISO 8601. */
   dt: string
-  /** Fee paid, in €. `0` for anything but a `TRANSFER_TYPE.BOUGHT` entry. */
+  /**
+   * The fee, in €. `0` on `GRANTED` and `RELEASED`, a real figure on both
+   * directions of a `TRADED` entry — paid by the buyer when `u` is there,
+   * received by the seller when it is not.
+   */
   trp: number
   /** See {@link TRANSFER_TYPE}. */
   t: number

@@ -53,7 +53,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/duels               the matchday's duels
  *   /leagues/:leagueId/duels/ranking       the matchday's manager standings
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
- *   /leagues/:leagueId/players/:playerId   one player, three tabs
+ *   /leagues/:leagueId/players/:playerId   one player, four tabs
  *   /leagues/:leagueId/teams               the season: every club, as a table
  *   /leagues/:leagueId/teams/ranking       the season's 25 best players
  *   /leagues/:leagueId/teams/:teamId       one club, four tabs
@@ -208,7 +208,7 @@ export const router = createBrowserRouter(
                     redirect(`/leagues/${params.leagueId ?? ''}/teams`),
                 },
                 { path: 'players', element: <PlayersPage /> },
-                // Three routes, one component, as on the squad and duel-detail
+                // Four routes, one component, as on the squad and duel-detail
                 // pages: the bottom bar's tab is read out of the segment, so
                 // each view is linkable and survives a refresh.
                 { path: 'players/:playerId', element: <PlayerDetailPage /> },
@@ -218,6 +218,10 @@ export const router = createBrowserRouter(
                 },
                 {
                   path: 'players/:playerId/market',
+                  element: <PlayerDetailPage />,
+                },
+                {
+                  path: 'players/:playerId/transfers',
                   element: <PlayerDetailPage />,
                 },
                 // One club, four routes, one component — the tab comes from

@@ -1,5 +1,5 @@
 /**
- * The player page's three views, as route segments.
+ * The player page's four views, as route segments.
  *
  * Its own module rather than a couple of extra exports from `PlayerTabBar`:
  * a file that exports both components and plain values breaks React Fast
@@ -13,6 +13,7 @@ export const PLAYER_TABS = {
   details: 'details',
   performance: 'performance',
   market: 'market',
+  transfers: 'transfers',
 } as const
 
 export type PlayerTab = (typeof PLAYER_TABS)[keyof typeof PLAYER_TABS]
@@ -23,5 +24,8 @@ export function playerTabFromPath(pathname: string): PlayerTab {
     return PLAYER_TABS.performance
   }
   if (pathname.endsWith(`/${PLAYER_TABS.market}`)) return PLAYER_TABS.market
+  if (pathname.endsWith(`/${PLAYER_TABS.transfers}`)) {
+    return PLAYER_TABS.transfers
+  }
   return PLAYER_TABS.details
 }

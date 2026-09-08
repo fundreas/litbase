@@ -8,31 +8,37 @@ import {
   usePlayerDetail,
   usePlayerMarketValue,
   usePlayerPerformance,
+  usePlayerTransfers,
 } from '@/api/hooks/usePlayer'
 import { useRanking } from '@/api/hooks/useRanking'
 import {
   matchdayState,
   pointsScaleFor,
   type PlayerOwnership,
+  type PlayerTransfer,
+  type TransferParty,
 } from '@/api/models'
+import { useAuth } from '@/auth/useAuth'
 import { PlayerDetailsTab } from '@/components/player/PlayerDetailsTab'
 import { PlayerHeader } from '@/components/player/PlayerHeader'
 import { PlayerMarketTab } from '@/components/player/PlayerMarketTab'
 import { PlayerPerformanceTab } from '@/components/player/PlayerPerformanceTab'
 import { PlayerTabBar } from '@/components/player/PlayerTabBar'
 import { PLAYER_TABS, playerTabFromPath } from '@/components/player/playerTabs'
+import { PlayerTransfersTab } from '@/components/player/PlayerTransfersTab'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 
 /**
- * One player, in three views.
+ * One player, in four views.
  *
  *   /leagues/:leagueId/players/:playerId              → Details
  *   /leagues/:leagueId/players/:playerId/performance  → Leistung
  *   /leagues/:leagueId/players/:playerId/market       → Markt
+ *   /leagues/:leagueId/players/:playerId/transfers    → Transfers
  *
- * Three routes, one component, with the active tab read out of the URL — the
+ * Four routes, one component, with the active tab read out of the URL — the
  * same arrangement as the squad and duel-detail pages, and for the same
  * reasons: every view is linkable and survives a refresh.
  *
@@ -49,9 +55,10 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  *    lineup-probability badges, so arriving here is often free;
  *  - the **performance** history on Details and Leistung — Details needs it
  *    for the matchday strip and for the points and minutes on the Spiele rows;
- *  - the **market values** on Details and Markt;
- *  - the **transfer history**, which pairs with the market values to say what
- *    the owner paid.
+ *  - the **market values** everywhere but Leistung — the owner panel, the
+ *    chart, and the value each transfer is measured against;
+ *  - the **transfer history**, which pairs with those values to say what the
+ *    owner paid, and which the Transfers tab lists in full.
  *
  * The header renders as soon as the profile lands, so switching tabs never
  * blanks the page — only the panel below it waits.
@@ -60,6 +67,7 @@ export function PlayerDetailPage() {
   const { leagueId, competitionId } = useActiveLeague()
   const { playerId } = useParams()
   const location = useLocation()
+  const { user } = useAuth()
 
   const tab = playerTabFromPath(location.pathname)
   const basePath = `/leagues/${leagueId}/players/${playerId ?? ''}`
@@ -71,16 +79,19 @@ export function PlayerDetailPage() {
   // current-matchday strip in the header and the points and minutes on the
   // Spiele rows — so it is fetched for either. It is the page's largest
   // response (a twelve-season career runs to ~110 kB uncompressed), which is
-  // why the Markt tab, which needs none of it, does not pull it.
+  // why the two tabs that need none of it — Markt and Transfers — do not pull
+  // it.
   const performance = usePlayerPerformance(
     leagueId,
-    tab === PLAYER_TABS.market ? undefined : playerId,
+    tab === PLAYER_TABS.market || tab === PLAYER_TABS.transfers
+      ? undefined
+      : playerId,
   )
+  // Transfers wants it for the same reason Details does: a fee only means
+  // something next to the market value of the day it was paid.
   const marketValue = usePlayerMarketValue(
     leagueId,
-    tab === PLAYER_TABS.details || tab === PLAYER_TABS.market
-      ? playerId
-      : undefined,
+    tab === PLAYER_TABS.performance ? undefined : playerId,
   )
 
   const ownership = useOwnership(
@@ -88,11 +99,24 @@ export function PlayerDetailPage() {
     player.data?.ownerId === undefined ? undefined : playerId,
     marketValue.data,
   )
+  // One cache entry serves the owner panel and the Transfers tab; asking for it
+  // here only widens what is mapped out of it, and only on the tab that lists
+  // the lot.
+  const transfers = usePlayerTransfers(
+    leagueId,
+    tab === PLAYER_TABS.transfers ? playerId : undefined,
+    marketValue.data,
+  )
+
   // `transferHistory` names the owner, but a manager who has never renamed
   // themselves arrives without `unm` on some entries — the standings always
   // have a name and an avatar, so they fill the gaps.
   const ranking = useRanking(leagueId)
   const resolved = withManagerFromRanking(ownership, ranking.data?.managers)
+  const transferRows = useMemo(
+    () => withManagersOnTransfers(transfers.data, ranking.data?.managers),
+    [transfers.data, ranking.data],
+  )
 
   // The running season is the first entry — the hook reverses the API's
   // oldest-first order. Its matches are indexed by matchday so the header and
@@ -203,6 +227,23 @@ export function PlayerDetailPage() {
           ) : (
             <PlayerMarketTab player={player.data} history={marketValue.data} />
           ))}
+
+        {/* The market values are not waited for: the rows carry their fees
+            without them and grow the comparison when they land. Only the
+            history itself gates the panel. */}
+        {tab === PLAYER_TABS.transfers &&
+          (transfers.isPending ? (
+            <SkeletonList rows={6} />
+          ) : transfers.isError ? (
+            <ErrorState
+              error={transfers.error}
+              onRetry={() => {
+                void transfers.refetch()
+              }}
+            />
+          ) : (
+            <PlayerTransfersTab transfers={transferRows} viewerId={user?.id} />
+          ))}
       </div>
 
       <PlayerTabBar basePath={basePath} active={tab} />
@@ -237,4 +278,40 @@ function withManagerFromRanking(
     managerName: ownership.managerName ?? manager.name,
     managerImage: ownership.managerImage ?? manager.image,
   }
+}
+
+/**
+ * The same fill, applied to both parties of every transfer.
+ *
+ * The history is stingier with faces than the owner panel makes it look: `uim`
+ * arrived on one manager in five across the leagues probed, so without this the
+ * Transfers tab is a column of initials. A manager who has **left the league**
+ * is not in the standings any more and keeps whatever the history carried,
+ * which is the honest answer rather than a blank.
+ */
+function withManagersOnTransfers(
+  transfers: PlayerTransfer[] | undefined,
+  managers: Array<{ id: string; name: string; image?: string }> | undefined,
+): PlayerTransfer[] {
+  if (transfers === undefined) return []
+  if (managers === undefined) return transfers
+
+  const byId = new Map(managers.map((manager) => [manager.id, manager]))
+
+  const fill = (party: TransferParty | undefined) => {
+    if (party?.id === undefined) return party
+    const manager = byId.get(party.id)
+    if (manager === undefined) return party
+    return {
+      ...party,
+      name: party.name ?? manager.name,
+      image: party.image ?? manager.image,
+    }
+  }
+
+  return transfers.map((transfer) => ({
+    ...transfer,
+    to: fill(transfer.to),
+    from: fill(transfer.from),
+  }))
 }

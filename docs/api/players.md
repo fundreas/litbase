@@ -445,15 +445,25 @@ windows.
 
 ## `GET /v4/leagues/{leagueId}/players/{playerId}/transferHistory`
 
-Who has owned the player **in this league**, oldest first.
+Who has owned the player **in this league**, oldest first. The whole chain in
+one response — a buy, a sale back to Kickbase, a manager leaving and dropping
+their squad, all of it.
 
 **Auth** Bearer. Note the **camelCase path segment** — `transferHistory`.
+
+Re-probed on 2026-09-08 across two leagues, and cross-checked entry by entry
+against the [activity feed](leagues.md#get-v4leaguesleagueidactivitiesfeed)'s
+`t: 15` transfers, which name the direction and the parties outright. That
+comparison corrected two things this page had wrong; both are called out below.
 
 ### Query parameters
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| `start` | number | **?** Pagination offset. Declared by the spec with an empty sample value; not probed, and the app omits it |
+| `start` | number | **A page index, not an offset.** `start=1` answers `{"it": []}` for a three-entry history, so it counts pages and not entries; the page size is therefore at least 3 and has not been pinned down. `start=0` and a non-numeric value both serve the whole list, which is what the app relies on by omitting it |
+
+`max` and `seasonId` are **not** honoured — both were accepted and ignored,
+whole list returned.
 
 ### Response `200`
 
@@ -462,18 +472,74 @@ Who has owned the player **in this league**, oldest first.
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `t` | number | What kind of event — see [Codes](codes.md#transfer-type-t) |
-| `u` | string | The manager's user id. **Absent on a `RELEASED` entry**, because nobody received them |
+| `u` | string | The manager who **received** the player. **Absent whenever nobody did** — a `RELEASED` entry, and equally a sale back to Kickbase. See below |
 | `unm` | string | The manager's display name |
-| `uim` | string | The manager's avatar, CDN-relative |
+| `uim` | string | The manager's avatar, CDN-relative. **Usually absent** — one manager in five carried it across the leagues probed, so anything drawing faces has to fall back to the [standings](leagues.md#get-v4leaguesleagueidranking) |
 | `dt` | string | When it happened, ISO 8601 |
-| `trp` | number | Fee paid, in €. **`0` for anything but a real buy** — a player handed out at league start has `trp: 0` here, which is why the purchase price the UI shows comes from `/marketvalue`'s `trp` instead |
+| `trp` | number | The fee, in €. `0` on `GRANTED` and `RELEASED`, **a real figure on both directions of a sale** |
 
-Empty for an unowned player who has never been owned.
+Empty `it` for a player nobody has ever owned — **and for an unknown player
+id**, which is not an error either, so an empty history cannot be read as
+proof the player exists.
+
+> ### The type does not say which way the money went. `u` does.
+>
+> `t: 2` is stamped on **both halves of a deal**. With a `u` a manager took the
+> player on for `trp`; *without* one the owner sold them back to Kickbase for
+> `trp`. This page previously called `2` "bought" and said `trp` was `0` for
+> anything but a buy — both wrong, and the second one materially: a sale
+> carries the full sale price.
+>
+> Measured on Güther (`13629`), granted to *yo-yo* and then sold:
+>
+> ```json
+> [{ "u": "4477454", "unm": "yo-yo", "dt": "2026-09-02T18:24:13Z", "trp": 0, "t": 0 },
+>  { "dt": "2026-09-05T09:43:02Z", "trp": 2369292, "t": 2 }]
+> ```
+>
+> The feed's own entry for that second line reads
+> `{"t": 15, "data": {"t": 2, "slr": "yo-yo", "trp": 2369292}}` — a sale, the
+> same seller, the same fee to the euro. Every `u`-less `2` in both leagues
+> paired with a feed sale this way.
+
+> ### The seller is never named — it is the previous entry's owner.
+>
+> An entry says who received the player and nothing else, so *who gave them up*
+> only exists as the state the earlier entries leave behind. Reading the list
+> as a fold, carrying the current holder forward, is what recovers it — and it
+> is also the only way to tell a purchase **off Kickbase's market** from one
+> **out of a manager's squad**, which the payload does not distinguish.
+>
+> Maksimovic (`9776`) is the case that makes the difference visible:
+>
+> ```json
+> [{ "u": "4169134", "unm": "aufderLauer", "dt": "2026-09-02T19:32:28Z", "trp": 0, "t": 0 },
+>  { "dt": "2026-09-02T19:33:23Z", "trp": 0, "t": 3 },
+>  { "u": "4477454", "unm": "yo-yo", "dt": "2026-09-05T19:43:38Z", "trp": 3342526, "t": 2 }]
+> ```
+>
+> *yo-yo* did not buy him from *aufderLauer*: the release three days earlier had
+> already put him back on the market. Only the fold gets that right.
+>
+> **What a manager-to-manager sale looks like is still unproven** (**?**) — one
+> entry naming the buyer, or a sale followed by a purchase. Neither league
+> produced one, and forcing one costs a listing's full run. The fold names the
+> right seller under both readings, because under both the holder before the buy
+> is the manager who had them.
+
+**`trp` here is still not the current owner's purchase price.** A squad dealt
+out at league start is a single `GRANTED` entry with `trp: 0`, so the figure the
+owner panel quotes comes from
+[`/marketvalue`'s `trp`](#get-v4leaguesleagueidplayersplayeridmarketvaluetimeframe)
+instead. What this endpoint has that `/marketvalue` does not is every deal
+*before* the current one.
 
 ### Used by
 
-[`usePlayerTransfers`](../../src/api/hooks/usePlayer.ts) →
-[Player detail](../pages/player-detail.md).
+[`useOwnership`](../../src/api/hooks/usePlayer.ts) for the current owner, and
+[`usePlayerTransfers`](../../src/api/hooks/usePlayer.ts) for the whole chain →
+[Player detail](../pages/player-detail.md#transfers). One cache entry serves
+both.
 
 ---
 

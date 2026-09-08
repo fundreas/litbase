@@ -196,11 +196,18 @@ export const endpoints = {
     /**
      * Who has owned the player in this league, oldest first.
      *
-     * Each entry is one ownership event, not a purchase: `t` says which
-     * (see `TRANSFER_TYPE`), and only a real buy carries a non-zero `trp`.
-     * A player handed out when a manager joined has `trp: 0`, which is why
-     * the purchase price the UI shows comes from the market-value response's
-     * `trp` instead — see {@link PlayerMarketValueResponse.trp}.
+     * Each entry is one ownership event, not a purchase: `t` says which (see
+     * `TRANSFER_TYPE`), and a **sale back to Kickbase carries the full price
+     * with no `u`** — the type alone does not give the direction.
+     *
+     * A player handed out when a manager joined has `trp: 0`, which is why the
+     * *current owner's* purchase price comes from the market-value response's
+     * `trp` instead — see {@link PlayerMarketValueResponse.trp}. This is the
+     * only source for every deal before that one.
+     *
+     * The spec's `start` is a page index rather than an offset — `start=1` is
+     * already empty for a three-entry history — so the app omits it and takes
+     * the whole chain.
      */
     playerTransfers: (leagueId: string, playerId: string) =>
       `/v4/leagues/${leagueId}/players/${playerId}/transferHistory`,

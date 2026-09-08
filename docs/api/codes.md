@@ -140,12 +140,18 @@ On [`/players/{id}/transferHistory`](players.md#get-v4leaguesleagueidplayersplay
 | Value | Meaning |
 | ----- | ------- |
 | `0` | Granted — handed to a manager without a fee, the squad dealt at league start |
-| `2` | Bought. The only type observed with a non-zero `trp` |
-| `3` | Released back to the market; carries no `u`, because nobody received them |
+| `2` | **A deal, either direction.** With a `u`, that manager bought them for `trp`; **without one, the owner sold them back to Kickbase for `trp`**. The only type carrying a non-zero fee, whichever way it points |
+| `3` | Released for nothing; carries no `u` and `trp: 0`. Observed a minute after a `GRANTED`, i.e. a manager leaving the league |
 
-Only these three have been observed. `1` and anything above `3` presumably
-exist — a sale back to the market is the obvious gap — so unknown values should
-render as a neutral "Wechsel" rather than be guessed at.
+**A sale is not its own type** — that was the assumed gap, and it is not there.
+`2` covers both halves and `u` is what separates them; verified on 2026-09-08
+against the [activity feed](leagues.md#get-v4leaguesleagueidactivitiesfeed)'s
+`t: 15` entries, which state the direction and the seller. See
+[transferHistory](players.md#get-v4leaguesleagueidplayersplayeridtransferhistory).
+
+Only these three values have been observed. `1` and anything above `3`
+presumably exist, so unknown ones should render as a neutral "Wechsel" rather
+than be guessed at.
 
 ## Activity type (`t`)
 

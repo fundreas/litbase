@@ -34,7 +34,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          │     └─ lineup        second tab of the same component
          ├─ table       the Bundesliga table's old URL, kept as a redirect
          ├─ players
-         │  └─ :playerId        one player; three tabs from the segment
+         │  └─ :playerId        one player; four tabs from the segment
          └─ teams       the season: every club as a table
             └─ ranking  the season's 25 best players
             └─ :teamId          one club; four tabs from the segment
@@ -298,7 +298,7 @@ of its own, so **Mannschaft** had to stand in for it).
 Several pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
 of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, the player page's
-three tabs, the match page's three, and the [team page](pages/team.md)'s four —
+four tabs, the match page's three, and the [team page](pages/team.md)'s four —
 rather than between pages, and exists only while that page is open. Two of
 those bars have a **conditional last tab**, appearing only while something is
 being played: the squad page's *Live* while a matchday runs, and the team

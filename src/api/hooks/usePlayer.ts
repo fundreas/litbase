@@ -9,6 +9,7 @@ import {
   toOwnerId,
   toPosition,
   toStartProbability,
+  toTransferHistory,
   toTrend,
   type MarketValueDay,
   type MarketValueHistory,
@@ -18,6 +19,7 @@ import {
   type PlayerMatchRole,
   type PlayerOwnership,
   type PlayerSeason,
+  type PlayerTransfer,
 } from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import {
@@ -362,6 +364,58 @@ export function usePlayerMarketValue(
 /* -------------------------------------------------------------------------- */
 
 /**
+ * The one request behind both the owner panel and the Transfers tab.
+ *
+ * Shared options rather than two `useQuery` calls that happen to agree: they
+ * key the same cache entry either way, and writing the endpoint out twice is
+ * how the two drift apart. Each caller adds its own `select` on top, which
+ * costs a mapping and not a request.
+ */
+function transferHistoryQuery(
+  leagueId: string | undefined,
+  playerId: string | undefined,
+) {
+  return {
+    queryKey: qk.playerTransfers(leagueId ?? 'none', playerId ?? 'none'),
+    enabled: leagueId !== undefined && playerId !== undefined,
+    staleTime: 30 * MINUTE,
+    queryFn: () =>
+      get<PlayerTransferHistoryResponse>(
+        endpoints.leagues.playerTransfers(
+          leagueId as string,
+          playerId as string,
+        ),
+      ),
+  }
+}
+
+/**
+ * Every hand the player has passed through in this league, newest first.
+ *
+ * The same response {@link useOwnership} reads for its one current owner, kept
+ * whole: the wire's chain of ownership events, folded into readable transfers
+ * by [`toTransferHistory`](../models.ts) — which is also what works out who
+ * *sold* them, since the payload only ever names the manager who received
+ * them.
+ *
+ * `history` is the year of market values, and is optional: with it every row
+ * can say what the player was worth on the day of the deal, and without it the
+ * rows simply carry the fee. Passing it late is fine — the mapping re-runs and
+ * the values appear.
+ */
+export function usePlayerTransfers(
+  leagueId: string | undefined,
+  playerId: string | undefined,
+  history?: MarketValueHistory,
+): UseQueryResult<PlayerTransfer[]> {
+  return useQuery({
+    ...transferHistoryQuery(leagueId, playerId),
+    select: (data: PlayerTransferHistoryResponse) =>
+      toTransferHistory(data.it, history),
+  })
+}
+
+/**
  * Who owns the player and what it has cost them.
  *
  * Assembled from **three** responses, because no single one has it:
@@ -381,18 +435,7 @@ export function useOwnership(
   playerId: string | undefined,
   history: MarketValueHistory | undefined,
 ): PlayerOwnership | undefined {
-  const transfers = useQuery({
-    queryKey: qk.playerTransfers(leagueId ?? 'none', playerId ?? 'none'),
-    enabled: leagueId !== undefined && playerId !== undefined,
-    staleTime: 30 * MINUTE,
-    queryFn: () =>
-      get<PlayerTransferHistoryResponse>(
-        endpoints.leagues.playerTransfers(
-          leagueId as string,
-          playerId as string,
-        ),
-      ),
-  })
+  const transfers = useQuery(transferHistoryQuery(leagueId, playerId))
 
   const money = useQuery({
     queryKey: qk.playerMarketValue(leagueId ?? 'none', playerId ?? 'none'),

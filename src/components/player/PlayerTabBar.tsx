@@ -1,10 +1,10 @@
-import { BarChart3, LineChart, User } from 'lucide-react'
+import { ArrowLeftRight, BarChart3, LineChart, User } from 'lucide-react'
 
 import { PLAYER_TABS, type PlayerTab } from '@/components/player/playerTabs'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 
 /**
- * The player page's three views, docked at the bottom.
+ * The player page's four views, docked at the bottom.
  *
  * A thin wrapper over [`BottomTabBar`](../ui/BottomTabBar.tsx), which the squad
  * page uses too — all this adds is the tab list and the fact that Details is
@@ -36,6 +36,12 @@ export function PlayerTabBar({
       label: 'Markt',
       icon: LineChart,
       to: `${basePath}/${PLAYER_TABS.market}`,
+    },
+    {
+      value: PLAYER_TABS.transfers,
+      label: 'Transfers',
+      icon: ArrowLeftRight,
+      to: `${basePath}/${PLAYER_TABS.transfers}`,
     },
   ]
 

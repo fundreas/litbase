@@ -19,6 +19,8 @@ import {
   MATCH_EVENT,
   PLAYER_AVAILABILITY,
   PLAYER_POSITION,
+  TRANSFER_TYPE,
+  type PlayerTransferItem,
 } from '@/api/types'
 import { nowMs } from '@/lib/clock'
 
@@ -2484,6 +2486,135 @@ export function marketValueAt(
     standing = day
   }
   return standing
+}
+
+/* -------------------------------------------------------------------------- */
+/* Transfer history                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What happened to the player, in words the UI can render.
+ *
+ * The wire has three types and the direction of a deal is not one of them —
+ * see {@link TRANSFER_TYPE}. This is the resolved reading:
+ *
+ *  - `granted` — dealt out when a manager joined the league. No fee.
+ *  - `bought` — a manager took them on for a fee, from `from` or, when that is
+ *    absent, from Kickbase itself.
+ *  - `sold` — the owner sold them back to Kickbase for a fee.
+ *  - `released` — given up for nothing, which is what a manager leaving the
+ *    league does to their squad.
+ *  - `unknown` — a type the API has not shown us. Rendered neutrally.
+ */
+export type TransferKind =
+  'granted' | 'bought' | 'sold' | 'released' | 'unknown'
+
+/** One ownership event, with both parties named where the API names either. */
+export interface PlayerTransfer {
+  kind: TransferKind
+  /** When it happened, ISO 8601. Also the key — no two entries share one. */
+  date: string
+  /** The fee, in €. `0` on a `granted` or `released` entry. */
+  fee: number
+  /** The manager who received the player. Absent on `sold` and `released`. */
+  to?: TransferParty
+  /**
+   * The manager who gave them up — **derived, never sent**. It is whoever the
+   * earlier entries left holding the player, so it is absent when that was
+   * Kickbase: a `bought` with no `from` came off the computer's market.
+   */
+  from?: TransferParty
+  /**
+   * What the player was worth that day, in €, when the year of market values
+   * reaches back that far.
+   */
+  marketValue?: number
+  /**
+   * Fee minus market value, in €, on a deal that had a fee. Positive means the
+   * buyer paid over the odds — or, on a sale, that Kickbase paid over them.
+   */
+  premium?: number
+}
+
+export interface TransferParty {
+  id?: string
+  name?: string
+  /** CDN-relative. Usually absent on the wire; filled in from the standings. */
+  image?: string
+}
+
+/**
+ * The wire's chain of ownership events, read into {@link PlayerTransfer}s —
+ * **newest first**, the opposite of the wire's order.
+ *
+ * ## Why this needs a fold rather than a `map`
+ *
+ * An entry says who *received* the player and never who gave them up, so the
+ * seller only exists as the state the earlier entries leave behind. Walking
+ * oldest-first with a `holder` and handing each entry the holder it found is
+ * the whole of it — and it is also what tells a purchase off Kickbase's market
+ * from one out of a manager's squad, which the payload does not distinguish
+ * either.
+ *
+ * It settles the one case nothing has been able to probe, too: whether a
+ * manager-to-manager sale arrives as a single entry naming the buyer or as a
+ * sale followed by a purchase. Either way the fold names the right seller,
+ * because either way the holder before the buy is the manager who had them.
+ *
+ * `history` is optional and only adds the market value of the day to each row.
+ */
+export function toTransferHistory(
+  items: PlayerTransferItem[] | undefined,
+  history?: MarketValueHistory,
+): PlayerTransfer[] {
+  const transfers: PlayerTransfer[] = []
+  let holder: TransferParty | undefined
+
+  for (const item of items ?? []) {
+    const party =
+      item.u === undefined
+        ? undefined
+        : { id: item.u, name: item.unm, image: item.uim }
+
+    const kind = transferKind(item, party)
+    const from = holder
+    holder = kind === 'unknown' ? holder : party
+
+    const marketValue = marketValueAt(history, item.dt)?.value
+
+    transfers.push({
+      kind,
+      date: item.dt,
+      fee: item.trp,
+      to: party,
+      from,
+      marketValue,
+      premium:
+        item.trp === 0 || marketValue === undefined
+          ? undefined
+          : item.trp - marketValue,
+    })
+  }
+
+  return transfers.reverse()
+}
+
+function transferKind(
+  item: PlayerTransferItem,
+  party: TransferParty | undefined,
+): TransferKind {
+  switch (item.t) {
+    case TRANSFER_TYPE.GRANTED:
+      return 'granted'
+    // The same type on both sides of a deal; who received the player is what
+    // separates them.
+    case TRANSFER_TYPE.TRADED:
+      return party === undefined ? 'sold' : 'bought'
+    case TRANSFER_TYPE.RELEASED:
+      return 'released'
+    default:
+      return 'unknown'
+  }
 }
 
 /**

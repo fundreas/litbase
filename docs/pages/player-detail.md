@@ -1,14 +1,15 @@
 # Player detail
 
-One player, in three views.
+One player, in four views.
 
 ```
 /leagues/:leagueId/players/:playerId              → Details
 /leagues/:leagueId/players/:playerId/performance  → Leistung
 /leagues/:leagueId/players/:playerId/market       → Markt
+/leagues/:leagueId/players/:playerId/transfers    → Transfers
 ```
 
-Three routes, one component
+Four routes, one component
 ([`PlayerDetailPage`](../../src/pages/PlayerDetailPage.tsx)), with the active
 view read out of the URL — the same arrangement as
 [Squad](squad.md) and [Duel detail](duel-detail.md), and for the same reasons:
@@ -27,7 +28,7 @@ bottom bar was removed: it duplicated the drawer and ate a row of height on
 every screen, including the pitch that needs it most.
 
 None of that applies here. This bar is not navigation between pages but between
-three views of one player; it exists only while this page is open; and the page
+four views of one player; it exists only while this page is open; and the page
 is a long scroll under a thumb, which is exactly where a docked control belongs.
 The [squad page](squad.md#the-bottom-bar) docks one on the same terms, and both
 use [`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx).
@@ -40,23 +41,28 @@ bottom of the viewport while the page scrolls.
 ## Requests
 
 Four, all keyed under `qk.playerDetail(leagueId, playerId)` so one
-`invalidateQueries` drops the whole page. Two of them are gated on the tab that
-needs them.
+`invalidateQueries` drops the whole page. Three of them are gated on the tab
+that needs them.
 
 | Endpoint | Fetched | Carries |
 | -------- | ------- | ------- |
 | `/v4/leagues/{lid}/players/{pid}` | always | Profile, season totals, availability, lineup probability, **owner id** |
 | `/v4/leagues/{lid}/players/{pid}/performance` | Details + Leistung | Every season, every fixture |
-| `/v4/leagues/{lid}/players/{pid}/marketvalue/365` | Details + Markt | A year of daily values, purchase price, profit/loss |
-| `/v4/leagues/{lid}/players/{pid}/transferHistory` | when owned | Who owns them, and since when |
+| `/v4/leagues/{lid}/players/{pid}/marketvalue/365` | everywhere but Leistung | A year of daily values, purchase price, profit/loss |
+| `/v4/leagues/{lid}/players/{pid}/transferHistory` | when owned, and on Transfers | Every hand the player has passed through |
 | `/v4/leagues/{lid}/playercenter/{pid}?dayNumber=&seasonId=` | on opening a [match breakdown](#the-match-breakdown) | Every scoring action of one match, and what each was worth |
 | `/v4/live/eventtypes` | with the first breakdown | Names for all 621 event types. One shared entry, cached for a day |
 
 The performance history is the page's largest response — a twelve-season career
 runs to about 110 kB uncompressed — and Details needs it for three things: the
 [current-matchday strip](#current-matchday-strip), the points and minutes on
-the Spiele rows, and the appearance count. Only the Markt tab, which uses none
-of it, goes without.
+the Spiele rows, and the appearance count. The two tabs that use none of it,
+Markt and Transfers, go without.
+
+The market values are the opposite case: **three tabs want them**, because a
+fee only means something next to what the player was worth the day it was paid.
+One cache entry serves the chart, the owner panel and every row of the
+transfer list.
 
 The profile is the **same query key the squad page already fills** for its
 lineup-probability badges (`useStartProbabilities`) and injury tooltips
@@ -74,7 +80,7 @@ makes it the one to probe with.)
 
 ## Header
 
-Shared by all three tabs, so a market chart is never a chart of nobody.
+Shared by all four tabs, so a market chart is never a chart of nobody.
 
 The **club is a 56 px crest at the far right, with no name beside it**. A
 Bundesliga crest is the most recognisable thing about a club and at that size is
@@ -515,6 +521,58 @@ minimum over them, so `lmv` is `0` for anyone who joined the league inside the
 last year — confirmed on two real players. The mapper strips the `mv: 0`
 placeholders first and derives both ends from what is left.
 
+## Transfers tab
+
+Every hand the player has passed through **in this league**, newest first —
+[`PlayerTransfersTab`](../../src/components/player/PlayerTransfersTab.tsx) over
+one `transferHistory` request. Since a Kickbase league's history begins when the
+league does, that is the season, and the tab says so under the list rather than
+pretending to reach further.
+
+### One row per event, not per owner
+
+The wire is a chain of ownership events that names only the manager who
+**received** the player, and a sale back to Kickbase names nobody at all — see
+[the API note](../api/players.md#the-seller-is-never-named--it-is-the-previous-entrys-owner).
+So who *sold* has to be recovered, and
+[`toTransferHistory`](../../src/api/models.ts) does it as a fold: walk
+oldest-first carrying the current holder, hand each entry the holder it found,
+then reverse for display.
+
+That is not bookkeeping for its own sake. It is the only thing separating a
+purchase **off Kickbase's market** from one **out of a manager's squad** —
+Maksimovic was released a minute after being granted and bought three days
+later, and a naive "previous entry's manager" reading would have credited that
+sale to a manager who no longer had him.
+
+Each row is therefore:
+
+| Part | What it is |
+| ---- | ---------- |
+| Face and name | **The manager who acted** — the buyer on a purchase, the seller on a sale. Never Kickbase, unless the chain opens with a sale and there is nobody else to name |
+| Under it | Where the player came from or went — *Von Marvin*, *Von Kickbase*, *An Kickbase verkauft*, *Startkader*, *Freigegeben* — and when, to the minute |
+| Right, top | The fee, or `–` where none was paid |
+| Right, under | The **difference to the market value of that day** |
+
+Faces come from the [standings](../api/leagues.md#get-v4leaguesleagueidranking),
+not the payload: `uim` arrived on about one manager in five, so without the fill
+the tab is a column of initials. A manager who has since **left the league** is
+not in the standings any more and keeps whatever the history carried.
+
+### The colour flips with the direction
+
+Over the market value is a paper loss for a buyer and a win for a seller, so
+the same sign means opposite things on the two kinds of row and the colour
+follows the **acting manager's side**, not the sign: an *Aufpreis* on a purchase
+is red, the same figure on a sale is green. It is the one place in the app where
+a positive delta can be red, and `premiumTone` is the four lines that decide it.
+
+The comparison needs the year of market values, which the tab does **not** wait
+for: the rows render with their fees and grow the second figure when that
+request lands. A deal older than the year Kickbase serves simply keeps the fee
+on its own — the same limit the
+[transfer sheet](../pages/events.md) runs into on the events page.
+
 ## Ownership
 
 Shown on the Details tab as the **Manager card**: the manager on the left, the
@@ -561,11 +619,16 @@ standings (`useRanking`) always do, so they fill the gaps.
 | `t` | Meaning |
 | --- | ------- |
 | `0` | Handed over without a fee — the squad dealt at league start |
-| `2` | Bought; the only type seen with a non-zero `trp` |
-| `3` | Released back to the market; carries no `u` |
+| `2` | **A deal, either direction**: a purchase when `u` names the manager who got them, a sale back to Kickbase when it does not. The only type carrying a fee |
+| `3` | Released for nothing; carries no `u`. Observed a minute after a `GRANTED`, i.e. a manager leaving |
 
-`1` and anything above `3` presumably exist — a sale back to the market is the
-obvious gap — so unknown values are not guessed at.
+**The sale was the assumed gap and it is not one** — `2` is both halves, and `u`
+is the difference. Established on 2026-09-08 by pairing every entry in two
+leagues with the [activity feed](../api/leagues.md#get-v4leaguesleagueidactivitiesfeed)'s
+`t: 15` transfers, which name the direction, the seller and the fee outright.
+
+`1` and anything above `3` still presumably exist, so unknown values are not
+guessed at: they render as a neutral *Wechsel*.
 
 ## Team names
 
@@ -586,18 +649,21 @@ itself carries and treats the name as the optional half.
 | Tab failed | Header stays; `ErrorState` in the panel |
 | No market history | `EmptyState` on the Markt tab |
 | No season data | `EmptyState` on the Leistung tab |
+| Never owned by anyone | `EmptyState` on the Transfers tab |
 | Fewer than two data points | The chart says so rather than drawing a dot |
 
 ## Known gaps
 
-- **The market value at purchase, and the over/underpay it implies, are
-  computed but not rendered anywhere.** They were the Markt tab's manager
-  panel, which was removed as a duplicate of the Details card; the Details card
-  is deliberately one line. `PlayerOwnership.marketValueAtPurchase` and
-  `purchasePremium()` are still there and still correct, so putting them back
-  — a third line on the Manager card, or a marker on the chart at the purchase
-  date, which is where they would arguably read best — is a rendering change
-  only.
+- **`PlayerOwnership.marketValueAtPurchase` and `purchasePremium()` are still
+  computed and still unrendered.** The [Transfers tab](#transfers-tab) now shows
+  the same arithmetic per deal, which covers the current owner's purchase along
+  with every earlier one, so the two are duplicates of each other rather than a
+  missing feature — the open question is only whether the Manager card wants a
+  third line, or the chart a marker at the purchase date.
+- **What a manager-to-manager sale looks like on the wire is unproven.** Neither
+  probed league produced one; the fold names the right seller under either
+  reading, but nothing has confirmed which one Kickbase writes. See
+  [the API note](../api/players.md#the-seller-is-never-named--it-is-the-previous-entrys-owner).
 - **Nothing links here from the market, duel or ranking pages yet.** The route
   takes any player id in the competition, so wiring another entry point is one
   `<Link>`.
