@@ -42,6 +42,16 @@ function mapMarket(data: MarketResponse): MarketListing[] {
         : { id: listing.u.i, name: listing.u.n, image: listing.u.uim },
     status: listing.st,
     offerCount: listing.ofc ?? 0,
+    // Highest first, as the per-player endpoint's are: the bid worth
+    // accepting is the one to read first, and the wire's order is not defined.
+    offers: (listing.ofs ?? [])
+      .map((offer) => ({
+        id: offer.uoid,
+        managerId: offer.u,
+        managerName: offer.unm,
+        amount: offer.uop,
+      }))
+      .sort((a, b) => b.amount - a.amount),
     ownOffer: listing.uop,
     ownOfferId: listing.uoid,
     image: listing.pim,

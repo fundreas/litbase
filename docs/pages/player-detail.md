@@ -656,6 +656,14 @@ across the whole integer range, and only the integer bounds it. A price under
 the market value gets a note — Kickbase would have paid more outright — not a
 block, because underselling to a particular manager is a real move.
 
+**The same bids are on the market page**, in its
+[*Gebote* tab](market.md#the-selling-side-when-there-is-one--gebote) — every
+listed player at once rather than the one this page is about. The rows are
+literally the same component
+([`ReceivedOfferRow`](../../src/components/market/ReceivedOfferRow.tsx)) and
+both tap through to the same two dialogs; what differs is only which players
+are on screen.
+
 **The bids poll at thirty seconds while a listing stands**, the market page's
 cadence for the market page's reason: the interesting change comes from other
 managers. The poll is driven by the response, so a player sitting quietly in a

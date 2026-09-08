@@ -89,6 +89,16 @@ needs.
 | `uop` | number | Offer price, in € |
 | `st` | number | **✗** Offer status. `0` on every offer observed |
 
+**No `uim`** — the bidders are named and not pictured, so the
+[Gebote tab](../pages/market.md#the-selling-side-when-there-is-one--gebote)
+fills the faces from the standings. And note which side of the market each
+kind of entry sits on: on a **computer listing** `ofs` holds one's own bid and
+nothing else, while on **one's own listing** it is what the league has bid —
+the whole seller's side, arriving on the market response for free. That the
+latter appears at all is the visibility rule's documented reading and is
+**unproven** (**?**): probed 2026-09-08 against three own listings, none of
+which had a bid on it.
+
 ### The 24-hour change
 
 **`tfhmvt` is not on this payload** — the market carries `mvt`, the direction,

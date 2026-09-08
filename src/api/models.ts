@@ -1650,6 +1650,25 @@ export interface MarketListing {
    * computer listing; those are invisible. See `MarketPlayer.ofc`.
    */
   offerCount: number
+  /**
+   * Those same offers, **highest first** — the ones {@link offerCount} counts.
+   *
+   * On a computer listing this is one's own bid or nothing at all. On **one's
+   * own listing** it is what the league has bid, which is what the market
+   * page's [Gebote tab](../components/market/OwnListingsTab.tsx) is built
+   * from: the whole seller's side arrives on the market response, so it costs
+   * no request of its own.
+   *
+   * Named managers, **faceless**: `ofs` carries `unm` and no `uim`, so the
+   * pictures are filled from the standings where the tab wants one.
+   *
+   * That bids from *other* managers show up here at all is the documented
+   * reading of the visibility rule and is **unproven** (**?**) — probed
+   * 2026-09-08 against three own listings, all of which had no bids to carry.
+   * The same doubt sits on the per-player endpoint, which is the only other
+   * place to ask.
+   */
+  offers: PlayerListingOffer[]
   /** This account's own standing offer, in €, if it has one. */
   ownOffer?: number
   /** Id of that offer, needed to withdraw it. */

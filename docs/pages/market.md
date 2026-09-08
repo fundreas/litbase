@@ -13,7 +13,12 @@ to the highest bid standing at that moment and with no second round, so the
 listings about to close are the only ones you can still do anything about.
 Manager listings have no expiry at all and sort last.
 
-Each row carries what a buying decision actually needs:
+**Two tabs, but only for a seller.** With a listing of your own up, the page
+grows a *Gebote* tab holding your players and the bids on them — see
+[below](#the-selling-side-when-there-is-one--gebote). Buying is the first tab
+and the default, because it is what the page is opened for.
+
+Each row of the market list carries what a buying decision actually needs:
 
 ```
 ┌────┬─────────────────────────────┬────┬────────┐
@@ -381,23 +386,57 @@ both invalidating `qk.market(leagueId)`. `useWithdrawOffer` is the app's only
 `DELETE` and calls the axios instance directly rather than growing a `del()`
 helper for one caller.
 
-## The selling side is not here
+## The selling side, when there is one — "Gebote"
 
-**Listing a player, re-pricing him, withdrawing him and accepting a bid** are
-all built — on the
+**The page splits into two tabs the moment a listing of your own is up**:
+*Markt*, which is everything above, and *Gebote* —
+[`OwnListingsTab`](../../src/components/market/OwnListingsTab.tsx). With
+nothing of yours on the market there are no tabs at all, and the page is the
+single list it has always been: a tab strip with one inhabited side asks a
+question that has one answer.
+
+It is **the other cut of the same payload, and costs no request.** A listing
+names its seller (`u`) and the signed-in manager's id is on the session, so
+"mine" is a filter; the bids arrive with them in `ofs`. The page's
+thirty-second poll — already running for the market list — is what keeps the
+tab live.
+
+One card per listed player: the player and the ask as the header, the bids
+under it, highest first, and a closing line comparing the best of them with the
+price asked. Two things to tap, which are the seller's two decisions:
+
+| Tapped | Opens |
+| ------ | ----- |
+| The player | The **price dialog** — [`ListPlayerDialog`](../../src/components/player/PlayerSaleDialogs.tsx), re-pricing and *Vom Markt nehmen* included: the same dialog the [player page](player-detail.md#what-the-owner-can-do) opens, not a second implementation of it |
+| A bid | The **accept-or-decline dialog**, [`AcceptOfferDialog`](../../src/components/player/PlayerSaleDialogs.tsx) — hold to accept, a second question to decline |
+
+Both are addressed **by id and resolved against the current listings** rather
+than held as the object that was tapped: the market refetches under an open
+dialog every half minute, and a withdrawn listing or a pulled bid closes its
+dialog instead of settling against a snapshot. The bid rows are shared with the
+player page ([`ReceivedOfferRow`](../../src/components/market/ReceivedOfferRow.tsx)),
+and their **faces come from the standings** — `ofs` names the bidders (`unm`)
+and does not picture them, the reverse of the transfer history's problem.
+
+> **That other managers' bids appear in `ofs` at all is unproven** (**?**).
+> Probed 2026-09-08 against three own listings, which had no bids to carry — a
+> solo test league produces none. The per-player endpoint the player page uses
+> says exactly the same thing about the same field, so an empty card means
+> "none Kickbase is showing you".
+
+The rest of the selling side is on the
 [player page's Transfers tab](player-detail.md#what-the-owner-can-do), next to
-the player being sold rather than in a market of twenty other people's. Selling
-**back to Kickbase** at market value is on the same panel and on the squad's
-[sale calculator](squad.md#selling), which fires `POST /market/{playerId}/sell`
-per player behind a two-second hold.
-
-That leaves this page what it has always been: the buying side.
+the player being sold: putting him up in the first place, and selling **back to
+Kickbase** at market value — which is also on the squad's
+[sale calculator](squad.md#selling), firing `POST /market/{playerId}/sell` per
+player behind a two-second hold.
 
 ## Not built yet
 
 **Filters.** Position and price band are the obvious next ones; twenty-odd
 rows do not need them yet.
 
-**Seeing a listing of your own from here.** The market rows are built for
-buying and say nothing about being the seller; the panel that does is on the
-player page.
+**Marking a listing of your own in the *Markt* list.** The rows there are
+built for buying: one of yours shows your own face in the last panel like any
+other manager's listing, and nothing says it is you. The *Gebote* tab is where
+your side is answered, so the row has not been given a second job.

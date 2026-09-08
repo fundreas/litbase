@@ -6,11 +6,14 @@ import { useMarket } from '@/api/hooks/useMarket'
 import { useMarketValueChanges } from '@/api/hooks/useMarketValueChanges'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import type { Market, MarketListing } from '@/api/models'
+import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
 import { MarketRow } from '@/components/market/MarketRow'
 import { OfferDialog } from '@/components/market/OfferDialog'
+import { OwnListingsTab } from '@/components/market/OwnListingsTab'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { nowMs } from '@/lib/clock'
 import { COUNTDOWN_SECONDS_FROM, kickoff, money } from '@/lib/format'
@@ -62,9 +65,16 @@ function useTick(intervalMs: number): number {
  *
  * Every row is two targets: the portrait opens the player, everything else
  * opens the bid dialog. See [`MarketRow`](../components/market/MarketRow.tsx).
+ *
+ * **It grows a second tab the moment you are also a seller.** With a listing
+ * of your own up, *Gebote* holds the other cut of the same payload — your
+ * players, each with the league's bids under it — and the page stays a single
+ * list for everyone who is only buying. See
+ * [`OwnListingsTab`](../components/market/OwnListingsTab.tsx).
  */
 export function MarketPage() {
   const { league, leagueId, competitionId } = useActiveLeague()
+  const { user } = useAuth()
   const { data, isPending, isError, error, refetch } = useMarket(leagueId)
   const matchday = useCurrentMatchday(competitionId)
   // For `upe` — whether this league lets a bid fall below the market value.
@@ -113,6 +123,22 @@ export function MarketPage() {
     committedElsewhere: 0,
   })
   const afterOffers = league.budget - committed
+
+  /**
+   * The listings that are **yours** — the seller's side of the same payload.
+   *
+   * A listing names its seller (`u`), and the signed-in manager's id is on the
+   * session, so this needs nothing fetched. Empty for everyone who is only
+   * buying, and then the page has no tabs at all: a tab strip with one
+   * inhabited side is a strip that asks a question with one answer.
+   */
+  const ownListings = (listings ?? []).filter(
+    (listing) => listing.seller !== undefined && listing.seller.id === user?.id,
+  )
+  const received = ownListings.reduce(
+    (total, listing) => total + listing.offers.length,
+    0,
+  )
 
   const heading = (
     <PageHeading
@@ -172,41 +198,68 @@ export function MarketPage() {
     )
   }
 
+  const market =
+    data.listings.length === 0 ? (
+      <EmptyState
+        icon={<Store size={22} />}
+        title="Keine Spieler auf dem Markt"
+        description="Kickbase stellt laufend neue Spieler ein — schau später wieder vorbei."
+      />
+    ) : (
+      <ul className="flex flex-col gap-2">
+        {withMilestones(data, now).map((entry) =>
+          entry.kind === 'milestone' ? (
+            <Milestone
+              key={`${entry.label}-${String(entry.at)}`}
+              milestone={entry}
+            />
+          ) : (
+            <MarketRow
+              key={entry.listing.id}
+              listing={entry.listing}
+              leagueId={leagueId}
+              fixture={matchday.data?.fixtureByTeamId.get(entry.listing.teamId)}
+              marketValueChange={marketValueChanges.get(entry.listing.id)}
+              now={now}
+              onOffer={() => {
+                offer.open(entry.listing.id)
+              }}
+            />
+          ),
+        )}
+      </ul>
+    )
+
   return (
     <div className="flex flex-col gap-4">
       {heading}
 
-      {data.listings.length === 0 ? (
-        <EmptyState
-          icon={<Store size={22} />}
-          title="Keine Spieler auf dem Markt"
-          description="Kickbase stellt laufend neue Spieler ein — schau später wieder vorbei."
-        />
+      {ownListings.length === 0 ? (
+        market
       ) : (
-        <ul className="flex flex-col gap-2">
-          {withMilestones(data, now).map((entry) =>
-            entry.kind === 'milestone' ? (
-              <Milestone
-                key={`${entry.label}-${String(entry.at)}`}
-                milestone={entry}
-              />
-            ) : (
-              <MarketRow
-                key={entry.listing.id}
-                listing={entry.listing}
-                leagueId={leagueId}
-                fixture={matchday.data?.fixtureByTeamId.get(
-                  entry.listing.teamId,
-                )}
-                marketValueChange={marketValueChanges.get(entry.listing.id)}
-                now={now}
-                onOffer={() => {
-                  offer.open(entry.listing.id)
-                }}
-              />
-            ),
-          )}
-        </ul>
+        /* Buying first: it is what the page has always been and what it is
+           opened for, and the seller's side is a place you go deliberately. */
+        <Tabs defaultValue="market">
+          <TabsList>
+            <TabsTrigger value="market">Markt</TabsTrigger>
+            <TabsTrigger value="own">
+              Gebote
+              {/* The count is the reason to look, so it is on the tab rather
+                  than behind it. Silent at zero: "Gebote 0" is a label that
+                  invites a tap to confirm what it already said. */}
+              {received > 0 && (
+                <span className="nums ml-1.5 font-semibold">
+                  {String(received)}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="market">{market}</TabsContent>
+          <TabsContent value="own">
+            <OwnListingsTab listings={ownListings} leagueId={leagueId} />
+          </TabsContent>
+        </Tabs>
       )}
 
       {selected !== null && (

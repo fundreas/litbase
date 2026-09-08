@@ -1,19 +1,18 @@
-import { ChevronRight, Store, Tag } from 'lucide-react'
+import { Store, Tag } from 'lucide-react'
 import { useState } from 'react'
 
 import type { PlayerListingOffer, PlayerOfferState } from '@/api/models'
+import { ReceivedOfferRow } from '@/components/market/ReceivedOfferRow'
 import {
   AcceptOfferDialog,
   ListPlayerDialog,
   SellToKickbaseDialog,
   type SaleSubject,
 } from '@/components/player/PlayerSaleDialogs'
-import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { cn } from '@/lib/cn'
-import { money, moneyDelta } from '@/lib/format'
+import { money } from '@/lib/format'
 
 /**
  * **What the owner can do with his own player**, at the head of the Transfers
@@ -40,7 +39,9 @@ import { money, moneyDelta } from '@/lib/format'
  * They arrive from other managers while the page is open, which is why the
  * query behind this **polls at thirty seconds while a listing stands** — the
  * market page's cadence, for the market page's reason. Tapping one opens the
- * hold-to-accept dialog.
+ * accept-or-decline dialog. The rows are the market page's own — see
+ * [`ReceivedOfferRow`](../market/ReceivedOfferRow.tsx), which is where the
+ * seller's side is shown for *every* listed player at once.
  *
  * **An empty list is not proof of an empty market.** `ofs` carries the offers
  * *this account may see*; that it includes every bid on one's own listing is
@@ -134,7 +135,7 @@ export function PlayerOwnerActions({
             <ul className="divide-y divide-line">
               {offers.map((offer) => (
                 <li key={offer.id}>
-                  <OfferRow
+                  <ReceivedOfferRow
                     offer={offer}
                     marketValue={player.marketValue}
                     onOpen={() => {
@@ -186,64 +187,5 @@ export function PlayerOwnerActions({
         />
       )}
     </>
-  )
-}
-
-/**
- * One bid: who made it, what it is, and how it compares to the market value.
- *
- * A whole row is the target rather than an *Annehmen* button on it — the row
- * opens a dialog that has to be held, so there is nothing here to fire by
- * accident, and a button per row would put four identical calls to action on a
- * card whose only real question is which of them is the largest.
- */
-function OfferRow({
-  offer,
-  marketValue,
-  onOpen,
-}: {
-  offer: PlayerListingOffer
-  marketValue: number
-  onOpen: () => void
-}) {
-  const premium = offer.amount - marketValue
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        'flex w-full items-center gap-3 px-4 py-3 text-left',
-        'transition-colors hover:bg-surface-2/60',
-        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-      )}
-    >
-      <Avatar src={offer.managerImage} name={offer.managerName} size={32} />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-        {offer.managerName ?? 'Unbekannt'}
-      </span>
-      <span className="shrink-0 text-right">
-        <span className="nums block text-sm font-semibold text-ink">
-          {money(offer.amount)}
-        </span>
-        {/* Seller's side: over the market value is the good outcome, the same
-            direction the transfer list colours a sale. */}
-        <span
-          className={cn(
-            'nums block text-xs',
-            premium > 0 && 'text-positive',
-            premium < 0 && 'text-negative',
-            premium === 0 && 'text-faint',
-          )}
-        >
-          {moneyDelta(premium)}
-        </span>
-      </span>
-      <ChevronRight
-        size={16}
-        aria-hidden="true"
-        className="shrink-0 text-faint"
-      />
-    </button>
   )
 }
