@@ -56,7 +56,7 @@ allowlist [.dockerignore](.dockerignore) that keeps `.env` and
 ## Letting Claude work unattended
 
 ```bash
-cp .env.example .env               # once — the Kickbase token the agent probes with
+printf 'KICKBASE_TOKEN=…\nKICKBASE_LEAGUE_ID=…\n' > .env.agent   # once, see below
 scripts/run-agent                  # interactive session in the container
 scripts/run-agent "add a dark mode"
 scripts/run-agent -p "fix the lint" # headless: runs, prints, exits
@@ -66,7 +66,7 @@ scripts/run-agent --build          # rebuild the image (pulls the current Claude
 [scripts/run-agent](scripts/run-agent) starts a throwaway container from
 [scripts/agent/Dockerfile](scripts/agent/Dockerfile) — Node 22, Python 3, git,
 Claude Code — with this repo bind-mounted at its host path, your `~/.claude`
-login and memory shared in, `.env` injected, and Claude running with
+login and memory shared in, `.env.agent` injected, and Claude running with
 `--dangerously-skip-permissions`. The one gate left is the PreToolUse hook
 baked into the image, [scripts/agent/guard.py](scripts/agent/guard.py): it
 refuses `git push` and every git command that throws work away (branch and tag
@@ -75,6 +75,23 @@ deletion, `reset --hard`, `checkout --`/`restore`, `clean`, `stash drop`,
 and no git credential, so a push has nothing to authenticate with even if the
 hook were sidestepped. Everything else — files, npm, curl, commits — runs
 without asking.
+
+The token lives in its own file, `.env.agent`, not in `.env`: that one is
+Vite's and only ever holds `VITE_*` build settings, and a secret next to them
+is one prefix away from the bundle. `.env.agent` is read by nothing but the
+container, gitignored by the `.env.*` pattern, and kept out of image layers by
+the [.dockerignore](.dockerignore) allowlist. Two variables, plain `KEY=value`
+lines without quotes:
+
+| Variable             | What it is                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `KICKBASE_TOKEN`     | The `tkn` bearer from a Kickbase login — in devtools, the `litbase.session.v1` localStorage entry, or any request's `Authorization` header |
+| `KICKBASE_LEAGUE_ID` | The league to probe against                                                                          |
+
+Inside the container the agent reaches them as `$KICKBASE_TOKEN` and
+`$KICKBASE_LEAGUE_ID`; the file itself stays unreadable to it, like every
+`.env*` here. The token expires about seven days after login, so refresh it
+when probes start answering 401.
 
 ## Documentation
 

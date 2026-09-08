@@ -15,7 +15,10 @@
 #   * your ~/.claude (login, settings, skills, memory) at the same path inside,
 #     via CLAUDE_CONFIG_DIR — the container keeps its own .claude.json in there
 #     so it never fights the host over that file
-#   * the variables from .env in the repo root, for probing the Kickbase API
+#   * the variables from .env.agent in the repo root, for probing the Kickbase
+#     API: KICKBASE_TOKEN (the `tkn` bearer from a login, lives ~7 days) and
+#     KICKBASE_LEAGUE_ID — reachable inside as $KICKBASE_TOKEN etc. Kept apart
+#     from .env, which is Vite's and only ever holds VITE_* build settings.
 #   * your git author/committer identity as env vars — no .gitconfig, no ssh
 #     keys, no credential helpers, so `git push` has nothing to push with
 #   * host networking, so `npm run dev` on 3011 is reachable from your browser
@@ -29,7 +32,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CTX="$ROOT/scripts/agent"
 IMAGE="${AGENT_IMAGE:-litbase-agent}"
-ENV_FILE="${AGENT_ENV_FILE:-$ROOT/.env}"
+ENV_FILE="${AGENT_ENV_FILE:-$ROOT/.env.agent}"
 HOST_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 USER_NAME="$(id -un)"
@@ -134,7 +137,7 @@ run_args+=(-i)
 if [[ -f "$ENV_FILE" ]]; then
   run_args+=(--env-file "$ENV_FILE")
 else
-  echo "run-agent: no $ENV_FILE — starting without the API token (copy .env.example to .env)" >&2
+  echo "run-agent: no $ENV_FILE — starting without the API token (see README, 'Letting Claude work unattended')" >&2
 fi
 
 # Alternative auth if you prefer a token over the shared ~/.claude login.
