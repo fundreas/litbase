@@ -219,8 +219,28 @@ export function NavMoreTab({
         createPortal(
           <div
             aria-hidden="true"
-            onPointerDown={close}
-            className="fixed inset-0 z-40 animate-fade-in bg-black/50 lg:hidden"
+            // On the **release**, and not on the press.
+            //
+            // The dim already swallows the press — the row, the crest, the bid
+            // button under it never see a `pointerdown`. What they would still
+            // see is the *click*: a tap is a press and a release resolved into
+            // one, and a dim that unmounts in between leaves the release to be
+            // hit-tested against whatever is underneath by then. So a tap
+            // meant to dismiss the sheet would open a player.
+            //
+            // Closing on `click` keeps the dim in the DOM for the whole tap.
+            // It is the tap's target, the page gets nothing at all, and the
+            // sheet goes away on the lift — which is the same rule the
+            // gesture already follows: nothing is decided until the finger
+            // comes off.
+            onClick={close}
+            className={cn(
+              'fixed inset-0 z-40 animate-fade-in bg-black/50 lg:hidden',
+              // No scrolling the page behind an open sheet either — the same
+              // press would otherwise both dismiss it and move the page it
+              // was dismissed over.
+              'touch-none',
+            )}
           />,
           document.body,
         )}

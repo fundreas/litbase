@@ -497,6 +497,14 @@ Three implementation notes, each of which the gesture does not work without:
   own parent. Being up there also means any navigation puts the sheet away,
   the back button included — the same during-render pathname comparison the
   shell uses for the drawer.
+- **The dim dismisses on the release, not the press.** It already swallows the
+  press, so the row or button under a dismissing tap never sees a
+  `pointerdown` — but a tap is a press *and* a release, and a dim that
+  unmounted in between would leave the release to be hit-tested against
+  whatever had become topmost, so a tap meant to close the sheet would open a
+  player. Closing on `click` keeps the dim in the DOM for the whole tap: it is
+  the tap's own target, the page gets nothing, and nothing is decided until the
+  finger comes off — the rule the gesture follows too.
 
 The sheet lists **the pages**, from the same `navigation.ts` with the same
 active-entry rules, *Duelle* included only where the league plays them. It
