@@ -1,15 +1,4 @@
-import {
-  ArrowLeftRight,
-  Award,
-  Compass,
-  Crown,
-  Flame,
-  Hand,
-  Shield,
-  ShieldCheck,
-  Target,
-  type LucideIcon,
-} from 'lucide-react'
+import { Award } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { useLeagueDetails } from '@/api/hooks/useLeague'
@@ -19,6 +8,7 @@ import {
   type LeagueDetails,
 } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
+import { BATTLE_FALLBACK_ICON, BATTLE_ICON } from '@/components/league/battles'
 import { Avatar } from '@/components/ui/Avatar'
 import { Card, CardHeader, StatTile } from '@/components/ui/Card'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -53,19 +43,28 @@ import { date, money } from '@/lib/format'
  * response: the URL already resolved to a league, so the page has its identity
  * before the request lands and never flashes a nameless header.
  *
- * ## Wettkämpfe: seven faces, and that is the data
+ * ## Wettkämpfe: seven faces, and a way into each table
  *
  * `btls` names, for each battle, **only the manager currently leading it** —
- * no standings, no runner-up, and not even the figure that decided it. Checked
- * against a live league (2026-09-09), which is why this section is a list of
- * captioned faces rather than seven rankings: there is no second row to draw.
+ * no standings, no runner-up, and not even the figure that decided it. So this
+ * section stays a list of captioned faces: it is what this one payload knows,
+ * and it is the reading that belongs on a page about the league itself.
+ *
+ * The rest of the table exists, on
+ * [`/battles/{type}/users`](../api/endpoints.ts) — every manager, placed, with
+ * the figure — and it is the [Rangliste's Battles view](./RankingPage.tsx),
+ * where a standings list has the room and the row anatomy for it. **Every row
+ * here is the link to it**, `?battle=<type>`, including the ones nobody leads
+ * yet: a battle with no leader still has a full ranking, because the endpoint
+ * returns the whole league re-sorted and everybody starts on zero.
  *
  * Each battle's wording is **the API's own**, in German off the
  * `Accept-Language` the [client](../api/client.ts) sends, so *Transferkönig*
  * reads the way it reads in the app rather than the way this codebase would
  * have chosen to word it. Only the icon is ours, mapped from the type code —
  * with a fallback, because the codes are the published spec's and one of them
- * (`3`) has never been seen.
+ * (`3`) has never been seen. The map is shared with the chips over the battle
+ * ranking — see [`BATTLE_ICON`](../components/league/battles.ts).
  *
  * A battle **nobody leads yet** keeps its row and says so. Dropping it would
  * make a league four matchdays in look as though it had fewer competitions
@@ -290,31 +289,21 @@ function Rules({ details }: { details: LeagueDetails }) {
 }
 
 /**
- * Battle icons by type code.
+ * One battle: what it rewards, the face of whoever is winning it — and
+ * **the way into its ranking.**
  *
- * The four position battles borrow the glyphs the rest of the app already uses
- * for a keeper, a defence, a midfield and an attack, so the row is recognisable
- * before its caption is read. An unknown code gets a medal rather than nothing:
- * `3` is missing from every payload observed, so this map is known to be
- * incomplete — see `BATTLE_LABEL` in [models](../api/models.ts).
- */
-const BATTLE_ICON: Record<number, LucideIcon> = {
-  1: Crown,
-  2: ArrowLeftRight,
-  4: Hand,
-  5: Shield,
-  6: Compass,
-  7: Target,
-  8: Flame,
-}
-
-/**
- * One battle: what it rewards, and the face of whoever is winning it.
+ * The row used to link to the *leader's* page, and rows with no leader linked
+ * nowhere at all, on the reading that the leader was the only thing behind a
+ * battle. There is a whole table behind it, so the row now opens
+ * [the battle's own standings](./RankingPage.tsx) with `?battle=<type>` — the
+ * subject of the line is the competition, not the manager currently ahead of
+ * it, and the manager is one tap further on from there.
  *
- * The row is a **link to the leader's page** when there is a leader — the name
- * is the only thing on the line that leads anywhere, and the whole row is the
- * target a thumb aims at. With nobody ahead yet it is a plain row: a link to
- * nowhere would be worse than no link.
+ * That makes the **leaderless rows links too**: everybody starts a battle on
+ * zero and the endpoint ranks the whole league, so *noch offen* names a table
+ * that exists rather than a page that would be empty. The text stays — the
+ * card's own caption is *wer gerade führt*, and this is a row with nobody
+ * leading yet.
  */
 function BattleRow({
   battle,
@@ -325,12 +314,15 @@ function BattleRow({
   leagueId: string
   viewerId: string | undefined
 }) {
-  const Icon = BATTLE_ICON[battle.type] ?? ShieldCheck
+  const Icon = BATTLE_ICON[battle.type] ?? BATTLE_FALLBACK_ICON
   const { leader } = battle
   const isViewer = leader !== undefined && leader.id === viewerId
 
-  const body = (
-    <>
+  return (
+    <Link
+      to={`/leagues/${leagueId}/ranking/battles?battle=${String(battle.type)}`}
+      className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-2/60"
+    >
       <span
         className={cn(
           'flex size-9 shrink-0 items-center justify-center rounded-xl',
@@ -369,19 +361,6 @@ function BattleRow({
           <Avatar src={leader.image} name={leader.name} size={32} />
         </span>
       )}
-    </>
-  )
-
-  if (leader === undefined) {
-    return <div className="flex items-center gap-3 px-3 py-2.5">{body}</div>
-  }
-
-  return (
-    <Link
-      to={`/leagues/${leagueId}/managers/${leader.id}`}
-      className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-2/60"
-    >
-      {body}
     </Link>
   )
 }

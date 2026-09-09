@@ -1,9 +1,30 @@
 # Ranking — "Rangliste"
 
-[← Back to index](../README.md) · Route `/leagues/:leagueId/ranking` ·
+[← Back to index](../README.md) · Routes `/leagues/:leagueId/ranking` and
+`/leagues/:leagueId/ranking/battles` ·
 [`src/pages/RankingPage.tsx`](../../src/pages/RankingPage.tsx)
 
-Full standings for every manager in the league.
+Full standings for every manager in the league — the season table, and the
+same field re-sorted by one of the league's side competitions.
+
+## Two views
+
+| View | Segment | What it ranks |
+| ---- | ------- | ------------- |
+| *Rangliste* | `ranking` | the league as it stands — points, or the duel table |
+| *Battles* | `ranking/battles` | one of Kickbase's side competitions, `?battle=<type>` — [Battles](#battles) |
+
+Switched by a [`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx), the
+view in the **path segment** as on the [market](market.md), squad and
+[season](season.md) pages, so each is linkable and survives a refresh.
+
+The bar is **unconditional**, unlike the market's: whether a league runs
+battles is in a payload no route can see, and the battles view says so itself
+rather than having its tab quietly appear and disappear.
+
+The **sort toggle belongs to the table**, not to the page — it sorts the
+season standings and means nothing over a battle's own ranking, so it is not
+drawn in the battles view.
 
 ## Layout
 
@@ -183,6 +204,152 @@ draws already knows its stars and no extra request is made. Kickbase omits the
 field at zero, so it is read as `swc ?? 0`. It is **this league's** titles: the
 field sits on a league-scoped response, and the API has no cross-league view.
 
+## Battles
+
+The league's **side competitions**, as rankings: most transfers, most points
+scored with defenders, most matchdays won. The
+[Liga](league.md#wettkämpfe-seven-faces-and-a-way-into-each-table) page names
+whoever *leads* each one — that is all its payload knows — and every row of
+that card opens the table here.
+
+It lives on this page rather than on Liga because it **is** a standings list:
+the same managers, the same rows, one figure swapped, one tap from the table it
+is a variation of.
+
+```
+  Rangliste                          ← no sort toggle in this view
+  5 Manager
+
+  ┌ ♛ Spieltagsdominator ┐ ┌ ⇄ Transferkönig ┐ ┌ ✋ Saubermann ┐ →
+      (active)                                                     ← scrolls
+
+  Die meisten Transfers der Saison             ← the battle's own `d`
+
+  ┌────────────────────────────────────────────┐
+  │ 1. (A)  Danger  du                     12  │  ← accent border
+  │                                  Transfers │
+  ├────────────────────────────────────────────┤
+  │ 2. (A)  robidfl                         9  │
+  │                                  Transfers │
+  └────────────────────────────────────────────┘
+```
+
+[`BattleRankingTab`](../../src/components/ranking/BattleRankingTab.tsx).
+
+### The chip row
+
+**One [`FilterChip`](../../src/components/ui/FilterChip.tsx) per battle**, in
+the order the API lists them, exactly the *Alle · TW · ABW · MF · ANG* control
+of the [player rankings](season.md#rangliste) — a horizontally scrolling row,
+because seven battle names will not wrap onto a phone. Each chip carries the
+type's icon as its `leading`, the same glyph the Liga row it was opened from
+used, so the tap lands somewhere recognisable.
+
+The chips cost **no request**: the battle list comes from `useLeagueDetails`,
+the ten-minute overview entry [Liga](league.md) and
+[Transfermarkt](market.md) already hold, so the row is there on first paint and
+only the table under it is fetched.
+
+Exactly one chip is active, and they render **above whatever the list is
+doing** — returning early past them would make the control vanish on the tap
+that changes it and come back when the request lands, which reads as the page
+having lost the filter rather than as it fetching one.
+
+### `?battle=<type>`
+
+The selected battle is in the **query string**, the same arrangement
+[Saison](season.md) uses for `?pos=`:
+
+```
+/leagues/13145405/ranking/battles?battle=2
+```
+
+So a link can preselect a battle — which is what the Liga hand-off is — and
+back or refresh keep it. Tapping a chip **replaces** the history entry rather
+than pushing one, so back leaves the page instead of walking through every chip
+that was tapped. Switching to the table and back carries `?battle=` along on
+the tab link, so the battle that was open is the battle that comes back.
+
+**With no `?battle=`, or one naming a battle the league does not run, the
+first battle is shown.** A URL is a thing people edit, share and keep, so that
+failure has to be a view rather than an error page explaining that `?battle=99`
+is not a thing. The parameter is never written back for the implicit case: an
+unparameterised URL keeps meaning "the first one".
+
+### Row anatomy, and the unit
+
+The [season table's row](#row-anatomy) with one figure instead of two:
+
+| Element | Source |
+| ------- | ------ |
+| Placement | `pl`, formatted `3.` by `placement()` — Kickbase's own place, with the row index standing in only if it ever arrives as `0` |
+| Avatar | `uim`, with the [title stars](#title-stars) — see below |
+| Name | `n`, with a `du` tag in accent colour for the viewer |
+| Figure | `v`, **parsed** — it arrives as a string and can be negative |
+| Unit | `BATTLE_UNIT[type]`, under the figure |
+| Header | the battle's `d`, above the list |
+
+**The whole row links to [that manager](manager-detail.md)**, and the viewer's
+own row takes the accent outline — both for the reasons the season table does
+it, and so that switching tabs feels like sorting one table by something else
+rather than arriving on another page.
+
+The **unit is the app's only piece of copy here.** `v` is a bare figure and the
+response says nothing about what it counts, so `BATTLE_UNIT` in
+[`models.ts`](../../src/api/models.ts) supplies *Transfers* (type `2`),
+*Siege* (`1`) and *Pkt* (`4`–`8`). A code with no entry — `3`, or whatever
+Kickbase adds next — prints the number alone: a wrong unit is worse than none.
+
+Everything else is **the API's own wording**, in German off the
+`Accept-Language` the [client](../../src/api/client.ts) sends: the chip label
+is `n`, the line above the list is `d`. Same rule as Liga, and the reason both
+screens read like the Kickbase app rather than like this codebase. Only the
+icon is ours — [`BATTLE_ICON`](../../src/components/league/battles.ts), shared
+by the two screens, with a medal for an unknown code.
+
+The **stars are lifted off the standings.** `swc` is on the `/ranking` payload
+and nowhere else — the battle response has no such field — so the page hands
+the battles view a map of titles by manager id out of the query it makes
+anyway. No extra request, and a champion looks like one on both tabs. While
+that query is in flight nothing is drawn, so a row never flashes a badge it
+then takes back.
+
+### Everyone is in it, including the managers on nothing
+
+The endpoint returns the **whole league re-sorted**, not the managers who have
+scored — a battle four matchdays in is a full table with a run of zeroes at the
+bottom. That is what makes the Liga page's *noch offen* rows links too: a
+battle nobody leads yet still has a ranking.
+
+Ties are **not shared**. Kickbase placed four managers on `0` as 2, 3, 4, 5,
+and the tiebreak looks like user-id order. The place printed is `pl`, not a
+number counted here, so the table says what the app says even where that is
+arbitrary.
+
+### States
+
+| State | Rendering |
+| ----- | --------- |
+| Battle list loading | a row of chip-shaped placeholders plus `SkeletonList rows={6}` — the control does not pop in |
+| Battle list failed | `ErrorState` with retry |
+| League runs no battles | `EmptyState` — *Keine Wettkämpfe* |
+| Standings loading | chips and description stay, `SkeletonList rows={6}` under them |
+| Standings failed | chips stay, `ErrorState` with retry under them |
+| Battle unknown to Kickbase | `EmptyState` — *Keine Wertung*. The endpoint answers `200` for **any** code and only omits `n`, so a missing title is the only signal there is |
+
+The standings query's states gate **the table only**, not the page: a failed
+season table must not take the battles tab down with it, and the battles view's
+own failures leave the chips in place.
+
+### From Liga
+
+Every row of the *Wettkämpfe* card is
+`/leagues/:leagueId/ranking/battles?battle=<type>`. It used to link to the
+**leader's** manager page, with leaderless rows not linking anywhere at all,
+which was right only while the leader was the one thing behind a battle. The
+subject of that line is the competition, and the manager is one tap further on
+from here.
+
 ## Placement change
 
 A small subcomponent, `PlacementChange`, renders the movement since the
@@ -200,14 +367,20 @@ absolute value is displayed because the arrow already carries the direction —
 
 ## States
 
+The table's states, that is — the battles view has
+[its own](#states-1), and neither gates the other.
+
 | State | Rendering |
 | ----- | --------- |
-| Loading | `PageHeading` plus `SkeletonList rows={8}` |
+| Loading | `SkeletonList rows={8}`, under the heading and above the tab bar |
 | Error | `ErrorState` with retry |
 
 There is no empty state. A league always has at least the signed-in manager,
 so an empty ranking would mean something is broken — and the error state is
 the honest response to that.
+
+The heading and the tab bar are drawn **whatever either query is doing**, so a
+failed table still has its way over to the battles and back.
 
 ## Data
 
@@ -218,6 +391,23 @@ Note this is the **same query** the [Events](events.md) page uses to put a face
 on its transfer rows and to decide whether the league plays duels. Arriving
 here from it is therefore free: the cache is already warm and the list renders
 instantly.
+
+The battles view adds two more, neither of them on the critical path:
+
+| Hook | Endpoint | staleTime |
+| ---- | -------- | --------- |
+| [`useLeagueDetails(leagueId)`](../../src/api/hooks/useLeague.ts) | `/overview?includeManagersAndBattles=true` | 10 min — the chips, shared with [Liga](league.md) and [Transfermarkt](market.md) |
+| [`useBattleRanking(leagueId, type)`](../../src/api/hooks/useBattleRanking.ts) | [`/battles/{type}/users`](../api/leagues.md#get-v4leaguesleagueidbattlestypeusers) | 5 min — one entry per battle |
+
+`useRanking` stays unconditional in both views: the battles view reads it for
+the [title stars](#row-anatomy-and-the-unit), and it is the cache entry half
+the app shares anyway.
+
+**One request per battle opened.** There is no call that answers for every
+battle at once — `/battles`, `/battles/{type}` and `/ranking?battle=` were all
+tried and are 404 or ignored — so only the active chip's table is fetched, and
+each type is its own cache entry, which makes going back to a battle already
+looked at instant.
 
 ## Unmapped fields available
 

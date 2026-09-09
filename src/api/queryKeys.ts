@@ -54,6 +54,17 @@ export const qk = {
    */
   rankingDay: (leagueId: string, day: number) =>
     [...qk.ranking(leagueId), 'day', day] as const,
+  /**
+   * One battle's standings, by type code.
+   *
+   * A sibling of {@link ranking} rather than a child of it: the two are
+   * different endpoints ranking the same managers by different figures, and
+   * dropping the league table should not drop seven battle tables with it.
+   * Each type is its own entry — one request per battle, there is no call
+   * that answers for all of them.
+   */
+  battle: (leagueId: string, type: number) =>
+    [...qk.league(leagueId), 'battle', type] as const,
   squad: (leagueId: string) => [...qk.league(leagueId), 'squad'] as const,
   /** Another manager's squad, including which players they have fielded. */
   managerSquad: (leagueId: string, userId: string) =>

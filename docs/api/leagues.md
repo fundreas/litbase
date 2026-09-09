@@ -167,8 +167,10 @@ each battle live one endpoint over, on
 [`/battles/{type}/users`](#get-v4leaguesleagueidbattlestypeusers), keyed by
 the very `t` below — which is what the Kickbase app opens when a battle is
 tapped. [Liga](../pages/league.md) was drawn as seven captioned faces on the
-earlier reading that no second row existed; that reading was wrong, see
-[the page's note](../pages/league.md#wettkämpfe-seven-faces-and-that-is-the-data).
+earlier reading that no second row existed; that reading was wrong, and the
+faces stayed anyway — each row of them is now the link into
+[the battle's ranking](../pages/ranking.md#battles), see
+[the page's note](../pages/league.md#wettkämpfe-seven-faces-and-a-way-into-each-table).
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
@@ -296,9 +298,21 @@ for the battle actually opened.
 
 ### Used by
 
-Nothing yet. This is the endpoint the abandoned chip-per-battle ranking on
-[Liga](../pages/league.md#wettkämpfe-seven-faces-and-that-is-the-data) was
-waiting for.
+[`useBattleRanking`](../../src/api/hooks/useBattleRanking.ts) → the
+[Rangliste's Battles view](../pages/ranking.md#battles) — a chip per battle,
+the selected one's table under it. **One request per battle opened**, keyed by
+type, held five minutes: there is no call that answers for all of them, so the
+chips come from the overview's `btls` (already cached) and only the active one
+is fetched.
+
+`title` is left `undefined` when `n` is missing, which is the app's only way to
+tell "this battle does not exist" from "this battle is empty" — the endpoint
+answers `200` either way. `v` is parsed off the string, and anything
+unparseable is treated as absent rather than as `0`.
+
+This is the endpoint the chip-per-battle ranking abandoned on
+[Liga](../pages/league.md#wettkämpfe-seven-faces-and-a-way-into-each-table) was
+waiting for; every row of that card now links into it.
 
 ---
 

@@ -25,7 +25,8 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          │  └─ live   ┘ only while a matchday is being played, else → squad
          ├─ lineup      the pitch's old URL, kept as a redirect
          ├─ market
-         ├─ ranking
+         ├─ ranking   ┐ same component, view from the segment
+         │  └─ battles┘ ?battle=<type> — one side competition's standings
          ├─ duels      ?day=N — duel leagues only, else → events
          │  └─ :duelId          both manager ids joined with "-"
          │     └─ ranking       second tab of the same component
@@ -405,7 +406,8 @@ Several pages dock a bar **of their own**, which is a different thing:
 of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, the player page's
 four tabs, the match page's three, the [team page](pages/team.md)'s four, and
 the [market](pages/market.md#the-bar-and-which-tabs-it-has)'s Markt ⇄ Manager ⇄
-Gebote — rather than between pages, and exists only while that page is open. Two of those bars have a **conditional last tab**, appearing only while
+Gebote, the [Rangliste](pages/ranking.md#two-views)'s Rangliste ⇄ Battles —
+rather than between pages, and exists only while that page is open. Two of those bars have a **conditional last tab**, appearing only while
 something is being played: the squad page's *Live* while a matchday runs, and
 the team page's while that club's own fixture does. Both are **appended**
 rather than inserted, so the permanent tabs never move under a thumb that had

@@ -84,7 +84,7 @@ response also carries the members' **names** (`us`; the thin `m` list has ids
 and avatars only) and the **battles** (`btls`). Both are free: same endpoint,
 same round trip.
 
-## Wettkämpfe: seven faces, and that is the data
+## Wettkämpfe: seven faces, and a way into each table
 
 Kickbase runs side competitions inside a league — *Spieltagssieger*,
 *Transferkönig*, one per position, one for the biggest single matchday. The
@@ -101,10 +101,14 @@ live on 2026-09-09.
 > [`/leagues/{id}/battles/{type}/users`](../api/leagues.md#get-v4leaguesleagueidbattlestypeusers):
 > every manager, placed, with the figure — transfers, position points,
 > matchday wins — as the Kickbase app shows when a battle is tapped. It hid in
-> the spec under a slug that never says *ranking*. The page still draws seven
-> faces because nothing has been built on the finding yet, **not** because the
-> API stops there; the chip-per-battle design is back on the table, at one
-> request per battle opened.
+> the spec under a slug that never says *ranking*.
+>
+> That design is **built**, as the [Rangliste's second view](ranking.md#battles)
+> rather than as a table on this page: it is a standings list, so it belongs
+> with the standings, one tap from the table it is a variation of. This card
+> keeps the seven faces — that is what *this* payload knows, and who leads what
+> is the reading a page about the league itself wants — and every row of it is
+> now the way into the ranking behind it.
 
 Each row's **wording is the API's own**, in German off the `Accept-Language`
 the [client](../../src/api/client.ts) sends — so *Transferkönig* reads exactly
@@ -116,10 +120,27 @@ battle Kickbase adds next season should still draw as a battle. See
 
 **A battle nobody leads yet keeps its row** and says *noch offen*. Dropping it
 would make a league four matchdays old look as though it had fewer
-competitions than it has. Those rows are **not links** — a link to nowhere is
-worse than no link — where a led battle makes the whole row the way to
-[that manager's page](manager-detail.md), because the name is the only thing on
-the line that leads anywhere.
+competitions than it has.
+
+## Every battle row is a link to its ranking
+
+The whole row, `?battle=<type>`:
+
+```
+/leagues/:leagueId/ranking/battles?battle=2
+```
+
+The row used to link to the **leader's** manager page, and a row with nobody
+ahead linked nowhere at all — right only while the leader was the one thing
+behind a battle. The subject of the line is the *competition*, so that is what
+the tap now opens: [its full standings](ranking.md#battles), with the leader's
+face still on the row and their page one tap further on from there.
+
+**The leaderless rows are links too.** Everybody starts a battle on zero and
+the endpoint ranks the whole league, so *noch offen* names a table that exists
+rather than a page that would be empty — and it is the table that says how
+close the field is to somebody taking it. The text stays as it is: the card's
+own caption is *wer gerade führt*, and this is a row with nobody leading yet.
 
 ## Manager: faces, not a table
 

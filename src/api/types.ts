@@ -350,6 +350,54 @@ export interface LeagueOverviewResponse {
   }>
 }
 
+/**
+ * **One battle's standings** — `/leagues/{id}/battles/{type}/users`.
+ *
+ * The table behind a `btls` entry: every manager in the league, already in
+ * placement order, with the figure that placed them. Unlike
+ * {@link RankingResponse} this one **is** sorted, so `us` is taken as it
+ * comes.
+ *
+ * An **unknown `type` still answers 200** — the endpoint does not validate the
+ * code — and what is missing then is `n`, `d` and every row's `v`. So a
+ * response without `n` is how "this battle does not exist" arrives.
+ */
+export interface BattleRankingResponse {
+  /**
+   * The battle's name, **already worded** — `"Transferkönig"`, the same string
+   * as on `btls`. Absent for a `type` the league does not run.
+   */
+  n?: string
+  /** What it rewards, one line, also worded by the API. Absent likewise. */
+  d?: string
+  /** The managers, **already sorted by place**. */
+  us?: Array<{
+    /** The manager — the same shape as `btls[].u`. */
+    u: {
+      i: string
+      n?: string
+      uim?: string
+      isvf?: boolean
+      vft?: number
+      st?: number
+    }
+    /**
+     * Place, `1`-based. **Ties are not shared**: four managers on `v: "0"`
+     * came back as places 2, 3, 4, 5, the tiebreak looking like user-id order.
+     */
+    pl: number
+    /**
+     * The figure that placed them, **as text** — `"12"` transfers, `"543"`
+     * points, `"1"` matchday win. Not a number, so it has to be parsed, and
+     * it **can be negative** (`"-10"` midfield points). Absent for an unknown
+     * `type`.
+     */
+    v?: string
+  }>
+  /** Managers in the battle, i.e. the league's member count. Ignores `max`. */
+  tc?: number
+}
+
 export interface RankingResponse {
   /** League name. */
   ti: string

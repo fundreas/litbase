@@ -58,6 +58,9 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *                                          selling
  *   /leagues/:leagueId/market/offers       your own listings, and the bids on
  *                                          them
+ *   /leagues/:leagueId/ranking             the league's season table
+ *   /leagues/:leagueId/ranking/battles     one side competition's ranking,
+ *                                          `?battle=<type>`
  *   /leagues/:leagueId/whatif/:playerId    a purchase, with the squad and the
  *                                          lineup rearranged around it
  *   /leagues/:leagueId/matchday            every fixture of a matchday
@@ -174,7 +177,15 @@ export const router = createBrowserRouter(
                   path: 'whatif/:playerId',
                   element: <WhatIfPage />,
                 },
+                // Two routes, one component — the view comes from the segment,
+                // as on the market and season pages. `ranking/battles` is the
+                // standings of one of the league's side competitions, the
+                // battle itself in `?battle=<type>`; it is registered
+                // unconditionally, because whether a league runs battles is in
+                // a payload no route can see, and the view says so itself
+                // rather than bouncing the URL.
                 { path: 'ranking', element: <RankingPage /> },
+                { path: 'ranking/battles', element: <RankingPage /> },
                 // The competition's own fixtures, and one match in detail.
                 // Three routes for the detail, one component — the tab comes
                 // from the segment, as on the squad and duel-detail pages.

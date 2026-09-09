@@ -368,6 +368,69 @@ export const BATTLE_LABEL: Record<number, string> = {
   8: 'Punkte-Rekord',
 }
 
+/**
+ * **What a battle's figure is counted in**, per type code.
+ *
+ * The standings carry `v` as a bare string and nothing that says what it
+ * measures — `"12"` is twelve transfers, `"543"` is 543 points, `"1"` is one
+ * matchday won — so the unit is the app's, like the icon. It is the *only*
+ * copy this codebase writes about a battle: the name and the one-line
+ * description both arrive worded by the API and are printed as they come.
+ *
+ * The four position battles and the single-matchday record are all points,
+ * which is what makes a per-code map worth having rather than a branch. A
+ * code that is not in here (`3`, or whatever Kickbase adds next) prints the
+ * number alone — a wrong unit would be worse than none.
+ */
+export const BATTLE_UNIT: Record<number, string> = {
+  1: 'Siege',
+  2: 'Transfers',
+  4: 'Pkt',
+  5: 'Pkt',
+  6: 'Pkt',
+  7: 'Pkt',
+  8: 'Pkt',
+}
+
+/**
+ * **One battle's standings** — the table behind a {@link LeagueBattle}.
+ *
+ * Every manager in the league appears, **including those on zero**: this is
+ * the whole league re-sorted by one figure, not the set of managers who have
+ * scored in it. So a battle nobody leads yet still has a full ranking.
+ *
+ * `title` is absent when the battle does not exist — the endpoint answers 200
+ * for any `type` at all and only omits the name — which is the one check a
+ * caller has to make before believing the rest.
+ */
+export interface BattleRanking {
+  /** Type code the standings were asked for — see {@link BATTLE_LABEL}. */
+  type: number
+  /** The API's own wording. **Absent means the battle does not exist.** */
+  title?: string
+  /** What it rewards, one line, also the API's. */
+  description?: string
+  /** Managers in the battle (`tc`) — the league's member count. */
+  managerCount: number
+  /** In placement order, as the endpoint returns them. */
+  managers: BattleRankedManager[]
+}
+
+/** One row of a {@link BattleRanking}. */
+export interface BattleRankedManager {
+  id: string
+  name: string
+  image?: string
+  /** Place, 1-based. Ties are **not** shared — see the wire type. */
+  placement: number
+  /**
+   * The figure that placed them, parsed out of the string `v` — transfers,
+   * points or matchday wins depending on the battle, and **possibly
+   * negative**. Absent only for a battle that does not exist.
+   */
+  value?: number
+}
+
 export interface RankedManager {
   id: string
   name: string

@@ -268,11 +268,19 @@ and from live data, so the set is open and a lookup has to survive a miss.
 | `8` | Punkte-Rekord | Punktejäger | Most points on a single matchday |
 
 The **names in this table are only a fallback.** Each entry carries its own
-`n` and `d`, worded by the API in the app's `Accept-Language`, and
-[Liga](../pages/league.md) prints those — see `BATTLE_LABEL` and
-`BATTLE_ICON`. Only the icon is mapped from the code. The two name columns
-above are the proof: Kickbase has reworded five of the seven since the spec
-was captured, and a hard-coded label would have gone stale with them.
+`n` and `d`, worded by the API in the app's `Accept-Language`, and both
+[Liga](../pages/league.md) and the
+[battle ranking](../pages/ranking.md#battles) print those — see `BATTLE_LABEL`
+in [`models.ts`](../../src/api/models.ts). The two name columns above are the
+proof: Kickbase has reworded five of the seven since the spec was captured, and
+a hard-coded label would have gone stale with them.
+
+Two things *are* mapped from the code, both of them the app's own and neither
+of them in any payload: the **icon**
+([`BATTLE_ICON`](../../src/components/league/battles.ts), shared by the two
+screens, with a medal for a code that is not in it) and the **unit** the
+standings' `v` is counted in (`BATTLE_UNIT` in `models.ts` — *Siege* for `1`,
+*Transfers* for `2`, *Pkt* for `4`–`8`, nothing for a code it does not know).
 
 `/battles/{type}/users` **does not validate the code**: `0`, `9`, `100`, `-1`
 and `abc` all answer `200` with the members in id order and no `n`, `d` or

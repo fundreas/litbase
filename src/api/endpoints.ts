@@ -44,6 +44,23 @@ export const endpoints = {
      * the caller has to clamp to `1…nd` itself.
      */
     ranking: (leagueId: string) => `/v4/leagues/${leagueId}/ranking`,
+    /**
+     * **The standings of one side competition** — every manager in the league,
+     * placed, with the figure that placed them.
+     *
+     * `type` is the same code as `t` on the overview's `btls`, which carries
+     * only the leader; this is the whole table behind it, and the view the
+     * Kickbase app opens when a battle is tapped.
+     *
+     * The code is **not validated**: `0`, `3`, `9`, `-1` and even `abc` answer
+     * 200 with the members in id order, no `n`/`d` and no `v` per row — so a
+     * missing name is the only sign that a battle does not exist. It also
+     * takes `?start=`/`?max=` (neither is in the spec, both work), which the
+     * app does not pass: a league is a handful of managers and the whole
+     * table is one page.
+     */
+    battleRanking: (leagueId: string, type: number) =>
+      `/v4/leagues/${leagueId}/battles/${String(type)}/users`,
     /** The signed-in manager's players. */
     squad: (leagueId: string) => `/v4/leagues/${leagueId}/squad`,
     /**

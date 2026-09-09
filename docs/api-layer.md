@@ -138,6 +138,7 @@ is what makes them safe to call before context has resolved.
 | `useLeagueManager(id)` | `/leagues/{id}/me` | 2 min (default) |
 | `useLeagueDetails(id)` | `/leagues/{id}/overview?includeManagersAndBattles=true` | 10 min |
 | `useRanking(id)` | `/leagues/{id}/ranking` | 2 min (default) |
+| `useBattleRanking(id, type)` | `/leagues/{id}/battles/{type}/users` | 5 min — one entry per battle |
 | `useDuels(id, day)` | `/leagues/{id}/ranking?dayNumber=` | 5 min — 0 + poll while the matchday runs |
 | `useMatchdayStandings(id, day)` | same entry, mapped as a manager ranking | as above |
 | `useSquad(id)` | `/leagues/{id}/squad` | 2 min (default) |
@@ -164,6 +165,14 @@ Every live rate is the one constant in [`polling.ts`](../src/api/polling.ts) —
 **10 s** — gated per running subject (a match, a player, the matchday ranking)
 rather than per page. The season fixture list is the deliberate exception at
 60 s: it is the whole season fetched for one boolean, `st`.
+
+`useBattleRanking` is the one hook that **keeps the order it was given.**
+`/battles/{type}/users` returns the managers already placed, unlike `/ranking`
+whose `us` arrives in some internal order — so `pl` is read for the number
+printed and the array order for the sequence, and there is no client-side sort
+to disagree with either. It is also keyed **per battle**: no call answers for
+all of them, so the [Battles view](pages/ranking.md#battles) fetches the chip
+that is active and nothing else.
 
 `useMatchdaySquad` is the API's only **historical** source: a manager's squad
 and lineup as they stood on a given matchday, for any manager in the league.

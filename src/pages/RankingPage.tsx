@@ -1,13 +1,21 @@
-import { Sigma, Swords, type LucideIcon } from 'lucide-react'
+import {
+  Award,
+  ListOrdered,
+  Sigma,
+  Swords,
+  type LucideIcon,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 
 import { duelResultOf, useRanking } from '@/api/hooks/useRanking'
 import type { DuelResult, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
+import { BattleRankingTab } from '@/components/ranking/BattleRankingTab'
 import { DuelOutcomeLine } from '@/components/ranking/DuelOutcomeLine'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
+import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/States'
@@ -18,9 +26,50 @@ import { placement, points } from '@/lib/format'
 /** Which of the two tables the list is showing. */
 type SortKey = 'duel' | 'total'
 
+/**
+ * The page's two views, and the URL segment each one is reached by.
+ *
+ * `ranking` is the **bare** route (`/leagues/:leagueId/ranking`), so its value
+ * only ever names the view and is never appended to a URL.
+ */
+const VIEWS = { ranking: 'ranking', battles: 'battles' } as const
+type View = (typeof VIEWS)[keyof typeof VIEWS]
+
+/**
+ * **The league's standings — the season table, and its side competitions.**
+ *
+ *   /leagues/:leagueId/ranking            the table
+ *   /leagues/:leagueId/ranking/battles    one battle's ranking, ?battle=<type>
+ *
+ * ## Two views, because they rank the same managers by different things
+ *
+ * The table is the league as it stands. *Battles* is the same field re-sorted
+ * by one of Kickbase's side competitions — most transfers, most points with
+ * defenders, most matchdays won — and it belongs here rather than on
+ * [Liga](./LeaguePage.tsx) for exactly that reason: it is a standings list,
+ * with the standings' rows, one tap from the table it is a variation of. The
+ * Liga page keeps the *Wettkämpfe* card that names who leads each one, and
+ * every row of it now opens the matching battle here.
+ *
+ * The view is a **path segment** switched by a
+ * [`BottomTabBar`](../components/ui/BottomTabBar.tsx), as on the market, squad
+ * and season pages, and the battle itself rides in **`?battle=<type>`** — the
+ * same arrangement [Saison](./SeasonPage.tsx) uses for `?pos=`. So a battle is
+ * linkable, survives a refresh, and comes back unchanged when you switch to
+ * the table and back.
+ *
+ * The bar is unconditional, unlike the [market](./MarketPage.tsx)'s: whether a
+ * league runs battles is in a payload no route can see, and the battles view
+ * says so itself rather than having its tab quietly disappear.
+ */
 export function RankingPage() {
   const { leagueId } = useActiveLeague()
   const { user } = useAuth()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view: View = location.pathname.endsWith(`/${VIEWS.battles}`)
+    ? VIEWS.battles
+    : VIEWS.ranking
   const { data, isPending, isError, error, refetch } = useRanking(leagueId)
   const [sortBy, setSortBy] = useState<SortKey>('duel')
 
@@ -49,42 +98,83 @@ export function RankingPage() {
     [data],
   )
 
-  if (isPending) {
-    return (
-      <div className="flex flex-col gap-4">
-        <PageHeading title="Rangliste" />
-        <SkeletonList rows={8} />
-      </div>
-    )
-  }
+  /* Title stars for the battles view's faces. `swc` is on the standings and
+     nowhere else — the battle payload has no such field — so the count is
+     lifted out of the query this page makes anyway and handed over, which is
+     what keeps a champion looking like one on both tabs without a request of
+     its own. */
+  const titlesById = useMemo(
+    () =>
+      new Map(
+        (data?.managers ?? []).map((manager) => [manager.id, manager.titles]),
+      ),
+    [data],
+  )
 
-  if (isError) {
-    return (
+  const battleParam = searchParams.get('battle')
+  const base = `/leagues/${leagueId}/${VIEWS.ranking}`
+  // `?battle=` rides along, so switching to the table and back returns to the
+  // battle that was open rather than to the first one.
+  const suffix =
+    battleParam === null ? '' : `?battle=${encodeURIComponent(battleParam)}`
+  const tabs: BottomTab[] = [
+    { value: VIEWS.ranking, label: 'Rangliste', icon: ListOrdered, to: base },
+    {
+      value: VIEWS.battles,
+      label: 'Battles',
+      icon: Award,
+      to: `${base}/${VIEWS.battles}${suffix}`,
+    },
+  ]
+
+  const heading = (
+    <PageHeading
+      title="Rangliste"
+      subtitle={
+        data === undefined
+          ? undefined
+          : data.isDuelMode && view === VIEWS.ranking
+            ? `${String(managers.length)} Manager · Duell-Modus`
+            : `${String(managers.length)} Manager`
+      }
+      action={
+        // The toggle sorts the season table and means nothing over a battle's
+        // own ranking, so it belongs to that view rather than to the page.
+        data?.isDuelMode === true && view === VIEWS.ranking ? (
+          <SortToggle value={sortBy} onChange={setSortBy} />
+        ) : undefined
+      }
+    />
+  )
+
+  /* The standings' own states gate the **table only**. The battles view reads
+     a different endpoint and carries its own states, so a failed table must
+     not take the other tab down with it — and its stars degrade to none. */
+  const body =
+    view === VIEWS.battles ? (
+      <BattleRankingTab
+        leagueId={leagueId}
+        viewerId={user?.id}
+        battle={battleParam}
+        onBattleChange={(type) => {
+          const params = new URLSearchParams(searchParams)
+          params.set('battle', String(type))
+          // `replace`, so back leaves the page rather than walking through
+          // every chip that was tapped — as on the season ranking's `?pos=`.
+          setSearchParams(params, { replace: true })
+        }}
+        titlesById={titlesById}
+      />
+    ) : isPending ? (
+      <SkeletonList rows={8} />
+    ) : isError ? (
       <ErrorState
         error={error}
         onRetry={() => {
           void refetch()
         }}
       />
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <PageHeading
-        title="Rangliste"
-        subtitle={
-          data.isDuelMode
-            ? `${String(managers.length)} Manager · Duell-Modus`
-            : `${String(managers.length)} Manager`
-        }
-        action={
-          data.isDuelMode ? (
-            <SortToggle value={sortBy} onChange={setSortBy} />
-          ) : undefined
-        }
-      />
-
+    ) : (
       <ul className="flex flex-col gap-2">
         {managers.map((manager) => (
           <ManagerRow
@@ -104,6 +194,13 @@ export function RankingPage() {
           />
         ))}
       </ul>
+    )
+
+  return (
+    <div className="flex flex-col gap-4">
+      {heading}
+      {body}
+      <BottomTabBar tabs={tabs} active={view} ariaLabel="Ranglistenansicht" />
     </div>
   )
 }

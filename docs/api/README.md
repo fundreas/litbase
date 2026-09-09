@@ -40,7 +40,7 @@ the two marked *none*.
 | `GET` | `/v4/leagues/{leagueId}/me` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidme) |
 | `GET` | `/v4/leagues/{leagueId}/overview` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidoverview) |
 | `GET` | `/v4/leagues/{leagueId}/ranking` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidranking) |
-| `GET` | `/v4/leagues/{leagueId}/battles/{type}/users` | | [Leagues](leagues.md#get-v4leaguesleagueidbattlestypeusers) |
+| `GET` | `/v4/leagues/{leagueId}/battles/{type}/users` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidbattlestypeusers) |
 | `GET` | `/v4/leagues/{leagueId}/managers/{managerId}/performance` | | [Leagues](leagues.md#get-v4leaguesleagueidmanagersmanageridperformance) |
 | `GET` | `/v4/leagues/{leagueId}/managers/{managerId}/dashboard` | | [Leagues](leagues.md#get-v4leaguesleagueidmanagersmanageriddashboard) |
 | `GET` | `/v4/leagues/{leagueId}/activitiesFeed` | ✔ | [Leagues](leagues.md#get-v4leaguesleagueidactivitiesfeed) |
