@@ -139,6 +139,10 @@ export function BottomTabBar({
 
       <nav
         aria-label={ariaLabel}
+        // What the shell's `:has()` test looks for: a page with a bar has the
+        // dots in it already, so the floating button stays away. See
+        // [`AppShell`](../layout/AppShell.tsx).
+        data-bottom-bar=""
         className={cn(
           'fixed inset-x-0 bottom-0 lg:left-64',
           'border-t border-line bg-canvas/95 pb-safe backdrop-blur',

@@ -226,9 +226,13 @@ Phone and tablet — navigation is behind the hamburger:
 │                                     │
 │           <Outlet />                │  max-w-3xl, px-3, pb-safe
 │    (RouteErrorBoundary + Suspense)  │
-│                                     │
+│                                 ⋮   │  the pages, under the right thumb
 └─────────────────────────────────────┘
 ```
+
+The dots in that corner are the shortcut described in [The dots in the
+corner](#the-dots-in-the-corner): the last tab of the page's own bottom bar
+where it has one, and a small floating button where it does not.
 
 From **`lg` (64rem)** up the drawer becomes a permanent column and the
 hamburger goes away. The header keeps spanning the full width above both:
@@ -397,9 +401,10 @@ There is **no global bottom tab bar**: it duplicated the drawer, ate a row of
 screen height on exactly the small screens where the pitch needs it, and forced
 a second, coarser notion of which entry was active (`/lineup` had no bar entry
 of its own, so **Mannschaft** had to stand in for it). What the bottom *does*
-carry, wherever a page docks a bar of its own, is a single thin tab of three
-dots — the pages behind one thumb, described in [The dots
-tab](#the-dots-tab) below.
+carry, on every page, is three dots in the right-hand corner — a thin tab of a
+page's own bar where there is one, a small floating button where there is not.
+The pages behind one thumb, described in [The dots in the
+corner](#the-dots-in-the-corner) below.
 
 Several pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
@@ -435,19 +440,45 @@ Pages can claim the leftover viewport height: `main` is a flex column, so a
 page root with `flex-1` fills it. The [lineup](pages/squad.md#lineup-tab) uses
 this, and gained a row of height when the bar went.
 
-### The dots tab
+### The dots in the corner
 
 Reaching another page on a phone was a stretch to the **top left** — the far
 corner from a right thumb — followed by a pick from a drawer covering the
 screen. Two deliberate moves for the app's most frequent act, the first of them
-across the whole display, while the thumb sits parked on the bottom bar.
+across the whole display, while the thumb sits parked in the opposite corner.
 
-So every `BottomTabBar` ends with one tab that is **not** a view of the page:
-[`NavMoreTab`](../src/components/layout/NavMoreTab.tsx), three vertical dots,
-`w-8` against the tabs' `flex-1` and fenced off by a left border. It is added
-by the bar itself rather than passed in by each page — "always there" is the
-whole point, and a page that had to opt in would be the page where the reach
-comes back. It is `lg:hidden`: from `lg` up the sidebar is already on screen.
+So the bottom right of every page holds three vertical dots, and the sheet of
+pages they open is one component either way:
+[`NavMoreMenu`](../src/components/layout/NavMoreMenu.tsx) — the gesture, the
+sheet and the dim. Two wrappers of a dozen lines each decide only *where the
+dots sit*, and the sheet is `absolute`, so it anchors to whichever positioned
+box they hand it:
+
+| | Where | What it looks like |
+| --- | --- | --- |
+| [`NavMoreTab`](../src/components/layout/NavMoreTab.tsx) | the last cell of a page's own `BottomTabBar` | `w-8` against the tabs' `flex-1`, fenced off by a left border — **not** a view of the page, the one entry in the row that leaves |
+| [`NavMoreFab`](../src/components/layout/NavMoreFab.tsx) | floating in the same corner, on pages with no bar | a 40px round button, `pb-safe` clear of the bottom edge — bordered, raised and translucent, because it has no bar to belong to and nothing reserves it room |
+
+Neither is passed in by a page: the bar adds its own tab, and the shell adds
+the floating button. "Always there" is the whole point, and a page that had to
+opt in would be the page where the reach comes back. Both are `lg:hidden`: from
+`lg` up the sidebar is already on screen.
+
+**Which of the two appears is decided in CSS**, and by the page's own markup
+rather than by any state: a docked bar marks itself `data-bottom-bar`, the
+shell root is a `group/shell`, and the floating button carries
+`group-has-[[data-bottom-bar]]/shell:hidden`. Nothing to register, nothing to
+keep in step — and it follows a bar that comes and goes with its data (the
+[market](pages/market.md)'s does, once it has two views to offer) in the same
+frame it appears, as well as the moment before a lazy page has mounted its own.
+
+**No page reserves it room**, unlike a bar, which keeps its own footprint in
+the flow. A strip of padding for a 40px corner button would come out of every
+page's height, the pages that claim the window's leftover height for a pitch
+included — which is where height is worth most and where this corner is grass.
+It costs the right-hand end of a list's last row at the very bottom of a long
+scroll, which is what a floating button costs everywhere, and is why this one
+is small and translucent.
 
 ```
 ┌──────────────┐
@@ -495,10 +526,11 @@ Three implementation notes, each of which the gesture does not work without:
   descendants — an in-place dim would stretch to the bar's own box rather than
   to the window. It sits at `z-40`, and the bar raises itself to `z-50` while
   the sheet is out, so the bar stays lit with the sheet growing out of it. That
-  is why the open state lives in `BottomTabBar`: an element cannot raise its
-  own parent. Being up there also means any navigation puts the sheet away,
-  the back button included — the same during-render pathname comparison the
-  shell uses for the drawer.
+  is why the open state lives in `BottomTabBar` rather than in the menu: an
+  element cannot raise its own parent. (The floating button has no parent to
+  raise, so it keeps its own state and lifts itself.) Being up there also means
+  any navigation puts the sheet away, the back button included — the same
+  during-render pathname comparison the shell uses for the drawer.
 - **The dim dismisses on the release, not the press.** It already swallows the
   press, so the row or button under a dismissing tap never sees a
   `pointerdown` — but a tap is a press *and* a release, and a dim that

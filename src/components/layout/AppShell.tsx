@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router'
 
 import { Header } from '@/components/layout/Header'
 import { NavDrawer } from '@/components/layout/NavDrawer'
+import { NavMoreFab } from '@/components/layout/NavMoreFab'
 import { NavSidebar } from '@/components/layout/NavSidebar'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { LoadingState } from '@/components/ui/States'
@@ -33,6 +34,28 @@ const SIDEBAR_QUERY = '(min-width: 64rem)'
  *
  * The switch is CSS, not JavaScript: no flash on first paint, and no layout
  * that depends on a resize handler having fired.
+ *
+ * ## The dots in the corner
+ *
+ * On top of those two there is a third, much smaller surface: the app's pages
+ * under the right thumb, in the bottom-right corner, always. Where the page
+ * docks a [bottom bar](../ui/BottomTabBar.tsx) they are its last tab; where it
+ * does not, the [`NavMoreFab`](./NavMoreFab.tsx) below floats them in the same
+ * place.
+ *
+ * **Which of the two shows is decided in CSS**, by this root's `group/shell`
+ * and a `:has()` test for the `data-bottom-bar` a docked bar marks itself
+ * with. No state, no registry, and nothing for a page to remember: a bar that
+ * appears with its data (the market's does, once it has two views to offer)
+ * takes the floating button away with it in the same frame, and a page that
+ * has no bar while it loads gets the button for exactly that long.
+ *
+ * The well's padding is **not** touched for it. A bar reserves its own
+ * footprint in the flow because it is a solid row across the screen; the
+ * floating button is 40px in a corner and floats, as one does. Reserving a
+ * strip for it would come out of every page's height — including the pages
+ * that claim what is left of the window for a pitch, which is exactly where
+ * height is worth most and where the corner it floats in is grass.
  */
 export function AppShell() {
   const location = useLocation()
@@ -71,7 +94,7 @@ export function AppShell() {
   }, [location.pathname])
 
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas">
+    <div className="group/shell flex min-h-dvh flex-col bg-canvas">
       <Header
         onOpenNav={() => {
           setIsNavOpen(true)
@@ -96,6 +119,8 @@ export function AppShell() {
           </RouteErrorBoundary>
         </main>
       </div>
+
+      <NavMoreFab className="group-has-[[data-bottom-bar]]/shell:hidden" />
     </div>
   )
 }
