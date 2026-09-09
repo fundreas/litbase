@@ -19,7 +19,16 @@ export const endpoints = {
     selection: '/v4/leagues/selection',
     /** The signed-in manager inside one league (budget, squad size, …). */
     me: (leagueId: string) => `/v4/leagues/${leagueId}/me`,
-    /** League metadata and member list. */
+    /**
+     * League metadata, the rules, the member list — and, with
+     * **`?includeManagersAndBattles=true`**, the members' *names* (`us`) plus
+     * the league's side competitions (`btls`).
+     *
+     * The parameter is declared required by the published spec and is not:
+     * the app omitted it for months and got a usable response. It is passed
+     * now because the extras are free — one request either way — and the
+     * [Liga page](../pages/LeaguePage.tsx) is built out of them.
+     */
     overview: (leagueId: string) => `/v4/leagues/${leagueId}/overview`,
     /**
      * Standings of all managers in the league.

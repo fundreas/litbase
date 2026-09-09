@@ -291,16 +291,81 @@ export interface LeagueManager {
 export interface LeagueDetails {
   id: string
   name: string
+  /** CDN-relative league image, if the league has one (`lim`). */
+  image?: string
   competitionId: string
   competitionName: string
   createdAt: string
+  /** The league's blurb, as its admin wrote it. Absent when nobody wrote one. */
+  description?: string
   memberCount: number
-  members: Array<{ id: string; image?: string }>
+  /** Manager cap (`mgm`) — how many the league takes in total. */
+  managerLimit?: number
+  /**
+   * The members. **Named** whenever the response carried `us`, which it does
+   * with `?includeManagersAndBattles=true` — the thin `m` list has ids and
+   * avatars only, and a face with no name under it is not a member list.
+   */
+  members: Array<{ id: string; name?: string; image?: string }>
+  /** Starting budget every manager began with, in € (`b`). */
+  startingBudget?: number
+  /** Game mode — see {@link GAME_MODE_LABEL}. */
+  gameMode?: number
+  /** Max players one manager may hold. `0` = no limit. */
+  maxPlayers?: number
+  /** Max players from one real club. `0` = no limit. */
+  maxPlayersPerClub?: number
+  /** Whether the signed-in manager administers this league. */
+  isAdmin: boolean
   /**
    * Whether a bid may fall below the player's market value — the league's
    * `upe`. Drives the bid dialog; see [`offerRules.ts`](../lib/offerRules.ts).
    */
   allowsUnderpay: boolean
+  /** The league's side competitions, in the order the API lists them. */
+  battles: LeagueBattle[]
+}
+
+/**
+ * **One side competition of the league, and who is winning it.**
+ *
+ * Kickbase calls them *battles* (`btls`): *Spieltagssieger*, *Transferkönig*,
+ * one per position. Each is a season-long superlative — most matchday wins,
+ * most points scored with defenders — and the payload names **only the
+ * manager currently ahead**, with no figure and no runners-up. That is the
+ * whole shape of the data, not a slice of it the app chose to keep.
+ *
+ * `title` and `description` come **from the API**, already in German. The
+ * app's own {@link BATTLE_LABEL} is only a fallback for a battle whose
+ * wording is missing, so an unrecognised `type` still reads as something.
+ */
+export interface LeagueBattle {
+  /** Type code (`t`) — see {@link BATTLE_LABEL}. */
+  type: number
+  title: string
+  description?: string
+  /** The manager leading it. Absent before anyone has done anything to lead. */
+  leader?: { id: string; name: string; image?: string }
+}
+
+/**
+ * Battle type codes, with the wording to fall back on.
+ *
+ * The codes are the published spec's example, whose battles read `1`, `2`,
+ * `4`, `5`, `6`, `7` and `8` — **`3` has never been seen**, so the map is
+ * knowingly incomplete and every lookup has to survive a miss. The API's own
+ * `n` is preferred wherever it arrives, which is everywhere observed; these
+ * strings exist so that a battle Kickbase adds next season is drawn as a
+ * battle rather than as a blank line.
+ */
+export const BATTLE_LABEL: Record<number, string> = {
+  1: 'Spieltagssieger',
+  2: 'Transferkönig',
+  4: 'Torwart-Wertung',
+  5: 'Abwehr-Wertung',
+  6: 'Mittelfeld-Wertung',
+  7: 'Sturm-Wertung',
+  8: 'Punkte-Rekord',
 }
 
 export interface RankedManager {

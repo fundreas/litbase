@@ -13,6 +13,7 @@ import {
   EventsPage,
   JoinLeaguePage,
   LeagueGate,
+  LeaguePage,
   ManagerDetailPage,
   MarketPage,
   MatchDetailPage,
@@ -48,6 +49,8 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *                                when the account has none
  *   /join                        browse and join leagues
  *   /leagues/:leagueId/<page>    every league-scoped page
+ *   /leagues/:leagueId/league              the league itself: rules, members,
+ *                                          battles
  *   /leagues/:leagueId/squad/lineup        the pitch, under the squad
  *   /leagues/:leagueId/squad/live          the running matchday, while it runs
  *   /leagues/:leagueId/market              the transfer market, to buy from
@@ -110,6 +113,13 @@ export const router = createBrowserRouter(
               children: [
                 { index: true, element: <Navigate to="events" replace /> },
                 { path: 'events', element: <EventsPage /> },
+                // The league itself — its rules, its members and the battles
+                // running inside it. Reached by tapping the league card at
+                // the top of the drawer and the sidebar, which is the one
+                // thing on every screen that names the league; it has no
+                // entry in NAV_ITEMS for the same reason a player or a club
+                // has none — the way in is the thing that names it.
+                { path: 'league', element: <LeaguePage /> },
                 // The league's landing page was `/dashboard` until the stat
                 // tiles and the standings preview came off it and the event
                 // feed became the whole page. Kept as a redirect: it is the

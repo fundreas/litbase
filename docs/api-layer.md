@@ -136,7 +136,7 @@ is what makes them safe to call before context has resolved.
 | ---- | -------- | --------- |
 | `useLeagues()` | `/leagues/selection` | 10 min |
 | `useLeagueManager(id)` | `/leagues/{id}/me` | 2 min (default) |
-| `useLeagueDetails(id)` | `/leagues/{id}/overview` | 10 min |
+| `useLeagueDetails(id)` | `/leagues/{id}/overview?includeManagersAndBattles=true` | 10 min |
 | `useRanking(id)` | `/leagues/{id}/ranking` | 2 min (default) |
 | `useDuels(id, day)` | `/leagues/{id}/ranking?dayNumber=` | 5 min — 0 + poll while the matchday runs |
 | `useMatchdayStandings(id, day)` | same entry, mapped as a manager ranking | as above |

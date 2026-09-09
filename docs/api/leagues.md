@@ -124,7 +124,7 @@ League metadata, the member list, and — crucially — the **league rules**.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| `includeManagersAndBattles` | boolean | **?** Declared required by the published spec, and the app omits it and gets a usable response anyway. With `true` the spec's example additionally carries `us` (managers, spelled out) and `btls` (the league's award standings — "Matchday Master", "Transfer King", …). **Unused; a league-overview extension is what would want it** |
+| `includeManagersAndBattles` | boolean | Declared **required** by the published spec, and it is not: the app omitted it for months and got a usable response. With `true` the response additionally carries `us` (the managers **with their names**) and `btls` (the league's side competitions). **Now always passed** — the extras are free, one request either way, and [Liga](../pages/league.md) is built out of them |
 
 ### Response `200`
 
@@ -148,8 +148,37 @@ League metadata, the member list, and — crucially — the **league rules**.
 | `isr` | boolean | **✗** |
 | `amd`, `isp`, `ism` | boolean | **✗** From the spec's example; not observed live |
 | `adm` | boolean | Whether you administer the league |
-| `us` | array | **?** Managers with names — only with `includeManagersAndBattles=true` |
-| `btls` | array | **?** Award standings — `{ t, n, d, u }`: type code, title, description, and the manager leading it. Only with `includeManagersAndBattles=true`. The `t` codes are **✗** |
+| `us` | array | Managers **with names** — `{ i, n, uim }`. Only with `includeManagersAndBattles=true`, and the reason the app passes it: `m` above has ids and avatars but no names, so a member list drawn from it is a row of anonymous faces |
+| `btls` | array | **The league's side competitions** — see below. Only with `includeManagersAndBattles=true` |
+| `lim` | string | League image, CDN-relative |
+| `clpc` | number | **?** Current lineup player count — observed `11`, as on `/ranking` |
+| `rnkm` | number | **✗** Observed `1` |
+
+### `btls` — the battles, and only who leads them
+
+*Spieltagssieger*, *Transferkönig*, one per position: season-long superlatives
+running inside the league alongside the table. Confirmed live on 2026-09-09,
+and the confirmation is a **negative** one worth recording, because it decided
+a page's shape: each entry names the **one manager currently ahead** and
+nothing else — no standings, no runner-up, and **not even the figure that
+decided it**.
+
+[Liga](../pages/league.md) therefore draws them as seven captioned faces. A
+chip-per-battle ranking, in the shape of
+[Saison → Rangliste](../pages/season.md#rangliste), was designed first and
+abandoned on this reading: there is no second row to draw.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `t` | number | Battle type — the codes are the spec's: `1` Spieltagssieger, `2` Transferkönig, `4`–`7` keeper/defence/midfield/attack, `8` most points on one matchday. **`3` has never been observed**, so treat the set as open |
+| `n` | string | The battle's name, **already worded** — German on the `Accept-Language` the app sends |
+| `d` | string | What it rewards, one line, also worded by the API |
+| `u` | object | The manager leading it — `{ i, n, uim, isvf, st }`. `isvf` and `st` are **✗** (observed `false` and `0`). Absent before anyone leads |
+
+Because `n` and `d` arrive as prose, the app **prints them** rather than
+mapping `t` to copy of its own; `BATTLE_LABEL` in
+[`models.ts`](../../src/api/models.ts) is only the fallback for a code whose
+wording is missing, and the icon per code is the one thing that is ours.
 
 ### `upe` — the one rule the market has to know
 
@@ -174,8 +203,11 @@ settled — but it is the field that reports the truth either way. See
 
 ### Used by
 
-[`useLeagueOverview`](../../src/api/hooks/useLeague.ts) → the member list on
-[Ranking](../pages/ranking.md), and `upe` on [Market](../pages/market.md).
+[`useLeagueDetails`](../../src/api/hooks/useLeague.ts) → the whole of
+[Liga](../pages/league.md) — rules, members and battles — and `upe` on
+[Market](../pages/market.md) and [Was wäre wenn](../pages/whatif.md). One
+ten-minute cache entry shared by all of them, which is why the Liga page
+usually costs no request at all.
 
 ---
 

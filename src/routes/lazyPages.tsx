@@ -20,6 +20,10 @@ export const EventsPage = lazy(async () => ({
   default: (await import('@/pages/EventsPage')).EventsPage,
 }))
 
+export const LeaguePage = lazy(async () => ({
+  default: (await import('@/pages/LeaguePage')).LeaguePage,
+}))
+
 export const SquadPage = lazy(async () => ({
   default: (await import('@/pages/SquadPage')).SquadPage,
 }))

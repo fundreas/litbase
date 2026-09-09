@@ -5,7 +5,7 @@
   - days to next match
   - injuries
 
-# calculator preview in transfer modal view
+# calculator preview in squad view
   - select players to sell
   - consider the offer that can be edited the same way
   - show budget
@@ -24,7 +24,5 @@
 # bake build version/time into code show in user dropdown
 
 # when not winning a transfer -> show my offer in transfer details
-
-# show overview when clicking the league in menu
 
 # think of a easy way to switch between main-menu-items without opening the sidebar-menu

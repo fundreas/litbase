@@ -1,4 +1,4 @@
-import { LogOut, Plus } from 'lucide-react'
+import { ChevronRight, LogOut, Plus } from 'lucide-react'
 import { useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router'
 
@@ -9,7 +9,6 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
-import { money } from '@/lib/format'
 
 /**
  * One row style for every entry, so the drawer and the permanent sidebar
@@ -52,17 +51,42 @@ export function NavContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <>
-      <div className="mb-3 flex items-center gap-3 rounded-card border border-line bg-surface px-3 py-3">
-        <Avatar src={league.image} name={league.name} size={40} square />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">
-            {league.name}
-          </p>
-          <p className="nums truncate text-xs text-muted">
-            Budget {money(league.budget)}
-          </p>
-        </div>
-      </div>
+      {/*
+        The league, and the way into it. It was a plain box with the budget
+        under the name — the manager's money, printed where the *league* is
+        named, and already on Transfermarkt where it is spent. Now the card is
+        the entry point to the [Liga page](../../pages/LeaguePage.tsx): the
+        rules it plays by, everyone in it, and the battles running inside it.
+        Nothing else in the app named the league and went nowhere.
+      */}
+      <NavLink
+        to={`/leagues/${leagueId}/league`}
+        onClick={onNavigate}
+        className={({ isActive }) =>
+          cn(
+            'mb-3 flex items-center gap-3 rounded-card border px-3 py-3 transition-colors',
+            isActive
+              ? 'border-accent/50 bg-accent/10'
+              : 'border-line bg-surface hover:bg-surface-2',
+          )
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <Avatar src={league.image} name={league.name} size={40} square />
+            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+              {league.name}
+            </p>
+            <ChevronRight
+              size={16}
+              className={cn(
+                'shrink-0',
+                isActive ? 'text-accent' : 'text-faint',
+              )}
+            />
+          </>
+        )}
+      </NavLink>
 
       <nav className="flex flex-col gap-1">
         {items.map((item) => {

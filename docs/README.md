@@ -26,6 +26,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues` | [League gate](pages/league-gate.md) | Implemented |
 | `/join` | [Join a league](pages/join-league.md) | Implemented |
 |  `/leagues/:leagueId/events` | [Events](pages/events.md) | Implemented |
+| `/leagues/:leagueId/league` | [Liga](pages/league.md) | Implemented |
 | `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |
 | `/leagues/:leagueId/squad/lineup` | [Squad — lineup tab](pages/squad.md#lineup-tab) | Implemented |
 | `/leagues/:leagueId/squad/live` | [Squad — live tab](pages/squad.md#live-tab) | Implemented — only while a matchday runs |
@@ -72,6 +73,10 @@ entry anyway, because the drawer's match is a prefix one and each has a list
 above it: *Teams* is the club page's parent route, the player page borrows
 *Mannschaft*, and the manager page names *Rangliste* in `alsoMatches` — the
 table every manager on it came out of.
+
+[Liga](pages/league.md) is unlisted for the same reason, and it is the one page
+that lights **nothing** in the drawer — its way in is the league card above the
+entries, which lights itself instead.
 
 [Was wäre wenn](pages/whatif.md) is unlisted on the same grounds and lights
 *Transfermarkt* the same way. It is reached from the **Durchrechnen** button in

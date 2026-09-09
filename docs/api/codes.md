@@ -246,6 +246,30 @@ was probed.
 | `2` | High management | "High-Management" |
 | `4` | Arena | Large open leagues |
 
+## Battle type (`t` on `btls`)
+
+The league's side competitions, on
+[`/leagues/{id}/overview?includeManagersAndBattles=true`](leagues.md#btls--the-battles-and-only-who-leads-them).
+The codes are the **published spec's**, whose example league carried seven
+battles; `3` is missing from it and from live data, so the set is open and a
+lookup has to survive a miss.
+
+| Value | Battle | Rewards |
+| ----- | ------ | ------- |
+| `1` | Spieltagssieger | Most matchday wins |
+| `2` | Transferkönig | Most transfers of the season |
+| `3` | **✗** | Never observed |
+| `4` | Torwart-Wertung | Most points scored with goalkeepers |
+| `5` | Abwehr-Wertung | Most points scored with defenders |
+| `6` | Mittelfeld-Wertung | Most points scored with midfielders |
+| `7` | Sturm-Wertung | Most points scored with forwards |
+| `8` | Punkte-Rekord | Most points on a single matchday |
+
+The **names in this table are only a fallback.** Each entry carries its own
+`n` and `d`, worded by the API in the app's `Accept-Language`, and
+[Liga](../pages/league.md) prints those — see `BATTLE_LABEL` and
+`BATTLE_ICON`. Only the icon is mapped from the code.
+
 ## Lineup probability (`prob`)
 
 A **per-player tier, 1..5, lower is more likely**. Undocumented, and the one

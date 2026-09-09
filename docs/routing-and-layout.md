@@ -19,6 +19,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
       └─                            <AppShell>
          ├─ (index)                 → events
          ├─ events
+         ├─ league      the league itself: rules, members, battles
          ├─ squad     ┐ same component, tab from the segment
          │  ├─ lineup │
          │  └─ live   ┘ only while a matchday is being played, else → squad
@@ -235,8 +236,7 @@ hamburger goes away. The header keeps spanning the full width above both:
 ┌───────────────────────────────────────────────────────┐
 │     MADMASSCREM Sunday Leauge                     (A) │  full-width header
 ├──────────────┬────────────────────────────────────────┤
-│ ⬛ Liga       │                                        │
-│  Budget …    │                                        │
+│ ⬛ Liga     › │                                        │
 │              │            <Outlet />                  │
 │ Übersicht    │      max-w-3xl, centred in the rest    │
 │ Mannschaft   │                                        │
@@ -251,7 +251,13 @@ hamburger goes away. The header keeps spanning the full width above both:
 ### Two surfaces, one at a time
 
 [`NavContent`](../src/components/layout/NavContent.tsx) holds the league card,
-the page links and *Liga beitreten*. It is rendered twice — inside
+the page links and *Liga beitreten*. The **league card is a link** — it opens
+[Liga](pages/league.md), the page about the league itself — and it used to
+print the manager's budget under the name. That figure is gone: it is the
+*manager's* money shown where the **league** is named, it is already on
+[Transfermarkt](pages/market.md) where it is spent, and it made the league's
+identity read as an account balance. The card is that page's only entry point,
+which is why the page has no entry in `navigation.ts`. It is rendered twice — inside
 [`NavDrawer`](../src/components/layout/NavDrawer.tsx) below `lg` and inside
 [`NavSidebar`](../src/components/layout/NavSidebar.tsx) from `lg` up — so there
 is one list of pages, not two that can drift.

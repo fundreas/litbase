@@ -312,6 +312,42 @@ export interface LeagueOverviewResponse {
   d?: string
   /** Starting budget of the league, in €. */
   b?: number
+  /** Game play mode, see GAME_PLAY_MODE. */
+  gpm?: number
+  /** Whether the signed-in manager administers the league. */
+  adm?: boolean
+  /** League image, CDN-relative. */
+  lim?: string
+  /**
+   * The members **with their names** — `m` above carries ids and avatars only.
+   *
+   * Present only with `?includeManagersAndBattles=true`, which the app now
+   * always passes; see {@link btls}.
+   */
+  us?: Array<{ i: string; n: string; uim?: string }>
+  /**
+   * **The league's side competitions** — *Spieltagssieger*, *Transferkönig*,
+   * *Sturm-Star* and the rest — each with the one manager currently leading
+   * it.
+   *
+   * Present only with `?includeManagersAndBattles=true`. **The leader is all
+   * there is**: no standings, no figure, not even the value that decided it.
+   * Checked against a live league on 2026-09-09, and it is the whole reason
+   * [Liga](../pages/LeaguePage.tsx) draws these as seven captioned faces
+   * rather than as seven rankings.
+   *
+   * `n` and `d` arrive **already worded** — German, on the `Accept-Language`
+   * the [client](./client.ts) sends — so the app prints them rather than
+   * mapping `t` to copy of its own. `t` is the type code, and only observed
+   * ones are known: see `BATTLE_LABEL` in [models](./models.ts) for the
+   * fallback wording and `docs/api/codes.md` for the codes.
+   */
+  btls?: Array<{
+    t: number
+    n?: string
+    d?: string
+    u?: { i: string; n?: string; uim?: string; isvf?: boolean; st?: number }
+  }>
 }
 
 export interface RankingResponse {
