@@ -16,7 +16,7 @@ import type {
 import { POSITION_LABEL, POSITION_NAME } from '@/api/models'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { Avatar } from '@/components/ui/Avatar'
-import { FilterChip } from '@/components/ui/FilterChip'
+import { CHIP_ROW, FilterChip } from '@/components/ui/FilterChip'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
@@ -183,13 +183,14 @@ export function PlayerRankingTab({
    * or rows. Returning early past them would make the control disappear on the
    * tap that changes it and come back when the request lands, which reads as
    * the page having lost the filter rather than as it fetching one.
+   *
+   * Five short labels fit a phone on one line, so this row has never had to be
+   * swiped — but it is the same control as the battles' and shares its class
+   * list, so the narrow screen that does have to swipe it can. See
+   * [`CHIP_ROW`](../ui/FilterChip.tsx).
    */
   const chips = (
-    <div
-      className="no-scrollbar flex gap-2 overflow-x-auto"
-      role="group"
-      aria-label="Position"
-    >
+    <div className={CHIP_ROW} role="group" aria-label="Position">
       {FILTERS.map((filter) => (
         <FilterChip
           key={filter.key ?? 'all'}

@@ -250,6 +250,30 @@ the ten-minute overview entry [Liga](league.md) and
 [Transfermarkt](market.md) already hold, so the row is there on first paint and
 only the table under it is fetched.
 
+**The swipe had to be fixed for the phone.** Seven German battle names are
+about two phone-widths of chips, and the row — the ordinary
+`-mx-3 overflow-x-auto` one, with `shrink-0` chips — was reported as not
+scrolling on a device while scrolling correctly in a browser at the same
+width. Nothing was wrong with the box: the gesture was not reaching it. A
+horizontal drag where the page has nothing to scroll horizontally is a
+*navigation* gesture (back on Android; back/forward in an iOS home-screen app,
+which is how this one is meant to be installed), and a scroll container hands
+the swipe on as soon as it runs out of content — or, in a standalone iOS app,
+before it starts. So the row now carries `overscroll-x-contain`, which stops
+that chaining, and `touch-pan-x`, which stops a slightly diagonal swipe being
+resolved as a vertical page scroll and locked out of the row for the rest of
+the drag. Both live in
+[`CHIP_ROW`](../../src/components/ui/FilterChip.tsx), shared with the
+[player rankings](season.md#rangliste)' filter and
+[Liga beitreten](join-league.md)'s two rows, so the three cannot drift apart.
+The cost is that a vertical drag begun on those 36px does not scroll the page,
+which is what a carousel costs anywhere.
+
+**The active chip is scrolled into view.** `?battle=` can name the seventh of
+seven — a hand-off from a Liga *Wettkämpfe* row does exactly that — and a row
+sitting at its left end would then have its own selection off-screen. Only the
+row moves (`inline: 'nearest'`, `block: 'nearest'`), never the page.
+
 Exactly one chip is active, and they render **above whatever the list is
 doing** — returning early past them would make the control vanish on the tap
 that changes it and come back when the request lands, which reads as the page

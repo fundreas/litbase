@@ -1,4 +1,5 @@
 import { Award } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router'
 
 import { useBattleRanking } from '@/api/hooks/useBattleRanking'
@@ -10,7 +11,7 @@ import {
 } from '@/api/models'
 import { BATTLE_FALLBACK_ICON, BATTLE_ICON } from '@/components/league/battles'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
-import { FilterChip } from '@/components/ui/FilterChip'
+import { CHIP_ROW, FilterChip } from '@/components/ui/FilterChip'
 import { Skeleton, SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
@@ -62,6 +63,13 @@ function selectedBattle(
  * rather than as it fetching one — the same rule
  * [`PlayerRankingTab`](./PlayerRankingTab.tsx) follows.
  *
+ * Seven German battle names are about two phone-widths of chips, so this is
+ * the row that found out the swipe was not reaching the scroll container on a
+ * phone at all — see [`CHIP_ROW`](../ui/FilterChip.tsx) for what it takes. And
+ * because the row starts at its left end while `?battle=` may name the last
+ * chip, **the active one is scrolled into view**: arriving from a Liga row
+ * must not land on a table whose own filter is off-screen.
+ *
  * ## Every manager is in it, including the ones on nothing
  *
  * The endpoint returns the whole league re-sorted, not the managers who have
@@ -109,6 +117,23 @@ export function BattleRankingTab({
   const battles = details.data?.battles ?? []
   const selected = selectedBattle(battles, battle)
   const ranking = useBattleRanking(leagueId, selected?.type)
+  const row = useRef<HTMLDivElement>(null)
+
+  /* The chip that is on, brought into the row's view — for the arrival from a
+     Liga *Wettkämpfe* row, which can name the seventh of seven battles and
+     would otherwise open a table under a row of chips scrolled to the first.
+     `nearest` on both axes: it moves the row only when the chip is actually
+     out of sight, and never the page, whose scroll position belongs to the
+     reader. Also runs on a tap, where it does nothing — the chip tapped is by
+     definition on screen — except at the very ends of the row, where it pulls
+     the neighbour that is half-cut fully in. */
+  useEffect(() => {
+    row.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [selected?.type])
 
   if (details.isPending) {
     return (
@@ -144,11 +169,7 @@ export function BattleRankingTab({
 
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className="-mx-3 no-scrollbar flex gap-2 overflow-x-auto px-3"
-        role="group"
-        aria-label="Wettkampf"
-      >
+      <div ref={row} className={CHIP_ROW} role="group" aria-label="Wettkampf">
         {battles.map((option) => {
           const Icon = BATTLE_ICON[option.type] ?? BATTLE_FALLBACK_ICON
           return (

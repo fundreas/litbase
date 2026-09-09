@@ -665,8 +665,13 @@ function Bench({
       )}
 
       {/* One sideways-scrolling strip, grouped by position with headings, so
-          the whole squad stays reachable with a thumb. */}
-      <div className="-mx-3 no-scrollbar flex gap-4 overflow-x-auto px-3 pb-1">
+          the whole squad stays reachable with a thumb. `overscroll-x-contain`
+          for the same reason the chip rows carry it — a swipe that runs off
+          the end of a strip must not be handed to the browser as a back
+          gesture. Not `touch-pan-x` though: this strip is tall enough to be
+          most of the screen's bottom half, and a page you cannot scroll by
+          dragging there would cost more than the strip is worth. */}
+      <div className="-mx-3 no-scrollbar flex gap-4 overflow-x-auto overscroll-x-contain px-3 pb-1">
         {grouped.map((group) => (
           <div key={group.position} className="flex shrink-0 flex-col gap-1.5">
             <span className="text-[0.625rem] font-semibold tracking-wide text-faint">

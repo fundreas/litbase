@@ -243,7 +243,7 @@ function FormCard({
           Noch kein Spiel gespielt.
         </p>
       ) : (
-        <ul className="no-scrollbar flex gap-2 overflow-x-auto p-3">
+        <ul className="no-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain p-3">
           {form.map((fixture) => {
             const result = teamResult(fixture) as TeamResult
             const opponent = teams?.get(fixture.opponentId)
