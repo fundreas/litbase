@@ -249,26 +249,34 @@ was probed.
 ## Battle type (`t` on `btls`)
 
 The league's side competitions, on
-[`/leagues/{id}/overview?includeManagersAndBattles=true`](leagues.md#btls--the-battles-and-only-who-leads-them).
-The codes are the **published spec's**, whose example league carried seven
-battles; `3` is missing from it and from live data, so the set is open and a
-lookup has to survive a miss.
+[`/leagues/{id}/overview?includeManagersAndBattles=true`](leagues.md#btls--the-battles-and-only-who-leads-them),
+and the `{type}` path segment of
+[`/leagues/{id}/battles/{type}/users`](leagues.md#get-v4leaguesleagueidbattlestypeusers),
+which returns that battle's full standings. The codes are the **published
+spec's**, whose example league carried seven battles; `3` is missing from it
+and from live data, so the set is open and a lookup has to survive a miss.
 
-| Value | Battle | Rewards |
-| ----- | ------ | ------- |
-| `1` | Spieltagssieger | Most matchday wins |
-| `2` | Transferkönig | Most transfers of the season |
-| `3` | **✗** | Never observed |
-| `4` | Torwart-Wertung | Most points scored with goalkeepers |
-| `5` | Abwehr-Wertung | Most points scored with defenders |
-| `6` | Mittelfeld-Wertung | Most points scored with midfielders |
-| `7` | Sturm-Wertung | Most points scored with forwards |
-| `8` | Punkte-Rekord | Most points on a single matchday |
+| Value | Battle (spec) | Battle (live, 2026-09-09) | Rewards |
+| ----- | ------------- | ------------------------- | ------- |
+| `1` | Spieltagssieger | Spieltagsdominator | Most matchday wins |
+| `2` | Transferkönig | Transferkönig | Most transfers of the season |
+| `3` | **✗** | **✗** | Never observed; `/battles/3/users` answers with a nameless list |
+| `4` | Torwart-Wertung | Saubermann | Most points scored with goalkeepers |
+| `5` | Abwehr-Wertung | Abwehrbollwerk | Most points scored with defenders |
+| `6` | Mittelfeld-Wertung | Fädenzieher | Most points scored with midfielders |
+| `7` | Sturm-Wertung | Angriffslustig | Most points scored with forwards |
+| `8` | Punkte-Rekord | Punktejäger | Most points on a single matchday |
 
 The **names in this table are only a fallback.** Each entry carries its own
 `n` and `d`, worded by the API in the app's `Accept-Language`, and
 [Liga](../pages/league.md) prints those — see `BATTLE_LABEL` and
-`BATTLE_ICON`. Only the icon is mapped from the code.
+`BATTLE_ICON`. Only the icon is mapped from the code. The two name columns
+above are the proof: Kickbase has reworded five of the seven since the spec
+was captured, and a hard-coded label would have gone stale with them.
+
+`/battles/{type}/users` **does not validate the code**: `0`, `9`, `100`, `-1`
+and `abc` all answer `200` with the members in id order and no `n`, `d` or
+`v`. A missing `n` is the only way to tell a battle that does not exist.
 
 ## Lineup probability (`prob`)
 

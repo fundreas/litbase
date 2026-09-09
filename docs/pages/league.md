@@ -88,15 +88,23 @@ same round trip.
 
 Kickbase runs side competitions inside a league — *Spieltagssieger*,
 *Transferkönig*, one per position, one for the biggest single matchday. The
-payload names, for each, **only the manager currently ahead**: no standings, no
-runner-up, and not even the figure that decided it. Confirmed live on
-2026-09-09.
+overview payload names, for each, **only the manager currently ahead**: no
+standings, no runner-up, and not even the figure that decided it. Confirmed
+live on 2026-09-09.
 
 > A chip-per-battle ranking was designed first — chips like
 > [Saison → Rangliste](season.md#rangliste)'s *Alle · TW · ABW · MF · ANG*, one
 > per battle, with a table under them. It was abandoned on that reading: there
-> is no second row to draw. Seven captioned faces is not a reduced version of
-> that page, it is the whole of what the API has.
+> is no second row to draw.
+>
+> **That reading was wrong**, and the same day. The second row exists on
+> [`/leagues/{id}/battles/{type}/users`](../api/leagues.md#get-v4leaguesleagueidbattlestypeusers):
+> every manager, placed, with the figure — transfers, position points,
+> matchday wins — as the Kickbase app shows when a battle is tapped. It hid in
+> the spec under a slug that never says *ranking*. The page still draws seven
+> faces because nothing has been built on the finding yet, **not** because the
+> API stops there; the chip-per-battle design is back on the table, at one
+> request per battle opened.
 
 Each row's **wording is the API's own**, in German off the `Accept-Language`
 the [client](../../src/api/client.ts) sends — so *Transferkönig* reads exactly

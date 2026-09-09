@@ -13,6 +13,7 @@ league-scoped too and have their own pages:
 | `GET` | [`/v4/leagues/selection`](#get-v4leaguesselection) | Bearer | Leagues you belong to |
 | `GET` | [`/v4/leagues/{leagueId}/me`](#get-v4leaguesleagueidme) | Bearer | You, inside one league |
 | `GET` | [`/v4/leagues/{leagueId}/overview`](#get-v4leaguesleagueidoverview) | Bearer | League metadata, rules and members |
+| `GET` | [`/v4/leagues/{leagueId}/battles/{type}/users`](#get-v4leaguesleagueidbattlestypeusers) | Bearer | The standings of **one battle** — every manager, placed, with the figure |
 | `GET` | [`/v4/leagues/{leagueId}/ranking`](#get-v4leaguesleagueidranking) | Bearer | Standings, optionally for one matchday |
 | `GET` | [`/v4/leagues/{leagueId}/managers/{managerId}/performance`](#get-v4leaguesleagueidmanagersmanageridperformance) | Bearer | A manager's every season — the only route past the current one |
 | `GET` | [`/v4/leagues/{leagueId}/managers/{managerId}/dashboard`](#get-v4leaguesleagueidmanagersmanageriddashboard) | Bearer | One manager's current season at a glance |
@@ -157,16 +158,17 @@ League metadata, the member list, and — crucially — the **league rules**.
 ### `btls` — the battles, and only who leads them
 
 *Spieltagssieger*, *Transferkönig*, one per position: season-long superlatives
-running inside the league alongside the table. Confirmed live on 2026-09-09,
-and the confirmation is a **negative** one worth recording, because it decided
-a page's shape: each entry names the **one manager currently ahead** and
-nothing else — no standings, no runner-up, and **not even the figure that
-decided it**.
+running inside the league alongside the table. Each entry names the **one
+manager currently ahead** and nothing else — no standings, no runner-up, and
+**not even the figure that decided it**. Confirmed live on 2026-09-09.
 
-[Liga](../pages/league.md) therefore draws them as seven captioned faces. A
-chip-per-battle ranking, in the shape of
-[Saison → Rangliste](../pages/season.md#rangliste), was designed first and
-abandoned on this reading: there is no second row to draw.
+That is the *overview's* shape, not the API's limit: the full standings of
+each battle live one endpoint over, on
+[`/battles/{type}/users`](#get-v4leaguesleagueidbattlestypeusers), keyed by
+the very `t` below — which is what the Kickbase app opens when a battle is
+tapped. [Liga](../pages/league.md) was drawn as seven captioned faces on the
+earlier reading that no second row existed; that reading was wrong, see
+[the page's note](../pages/league.md#wettkämpfe-seven-faces-and-that-is-the-data).
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
@@ -208,6 +210,95 @@ settled — but it is the field that reports the truth either way. See
 [Market](../pages/market.md) and [Was wäre wenn](../pages/whatif.md). One
 ten-minute cache entry shared by all of them, which is why the Liga page
 usually costs no request at all.
+
+---
+
+## `GET /v4/leagues/{leagueId}/battles/{type}/users`
+
+The **standings of one battle**: every manager in the league, placed, with the
+number that placed them. This is the view the Kickbase app opens when a
+battle on the league overview is tapped, and the endpoint `btls` above is a
+teaser for.
+
+It is in the published spec, but easy to miss: the slug reads *battles type
+users*, the description is boilerplate ("users participating in or associated
+with a battle"), and the example response has **no value field at all** — so
+nothing in the doc says *ranking*. Found on 2026-09-09 by listing the spec's
+endpoint ids and grepping for `battle`, after a sweep of the obvious guesses
+(`/battles`, `/battles/{type}`, `/battles/{type}/ranking`, `/overview/battles`,
+`/ranking?battle=`) had all come back 404 or been silently ignored.
+
+**Auth** Bearer.
+
+### Path parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `leagueId` | string | League id |
+| `type` | number | The battle — the same code as `t` on `btls`, see [Battle type](codes.md#battle-type-t-on-btls). **Not validated**: an unknown value (`0`, `3`, `9`, `100`, `-1`, even `abc`) still answers `200`, with the members in id order, no `n`/`d`, and no `v` per row. The only sign that a battle does not exist is the missing name |
+
+### Query parameters
+
+Neither is in the spec; both were tried because `/ranking` and the market
+take them, and both work.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `start` | number | Zero-based offset into the placed list. `start=4` on five managers returns only place 5 |
+| `max` | number | Page size. `max=2` returns places 1–2; `start=2&max=2` places 3–4. `tc` stays the full count either way. `offset`/`limit` are **ignored** |
+
+### Response `200`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `n` | string | The battle's name, already worded — `"Transferkönig"`. Same string as on `btls`. **Absent** for an unknown `type` |
+| `d` | string | What it rewards, one line — `"Die meisten Transfers der Saison"`. Absent for an unknown `type` |
+| `us` | array | The managers, **already sorted by place** — see below |
+| `tc` | number | Total count of managers in the battle, i.e. the league's member count; unaffected by `max` |
+
+#### `us[]`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `u` | object | The manager — `{ i, n, uim, isvf, vft, st }`, the same shape as `btls[].u`. `uim` is absent when the manager has no avatar. `isvf`, `vft`, `st` **✗** (observed `false`, `0`, `0`) |
+| `pl` | number | Place, `1`-based. Ties are **not** shared: four managers on `v: "0"` were placed 2, 3, 4, 5, and three on `"1"` were placed 3, 4, 5 — the tiebreak looks like user-id order, i.e. arbitrary |
+| `v` | **string** | The figure that placed them, as text — `"12"` transfers, `"543"` points, `"1"` matchday win. Not a number: parse it. **Can be negative** (`"-10"` midfield points), and is **absent** for an unknown `type` |
+
+Every manager appears, including those on zero — the list is the whole league
+re-sorted, not the set of those who scored. The leader here is always the `u`
+on the matching `btls` entry.
+
+Observed on 2026-09-09, league `13145405`, five managers:
+
+| `type` | `n` | Top `v` | Unit |
+| ------ | --- | ------- | ---- |
+| `1` | Spieltagsdominator | `"1"` | Matchday wins |
+| `2` | Transferkönig | `"12"` | Transfers |
+| `4` | Saubermann | `"90"` | Goalkeeper points |
+| `5` | Abwehrbollwerk | `"543"` | Defender points |
+| `6` | Fädenzieher | `"220"` | Midfielder points |
+| `7` | Angriffslustig | `"27"` | Forward points |
+| `8` | Punktejäger | `"650"` | Points on one matchday |
+
+The names differ from the spec's table (*Spieltagssieger* → *Spieltagsdominator*,
+*Torwart-Wertung* → *Saubermann*, …): Kickbase reworded the battles, which is
+exactly why the app prints `n` rather than mapping `t`.
+
+### Not there
+
+`/battles`, `/battles/{type}`, `/battles/{type}/ranking`, `/battles/{type}/table`,
+`/battles/{type}/users/{userId}`, `/overview/battles`, `/overview/{type}`,
+`/ranking/battles/{type}` — all `404`. `/ranking?battle=`, `?battleType=`,
+`?bt=` answer `200` with the ordinary ranking, the parameter ignored. So there
+is no per-manager battle detail and no single call for all battles at once:
+seven battles is seven requests, or the overview's leaders plus one request
+for the battle actually opened.
+
+### Used by
+
+Nothing yet. This is the endpoint the abandoned chip-per-battle ranking on
+[Liga](../pages/league.md#wettkämpfe-seven-faces-and-that-is-the-data) was
+waiting for.
 
 ---
 
