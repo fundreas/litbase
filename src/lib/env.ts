@@ -3,6 +3,14 @@
 const DEFAULT_API_BASE_URL = 'https://api.kickbase.com'
 const DEFAULT_CDN_BASE_URL = 'https://kickbase.b-cdn.net'
 
+/**
+ * The market-value forecast API — a static JSON tree on GitHub Pages, written
+ * nightly by [litbase-foresight](https://github.com/fundreas/litbase-foresight)
+ * after Kickbase recalculates market values. Not Kickbase, no token, CORS open
+ * to anyone; see `usePlayerForecast`.
+ */
+const DEFAULT_FORECAST_BASE_URL = 'https://fundreas.github.io/litbase-foresight'
+
 /** Vite mode of the live-simulation profile — `npm run dev:live`. */
 const LIVE_MODE = 'live'
 
@@ -56,6 +64,9 @@ export const env = {
   ),
   cdnBaseUrl: trimTrailingSlash(
     import.meta.env.VITE_CDN_BASE_URL || DEFAULT_CDN_BASE_URL,
+  ),
+  forecastBaseUrl: trimTrailingSlash(
+    import.meta.env.VITE_FORECAST_BASE_URL || DEFAULT_FORECAST_BASE_URL,
   ),
   isDev: import.meta.env.DEV,
   devProfile: readDevProfile(),

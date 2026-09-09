@@ -191,6 +191,16 @@ export const qk = {
    */
   competitionRankingArchive: (competitionId: string, day: number) =>
     [...qk.competition(competitionId), 'rankingArchive', day] as const,
+  /**
+   * One player's market-value forecast, from the
+   * [foresight API](./hooks/usePlayerForecast.ts) rather than Kickbase.
+   *
+   * Keyed by competition and **not** by league: the file is a property of the
+   * competition, so every league of the same competition reads one entry and
+   * switching leagues does not re-fetch it.
+   */
+  playerForecast: (competitionId: string, playerId: string) =>
+    [...qk.competition(competitionId), 'playerForecast', playerId] as const,
   competitionTable: (competitionId: string) =>
     [...qk.competition(competitionId), 'table'] as const,
   competitionMatchdays: (competitionId: string) =>

@@ -16,11 +16,14 @@ COPY . .
 
 # Vite inlines import.meta.env at build time, so these are build args, not
 # runtime env — changing them means rebuilding the image. Left empty they are
-# falsy, and src/lib/env.ts falls back to the live API and CDN.
+# falsy, and src/lib/env.ts falls back to the live API, the CDN and the
+# published forecast API.
 ARG VITE_API_BASE_URL=
 ARG VITE_CDN_BASE_URL=
+ARG VITE_FORECAST_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
-    VITE_CDN_BASE_URL=$VITE_CDN_BASE_URL
+    VITE_CDN_BASE_URL=$VITE_CDN_BASE_URL \
+    VITE_FORECAST_BASE_URL=$VITE_FORECAST_BASE_URL
 
 # Typechecks first (`tsc -b`), then bundles to dist/.
 RUN npm run build

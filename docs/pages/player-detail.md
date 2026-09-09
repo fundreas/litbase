@@ -55,6 +55,11 @@ tab that needs them.
 | `/v4/leagues/{lid}/playercenter/{pid}?dayNumber=&seasonId=` | on opening a [match breakdown](#the-match-breakdown) | Every scoring action of one match, and what each was worth |
 | `/v4/live/eventtypes` | with the first breakdown | Names for all 621 event types. One shared entry, cached for a day |
 
+One more request is **not** Kickbase's and not keyed under the page:
+`https://fundreas.github.io/litbase-foresight/data/{pid}.json`, the
+[market-value forecast](#the-forecast-on-top), fetched on the Markt tab only
+and keyed by *competition* rather than league.
+
 The performance history is the page's largest response — a twelve-season career
 runs to about 110 kB uncompressed — and Details needs it for three things: the
 [current-matchday strip](#current-matchday-strip), the points and minutes on
@@ -480,7 +485,8 @@ made the numbers themselves hard to compare across a row.
 ## Markt tab
 
 Current value and 24-hour change, a window toggle, the chart, the twelve-month
-extremes, and a dated list.
+extremes, and a dated list — [headed by the forecast](#the-forecast-on-top) for
+the days that have not happened yet.
 
 **No manager panel.** It had one, repeating the Details tab's Manager card a
 scroll further down; ownership lives in one place now. See
@@ -514,6 +520,48 @@ path lives in a `preserveAspectRatio="none"` viewBox so it fills any width with
 no arithmetic, with `vectorEffect="non-scaling-stroke"` keeping the stroke even
 despite the stretch; every label is HTML outside the SVG, because text cannot
 survive that stretch. Touching or hovering anywhere on it reads out that day.
+
+### The forecast on top
+
+The list is **headed by the next few days**, newest first like everything below
+them, each row wearing an `FC` chip:
+
+| | |
+| --- | --- |
+| Source | [litbase-foresight](https://github.com/fundreas/litbase-foresight), a static JSON tree on GitHub Pages — not Kickbase |
+| URL | `{forecastBase}/data/{playerId}.json`, `VITE_FORECAST_BASE_URL` |
+| Shape | six entries: the **real latest value** first, then five predicted days |
+| Coverage | competition `1` (Bundesliga) only — the deployed run publishes no other |
+| Freshness | one run a night, 22:10 / 22:40 Berlin, after the ~20:00 UTC recalculation |
+
+The hook is [`usePlayerForecast`](../../src/api/hooks/usePlayerForecast.ts) and
+it uses `fetch`, not the axios instance: every interceptor on that one — bearer
+token, 401 re-auth, Kickbase error mapping — is wrong for a foreign static
+host that wants no token and answers `404` in plain HTTP terms.
+
+**The first entry of the file is a real value, not a forecast.** It is the
+newest market value the run could see, with the date Kickbase stamped it, and
+it is the value the model forecast *from* — so it is kept as the anchor and
+only the five behind it become rows.
+
+**A forecast can overlap the history it arrives with**, and the overlap is
+dropped rather than listed twice. A run that beats the recalculation forecasts
+from yesterday's values, so its first predicted day is *today* — and by the
+time the app reads the file, Kickbase may have stamped today for real. A real
+value always wins; `forecastAhead` keeps only the days after the last one in
+the history and re-measures the first survivor's change against it, so the
+delta column still adds up to the series on screen.
+
+**Nothing waits for it.** No skeleton, no error box, no retry: a missing file
+(a player who joined after the last run, a league in another competition, a
+run that failed) resolves to `null` and the tab is exactly what it was before.
+Both shapes of "missing" are caught — a `404`, and a `200` of `<!doctype html>`
+from a dev server or SPA fallback that rewrote the unknown path — the same pair
+[archived rankings](ranking.md) have to handle.
+
+**The chart is left alone.** A predicted day drawn into the same line as the
+history would make the model's guess look like a measurement; the list can say
+`FC` on the row, a single-stroke line cannot say it at all.
 
 ### All-time high and low
 

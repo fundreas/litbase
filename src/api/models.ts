@@ -2675,6 +2675,13 @@ export interface MarketValueDay {
    * player's whole value appearing out of nowhere.
    */
   change?: number
+  /**
+   * This day is a **forecast**, not a value Kickbase has stamped — see
+   * {@link MarketValueForecast}. Absent on every real day, so a row that does
+   * not know about forecasts renders one as an ordinary day rather than
+   * passing a prediction off as a fact by omission.
+   */
+  isForecast?: boolean
 }
 
 /** The windows the market tab offers, and how densely each one lists days. */
@@ -3064,6 +3071,55 @@ export function saleLedger(
       ? 0
       : Math.max(0, Math.floor((sold - bought) / 86_400_000)),
   }
+}
+
+/**
+ * A player's next few days, as the forecast API predicts them.
+ *
+ * The wire format is a flat series whose **first entry is the real, latest
+ * market value** with the date Kickbase stamped it; the rest are the forecast.
+ * That split is preserved here because the two are different kinds of thing:
+ * {@link anchor} is the value the model forecast *from*, and it is the only
+ * entry in the file that can be checked against Kickbase.
+ */
+export interface MarketValueForecast {
+  /** The real value the run started from. Not necessarily today's. */
+  anchor: MarketValueDay
+  /**
+   * The predicted days, oldest first, each with `isForecast: true` and a
+   * `change` against the day before it — the anchor for the first of them.
+   */
+  days: MarketValueDay[]
+}
+
+/**
+ * The forecast days that are still ahead of the history, oldest first.
+ *
+ * **A forecast can overlap the history it came with.** The run publishes from
+ * the newest market values that exist, so one made before a recalculation
+ * predicts *today* in its first entry — and by the time the app reads it,
+ * Kickbase may have stamped that day for real. Those days are dropped rather
+ * than listed twice: a real value always beats a prediction of it.
+ *
+ * The first surviving day's `change` is then re-measured against the newest
+ * real value, so the list never shows a move from a day that is no longer the
+ * one above it. The later days keep their chained changes, which is what makes
+ * the column add up to the series.
+ */
+export function forecastAhead(
+  history: MarketValueHistory,
+  forecast: MarketValueForecast | null | undefined,
+): MarketValueDay[] {
+  if (forecast === null || forecast === undefined) return []
+
+  const latest = history.days[history.days.length - 1]
+  if (latest === undefined) return forecast.days
+
+  const ahead = forecast.days.filter((day) => day.date > latest.date)
+  const first = ahead[0]
+  if (first === undefined) return []
+
+  return [{ ...first, change: first.value - latest.value }, ...ahead.slice(1)]
 }
 
 /**

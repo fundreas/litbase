@@ -1,7 +1,9 @@
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { useState } from 'react'
 
+import { usePlayerForecast } from '@/api/hooks/usePlayerForecast'
 import {
+  forecastAhead,
   MARKET_VALUE_WINDOWS,
   windowSlice,
   type MarketValueDay,
@@ -13,6 +15,7 @@ import { MarketValueChart } from '@/components/player/MarketValueChart'
 import { MarketValueCard } from '@/components/player/PlayerStatCards'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/States'
+import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
 import { money, moneyDelta, weekdayDate } from '@/lib/format'
 
@@ -32,6 +35,15 @@ import { money, moneyDelta, weekdayDate } from '@/lib/format'
  * loses exactly the spikes worth looking at. The list steps by 1 / 3 / 5 / 10
  * days, because 365 rows is not something anyone reads. Both come from the
  * same slice, so they never disagree about the period.
+ *
+ * **The list is headed by the forecast**, from the
+ * [foresight API](../../api/hooks/usePlayerForecast.ts) rather than Kickbase:
+ * the next few days, newest first like the rest of the list, each row wearing
+ * an `FC` chip so a prediction is never read as a value somebody stamped. It
+ * is a second request to a foreign static host, so it is deliberately *not*
+ * waited for — no skeleton, no error box — and the days simply appear on top
+ * when they land. The chart is left alone: a forecast drawn in the same line
+ * as the history would be a claim the model cannot make.
  */
 export function PlayerMarketTab({
   player,
@@ -40,11 +52,15 @@ export function PlayerMarketTab({
   player: PlayerDetail
   history: MarketValueHistory
 }) {
+  const { competitionId } = useActiveLeague()
   const [window, setWindow] = useState<MarketValueWindow>(
     // 1 month: the window a manager weighing a buy or sell actually cares
     // about — every day is plotted, so the last few moves read clearly.
     MARKET_VALUE_WINDOWS[0],
   )
+
+  // Unconditional, as hooks must be — the early return below sits under it.
+  const forecast = usePlayerForecast(competitionId, player.id)
 
   if (history.days.length === 0) {
     return (
@@ -56,6 +72,10 @@ export function PlayerMarketTab({
   }
 
   const { chart, rows } = windowSlice(history, window)
+
+  // Newest first, like the history rows they sit on top of — so the column
+  // reads forwards-to-backwards in time without a break in the middle.
+  const predicted = [...forecastAhead(history, forecast.data)].reverse()
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,7 +104,7 @@ export function PlayerMarketTab({
           }
         />
         <ul className="divide-y divide-line">
-          {rows.map((day) => (
+          {[...predicted, ...rows].map((day) => (
             <li key={day.date}>
               <DayRow day={day} />
             </li>
@@ -191,14 +211,35 @@ function Extreme({
   )
 }
 
-/** One day: what the player was worth, and what changed overnight. */
+/**
+ * One day: what the player was worth, and what changed overnight.
+ *
+ * A forecast day is the same row with a chip and a lighter value — the figures
+ * line up with the real ones above and below it, which is the whole point of
+ * listing them together, and the chip is what says which kind of day it is.
+ */
 function DayRow({ day }: { day: MarketValueDay }) {
+  const isForecast = day.isForecast === true
+
   return (
-    <div className="flex items-center gap-3 px-4 py-2">
-      <span className="min-w-0 flex-1 truncate text-sm text-muted">
-        {weekdayDate(day.date)}
+    <div
+      className={cn(
+        'flex items-center gap-3 px-4 py-2',
+        isForecast && 'bg-accent/[0.06]',
+      )}
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+        <span className="truncate text-sm text-muted">
+          {weekdayDate(day.date)}
+        </span>
+        {isForecast && <ForecastChip />}
       </span>
-      <span className="nums shrink-0 text-sm font-semibold text-ink">
+      <span
+        className={cn(
+          'nums shrink-0 text-sm font-semibold',
+          isForecast ? 'text-muted' : 'text-ink',
+        )}
+      >
         {money(day.value)}
       </span>
       <span
@@ -213,5 +254,25 @@ function DayRow({ day }: { day: MarketValueDay }) {
         {day.change === undefined ? '–' : moneyDelta(day.change)}
       </span>
     </div>
+  )
+}
+
+/**
+ * The mark that says "this day has not happened yet".
+ *
+ * Two letters rather than the word: it rides in the row's date column next to
+ * a weekday and a date, and *Prognose* spelled out there pushed the date off a
+ * phone-width line. The full word is the `title`, and the `sr-only` span is
+ * what a screen reader reads instead of spelling out "eff cee".
+ */
+function ForecastChip() {
+  return (
+    <span
+      title="Prognose"
+      className="shrink-0 rounded border border-accent/40 bg-accent/10 px-1 py-px text-[0.5625rem] font-bold tracking-wide text-accent uppercase"
+    >
+      <span aria-hidden="true">FC</span>
+      <span className="sr-only">Prognose</span>
+    </span>
   )
 }
