@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
-import { Link } from 'react-router'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router'
 
+import { NavMoreTab } from '@/components/layout/NavMoreTab'
 import { cn } from '@/lib/cn'
 
 export interface BottomTab {
@@ -79,6 +81,29 @@ const BADGE_MAX = 99
  * the URL rather than held in state. `replace` keeps flicking between them out
  * of the history stack: back should leave the page, not walk through every tab
  * visit.
+ *
+ * ## The dots
+ *
+ * Every bar ends with one tab that is **not** a view of the page: the app's
+ * navigation, as three dots under the right thumb — see
+ * [`NavMoreTab`](../layout/NavMoreTab.tsx) for the gesture and for why
+ * reaching the top-left hamburger was the thing worth fixing. It is added here
+ * rather than passed in by each page, because "always there" is the point: a
+ * bar is exactly where a thumb already is, and a page that had to remember to
+ * opt in would be the page where the reach comes back.
+ *
+ * It is why a *`ui/`* primitive imports from `layout/` — the one thing in this
+ * component that knows about the app's pages, and the reason the bar may only
+ * be docked inside a league route.
+ *
+ * The open state lives up here for two reasons. The bar has to **lift itself
+ * over the dim** that sheet puts on the page (`z-50` against the dim's
+ * `z-40`), so that the bar stays lit and the sheet — its own child — is drawn
+ * above the dim rather than under it; an element cannot raise its own parent.
+ * And up here **any** navigation puts the sheet away, the back button
+ * included: the same during-render pathname comparison the
+ * [shell](../layout/AppShell.tsx) uses for the drawer, so the sheet never
+ * paints for a frame over a page it was not opened on.
  */
 export function BottomTabBar({
   tabs,
@@ -89,6 +114,13 @@ export function BottomTabBar({
   active: string
   ariaLabel: string
 }) {
+  const { pathname } = useLocation()
+  const [more, setMore] = useState({ isOpen: false, path: pathname })
+  if (more.path !== pathname) setMore({ isOpen: false, path: pathname })
+  const setIsMoreOpen = (isOpen: boolean) => {
+    setMore((current) => ({ ...current, isOpen }))
+  }
+
   return (
     <>
       {/*
@@ -108,8 +140,9 @@ export function BottomTabBar({
       <nav
         aria-label={ariaLabel}
         className={cn(
-          'fixed inset-x-0 bottom-0 z-30 lg:left-64',
+          'fixed inset-x-0 bottom-0 lg:left-64',
           'border-t border-line bg-canvas/95 pb-safe backdrop-blur',
+          more.isOpen ? 'z-50' : 'z-30',
         )}
       >
         {/* Centred and capped like the content well, so the tabs sit under the
@@ -162,6 +195,8 @@ export function BottomTabBar({
               </li>
             )
           })}
+
+          <NavMoreTab isOpen={more.isOpen} onOpenChange={setIsMoreOpen} />
         </ul>
       </nav>
     </>

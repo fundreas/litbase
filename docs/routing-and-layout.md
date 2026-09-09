@@ -395,7 +395,10 @@ the fix was giving the detail page a parent rather than giving it a flag.
 There is **no global bottom tab bar**: it duplicated the drawer, ate a row of
 screen height on exactly the small screens where the pitch needs it, and forced
 a second, coarser notion of which entry was active (`/lineup` had no bar entry
-of its own, so **Mannschaft** had to stand in for it).
+of its own, so **Mannschaft** had to stand in for it). What the bottom *does*
+carry, wherever a page docks a bar of its own, is a single thin tab of three
+dots — the pages behind one thumb, described in [The dots
+tab](#the-dots-tab) below.
 
 Several pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
@@ -429,6 +432,78 @@ list can be scrolled clear of it.
 Pages can claim the leftover viewport height: `main` is a flex column, so a
 page root with `flex-1` fills it. The [lineup](pages/squad.md#lineup-tab) uses
 this, and gained a row of height when the bar went.
+
+### The dots tab
+
+Reaching another page on a phone was a stretch to the **top left** — the far
+corner from a right thumb — followed by a pick from a drawer covering the
+screen. Two deliberate moves for the app's most frequent act, the first of them
+across the whole display, while the thumb sits parked on the bottom bar.
+
+So every `BottomTabBar` ends with one tab that is **not** a view of the page:
+[`NavMoreTab`](../src/components/layout/NavMoreTab.tsx), three vertical dots,
+`w-8` against the tabs' `flex-1` and fenced off by a left border. It is added
+by the bar itself rather than passed in by each page — "always there" is the
+whole point, and a page that had to opt in would be the page where the reach
+comes back. It is `lg:hidden`: from `lg` up the sidebar is already on screen.
+
+```
+┌──────────────┐
+│ Aktivitäten  │
+│ Mannschaft   │   ← thumb slides up; the row under it fills, the phone ticks
+│ Transfermarkt│
+│ Rangliste    │
+└──────────────┘
+   ▲                lift over a row  → that page opens
+┌──┴──┬─────┬───┐
+│ Markt│Gebote│ ⋮ │   lift on the dots → the sheet stays open
+└──────┴─────┴───┘
+```
+
+**The press opens it, not the release.** From `pointerdown` the same unbroken
+press can finish the job: slide up, and the row under the thumb fills and the
+phone ticks as it is crossed; lift, and that page opens. The rest of the
+gesture follows from what a thumb actually does:
+
+| The thumb | What happens |
+| --------- | ------------ |
+| slides up over the rows | the row under it fills; a short buzz per row crossed |
+| lifts over a row | that page opens |
+| slides off the sheet | nothing is highlighted — but the sheet **stays**, because sliding out is how a choice is withdrawn |
+| lifts outside | the sheet closes, nothing chosen |
+| lifts on the dots, never having moved | a plain tap: the sheet is **left open** and its rows are ordinary links, so a second tap navigates |
+| taps the dots again | put away — and a *press* from that state is a gesture again, so tapping it open costs nothing |
+
+The last two are one event landing in different places, which is why the
+release tests the dots' own rectangle — otherwise a tap would open the sheet on
+the way down and close it again on the way up.
+
+Three implementation notes, each of which the gesture does not work without:
+
+- **The press is captured.** `setPointerCapture` on the dots keeps every
+  `pointermove` and the `pointerup` coming to them however far away the thumb
+  has moved, which is what makes this one press rather than a press that hands
+  over to whatever it slides onto. It also means the sheet cannot scroll under
+  the thumb mid-drag, since it never sees the touch.
+- **The row under the thumb is asked of the document**, not of React: no row
+  ever receives a pointer event, so `elementFromPoint` is hit-tested against a
+  `data-nav-more-to` attribute that carries each row's path.
+- **The dim is a portal on `body`.** The bar carries `backdrop-blur`, and a
+  `backdrop-filter` makes its element the containing block for `fixed`
+  descendants — an in-place dim would stretch to the bar's own box rather than
+  to the window. It sits at `z-40`, and the bar raises itself to `z-50` while
+  the sheet is out, so the bar stays lit with the sheet growing out of it. That
+  is why the open state lives in `BottomTabBar`: an element cannot raise its
+  own parent. Being up there also means any navigation puts the sheet away,
+  the back button included — the same during-render pathname comparison the
+  shell uses for the drawer.
+
+The sheet lists **the pages**, from the same `navigation.ts` with the same
+active-entry rules, *Duelle* included only where the league plays them. It
+deliberately leaves out the rest of the drawer — the league card, *Liga
+beitreten*, *Abmelden*: none of them is what a thumb reaches for mid-game, and
+every extra row pushes the top ones out of reach. The drawer stays the complete
+surface, and the hamburger stays where it is.
 
 [`NavDrawer`](../src/components/layout/NavDrawer.tsx) is built on
 [`Drawer`](../src/components/ui/Drawer.tsx), which wraps Radix Dialog — so
