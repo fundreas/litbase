@@ -37,6 +37,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/matchday/ranking` | [Matchday — Rangliste](pages/matchday.md#rangliste) | Implemented |
 | `/leagues/:leagueId/matchday/:matchId` | [Match detail](pages/match-detail.md) | Implemented |
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Implemented |
+| `/leagues/:leagueId/market/managers` | [Market — Manager](pages/market.md#what-the-league-is-selling--manager) | Implemented — only while the league is selling |
 | `/leagues/:leagueId/market/offers` | [Market — Gebote](pages/market.md#the-selling-side-when-there-is-one--gebote) | Implemented — only with a listing of your own |
 | `/leagues/:leagueId/whatif/:playerId` | [Was wäre wenn](pages/whatif.md) | Implemented |
 | `/leagues/:leagueId/managers/:managerId` | [Manager](pages/manager-detail.md) | Implemented |

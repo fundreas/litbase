@@ -9,7 +9,13 @@ import {
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
-import { duration, money, moneyDelta, time } from '@/lib/format'
+import {
+  duration,
+  money,
+  moneyDelta,
+  moneyDeltaExact,
+  time,
+} from '@/lib/format'
 
 /**
  * One listing.
@@ -38,7 +44,10 @@ export function MarketRow({
   fixture: TeamFixture | undefined
   /** Move over the last 24 hours; `undefined` until the lookup lands. */
   marketValueChange: number | undefined
-  /** The page's shared clock, in epoch millis. */
+  /**
+   * The page's shared clock, in epoch millis. Only read by the countdown, so a
+   * list of manager listings — which have none — can pass anything.
+   */
   now: number
   onOffer: () => void
 }) {
@@ -169,13 +178,15 @@ export function MarketRow({
           <FixtureBadge fixture={fixture} size="md" />
         </span>
 
-        {/* The last panel answers "when does this settle?" — and on a
-            manager's listing the answer is *he decides*, so it shows him
-            instead. See {@link SellerPanel}. */}
+        {/* The last panel answers the question the listing's kind leaves
+            open. Kickbase's: *when does this settle?* A manager's has no
+            answer to that — he decides — so it answers the one he does settle,
+            which is his price against the market value. See
+            {@link PremiumPanel}. */}
         {seller === undefined ? (
           <Countdown expiresAt={listing.expiresAt} now={now} />
         ) : (
-          <SellerPanel seller={seller} />
+          <PremiumPanel price={price} marketValue={marketValue} />
         )}
       </button>
     </li>
@@ -190,31 +201,66 @@ const PANEL =
   'flex w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1.5 text-center'
 
 /**
- * **Whose listing this is**, in the slot a computer listing gives its expiry.
+ * **What the manager is asking over the market value**, as a percentage.
  *
- * A manager's listing has no clock to show — it stands until he withdraws it
- * or takes a bid — and the words that used to sit here (*offen · bis Verkauf*)
- * spent the room saying that nothing was known. His face says the same thing
- * and says something usable with it: the market's own division is
- * Kickbase-or-a-manager, and on a scan down the list a portrait in the last
- * column is which one, before a single word is read.
+ * Kickbase charges the market value flat, so on a computer listing this figure
+ * is always zero and the panel is not drawn. A manager names his own number,
+ * and how far it sits from what the player is worth is the whole of what there
+ * is to judge about it — his listing has no clock, so nothing else about it is
+ * changing. It is also what the [Manager tab](./ManagerListingsTab.tsx) sorts
+ * on, and an ordering the reader cannot see is a mystery.
  *
- * The name is on the row's second line, so this is the picture alone. It is not
- * a link: the whole row bar the player's portrait is the bid button, and a
- * second target inside it — for the least useful of the three destinations —
- * would put a hole in the one you are aiming at.
+ * A percentage rather than a sum: it is comparable between a five-hundred
+ * thousand and a fifteen-million player, which the sort depends on, and a
+ * compact euro delta would not fit the panel anyway. Rounded to whole percent
+ * — a listing 0.4 % over is at the market value for every purpose — and the
+ * **word says the direction as well as the sign**, because a green/red pair
+ * alone is unreadable to about one man in twelve.
+ *
+ * Amber for a premium rather than red: asking above the market value is what
+ * buying from a manager normally costs, not an error — the same reading the
+ * page's header gives amber, "allowed, and it costs you". Red is kept for what
+ * Kickbase would refuse. Below the market value is green, the colour the app
+ * spends on a figure in your favour, and *at* the market value stays quiet.
  */
-function SellerPanel({
-  seller,
+function PremiumPanel({
+  price,
+  marketValue,
 }: {
-  seller: NonNullable<MarketListing['seller']>
+  price: number
+  marketValue: number
 }) {
+  const premium =
+    marketValue > 0 ? Math.round((price / marketValue - 1) * 100) : undefined
+
+  if (premium === undefined) return <span className={PANEL} />
+
   return (
-    <span className={PANEL} title={`Angebot von ${seller.name}`}>
-      <Avatar src={seller.image} name={seller.name} size={34} />
-      <span className="sr-only">Angeboten von {seller.name}</span>
+    <span
+      className={PANEL}
+      title={`Preis gegen den Marktwert (${moneyDeltaExact(price - marketValue)})`}
+    >
+      <span
+        className={cn(
+          'nums text-[0.6875rem] leading-tight font-semibold',
+          premium > 0 && 'text-warning',
+          premium < 0 && 'text-positive',
+          premium === 0 && 'text-muted',
+        )}
+      >
+        {percentDelta(premium)}
+      </span>
+      <span className="text-[0.625rem] leading-tight text-faint">
+        {premium === 0 ? 'zum MW' : premium > 0 ? 'über MW' : 'unter MW'}
+      </span>
     </span>
   )
+}
+
+/** `+8 %`, `−4 %`, `0 %` — German spacing, and the app's minus sign. */
+function percentDelta(value: number): string {
+  if (value === 0) return '0 %'
+  return `${value > 0 ? '+' : '−'}${String(Math.abs(value))} %`
 }
 
 /**
@@ -223,10 +269,10 @@ function SellerPanel({
  * Both, because they answer different questions: "3 Std." is what you plan
  * around, "22:48" is what you set an alarm for.
  *
- * Only computer listings get here — a manager's is {@link SellerPanel} — but
- * the wire is the wire: an expiry that fails to arrive on a listing with no
- * seller either falls back to the same "runs until it sells" wording rather
- * than a dash that would read as a load still in flight.
+ * Only Kickbase's listings get here — a manager's shows
+ * {@link PremiumPanel} — but the wire is the wire: an expiry that fails to
+ * arrive on a listing with no seller falls back to a "runs until it sells"
+ * wording rather than a dash that would read as a load still in flight.
  */
 function Countdown({
   expiresAt,

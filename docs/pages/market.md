@@ -7,18 +7,28 @@
 
 ## What it does
 
-One list, **soonest to expire first**. That order is the page's whole
-argument: a computer listing settles the instant its countdown reaches zero,
-to the highest bid standing at that moment and with no second round, so the
-listings about to close are the only ones you can still do anything about.
-Manager listings have no expiry at all and sort last.
+**Kickbase's listings, soonest to expire first.** That order is the page's
+whole argument: a computer listing settles the instant its countdown reaches
+zero, to the highest bid standing at that moment and with no second round, so
+the listings about to close are the only ones you can still do anything about.
 
-**Two views, but only for a seller.** With a listing of your own up, the page
-grows a *Gebote* view holding your players and the bids on them, reached from a
-[bottom tab bar](../routing-and-layout.md#navigation) whose badge counts those
-bids — see [below](#the-selling-side-when-there-is-one--gebote). `/market` is
-the buying side and the page's front door, because that is what it is opened
-for.
+**One payload, up to three views.** The market response holds three different
+things in one array, and only the first belongs in a list ordered by urgency:
+
+| View | Route | What is in it |
+| ---- | ----- | ------------- |
+| *Markt* | `/market` | Kickbase's own listings — the ones with a clock |
+| *Manager* | `/market/managers` | what the rest of the league is selling — [below](#what-the-league-is-selling--manager) |
+| *Gebote* | `/market/offers` | your listings, and the league's bids on them — [below](#the-selling-side-when-there-is-one--gebote) |
+
+A manager's listing has **no expiry at all** — it stands until he withdraws it
+or takes a bid. Mixed into the market list it could only sort last: a heap at
+the bottom of a page that spends every row above it counting down, telling you
+to hurry about one listing and nothing whatever about the next. Split off, each
+list gets the ordering its own kind of listing deserves. `/market` is the front
+door, because Kickbase's market is what the page is opened for, and the other
+two tabs appear only when there is something in them
+([below](#the-bar-and-which-tabs-it-has)).
 
 Each row of the market list carries what a buying decision actually needs:
 
@@ -32,18 +42,14 @@ Each row of the market list carries what a buying decision actually needs:
 name · position, and the manager who owns him when one does · **one** money
 figure and its overnight move · his club's next fixture, home or away · how
 long the listing has left, and the clock time that lands on — or, on a
-manager's listing, **his face**.
+manager's listing, **what he is asking over the market value**.
 
-**The last panel says when this settles, and on a manager's listing that is a
-person.** A manager's listing has no countdown to show; it stands until he
-withdraws it or takes a bid, and the words that used to sit there (*offen · bis
-Verkauf*) spent the panel saying that nothing was known. His portrait says the
-same thing and answers something with it: the market's own division is
-Kickbase-or-a-manager, and a face in the last column is which one, from a scan
-down the list. His name stays on the row's second line, so the panel is the
-picture alone — and it is not a link, because the whole row bar the player's
-portrait is the bid button and a hole punched in it would cost more than the
-third destination is worth.
+**The last panel answers the question the listing's kind leaves open.** For
+Kickbase's, that is *when does this settle?* A manager's has no answer to it —
+he decides — and the words that used to sit there (*offen · bis Verkauf*) spent
+the panel saying that nothing was known. So it answers the thing he *does*
+settle: his price against the market value, `+8 % über MW`. See
+[below](#what-the-league-is-selling--manager).
 
 **One figure, not three.** It is your own offer if you have made one, else what
 a manager is asking, else the market value — which is what a computer listing
@@ -229,10 +235,10 @@ off a cached response would be as stale as the response. The page holds one
 interval for the whole list and passes `now` down, so twenty rows cannot drift
 apart. Under an hour the countdown takes the accent.
 
-Only computer listings reach the countdown at all — a manager's listing shows
-him instead. The "runs until it sells" wording survives as the fallback for a
-listing with no seller *and* no `exs`, which the wire has never sent: a dash
-there would read as a load still in flight.
+Only Kickbase's listings reach the countdown at all — a manager's shows its
+premium over the market value instead. The "runs until it sells" wording
+survives as the fallback for a listing with no seller *and* no `exs`, which the
+wire has never sent: a dash there would read as a load still in flight.
 
 **Hours are the largest unit** — `41 Std.`, never `1 Tag`. The question a
 countdown answers is "can I still think about this", and that is arithmetic
@@ -403,25 +409,91 @@ both invalidating `qk.market(leagueId)`. `useWithdrawOffer` is the app's only
 `DELETE` and calls the axios instance directly rather than growing a `del()`
 helper for one caller.
 
-## The selling side, when there is one — "Gebote"
+## What the league is selling — "Manager"
 
-**The page splits in two the moment a listing of your own is up**: `/market`,
-which is everything above, and `/market/offers` —
-[`OwnListingsTab`](../../src/components/market/OwnListingsTab.tsx). The view is
-a **path segment**, switched by a
+**Every listing put up by another manager, and nothing Kickbase put up
+itself**: `/market/managers` —
+[`ManagerListingsTab`](../../src/components/market/ManagerListingsTab.tsx). It
+is the same rows as the market list, reading the same payload, and it is a
+different purchase. A computer listing settles by itself at a fixed instant, to
+whatever stands then; a manager's stands until he does something about it. The
+first is a deadline and the second is an offer, and an ordering built on the
+deadline has nothing to say about the offer.
+
+**Ordered by the ask against the market value, cheapest first — the ratio, not
+the difference.** An ask of two million is a bargain on one player and robbery
+on another, and the premium over the market value is the figure that tells them
+apart at every price. It is also the manager's own decision made visible: he
+picked the number, where Kickbase charges the market value flat, so it is the
+first thing worth knowing about his listing.
+
+**The premium is drawn in the row**, in the panel Kickbase's listings spend on
+their countdown:
+
+```
+┌────┬─────────────────────────────┬────┬────────┐
+│ 👤 │ Kohr          8,40 Mio. €   │ 🏠 │  +8 %  │
+│    │ ABW · Marvin  ↘ −390 Tsd. € │ FCB│ über MW│
+└────┴─────────────────────────────┴────┴────────┘
+```
+
+An ordering the reader cannot see is a mystery, and this one is the point. A
+**percentage** rather than a sum, because that is what the sort compares and a
+compact euro delta would not fit the panel; the exact difference is in the
+panel's tooltip. Rounded to whole percent — 0.4 % over is at the market value
+for every purpose — and the **word carries the direction as well as the sign**,
+because a green/red pair alone is unreadable to about one man in twelve.
+**Amber** for a premium rather than red: paying over the market value is what
+buying from a manager normally costs, not an error, and red belongs to what
+Kickbase would refuse. Green below, quiet at.
+
+That panel is where the **seller's face** used to be, on a row that could turn
+up anywhere in one mixed list. The face was answering "whose listing is this,
+Kickbase's or a person's?" — which is now what the tab itself answers. His name
+stays on the row's second line.
+
+The row is otherwise unchanged, bid dialog included: a bid on a manager's
+listing is the same bid, seeded the same way and counted against the same 33 %
+ceiling, so both buying views share the page's `#offer:` dialog.
+
+**Your own listings are not here.** They are the *Gebote* tab's subject, and a
+row built for buying would be the wrong thing to do with them.
+
+## The bar, and which tabs it has
+
+The view is a **path segment**, switched by a
 [`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx) as on every other
-two-view page: the thumb is already at the bottom of a list you scroll, and
+multi-view page: the thumb is already at the bottom of a list you scroll, and
 each view is then linkable and survives a refresh.
 
-**The bar is there only for a seller**, and with it the badge: a count on the
-*Gebote* icon of every bid standing on your listings — the one thing on this
-page that lands while you are looking at the other view. It is silent at zero,
-and with nothing of yours on the market there is no bar at all, because a
-one-tab bar spends a row of screen height to offer no choice. `/market/offers`
-keeps its bar whatever the data says, so a bookmark to a view that has since
-emptied still has a way back rather than being a dead end.
+**A tab appears only when its side is inhabited**, and the bar only when two of
+them are — a tab that opens an empty view is a question with one answer, and a
+one-tab bar spends a row of screen height offering no choice. So a manager who
+is only buying from Kickbase sees no bar at all, exactly as before; the league
+selling something adds *Manager*, and a listing of his own adds *Gebote*. The
+order is fixed and the optional tabs are inserted into it rather than appended,
+because it is the market's own order: the house, the league, then you.
 
-It is **the other cut of the same payload, and costs no request.** A listing
+A view reached **by URL** keeps its tab and the bar whatever the data says, so
+a bookmark to a side that has since emptied still has a way back rather than
+being a dead end. Each of the three routes is registered unconditionally for
+the same reason — no route can know what the payload holds.
+
+**Only *Gebote* carries a badge**: a count of the bids standing on your
+listings, the one thing on this page that lands while you are looking at
+another view, silent at zero. *Manager* has none. A listing appearing there is
+news about the league, not something waiting for an answer from you, and a
+badge that counts everything counts for nothing.
+
+## The selling side, when there is one — "Gebote"
+
+**Your players, and what the league has bid for each of them**:
+`/market/offers` —
+[`OwnListingsTab`](../../src/components/market/OwnListingsTab.tsx), the tab
+that appears the moment a listing of your own is up and carries the badge
+counting the bids on it.
+
+It is **the third cut of the same payload, and costs no request.** A listing
 names its seller (`u`) and the signed-in manager's id is on the session, so
 "mine" is a filter; the bids arrive with them in `ofs`. The page's
 thirty-second poll — already running for the market list — is what keeps the
@@ -462,7 +534,12 @@ player behind a two-second hold.
 **Filters.** Position and price band are the obvious next ones; twenty-odd
 rows do not need them yet.
 
-**Marking a listing of your own in the *Markt* list.** The rows there are
-built for buying: one of yours shows your own face in the last panel like any
-other manager's listing, and nothing says it is you. The *Gebote* tab is where
-your side is answered, so the row has not been given a second job.
+**Filtering the *Manager* tab by seller.** With three managers selling four
+players each it would earn its keep; a solo test league produces nothing to
+filter. The sort by premium is the ordering that answers the buying question,
+and grouping by manager would answer a different one.
+
+> Marking a listing of your own in the *Markt* list used to sit here: the rows
+> are built for buying, and one of yours read like anybody else's. The
+> three-way split settled it — your listings are no longer in either buying
+> view, only in *Gebote*.

@@ -24,13 +24,15 @@ import { money, moneyExact } from '@/lib/format'
  * **The seller's side of the market**: every player you have up, and what the
  * league has bid for each of them.
  *
- * The market page is otherwise the buying side — twenty listings ordered by how
- * soon they close, with your own three sitting somewhere in among them saying
- * nothing about being yours. What a seller wants is the other cut of the same
- * data: *my* players, each with its bids underneath, in one place. So the page
- * grows a second view — `/market/offers`, reached from the
- * [bottom bar](../ui/BottomTabBar.tsx) — whenever there is anything to put in
- * it, and the bar's badge says how many bids are waiting there.
+ * The market page's other two views are the buying side — Kickbase's listings
+ * ordered by how soon they close, and
+ * [the league's](./ManagerListingsTab.tsx) by what they cost over the market
+ * value. Neither has any use for a player of yours: a row built for buying
+ * would offer to bid on him. What a seller wants is the third cut of the same
+ * data — *my* players, each with its bids underneath, in one place — so the
+ * page grows this view, `/market/offers`, reached from the
+ * [bottom bar](../ui/BottomTabBar.tsx) whenever there is anything to put in
+ * it, with a badge saying how many bids are waiting there.
  *
  * **It costs no request.** Own listings arrive in the market payload like every
  * other, identified by `u.i` being the signed-in manager, and the bids come
@@ -65,8 +67,9 @@ export function OwnListingsTab({
   listings: MarketListing[]
   leagueId: string
 }) {
-  // Only for the bidders' pictures, and only fetched on this view: the two
-  // views are two routes, so nothing here mounts until `/market/offers` does.
+  // Only for the bidders' pictures, and only fetched on this view: the page's
+  // views are separate routes, so nothing here mounts until `/market/offers`
+  // does.
   // Cached and shared with the ranking page, which pays for it anyway.
   const ranking = useRanking(leagueId)
 

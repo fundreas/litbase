@@ -395,20 +395,24 @@ Several pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
 of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, the player page's
 four tabs, the match page's three, the [team page](pages/team.md)'s four, and
-the [market](pages/market.md#the-selling-side-when-there-is-one--gebote)'s
-Markt ⇄ Gebote — rather than between pages, and exists only while that page is
-open. Two of those bars have a **conditional last tab**, appearing only while
+the [market](pages/market.md#the-bar-and-which-tabs-it-has)'s Markt ⇄ Manager ⇄
+Gebote — rather than between pages, and exists only while that page is open. Two of those bars have a **conditional last tab**, appearing only while
 something is being played: the squad page's *Live* while a matchday runs, and
 the team page's while that club's own fixture does. Both are **appended**
 rather than inserted, so the permanent tabs never move under a thumb that had
 learned where they are.
 
-The market's bar is conditional as a **whole**: it is drawn only for a manager
-who has a listing of his own up, because a one-tab bar spends a row of screen
-height offering no choice. It is also the one bar with a **badge** — a count on
-the *Gebote* icon of the bids standing on those listings, which is the only
+The market's bar is conditional as a **whole**, and so is each of its two
+last tabs: *Manager* appears while the league is selling something, *Gebote*
+while a listing of your own is up, and the bar itself only once two tabs are
+inhabited — a one-tab bar spends a row of screen height offering no choice, and
+a tab that opens an empty view is a question with one answer. They are
+**inserted in a fixed order** rather than appended, the market's own: the
+house, the league, then you. It is also the one bar with a **badge** — a count
+on the *Gebote* icon of the bids standing on your listings, which is the only
 thing on that page that arrives while nobody is looking at it. A badge is drawn
-only above zero.
+only above zero, and *Manager* has none: a new listing there is news about the
+league, not something waiting for an answer.
 
 The bar is `fixed`, not `sticky` — it was reported scrolling out of view, and
 sticky is only ever as reliable as the height chain above it. So it pins to the

@@ -1,4 +1,11 @@
-import { Flag, Gavel, RefreshCw, Store, type LucideIcon } from 'lucide-react'
+import {
+  Flag,
+  Gavel,
+  RefreshCw,
+  Store,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 
@@ -9,6 +16,7 @@ import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import type { Market, MarketListing } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
+import { ManagerListingsTab } from '@/components/market/ManagerListingsTab'
 import { MarketRow } from '@/components/market/MarketRow'
 import { OfferDialog } from '@/components/market/OfferDialog'
 import { OwnListingsTab } from '@/components/market/OwnListingsTab'
@@ -41,20 +49,25 @@ const TICK_FAST_MS = 1_000
 const FAST_FROM_SECONDS = COUNTDOWN_SECONDS_FROM + 30
 
 /**
- * The page's two views, as path segments.
+ * The page's three views, as path segments.
  *
  * `market` is the **bare** route (`/leagues/:leagueId/market`), so its value is
  * only ever used to name the view, never appended to a URL.
  */
-const VIEWS = { market: 'market', offers: 'offers' } as const
+const VIEWS = {
+  market: 'market',
+  managers: 'managers',
+  offers: 'offers',
+} as const
 
 type View = (typeof VIEWS)[keyof typeof VIEWS]
 
 /**
  * The page's shared clock. One interval for the whole list — see `MarketRow`.
  *
- * `null` stops it. The seller's view has no countdown on it at all, and a
- * clock nothing reads is a re-render of the page once a second.
+ * `null` stops it. Only Kickbase's listings count down — the other two views
+ * hold listings with no expiry at all — and a clock nothing reads is a
+ * re-render of the page once a second.
  */
 function useTick(intervalMs: number | null): number {
   const [now, setNow] = useState(() => nowMs())
@@ -73,36 +86,50 @@ function useTick(intervalMs: number | null): number {
 }
 
 /**
- * The transfer market: everything on offer, soonest to expire first.
+ * The transfer market — **Kickbase's listings, soonest to expire first.**
  *
  * The ordering is the page's argument. A listing settles the moment its
  * countdown reaches zero — to the highest bid standing at that instant, with
  * no second round — so the ones about to close are the only ones you can still
- * do anything about. Manager listings, which have no expiry at all, sort last.
+ * do anything about.
  *
  * Every row is two targets: the portrait opens the player, everything else
  * opens the bid dialog. See [`MarketRow`](../components/market/MarketRow.tsx).
  *
- * **It grows a second view the moment you are also a seller.** With a listing
- * of your own up, *Gebote* holds the other cut of the same payload — your
- * players, each with the league's bids under it — and the page stays a single
- * list for everyone who is only buying. See
- * [`OwnListingsTab`](../components/market/OwnListingsTab.tsx).
+ * ## One payload, up to three views
+ *
+ * The market response holds three different things in one array, and only the
+ * first of them belongs in a list ordered by urgency:
+ *
+ * | View | Segment | What is in it |
+ * | ---- | ------- | ------------- |
+ * | *Markt* | `market` | Kickbase's own listings — the ones with a clock |
+ * | *Manager* | `market/managers` | what the rest of the league is selling, cheapest against the market value first — [`ManagerListingsTab`](../components/market/ManagerListingsTab.tsx) |
+ * | *Gebote* | `market/offers` | your listings, and the league's bids on them — [`OwnListingsTab`](../components/market/OwnListingsTab.tsx) |
+ *
+ * A manager's listing has **no expiry at all**: it stands until he withdraws
+ * it or takes a bid. Mixed into the market list it could only sort last, a
+ * heap at the bottom under rows counting down — the same page telling you to
+ * hurry about one listing and nothing at all about the next. Split off, each
+ * list gets the ordering its own kind of listing deserves.
  *
  * ## The view is a path segment
  *
- * `/market` and `/market/offers`, switched by a
- * [`BottomTabBar`](../components/ui/BottomTabBar.tsx) like every other
- * two-view page in the app — the thumb is already down there, and each view is
- * then linkable and survives a refresh. Its *Gebote* tab carries a **badge**
- * counting the bids standing on your listings, which is the one thing on this
- * page that arrives while you are not looking at it and is worth a mark that
- * says so.
+ * Switched by a [`BottomTabBar`](../components/ui/BottomTabBar.tsx) like every
+ * other multi-view page in the app — the thumb is already down there, and each
+ * view is then linkable and survives a refresh. Its *Gebote* tab carries a
+ * **badge** counting the bids standing on your listings, which is the one
+ * thing on this page that arrives while you are not looking at it and is worth
+ * a mark that says so. *Manager* carries none: a listing appearing there is
+ * news about the league, not a thing waiting for an answer from you, and a
+ * badge that counts everything counts for nothing.
  *
- * The bar appears with the first listing of your own and is otherwise absent:
- * a one-tab bar costs a row of screen height to offer no choice. It is drawn
- * on `/market/offers` regardless, so a bookmark to a view that has since
- * emptied still has its way back.
+ * **Each tab appears only when its side is inhabited**, and the bar only when
+ * two of them are: a tab that opens an empty view is a question with one
+ * answer, and a one-tab bar spends a row of screen height offering no choice.
+ * A view reached by URL keeps the bar whatever the data says, so a bookmark to
+ * a side that has since emptied still has its way back rather than being a
+ * dead end.
  */
 export function MarketPage() {
   const { league, leagueId, competitionId } = useActiveLeague()
@@ -110,7 +137,9 @@ export function MarketPage() {
   const location = useLocation()
   const view: View = location.pathname.endsWith(`/${VIEWS.offers}`)
     ? VIEWS.offers
-    : VIEWS.market
+    : location.pathname.endsWith(`/${VIEWS.managers}`)
+      ? VIEWS.managers
+      : VIEWS.market
   const { data, isPending, isError, error, refetch } = useMarket(leagueId)
   const matchday = useCurrentMatchday(competitionId)
   // For `upe` — whether this league lets a bid fall below the market value.
@@ -129,8 +158,10 @@ export function MarketPage() {
   const isClosing =
     soonestExpiry !== undefined &&
     soonestExpiry - nowMs() < FAST_FROM_SECONDS * 1000
+  // Only Kickbase's list counts down: the other two views hold listings with
+  // no expiry at all, and a clock nothing reads is a re-render a second.
   const now = useTick(
-    view === VIEWS.offers ? null : isClosing ? TICK_FAST_MS : TICK_MS,
+    view !== VIEWS.market ? null : isClosing ? TICK_FAST_MS : TICK_MS,
   )
 
   /**
@@ -145,7 +176,6 @@ export function MarketPage() {
    * and the dialog then stays shut rather than bidding into a closed auction.
    */
   const offer = useHashModal('offer')
-  const selected = listings?.find((listing) => listing.id === offer.id) ?? null
 
   // What every standing bid would cost together, if every one of them won.
   const committed = (listings ?? []).reduce(
@@ -163,13 +193,19 @@ export function MarketPage() {
   const afterOffers = league.budget - committed
 
   /**
-   * The listings that are **yours** — the seller's side of the same payload.
+   * The payload cut three ways: **Kickbase's**, **another manager's**, and
+   * **yours**.
    *
-   * A listing names its seller (`u`), and the signed-in manager's id is on the
-   * session, so this needs nothing fetched. Empty for everyone who is only
-   * buying, and then the page has no tabs at all: a tab strip with one
-   * inhabited side is a strip that asks a question with one answer.
+   * A listing names its seller (`u`) or has none at all, and the signed-in
+   * manager's id is on the session, so all three need nothing fetched. Each
+   * one is a view, and an empty one is a tab that does not appear.
    */
+  const houseListings = (listings ?? []).filter(
+    (listing) => listing.seller === undefined,
+  )
+  const managerListings = (listings ?? []).filter(
+    (listing) => listing.seller !== undefined && listing.seller.id !== user?.id,
+  )
   const ownListings = (listings ?? []).filter(
     (listing) => listing.seller !== undefined && listing.seller.id === user?.id,
   )
@@ -178,23 +214,50 @@ export function MarketPage() {
     0,
   )
 
+  /* What the `#offer:` hash names, resolved against the listings you can
+     actually bid on — Kickbase's and the league's. A stale URL naming a player
+     of your own opens nothing rather than a bid dialog for a bid Kickbase
+     would refuse. */
+  const selected =
+    [...houseListings, ...managerListings].find(
+      (listing) => listing.id === offer.id,
+    ) ?? null
+
   const base = `/leagues/${leagueId}/${VIEWS.market}`
+  /* Each side of the payload earns its tab by having something in it — or by
+     being the view you are on, so a link to a side that has since emptied
+     keeps its way back instead of becoming a dead end. The order is fixed and
+     the optional tabs are inserted in it rather than appended, because it is
+     the order of the market itself: the house, the league, then you. */
   const tabs: BottomTab[] = [
     { value: VIEWS.market, label: 'Markt', icon: Store, to: base },
-    {
-      value: VIEWS.offers,
-      label: 'Gebote',
-      icon: Gavel,
-      to: `${base}/${VIEWS.offers}`,
-      // Bids from other managers, on players of yours. The count is the whole
-      // reason to go and look, and it lands without anything on screen moving.
-      badge: received,
-    },
+    ...(managerListings.length > 0 || view === VIEWS.managers
+      ? [
+          {
+            value: VIEWS.managers,
+            label: 'Manager',
+            icon: Users,
+            to: `${base}/${VIEWS.managers}`,
+          },
+        ]
+      : []),
+    ...(ownListings.length > 0 || view === VIEWS.offers
+      ? [
+          {
+            value: VIEWS.offers,
+            label: 'Gebote',
+            icon: Gavel,
+            to: `${base}/${VIEWS.offers}`,
+            // Bids from other managers, on players of yours. The count is the
+            // whole reason to go and look, and it lands without anything on
+            // screen moving.
+            badge: received,
+          },
+        ]
+      : []),
   ]
-  /* Only a seller has two views. The offers route keeps the bar whatever the
-     data says, or a link to it becomes a dead end with no way back. */
   const bar =
-    ownListings.length > 0 || view === VIEWS.offers ? (
+    tabs.length > 1 ? (
       <BottomTabBar tabs={tabs} active={view} ariaLabel="Marktansicht" />
     ) : null
 
@@ -271,8 +334,21 @@ export function MarketPage() {
     )
   }
 
-  const market =
-    data.listings.length === 0 ? (
+  /* The list this view is: the league's, or Kickbase's — and the one you are
+     not on is never built, since an unchosen branch of a ternary is never
+     evaluated. Both are the buying side and both hand their rows to the
+     `#offer:` dialog below: a bid on a manager's listing is the same bid,
+     seeded the same way and counted against the same ceiling. */
+  const buying =
+    view === VIEWS.managers ? (
+      <ManagerListingsTab
+        listings={managerListings}
+        leagueId={leagueId}
+        fixtureByTeamId={matchday.data?.fixtureByTeamId}
+        marketValueChanges={marketValueChanges}
+        onOffer={offer.open}
+      />
+    ) : houseListings.length === 0 ? (
       <EmptyState
         icon={<Store size={22} />}
         title="Keine Spieler auf dem Markt"
@@ -280,7 +356,7 @@ export function MarketPage() {
       />
     ) : (
       <ul className="flex flex-col gap-2">
-        {withMilestones(data, now).map((entry) =>
+        {withMilestones(data, houseListings, now).map((entry) =>
           entry.kind === 'milestone' ? (
             <Milestone
               key={`${entry.label}-${String(entry.at)}`}
@@ -307,7 +383,7 @@ export function MarketPage() {
     <div className="flex flex-col gap-4">
       {heading}
 
-      {market}
+      {buying}
 
       {selected !== null && (
         // Keyed by player: the dialog seeds its amount once, at mount, so a
@@ -357,14 +433,20 @@ type Entry = Milestone | { kind: 'listing'; listing: MarketListing }
  * a player who may already have played the matchday you were buying him for.
  *
  * A milestone already past is dropped rather than drawn at the top, where it
- * would be a line about nothing. Listings with no expiry sort last and take
- * `Infinity` here, so every remaining milestone lands above them — correct:
- * a manager's listing outlives all of this.
+ * would be a line about nothing. Only the *Markt* view's listings are cut this
+ * way, and every one of them has an expiry; the `Infinity` fallback stands for
+ * the wire sending a listing without one, which lands it below every rule —
+ * correct, since nothing is known to settle it.
  */
-function withMilestones(market: Market, now: number): Entry[] {
+function withMilestones(
+  market: Market,
+  /** The listings to cut — the *Markt* view's, not the whole payload. */
+  listings: MarketListing[],
+  now: number,
+): Entry[] {
   // How far out the rules are worth drawing: the last listing that has an
   // expiry at all. Beyond it there is nothing left to divide.
-  const horizon = market.listings.reduce(
+  const horizon = listings.reduce(
     (latest, listing) => Math.max(latest, listing.expiresAt ?? 0),
     0,
   )
@@ -390,7 +472,7 @@ function withMilestones(market: Market, now: number): Entry[] {
   const entries: Entry[] = []
   let next = pending.shift()
 
-  for (const listing of market.listings) {
+  for (const listing of listings) {
     const expiry = listing.expiresAt ?? Number.POSITIVE_INFINITY
     while (next !== undefined && next.at <= expiry) {
       entries.push(next)
