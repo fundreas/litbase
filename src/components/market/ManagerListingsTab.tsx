@@ -30,12 +30,13 @@ import { EmptyState } from '@/components/ui/States'
  * it is the first thing worth knowing about his listing and the list is built
  * on it.
  *
- * The premium is **drawn in the row**, in the panel a computer listing spends
- * on its countdown and a manager's used to spend on his face: an ordering the
- * reader cannot see is a mystery, and this one is the point. The face was
- * answering "whose listing is this?" — which is now what the tab itself
- * answers, while his name stays on the row's second line. See
- * [`MarketRow`](./MarketRow.tsx).
+ * The premium is **drawn in the row**, right under the price it qualifies, in
+ * the line a computer listing spends on the overnight move: an ordering the
+ * reader cannot see is a mystery, and this one is the point. What a manager's
+ * listing does with the panel at the end of the row — the countdown's place,
+ * since it has no countdown — is wear **his face**, which answers "whose
+ * listing is this?" faster than the name it replaces and is the picture the
+ * standings already taught you. See [`MarketRow`](./MarketRow.tsx).
  *
  * **Your own listings are not here.** They are the *Gebote* tab's subject —
  * see [`OwnListingsTab`](./OwnListingsTab.tsx) — and a row built for buying
@@ -45,15 +46,12 @@ export function ManagerListingsTab({
   listings,
   leagueId,
   fixtureByTeamId,
-  marketValueChanges,
   onOffer,
 }: {
   /** Other managers' listings, in any order — this view imposes its own. */
   listings: MarketListing[]
   leagueId: string
   fixtureByTeamId: Map<string, TeamFixture> | undefined
-  /** 24-hour market-value moves, by player id. */
-  marketValueChanges: Map<string, number>
   onOffer: (playerId: string) => void
 }) {
   if (listings.length === 0) {
@@ -74,9 +72,9 @@ export function ManagerListingsTab({
           listing={listing}
           leagueId={leagueId}
           fixture={fixtureByTeamId?.get(listing.teamId)}
-          marketValueChange={marketValueChanges.get(listing.id)}
-          // No countdown reaches the row here — a manager's listing has no
-          // expiry — so the clock it would be read against is never read.
+          // No 24-hour move and no countdown: on a manager's listing the row
+          // prints the premium under the price and his face at the end, so
+          // neither the overnight figure nor the clock is ever read.
           now={0}
           onOffer={() => {
             onOffer(listing.id)

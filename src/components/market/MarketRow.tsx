@@ -42,8 +42,12 @@ export function MarketRow({
   leagueId: string
   /** The player's club's next fixture, if the matchday is known. */
   fixture: TeamFixture | undefined
-  /** Move over the last 24 hours; `undefined` until the lookup lands. */
-  marketValueChange: number | undefined
+  /**
+   * Move over the last 24 hours; `undefined` until the lookup lands, and not
+   * passed at all on a manager's listing — see the subtitle below, which
+   * spends that line on the premium instead.
+   */
+  marketValueChange?: number
   /**
    * The page's shared clock, in epoch millis. Only read by the countdown, so a
    * list of manager listings — which have none — can pass anything.
@@ -52,10 +56,6 @@ export function MarketRow({
   onOffer: () => void
 }) {
   const { ownOffer, seller, price, marketValue } = listing
-  const ChangeIcon =
-    marketValueChange !== undefined && marketValueChange < 0
-      ? TrendingDown
-      : TrendingUp
 
   /* Flush portrait, matching the squad row: the Kickbase cutouts are
      transparent PNGs, so a wash grounds the figure and the inner edge is
@@ -109,27 +109,14 @@ export function MarketRow({
               {listing.lastName}
             </span>
 
-            {/* Position, and who you would be buying from — when there is
-                anyone. A computer listing has no seller on the wire, and
-                naming Kickbase in that slot says nothing you could act on:
-                the absence of a manager *is* the fact. The position takes the
-                line instead, and shares it when a manager is there.
-
-                His **name** only: the portrait that used to sit here now
-                holds the panel at the end of the row, where the expiry would
-                be, and the same face twice in one row is one face too many. */}
-            <span className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted">
-              <span className="shrink-0 tracking-wide uppercase">
-                {POSITION_LABEL[listing.position]}
-              </span>
-              {seller !== undefined && (
-                <>
-                  <span aria-hidden="true" className="text-faint">
-                    ·
-                  </span>
-                  <span className="truncate">{seller.name}</span>
-                </>
-              )}
+            {/* The position, and nothing else. Who you would be buying from
+                is a **face** now, in the panel at the end of the row — see
+                {@link SellerPanel}. A name spelled out here was the widest
+                thing on the line and said less than the picture does at a
+                glance; the picture is also the one you already know from the
+                standings. */}
+            <span className="mt-0.5 block truncate text-xs tracking-wide text-muted uppercase">
+              {POSITION_LABEL[listing.position]}
             </span>
           </span>
 
@@ -149,28 +136,16 @@ export function MarketRow({
               {money(ownOffer ?? (seller === undefined ? marketValue : price))}
             </span>
 
-            {/* The overnight move as the subtitle: the one thing about the
-                figure above that is not visible in the figure above. */}
-            <span
-              className={cn(
-                'nums flex items-center justify-end gap-0.5 text-xs',
-                marketValueChange !== undefined &&
-                  marketValueChange > 0 &&
-                  'text-positive',
-                marketValueChange !== undefined &&
-                  marketValueChange < 0 &&
-                  'text-negative',
-                (marketValueChange === undefined || marketValueChange === 0) &&
-                  'text-faint',
-              )}
-              title="Marktwertänderung in den letzten 24 Stunden"
-            >
-              {marketValueChange !== undefined && marketValueChange !== 0 && (
-                <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
-              )}
-              {moneyDelta(marketValueChange)}
-              <span className="sr-only"> in den letzten 24 Stunden</span>
-            </span>
+            {/* The subtitle says the one thing about the figure above that
+                the figure above does not. On a computer listing that is where
+                the market value has been going, since the price *is* the
+                market value. On a manager's it is how far his own number sits
+                from it — see {@link Premium}. */}
+            {seller === undefined ? (
+              <Change value={marketValueChange} />
+            ) : (
+              <Premium price={price} marketValue={marketValue} />
+            )}
           </span>
         </span>
 
@@ -179,14 +154,13 @@ export function MarketRow({
         </span>
 
         {/* The last panel answers the question the listing's kind leaves
-            open. Kickbase's: *when does this settle?* A manager's has no
-            answer to that — he decides — so it answers the one he does settle,
-            which is his price against the market value. See
-            {@link PremiumPanel}. */}
+            open. Kickbase's: *when does this settle?* A manager's never
+            settles by itself — he decides — so it answers the other one you
+            ask before bidding: *whose is it?* See {@link SellerPanel}. */}
         {seller === undefined ? (
           <Countdown expiresAt={listing.expiresAt} now={now} />
         ) : (
-          <PremiumPanel price={price} marketValue={marketValue} />
+          <SellerPanel seller={seller} />
         )}
       </button>
     </li>
@@ -201,29 +175,63 @@ const PANEL =
   'flex w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1.5 text-center'
 
 /**
- * **What the manager is asking over the market value**, as a percentage.
+ * **The overnight move**, under a computer listing's price.
  *
- * Kickbase charges the market value flat, so on a computer listing this figure
- * is always zero and the panel is not drawn. A manager names his own number,
- * and how far it sits from what the player is worth is the whole of what there
- * is to judge about it — his listing has no clock, so nothing else about it is
- * changing. It is also what the [Manager tab](./ManagerListingsTab.tsx) sorts
- * on, and an ordering the reader cannot see is a mystery.
+ * Only there: Kickbase charges the market value flat, so the price above is
+ * the market value and where it has been going is the whole of what is not
+ * already printed. A manager's listing spends this line on {@link Premium}
+ * instead.
+ */
+function Change({ value }: { value: number | undefined }) {
+  const Icon = value !== undefined && value < 0 ? TrendingDown : TrendingUp
+
+  return (
+    <span
+      className={cn(
+        'nums flex items-center justify-end gap-0.5 text-xs',
+        value !== undefined && value > 0 && 'text-positive',
+        value !== undefined && value < 0 && 'text-negative',
+        (value === undefined || value === 0) && 'text-faint',
+      )}
+      title="Marktwertänderung in den letzten 24 Stunden"
+    >
+      {value !== undefined && value !== 0 && (
+        <Icon size={11} aria-hidden="true" className="shrink-0" />
+      )}
+      {moneyDelta(value)}
+      <span className="sr-only"> in den letzten 24 Stunden</span>
+    </span>
+  )
+}
+
+/**
+ * **What the manager is asking over the market value**, as a percentage,
+ * directly under his price.
+ *
+ * He names his own number, and how far it sits from what the player is worth
+ * is the whole of what there is to judge about it — his listing has no clock,
+ * so nothing else about it is changing. It is also what the [Manager
+ * tab](./ManagerListingsTab.tsx) sorts on, and an ordering the reader cannot
+ * see is a mystery. So it sits against the figure it qualifies, in the line
+ * a computer listing spends on the overnight move; the end of the row now
+ * carries the seller's face instead.
  *
  * A percentage rather than a sum: it is comparable between a five-hundred
- * thousand and a fifteen-million player, which the sort depends on, and a
- * compact euro delta would not fit the panel anyway. Rounded to whole percent
- * — a listing 0.4 % over is at the market value for every purpose — and the
- * **word says the direction as well as the sign**, because a green/red pair
- * alone is unreadable to about one man in twelve.
+ * thousand and a fifteen-million player, which the sort depends on. Rounded to
+ * whole percent — a listing 0.4 % over is at the market value for every
+ * purpose — and the **screen reader is told the direction in words**, because
+ * a green/amber pair alone is unreadable to about one man in twelve.
  *
  * Amber for a premium rather than red: asking above the market value is what
  * buying from a manager normally costs, not an error — the same reading the
  * page's header gives amber, "allowed, and it costs you". Red is kept for what
  * Kickbase would refuse. Below the market value is green, the colour the app
  * spends on a figure in your favour, and *at* the market value stays quiet.
+ *
+ * A market value of zero has never been seen on the wire; it would divide by
+ * it, and prints nothing rather than a `NaN`.
  */
-function PremiumPanel({
+function Premium({
   price,
   marketValue,
 }: {
@@ -233,26 +241,53 @@ function PremiumPanel({
   const premium =
     marketValue > 0 ? Math.round((price / marketValue - 1) * 100) : undefined
 
-  if (premium === undefined) return <span className={PANEL} />
+  if (premium === undefined) return null
 
   return (
     <span
-      className={PANEL}
+      className={cn(
+        'nums block text-xs font-medium',
+        premium > 0 && 'text-warning',
+        premium < 0 && 'text-positive',
+        premium === 0 && 'text-faint',
+      )}
       title={`Preis gegen den Marktwert (${moneyDeltaExact(price - marketValue)})`}
     >
-      <span
-        className={cn(
-          'nums text-[0.6875rem] leading-tight font-semibold',
-          premium > 0 && 'text-warning',
-          premium < 0 && 'text-positive',
-          premium === 0 && 'text-muted',
-        )}
-      >
-        {percentDelta(premium)}
+      {percentDelta(premium)}
+      <span className="sr-only">
+        {premium === 0
+          ? ' — zum Marktwert'
+          : premium > 0
+            ? ' über dem Marktwert'
+            : ' unter dem Marktwert'}
       </span>
-      <span className="text-[0.625rem] leading-tight text-faint">
-        {premium === 0 ? 'zum MW' : premium > 0 ? 'über MW' : 'unter MW'}
-      </span>
+    </span>
+  )
+}
+
+/**
+ * **Whose listing this is**, at the end of a manager's row — a face, and only
+ * a face.
+ *
+ * It reads faster than the name it replaced on the row's second line: the
+ * portraits are the ones the standings and the duels already wear, so the
+ * league is recognised rather than read. The name stays for a screen reader
+ * and on hover, which is where a face you do not recognise sends you anyway.
+ *
+ * Not a link, though a manager has a page: this whole panel sits inside the
+ * bid button, and an anchor nested in a button is neither valid nor reliably
+ * clickable. The row keeps its two targets — the portrait to the player, the
+ * rest to the offer.
+ */
+function SellerPanel({
+  seller,
+}: {
+  seller: NonNullable<MarketListing['seller']>
+}) {
+  return (
+    <span className={PANEL} title={`Angeboten von ${seller.name}`}>
+      <Avatar src={seller.image} name={seller.name} size={34} />
+      <span className="sr-only">Angeboten von {seller.name}</span>
     </span>
   )
 }
@@ -270,7 +305,7 @@ function percentDelta(value: number): string {
  * around, "22:48" is what you set an alarm for.
  *
  * Only Kickbase's listings get here — a manager's shows
- * {@link PremiumPanel} — but the wire is the wire: an expiry that fails to
+ * {@link SellerPanel} — but the wire is the wire: an expiry that fails to
  * arrive on a listing with no seller falls back to a "runs until it sells"
  * wording rather than a dash that would read as a load still in flight.
  */

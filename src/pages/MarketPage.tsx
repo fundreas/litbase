@@ -345,7 +345,6 @@ export function MarketPage() {
         listings={managerListings}
         leagueId={leagueId}
         fixtureByTeamId={matchday.data?.fixtureByTeamId}
-        marketValueChanges={marketValueChanges}
         onOffer={offer.open}
       />
     ) : houseListings.length === 0 ? (
