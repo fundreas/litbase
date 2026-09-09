@@ -133,7 +133,14 @@ export function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-/** Sign out. Sits in the drawer's footer and at the foot of the sidebar. */
+/**
+ * Sign out. Sits in the drawer's footer and at the foot of the sidebar.
+ *
+ * Red like the same entry in the [`UserMenu`](./UserMenu.tsx): one action, two
+ * places, and nothing else in the app leaves. Ghost rather than the `danger`
+ * variant so it stays a flat row in a footer — the colour is the warning, not
+ * a filled box.
+ */
 export function NavSignOutButton() {
   const { signOut } = useAuth()
 
@@ -142,7 +149,7 @@ export function NavSignOutButton() {
       variant="ghost"
       fullWidth
       leadingIcon={<LogOut size={18} />}
-      className="justify-start"
+      className="justify-start text-negative hover:bg-negative/15 hover:text-negative active:bg-negative/25"
       onClick={signOut}
     >
       Abmelden

@@ -15,6 +15,7 @@ export function Drawer({
   open,
   onOpenChange,
   title,
+  header,
   side = 'left',
   children,
   footer,
@@ -22,6 +23,12 @@ export function Drawer({
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
+  /**
+   * Replaces the title text in the header bar — for a drawer whose heading is
+   * a face and two lines rather than a word. `title` stays required and
+   * becomes the accessible name, so the dialog is still announced.
+   */
+  header?: ReactNode
   side?: 'left' | 'right'
   children: ReactNode
   footer?: ReactNode
@@ -46,9 +53,16 @@ export function Drawer({
         >
           <div className="pt-safe" />
           <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-line px-4">
-            <Dialog.Title className="text-sm font-semibold text-ink">
-              {title}
-            </Dialog.Title>
+            {header === undefined ? (
+              <Dialog.Title className="text-sm font-semibold text-ink">
+                {title}
+              </Dialog.Title>
+            ) : (
+              <>
+                <Dialog.Title className="sr-only">{title}</Dialog.Title>
+                <div className="min-w-0 flex-1">{header}</div>
+              </>
+            )}
             <Dialog.Close
               aria-label="Menü schließen"
               className="-mr-2 flex h-11 w-11 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-ink"
