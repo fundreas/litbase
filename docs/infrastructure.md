@@ -41,6 +41,7 @@ src/
 │   └── hooks/           one useQuery hook per resource
 ├── auth/                session, persistence, renewal, route guard
 ├── league/              the active league (from the URL) on context
+├── preferences/         theme and the reader's own settings, on context
 ├── components/
 │   ├── layout/          AppShell, Header, NavDrawer, LeagueSwitcher, …
 │   └── ui/              Button, Input, Avatar, Drawer, DropdownMenu, …
@@ -90,8 +91,8 @@ generates utilities for them automatically — `bg-surface`, `text-muted`,
 | Shape | `radius-card`, `shadow-raise` |
 
 Colours are authored in `oklch` so lightness steps are perceptually even. The
-palette is a dark slate base with a lime accent; `color-scheme: dark` is set
-on `:root`.
+palette in `@theme` is the dark one — a dark slate base with a lime accent —
+and it is what the app paints unless the reader has asked for something else.
 
 Two things worth knowing:
 
@@ -105,6 +106,66 @@ Two things worth knowing:
 Custom utilities: `nums` (tabular figures for money and points),
 `no-scrollbar`, `pt-safe` and `pb-safe` (notch insets, paired with
 `viewport-fit=cover` in [`index.html`](../index.html)).
+
+## Two palettes
+
+Light mode is **the same token names with different values**. Every
+`bg-surface`, `text-muted` and `border-line` in the app compiles to
+`var(--color-…)`, so a second block redeclaring those variables is the entire
+switch; not one component knows which theme is on.
+
+```css
+:root[data-theme='light'] {
+  --color-canvas: oklch(0.97 0.006 260);
+  --color-surface: oklch(1 0 0);
+  …
+  color-scheme: light;
+}
+```
+
+Three things are worth knowing about it.
+
+**The attribute is the only test — never `prefers-color-scheme`.** The choice
+is three-way (*hell*, *dunkel*, *System*), and `system` is resolved in script
+and written into that same attribute, so one selector answers all three. A
+media query alongside it would be two mechanisms deciding one thing, with
+every rule written twice to keep them from disagreeing. See
+[`preferences/theme.ts`](../src/preferences/theme.ts).
+
+**Lightness runs the other way, necessarily.** Dark lifts a card *towards*
+white (canvas `.17` → surface `.21` → hover `.26`); light has no room above
+white, so the card is the white and the page around it is the tint it lifts
+off. Every ink is then picked against the surface it actually lands on rather
+than converted from its counterpart — `accent` at the dark theme's lightness
+is a lime that vanishes on white, so on light it is a green that reads as text
+(5.2:1 on the canvas).
+
+**A `--shadow-*` token is inlined, not referenced.** Unlike a colour, Tailwind
+pastes the value of `--shadow-raise` into every utility that uses it, so
+redefining it for the light theme changes nothing. The token therefore defers
+to two variables of its own — `--shadow-raise-near` and `--shadow-raise-far` —
+and *those* the light block moves. The same indirection is why the five-step
+points ramp is `--points-*` variables rather than literals in
+[`pointsScale.ts`](../src/components/player/pointsScale.ts): it colours text,
+so each band has to be legible on both.
+
+What is **not** themed, on purpose: the pitch and everything drawn on it. The
+grass, the shirt plates, the `bg-black/…` scrims over a player's photo and the
+white glyphs on a status badge are a picture with its own light, and they read
+the same on either page.
+
+### Before the first paint
+
+The stylesheet is applied before any module runs, so a reader on the light
+theme would get one frame of the dark one on every cold load. A small blocking
+script in [`index.html`](../index.html) sets `data-theme` first, which means
+it holds a hand-written copy of the resolve rule and of the storage key. That
+duplication is deliberate, is kept to the smallest one that works, and is
+self-correcting — [`PreferencesProvider`](../src/preferences/PreferencesProvider.tsx)
+applies the real value on mount, so a copy that drifts costs a frame rather
+than correctness.
+
+The choice itself is [Einstellungen](pages/preferences.md).
 
 ## Mobile specifics
 

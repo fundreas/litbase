@@ -3,6 +3,7 @@ import { useLocation } from 'react-router'
 
 import { NavMoreMenu } from '@/components/layout/NavMoreMenu'
 import { cn } from '@/lib/cn'
+import { usePreferences } from '@/preferences/usePreferences'
 
 /**
  * The [dots menu](./NavMoreMenu.tsx) as a small floating button, for the pages
@@ -18,6 +19,13 @@ import { cn } from '@/lib/cn'
  * that differs is that it has no row to sit in, so it brings its own — round,
  * raised off the page, and floated clear of the bottom edge by `pb-safe`, the
  * same distance a bar's tabs sit at.
+ *
+ * **Which corner is the reader's** —
+ * [`menuShortcut`](../../preferences/preferences.ts), the same setting that
+ * moves the tab in a bar, so the two never end up on opposite sides. `hide`
+ * renders nothing at all: the drawer behind the header's hamburger is the
+ * complete navigation surface and always was, so taking the shortcut away
+ * costs a reach, not a way out.
  *
  * **The shell decides whether it is drawn**, in CSS: it is hidden on any page
  * whose tree contains a docked bar, which is where the dots already are. See
@@ -37,6 +45,7 @@ import { cn } from '@/lib/cn'
  */
 export function NavMoreFab({ className }: { className?: string }) {
   const { pathname } = useLocation()
+  const { preferences } = usePreferences()
 
   // Any navigation puts the sheet away, the back button included — compared
   // during render rather than in an effect, so it never paints for a frame
@@ -45,10 +54,16 @@ export function NavMoreFab({ className }: { className?: string }) {
   const [more, setMore] = useState({ isOpen: false, path: pathname })
   if (more.path !== pathname) setMore({ isOpen: false, path: pathname })
 
+  // After the hooks, not before: the setting can change while the app is open,
+  // and an early return above them would change the hook order with it.
+  const align = preferences.menuShortcut
+  if (align === 'hide') return null
+
   return (
     <div
       className={cn(
-        'fixed right-3 bottom-0 pb-safe lg:hidden',
+        'fixed bottom-0 pb-safe lg:hidden',
+        align === 'left' ? 'left-3' : 'right-3',
         more.isOpen ? 'z-50' : 'z-30',
         className,
       )}
@@ -58,6 +73,7 @@ export function NavMoreFab({ className }: { className?: string }) {
         onOpenChange={(isOpen) => {
           setMore((current) => ({ ...current, isOpen }))
         }}
+        align={align}
         triggerClassName={cn(
           // Small, round and unmistakably *over* the page rather than part of
           // it — it has no bar to belong to, so the border and the shadow are

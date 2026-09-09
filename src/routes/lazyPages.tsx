@@ -64,6 +64,10 @@ export const ManagerDetailPage = lazy(async () => ({
   default: (await import('@/pages/ManagerDetailPage')).ManagerDetailPage,
 }))
 
+export const PreferencesPage = lazy(async () => ({
+  default: (await import('@/pages/PreferencesPage')).PreferencesPage,
+}))
+
 export const PlayersPage = lazy(async () => ({
   default: (await import('@/pages/PlayersPage')).PlayersPage,
 }))

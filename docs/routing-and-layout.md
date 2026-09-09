@@ -38,6 +38,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          ├─ managers
          │  └─ :managerId       one manager; four tabs from the segment
          │                      ?day=N — the matchday the lineup tab shows
+         ├─ preferences the reader's own settings; no drawer entry
          ├─ players
          │  └─ :playerId        one player; four tabs from the segment
          └─ teams       the season: every club as a table
@@ -314,11 +315,14 @@ placement and budget, a check mark on the active one. With only one league it
 degrades to plain text — a dropdown with a single option is noise. This is
 the app's only league switcher.
 
-**`UserMenu`** is the avatar dropdown: name and email, *Neu laden*, and
-*Abmelden*, plus a footnote showing when the session expires and whether it
-renews automatically. It deliberately has **no** "switch league" entry —
-`/leagues` forwards straight into a league, so such an item would bounce right
-back.
+**`UserMenu`** is the avatar dropdown: name and email,
+[*Einstellungen*](pages/preferences.md), *Neu laden*, and *Abmelden*, plus a
+footnote showing when the session expires and whether it renews automatically.
+It is everything about **the reader** rather than about the league — which is
+why the settings page is reached from here and has no entry in the drawer or
+in the dots sheet, both of which list the league's pages. It deliberately has
+**no** "switch league" entry — `/leagues` forwards straight into a league, so
+such an item would bounce right back.
 
 ## Navigation
 
@@ -456,8 +460,18 @@ box they hand it:
 
 | | Where | What it looks like |
 | --- | --- | --- |
-| [`NavMoreTab`](../src/components/layout/NavMoreTab.tsx) | the last cell of a page's own `BottomTabBar` | `w-8` against the tabs' `flex-1`, fenced off by a left border — **not** a view of the page, the one entry in the row that leaves |
+| [`NavMoreTab`](../src/components/layout/NavMoreTab.tsx) | the outer cell of a page's own `BottomTabBar` | `w-8` against the tabs' `flex-1`, fenced off by a border on its inner side — **not** a view of the page, the one entry in the row that leaves |
 | [`NavMoreFab`](../src/components/layout/NavMoreFab.tsx) | floating in the same corner, on pages with no bar | a 40px round button, `pb-safe` clear of the bottom edge — bordered, raised and translucent, because it has no bar to belong to and nothing reserves it room |
+
+**Bottom right is the default, not a law.** `menuShortcut` in
+[Einstellungen](pages/preferences.md) moves both to the left corner or takes
+both away, and it is deliberately *one* setting for the two wrappers: they are
+one thing to the reader, and a preference that moved only the tab would put
+the shortcut in a different corner depending on which page you were on — the
+exact inconsistency it exists to remove. `left` mirrors the whole cell, the
+divider included, and the sheet grows from `origin-bottom-left`; `hide`
+renders neither, which costs a reach rather than a way out, because the drawer
+was always the complete surface.
 
 Neither is passed in by a page: the bar adds its own tab, and the shell adds
 the floating button. "Always there" is the whole point, and a page that had to

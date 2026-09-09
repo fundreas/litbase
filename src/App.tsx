@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router'
 import { createQueryClient } from '@/api/queryClient'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { LoadingState } from '@/components/ui/States'
+import { PreferencesProvider } from '@/preferences/PreferencesProvider'
 import { router } from '@/routes/router'
 
 // The React Query devtools badge is deliberately not mounted — it floats over
@@ -14,6 +15,10 @@ import { router } from '@/routes/router'
 /**
  * Provider stack, outermost first:
  *
+ *   PreferencesProvider  — theme and the rest of the reader's settings.
+ *                          Outermost because the theme is the login screen's
+ *                          and the error page's too, and because it depends
+ *                          on nothing: no session, no cache, no route.
  *   QueryClientProvider  — the cache; must be outside AuthProvider, which
  *                          clears it on sign-out.
  *   AuthProvider         — session, token plumbing, silent renewal.
@@ -25,12 +30,14 @@ export default function App() {
   const [queryClient] = useState(createQueryClient)
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Suspense fallback={<LoadingState className="min-h-dvh" />}>
-          <RouterProvider router={router} />
-        </Suspense>
-      </AuthProvider>
-    </QueryClientProvider>
+    <PreferencesProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Suspense fallback={<LoadingState className="min-h-dvh" />}>
+            <RouterProvider router={router} />
+          </Suspense>
+        </AuthProvider>
+      </QueryClientProvider>
+    </PreferencesProvider>
   )
 }

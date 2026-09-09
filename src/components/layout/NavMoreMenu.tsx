@@ -39,8 +39,13 @@ function tick(): void {
 }
 
 /**
- * The app's pages, in the bottom-right corner of the screen: three dots, a
- * sheet of pages above them, and one thumb-press that does both.
+ * The app's pages, in the bottom corner of the screen: three dots, a sheet of
+ * pages above them, and one thumb-press that does both.
+ *
+ * Bottom **right** by default, because that is where a right thumb rests. A
+ * left-hander moves it to the other corner, or takes it away altogether, in
+ * [Einstellungen](../../pages/PreferencesPage.tsx) — the wrappers below read
+ * that preference and this component is told the answer as `align`.
  *
  * ## Why it exists
  *
@@ -56,8 +61,8 @@ function tick(): void {
  *
  * ## Two triggers, one menu
  *
- * [`NavMoreTab`](./NavMoreTab.tsx) docks the dots as the last tab of a page's
- * own [bottom bar](../ui/BottomTabBar.tsx); on the pages that have no bar,
+ * [`NavMoreTab`](./NavMoreTab.tsx) docks the dots at the end of a page's own
+ * [bottom bar](../ui/BottomTabBar.tsx); on the pages that have no bar,
  * [`NavMoreFab`](./NavMoreFab.tsx) floats them in the same corner instead.
  * Both wrappers are a handful of lines, because everything that *behaves* —
  * the gesture, the sheet, the dim — is here: the corner has to work
@@ -129,10 +134,19 @@ function tick(): void {
 export function NavMoreMenu({
   isOpen,
   onOpenChange,
+  align,
   triggerClassName,
 }: {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
+  /**
+   * Which edge the dots are against, so the sheet grows *inwards* from it
+   * rather than off the side of the screen. The wrapper knows, because
+   * putting the dots there is what the wrapper is for — see
+   * [`menuShortcut`](../../preferences/preferences.ts) for the choice behind
+   * it.
+   */
+  align: 'left' | 'right'
   /**
    * Shape and colour of the dots — a thin cell of a bar, or a round floating
    * button. How they *behave* is not the wrapper's business.
@@ -304,11 +318,15 @@ export function NavMoreMenu({
           id={sheetId}
           aria-label="Seiten"
           className={cn(
-            // Anchored to the dots and growing up and to the left. `bottom-full`
-            // is the wrapper's top edge, so the first row lands just above the
-            // thumb whatever padding the wrapper carries.
-            'absolute right-0 bottom-full z-10 mb-2 w-[min(15rem,72vw)]',
-            'origin-bottom-right animate-pop-in rounded-card border border-line',
+            // Anchored to the dots and growing up, and inwards from whichever
+            // edge they are against. `bottom-full` is the wrapper's top edge,
+            // so the first row lands just above the thumb whatever padding the
+            // wrapper carries.
+            'absolute bottom-full z-10 mb-2 w-[min(15rem,72vw)]',
+            'animate-pop-in rounded-card border border-line',
+            align === 'left'
+              ? 'left-0 origin-bottom-left'
+              : 'right-0 origin-bottom-right',
             'bg-surface p-1.5 shadow-raise',
             // Only for a screen too short for every page; the drag never
             // scrolls it, being captured elsewhere.

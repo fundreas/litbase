@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router'
 
 import { NavMoreTab } from '@/components/layout/NavMoreTab'
 import { cn } from '@/lib/cn'
+import { usePreferences } from '@/preferences/usePreferences'
 
 export interface BottomTab {
   /** Matched against `active` to decide which one is lit. */
@@ -84,13 +85,19 @@ const BADGE_MAX = 99
  *
  * ## The dots
  *
- * Every bar ends with one tab that is **not** a view of the page: the app's
- * navigation, as three dots under the right thumb — see
+ * Every bar carries one tab that is **not** a view of the page: the app's
+ * navigation, as three dots under the thumb — see
  * [`NavMoreTab`](../layout/NavMoreTab.tsx) for the gesture and for why
  * reaching the top-left hamburger was the thing worth fixing. It is added here
  * rather than passed in by each page, because "always there" is the point: a
  * bar is exactly where a thumb already is, and a page that had to remember to
  * opt in would be the page where the reach comes back.
+ *
+ * **Which end it takes is the reader's**, and so is whether it is there at
+ * all — [`menuShortcut`](../../preferences/preferences.ts), the same setting
+ * that decides the corner the floating button uses on the pages with no bar.
+ * The page's own tabs keep their order and simply share what is left, so a
+ * bar with the dots on the left is the same bar, mirrored at one end.
  *
  * It is why a *`ui/`* primitive imports from `layout/` — the one thing in this
  * component that knows about the app's pages, and the reason the bar may only
@@ -115,11 +122,24 @@ export function BottomTabBar({
   ariaLabel: string
 }) {
   const { pathname } = useLocation()
+  const { preferences } = usePreferences()
   const [more, setMore] = useState({ isOpen: false, path: pathname })
   if (more.path !== pathname) setMore({ isOpen: false, path: pathname })
   const setIsMoreOpen = (isOpen: boolean) => {
     setMore((current) => ({ ...current, isOpen }))
   }
+
+  // `hide` leaves the bar as nothing but the page's own views — the drawer is
+  // still the whole navigation, one hamburger away.
+  const shortcut = preferences.menuShortcut
+  const moreTab =
+    shortcut === 'hide' ? null : (
+      <NavMoreTab
+        isOpen={more.isOpen}
+        onOpenChange={setIsMoreOpen}
+        align={shortcut}
+      />
+    )
 
   return (
     <>
@@ -152,6 +172,8 @@ export function BottomTabBar({
         {/* Centred and capped like the content well, so the tabs sit under the
             page rather than under the window. */}
         <ul className="mx-auto flex w-full max-w-3xl gap-1 px-3 pt-2">
+          {shortcut === 'left' && moreTab}
+
           {tabs.map((tab) => {
             const isActive = tab.value === active
             const Icon = tab.icon
@@ -200,7 +222,7 @@ export function BottomTabBar({
             )
           })}
 
-          <NavMoreTab isOpen={more.isOpen} onOpenChange={setIsMoreOpen} />
+          {shortcut === 'right' && moreTab}
         </ul>
       </nav>
     </>

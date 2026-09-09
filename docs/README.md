@@ -46,6 +46,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/managers/:managerId/squad` | [Manager — Kader](pages/manager-detail.md#kader) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/events` | [Manager — Verlauf](pages/manager-detail.md#verlauf) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/details` | [Manager — Details](pages/manager-detail.md#details) | Implemented |
+| `/leagues/:leagueId/preferences` | [Einstellungen](pages/preferences.md) | Implemented |
 | `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
 | `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |
 | `/leagues/:leagueId/teams` | [Saison — Tabelle](pages/season.md) | Implemented |
@@ -78,6 +79,11 @@ table every manager on it came out of.
 [Liga](pages/league.md) is unlisted for the same reason, and it is the one page
 that lights **nothing** in the drawer — its way in is the league card above the
 entries, which lights itself instead.
+
+[Einstellungen](pages/preferences.md) is unlisted too, and lights nothing
+either — but for the opposite reason to Liga's: it is not a page *of the
+league* at all. Its way in is the avatar in the header, which is where
+everything about the reader rather than about the league lives.
 
 [Was wäre wenn](pages/whatif.md) is unlisted on the same grounds and lights
 *Transfermarkt* the same way. It is reached from the **Durchrechnen** button in

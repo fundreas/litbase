@@ -30,7 +30,14 @@
 
   --radius-card: 0.875rem;
 
-  --shadow-raise: 0 1px 2px oklch(0 0 0 / 0.4), 0 8px 24px oklch(0 0 0 / 0.25);
+  /* The two alphas are variables of their own, and that indirection is
+     load-bearing: Tailwind **inlines** a `--shadow-*` theme value into every
+     utility that uses it, unlike a colour, which it references with `var()`.
+     Redefining `--shadow-raise` for the light theme would therefore change
+     nothing at all. What the utility inlines here is a value that itself
+     defers to two variables, and *those* the light block can move. */
+  --shadow-raise:
+    0 1px 2px var(--shadow-raise-near), 0 8px 24px var(--shadow-raise-far);
 
   /* Radix toggles `data-state`, so enter/exit are keyframes, not transitions. */
   --animate-fade-in: fade-in 150ms ease-out;
@@ -88,13 +95,96 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   The five-step points ramp — see
+   [`pointsScale.ts`](./components/player/pointsScale.ts) for what the bands
+   mean and why they are not the palette's own colours.
+
+   Variables rather than literals in that module for one reason: it colours
+   *text* and the bar under a row, so each band has to be legible on whichever
+   theme is on, and a fixed lime that reads on a near-black card disappears on
+   a white one. The hues stay the same across the two — a band means the same
+   thing — only their lightness is picked against the surface they land on.
+   --------------------------------------------------------------------------- */
+:root {
+  --points-negative: oklch(0.68 0.19 22);
+  --points-low: var(--color-ink);
+  --points-good: oklch(0.85 0.2 130);
+  --points-strong: oklch(0.65 0.17 150);
+  --points-elite: oklch(0.86 0.17 92);
+}
+
+:root[data-theme='light'] {
+  --points-negative: oklch(0.53 0.2 25);
+  --points-good: oklch(0.55 0.17 130);
+  --points-strong: oklch(0.48 0.15 150);
+  --points-elite: oklch(0.58 0.15 88);
+}
+
 /* Header height, kept in one place so sticky offsets stay in sync. */
 :root {
+  --shadow-raise-near: oklch(0 0 0 / 0.4);
+  --shadow-raise-far: oklch(0 0 0 / 0.25);
+
   --header-h: 3.5rem;
   /* The bar plus the notch padding above it — i.e. how far down the page
      actually starts. What anything sticking *below* the header needs. */
   --header-total: calc(var(--header-h) + env(safe-area-inset-top, 0px));
   color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+   The light palette.
+
+   The tokens above are the dark one, and they stay the app's own: it was
+   designed dark, and dark is what a build with no stored preference paints.
+   This block redefines the same names — every `bg-surface`, `text-muted` and
+   `border-line` in the app compiles to `var(--color-…)`, so re-declaring the
+   variables is the whole switch. No component knows which theme is on.
+
+   **Only the attribute is tested, never `prefers-color-scheme`.** The choice
+   is three-way — hell, dunkel, System — and `system` is resolved in script and
+   written into this same attribute, so one selector answers all three. A media
+   query here as well would mean two mechanisms deciding one thing, and every
+   rule written twice to keep them from disagreeing. See
+   [`preferences/theme.ts`](./preferences/theme.ts), and the boot script in
+   `index.html` that sets the attribute before the first paint.
+
+   Lightness runs the other way, necessarily: dark lifts a card *towards* white
+   (canvas .17 → surface .21 → hover .26), and light has no room above white,
+   so a card is the white and the page around it is the tint it lifts off.
+
+   Every ink is picked against the surface it lands on rather than converted
+   from its dark counterpart — `accent` at the dark theme's lightness is a
+   lime that vanishes on white, so it goes to a green that reads as text
+   (5.2:1 on the canvas, 5.4:1 under `accent-ink`).
+   --------------------------------------------------------------------------- */
+:root[data-theme='light'] {
+  --color-canvas: oklch(0.97 0.006 260);
+  --color-surface: oklch(1 0 0);
+  --color-surface-2: oklch(0.945 0.008 260);
+  --color-line: oklch(0.89 0.011 260);
+
+  --color-ink: oklch(0.25 0.021 260);
+  --color-muted: oklch(0.48 0.021 260);
+  --color-faint: oklch(0.58 0.019 260);
+
+  --color-accent: oklch(0.5 0.16 140);
+  --color-accent-ink: oklch(0.985 0.02 140);
+  --color-positive: oklch(0.52 0.15 152);
+  --color-negative: oklch(0.53 0.2 25);
+  --color-warning: oklch(0.56 0.13 70);
+  --color-gold: oklch(0.61 0.15 84);
+  --color-gold-ink: oklch(0.42 0.1 78);
+
+  /* A shadow is a shadow of the page's own light. The dark theme's is nearly
+     opaque black because it has to be seen against a near-black canvas; the
+     same shadow on white is a bruise under every card. Only the alphas move —
+     see the note in `@theme` for why it cannot be the shadow itself. */
+  --shadow-raise-near: oklch(0 0 0 / 0.08);
+  --shadow-raise-far: oklch(0 0 0 / 0.09);
+
+  color-scheme: light;
 }
 
 @layer base {

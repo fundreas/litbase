@@ -20,6 +20,7 @@ import {
   MatchdayPage,
   PlayerDetailPage,
   PlayersPage,
+  PreferencesPage,
   RankingPage,
   SeasonPage,
   SquadPage,
@@ -68,6 +69,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/duels               the matchday's duels
  *   /leagues/:leagueId/duels/ranking       the matchday's manager standings
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
+ *   /leagues/:leagueId/preferences         the reader's own settings
  *   /leagues/:leagueId/players/:playerId   one player, four tabs
  *   /leagues/:leagueId/managers/:managerId one manager, four tabs
  *   /leagues/:leagueId/teams               the season: every club, as a table
@@ -279,6 +281,14 @@ export const router = createBrowserRouter(
                   path: 'managers/:managerId/details',
                   element: <ManagerDetailPage />,
                 },
+                // The reader's own settings — the theme, and which corner the
+                // dots menu hangs in. Nothing about it is league-scoped; it
+                // lives here because the header, the drawer and the way back
+                // are all built from a league, and a route beside `/join`
+                // would have none of them. Reached from the avatar in the
+                // header, so it has no entry in NAV_ITEMS — the drawer and the
+                // dots sheet list the league's pages, and this is not one.
+                { path: 'preferences', element: <PreferencesPage /> },
                 { path: 'players', element: <PlayersPage /> },
                 // Four routes, one component, as on the squad and duel-detail
                 // pages: the bottom bar's tab is read out of the segment, so

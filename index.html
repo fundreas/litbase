@@ -12,6 +12,40 @@
     <meta name="theme-color" content="#1b1d24" />
     <meta name="color-scheme" content="dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!--
+      The theme, before the first paint.
+
+      The stylesheet is applied before any module runs, so without this a
+      reader on the light theme gets a frame of the dark one on every cold
+      load — on a phone, in a dark room, that flash is the whole first
+      impression. Blocking and inline is the only place early enough.
+
+      It is a hand-written copy of `resolveTheme` and of the preferences
+      storage key, which is a duplicate on purpose and kept to the smallest
+      one that works: read the key, accept one of three words, resolve
+      `system` against the media query. `src/preferences/theme.ts` is the
+      original and explains the trade; the provider re-applies the real value
+      on mount, so a copy that drifts costs one frame, not correctness.
+    -->
+    <script>
+      try {
+        var stored = JSON.parse(
+          localStorage.getItem('litbase.preferences.v1') || '{}',
+        )
+        var choice = stored && stored.theme
+        if (choice !== 'light' && choice !== 'dark' && choice !== 'system') {
+          choice = 'dark'
+        }
+        document.documentElement.dataset.theme =
+          choice === 'system'
+            ? matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : choice
+      } catch (error) {
+        document.documentElement.dataset.theme = 'dark'
+      }
+    </script>
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"

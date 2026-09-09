@@ -116,6 +116,8 @@ src/
 │   └── hooks/           one useQuery hook per resource
 ├── auth/                session, persistence, silent renewal, route guard
 ├── league/              the active league (from the URL) on context
+├── preferences/         theme + the reader's settings, on context and in
+│                        localStorage — see docs/pages/preferences.md
 ├── components/
 │   ├── layout/          AppShell, Header, NavDrawer, NavSidebar, …
 │   └── ui/              Button, Input, Avatar, Drawer, DropdownMenu, …
@@ -245,6 +247,13 @@ Components should never see abbreviated keys like `mvt` or `spl`.
   (64rem) up the same nav is a permanent sidebar and the hamburger disappears;
   the header spans the full width above both. The switch is CSS, so there is no
   flash and no resize handler in the layout path.
+- **Dark by default, light on request.** One palette per `data-theme` on
+  `<html>` and nothing else — the tokens are redeclared, so no component knows
+  which is on. The choice (hell / dunkel / System) is in
+  [Einstellungen](docs/pages/preferences.md), and a blocking script in
+  `index.html` applies it before the first paint so a cold load never flashes
+  the other one. See
+  [docs/infrastructure.md](docs/infrastructure.md#two-palettes).
 - All controls are at least 44px tall; inputs are 16px so iOS Safari does not
   zoom on focus.
 - `viewport-fit=cover` plus `pt-safe` / `pb-safe` utilities handle notches.

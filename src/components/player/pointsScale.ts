@@ -6,23 +6,33 @@
  * game of someone's season, and nothing about the digits says which. Five
  * bands turn the figure into a judgement you can read without stopping.
  *
- * Colours are **literals rather than theme tokens**, for the same reason the
- * lineup-probability badge uses literals: this is a five-step scale and the
- * palette has one green, one red and one amber. Borrowing `accent` for a band
- * would also make a passive number compete with every control on the page.
+ * Colours are **the ramp's own rather than the palette's**, for the same
+ * reason the lineup-probability badge does not borrow them: this is a
+ * five-step scale and the palette has one green, one red and one amber.
+ * Borrowing `accent` for a band would also make a passive number compete with
+ * every control on the page.
  *
- * The ramp is deliberately not a simple dark→bright one. It runs red, white,
- * lime, green, gold — white is the unremarkable middle, and the top band is
- * gold because a 300-point game is a trophy, not just more green.
+ * They are still *variables* — `--points-*`, defined in
+ * [`index.css`](../../index.css) — because this scale colours text and the bar
+ * under a row, so every band has to be readable on both themes. Same hues on
+ * each, picked for lightness against the surface they land on.
+ *
+ * The ramp is deliberately not a simple dark→bright one. It runs red, plain,
+ * lime, green, gold — the unremarkable middle is the page's own text colour,
+ * and the top band is gold because a 300-point game is a trophy, not just more
+ * green.
+ *
+ * The middle band is `--color-ink` itself: "no colour at all" is exactly what
+ * it means, and that is a different colour in each theme.
  */
 export type PointsBand = 'negative' | 'low' | 'good' | 'strong' | 'elite'
 
 const BAND_COLOR: Record<PointsBand, string> = {
-  negative: 'oklch(0.68 0.19 22)',
-  low: 'oklch(0.97 0.005 260)',
-  good: 'oklch(0.85 0.2 130)',
-  strong: 'oklch(0.65 0.17 150)',
-  elite: 'oklch(0.86 0.17 92)',
+  negative: 'var(--points-negative)',
+  low: 'var(--points-low)',
+  good: 'var(--points-good)',
+  strong: 'var(--points-strong)',
+  elite: 'var(--points-elite)',
 }
 
 /**
