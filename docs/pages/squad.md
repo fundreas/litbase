@@ -348,7 +348,7 @@ duplicated here.
 | Market value | `marketValue` | Compact euros, tabular figures |
 | 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
 | Fixture panel | `useCurrentMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — opens the [expected-points sheet](#erwartete-punkte) |
-| Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip under the crest — **dashed** for the model's prediction, solid once the reader has entered his own figure |
+| Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip under the crest — **orange** for the model's prediction, **accent green** once the reader has entered his own figure |
 
 The lineup rail is **always rendered** and only tinted when the player is
 fielded, so rows stay aligned either way. It is also the row's lineup control:
@@ -418,8 +418,16 @@ pitch. Two things wear that one chip:
 
 | Figure | Where it comes from | Drawn |
 | ------ | ------------------- | ----- |
-| The **prediction** | [pointcast](#woher-die-prognose-kommt), a nightly model run published as static JSON — every player in the competition, no Kickbase involvement | Dashed, quieter |
-| The reader's **own guess** | Typed into the sheet, kept in `localStorage` on this device | Solid, accent-tinted |
+| The **prediction** | [pointcast](#woher-die-prognose-kommt), a nightly model run published as static JSON — every player in the competition, no Kickbase involvement | **Orange** (`warning`), dashed edge |
+| The reader's **own guess** | Typed into the sheet, kept in `localStorage` on this device | **Accent green**, solid |
+
+**Colour is the distinction**, and it is the app's own two: `accent` green,
+which everywhere else means *a figure you can act on and did*, for the
+reader's guesses; `warning` orange for the model's. Both are theme tokens, so
+both survive the light palette. The prediction keeps a **dashed** edge behind
+the colour as well — orange against green is the one pair a red-green reader
+cannot separate, and a chip of ten-pixel text in the corner of a row has
+nothing else to go on.
 
 **A guess always beats the prediction**, on the row, in the pitch total and in
 the sheet's own field. That is the whole arrangement: the model supplies a
@@ -473,7 +481,7 @@ name and a club's roster carries no season total.
 | ---- | --- |
 | Match summary | The crest, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it, and on the two lists that have no crest it is the only place the fixture is named |
 | The field | Opens at the **prediction**, or at the guess already stored, or at **100** when there is neither. Text, not `type="number"`, so it can be cleared to retype; a leading minus survives, because Kickbase points genuinely go below zero |
-| Prognose panel | Under the field, dashed like the chip: the model's figure, its `p20 – p80` band, *Startelf* and *Einsatz* as percentages — and **Übernehmen**, which puts the figure back in the field once it has been nudged off it. Always present: *wird geladen …* while the file is in flight, *keine Prognose* for a player the model has nothing for |
+| Prognose panel | Under the field, orange and dashed like the chip: the model's figure, its `p20 – p80` band, *Startelf* and *Einsatz* as percentages — and **Übernehmen**, which puts the figure back in the field once it has been nudged off it. Always present: *wird geladen …* while the file is in flight, *keine Prognose* for a player the model has nothing for |
 | Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the one figure in the sheet that is a fact about the past, and what a guess is calibrated against. Only what the list knows: a club's roster has an average and no total, and the line shortens rather than printing a dash |
 | `+50 +10 +5` / `−50 −10 −5` | The market's [`AmountSteps`](../../src/components/ui/AmountSteps.tsx) at `scale="points"` — the identical control, hold-to-repeat included, on its own list of steps |
 | **✗** on the field | Deletes the guess, exactly where the market's *withdraw* sits on the amount it takes back. Only there once something is stored, so it cannot be mistaken for "clear the field" — and what is left afterwards is the prediction, not an empty row |
@@ -497,8 +505,8 @@ afterwards moves it.
 
 | Place | Rendering |
 | ----- | --------- |
-| Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) under the crest — target glyph plus the figure. **Dashed** while it is the model's, solid once it is the reader's, the same border idiom the market tab uses for a day that has not happened |
-| Pitch header | `⊙ 840 · 11/11` beside `11/11 aufgestellt`, the fielded players' figures summed. How many of them are the reader's own guesses is in the tooltip, not on the chip — a third figure in a pill that size is unreadable |
+| Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) under the crest — target glyph plus the figure. **Orange** while it is the model's, **accent green** once it is the reader's |
+| Pitch header | `⊙ 840 · 11/11` beside `11/11 aufgestellt`, the fielded players' figures summed. **Orange while every figure in it is the model's, accent green from the first guess entered over one** — a pure prediction must not wear the colour of the reader's own decisions. How many of them are his own is in the tooltip, not on the chip: a third figure in a pill that size is unreadable |
 | Grid tiles | Nothing — a tile shows no fixture either, so there is nothing to hang it on |
 | [Rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The badge inside the row's target, and a fourth tile totalling **his** fielded eleven |
 | [Club's roster](team.md#expected-points-a-club-at-a-time) | The badge inside the row's target. No total — a roster is not an eleven |
@@ -507,7 +515,7 @@ afterwards moves it.
 A player with **neither** figure shows no chip at all — a bye, a player the
 model has no file for, a league outside the Bundesliga. In a Bundesliga league
 the practical effect of the defaults is that every row has a chip within a
-second of the page loading, and the dashed ones are the ones nobody has
+second of the page loading, and the orange ones are the ones nobody has
 thought about yet.
 
 The **fraction on the pitch chip is not decoration**: 640 points off four

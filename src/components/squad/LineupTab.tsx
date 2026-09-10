@@ -334,6 +334,13 @@ export function LineupTab({
  * in the label rather than on the chip: it changes what the total *means*, but
  * a third figure in a pill this size would make it unreadable.
  *
+ * **The colour says whose total it is**, the same way the chips on the rows
+ * do: orange while every figure in it is the model's, accent green from the
+ * first guess the reader enters over one. A pure prediction wearing the
+ * colour the app gives to the reader's own numbers would be the one place
+ * this feature could mislead — the total is where a figure stops being about
+ * one player and starts being the thing an eleven is chosen on.
+ *
  * Absent until at least one figure exists — an untouched squad in a
  * competition the model does not cover, or a file that has not arrived. A `0`
  * over eleven players would read as a prediction of nothing.
@@ -349,16 +356,22 @@ function ExpectedTotal({
   const { total, count, ownCount } = expectedPointsTotal(lineup, expected)
   if (count === 0) return null
 
+  const isForecast = ownCount === 0
   const label =
     `Erwartete Punkte der Aufstellung: ${points(total)} aus ${String(count)} von ${String(lineup.length)} Spielern` +
-    (ownCount === 0
+    (isForecast
       ? ' — alles Prognosen'
       : `, davon ${String(ownCount)} eigene Schätzungen`)
 
   return (
     <span
       title={label}
-      className="nums flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent"
+      className={cn(
+        'nums flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold',
+        isForecast
+          ? 'border-dashed border-warning/45 bg-warning/10 text-warning'
+          : 'border-accent/40 bg-accent/10 text-accent',
+      )}
     >
       <Target size={12} aria-hidden="true" />
       <span aria-hidden="true">{points(total)}</span>

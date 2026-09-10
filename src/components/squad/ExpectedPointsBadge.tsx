@@ -7,13 +7,17 @@ import { points } from '@/lib/format'
  * **What he is expected to score**, as a chip on a squad row.
  *
  * Two figures live in this one chip, and the difference between them is the
- * whole reason it takes a flag: **your own guess is drawn solid, the model's
- * prediction dashed and quieter.** A prediction is a default — it is there on
- * every row from the moment the file loads, which is what makes the pitch
- * total mean something before anybody has typed anything — and drawing it
- * exactly like a decision the reader made would quietly credit him with four
- * hundred of them. The dashes are the same idiom the market tab uses for a day
- * that has not happened yet.
+ * whole reason it takes a flag: **your own guess is the app's accent green,
+ * the model's prediction is orange.** A prediction is a default — it is there
+ * on every row from the moment the file loads, which is what makes the pitch
+ * total mean something before anybody has typed anything — and drawing it in
+ * the colour the app reserves for its own actionable figures would quietly
+ * credit the reader with four hundred decisions he never made.
+ *
+ * The prediction keeps a **dashed** edge behind the colour, the same idiom the
+ * market tab uses for a day that has not happened yet. Orange against green is
+ * the one pair a red-green reader cannot separate, and a chip this small — ten
+ * pixels of text in the corner of a row — has nothing else to go on.
  *
  * Only ever drawn when there *is* a figure: no guess, and no prediction
  * either — a bye, a player the model has no file for, a competition it does
@@ -52,7 +56,7 @@ export function ExpectedPointsBadge({
         'nums flex shrink-0 items-center gap-0.5 rounded-full border px-1 py-px',
         'text-[0.625rem] leading-none font-semibold',
         isForecast
-          ? 'border-dashed border-accent/35 text-accent/75'
+          ? 'border-dashed border-warning/45 bg-warning/10 text-warning'
           : 'border-accent/40 bg-accent/15 text-accent',
         className,
       )}
@@ -77,7 +81,7 @@ export function ExpectedPointsBadge({
  * is the whole difference: with no crest to tap, an affordance that only
  * appeared once you had used it could never be found the first time. Empty it
  * is a faint outline that reads as "nothing here yet"; filled it is the same
- * chip the squad list draws — dashed for the model's figure, solid for
+ * chip the squad list draws — orange for the model's figure, accent green for
  * yours — so a figure looks identical wherever it is met.
  */
 export function ExpectedPointsTarget({

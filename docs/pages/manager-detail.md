@@ -230,7 +230,7 @@ The **target at the end of each row** opens the same
 the fixture crest, and files the guess under the same
 `matchday → playerId → points` map on this device. Until one is entered the
 target carries the [model's prediction](squad.md#woher-die-prognose-kommt),
-dashed, off the same cached file the Kader reads. A rival's squad is one of
+in orange, off the same cached file the Kader reads. A rival's squad is one of
 the two places you most want to make those guesses — a duel is your eleven
 against his — and it is the reason the feature is not confined to the page
 that introduced it.
@@ -239,9 +239,9 @@ that introduced it.
 hang a sheet on. It is visible whether or not a figure exists, which the badge
 on one's own row is not: with no crest to tap, an affordance that only appeared
 once you had used it could never be found the first time. Empty it is a faint
-outline; filled it is the same chip the squad list draws — dashed for the
-prediction, solid for a guess — so a figure looks identical wherever it is
-met.
+outline; filled it is the same chip the squad list draws — orange for the
+prediction, accent green for a guess — so a figure looks identical wherever it
+is met.
 
 The row is now **a link plus a button** rather than one link — HTML has no
 nested interactive elements — with the card's border and its accent hover

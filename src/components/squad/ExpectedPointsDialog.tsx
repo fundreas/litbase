@@ -217,6 +217,10 @@ const DELETE_LABEL = 'Eigene Erwartung löschen — es gilt wieder die Prognose'
  * are different things. Ligainsider's own tiers get the same treatment on the
  * row.
  *
+ * It is orange throughout, like the chip on the row: the whole panel is the
+ * model talking, and the accent green in this sheet belongs to the field the
+ * reader types in.
+ *
  * The band is `p20 … p80`: the pessimistic case, which includes his not
  * playing at all, and the ceiling. Both are quieter than the headline figure
  * because the headline is the one the field is seeded from — the band is what
@@ -240,16 +244,18 @@ function PredictionPanel({
   onAdopt: () => void
 }) {
   return (
-    /* Dashed, like the chip on the row and the market tab's forecast days:
-       one border style for every figure in the app that has not happened. */
-    <div className="flex items-center gap-3 rounded-lg border border-dashed border-accent/35 bg-accent/5 px-3 py-2">
+    /* Orange and dashed, exactly as the chip on the row is drawn: the reader
+       has to be able to see at a glance that the figure in this panel is the
+       same kind of thing as the one he tapped, and a different kind of thing
+       from the accent-green number in the field above it. */
+    <div className="flex items-center gap-3 rounded-lg border border-dashed border-warning/40 bg-warning/10 px-3 py-2">
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
             Prognose
           </span>
           {prediction !== undefined && (
-            <span className="nums text-base leading-none font-semibold text-accent">
+            <span className="nums text-base leading-none font-semibold text-warning">
               {points(prediction.expected)}
             </span>
           )}

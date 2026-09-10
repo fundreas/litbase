@@ -157,14 +157,19 @@ export function SquadLegendDialog({
               {/* The glyph alone, at the size of its neighbours, rather than
                   the chip as it appears on a row: the chip carries a figure,
                   and a legend showing `120` would teach the number instead of
-                  the mark. */}
+                  the mark.
+
+                  Orange rather than accent green, because the symbol column is
+                  one glyph wide and orange is the state every row starts in —
+                  the green one only exists where the reader has already been.
+                  The description names both colours. */}
               {isSquadList && (
                 <LegendRow
                   symbol={
-                    <Target size={16} className="text-accent" aria-hidden />
+                    <Target size={16} className="text-warning" aria-hidden />
                   }
                   label="Erwartete Punkte"
-                  description="Gestrichelt: die Prognose des Modells für diesen Spieltag. Auf das Wappen tippen, um deine eigene Schätzung einzutragen — sie gilt dann statt der Prognose, bleibt auf diesem Gerät und sieht sie sonst niemand."
+                  description="Orange: die Prognose des Modells für diesen Spieltag. Auf das Wappen tippen, um deine eigene Schätzung einzutragen — sie gilt dann statt der Prognose, wird grün angezeigt, bleibt auf diesem Gerät und sieht sie sonst niemand."
                 />
               )}
             </LegendSection>
