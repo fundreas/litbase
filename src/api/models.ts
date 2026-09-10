@@ -1843,6 +1843,44 @@ export function offerBaseline(listing: MarketListing): number {
   return listing.ownOffer ?? listing.price
 }
 
+/**
+ * The signed-in manager's **own** listings, out of the market's mixed array.
+ *
+ * A listing names its seller (`u`) or has none at all — Kickbase's own — so
+ * "mine" is a filter over the one payload and costs no request. Here rather
+ * than inline in the two callers because they must agree: the
+ * [market page](../pages/MarketPage.tsx) builds the *Gebote* view out of these
+ * and the [shell's notice](../components/layout/OfferNotice.tsx) counts the
+ * bids on them, and a notice that announced two bids over a view listing three
+ * would be worse than no notice.
+ *
+ * `undefined` for `userId` — the session not read yet — is nobody's listing
+ * rather than everybody's.
+ */
+export function ownListingsOf(
+  listings: MarketListing[] | undefined,
+  userId: string | undefined,
+): MarketListing[] {
+  if (listings === undefined || userId === undefined) return []
+  return listings.filter((listing) => listing.seller?.id === userId)
+}
+
+/**
+ * Every bid standing on those listings, flattened — what the seller has to
+ * answer.
+ *
+ * Each listing's own `offers` is already highest-first; across listings the
+ * order is the market's, which is the order the *Gebote* cards are in. The
+ * result is only ever counted and keyed by {@link PlayerListingOffer.id}, so
+ * no further sort would mean anything.
+ */
+export function offersReceived(
+  listings: MarketListing[] | undefined,
+  userId: string | undefined,
+): PlayerListingOffer[] {
+  return ownListingsOf(listings, userId).flatMap((listing) => listing.offers)
+}
+
 export interface CompetitionPlayerSummary {
   id: string
   lastName: string

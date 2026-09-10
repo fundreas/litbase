@@ -13,7 +13,12 @@ import { useLeagueDetails } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
 import { useMarketValueChanges } from '@/api/hooks/useMarketValueChanges'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
-import type { Market, MarketListing } from '@/api/models'
+import {
+  offersReceived,
+  ownListingsOf,
+  type Market,
+  type MarketListing,
+} from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
 import { ManagerListingsTab } from '@/components/market/ManagerListingsTab'
@@ -206,13 +211,11 @@ export function MarketPage() {
   const managerListings = (listings ?? []).filter(
     (listing) => listing.seller !== undefined && listing.seller.id !== user?.id,
   )
-  const ownListings = (listings ?? []).filter(
-    (listing) => listing.seller !== undefined && listing.seller.id === user?.id,
-  )
-  const received = ownListings.reduce(
-    (total, listing) => total + listing.offers.length,
-    0,
-  )
+  const ownListings = ownListingsOf(listings, user?.id)
+  /* The same count the [shell's notice](../components/layout/OfferNotice.tsx)
+     announces, from the same function — the badge on this bar and the row
+     under the header are two views of one figure and must not disagree. */
+  const received = offersReceived(listings, user?.id).length
 
   /* What the `#offer:` hash names, resolved against the listings you can
      actually bid on — Kickbase's and the league's. A stale URL naming a player

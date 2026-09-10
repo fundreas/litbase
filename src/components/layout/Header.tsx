@@ -1,6 +1,7 @@
 import { Menu } from 'lucide-react'
 
 import { LeagueSwitcher } from '@/components/layout/LeagueSwitcher'
+import { OfferNotice } from '@/components/layout/OfferNotice'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { SimulationBadge } from '@/dev/SimulationBadge'
 
@@ -16,6 +17,16 @@ import { SimulationBadge } from '@/dev/SimulationBadge'
  *
  * The hamburger is `lg:hidden` — the width at which the sidebar becomes
  * permanent — so exactly one navigation surface is ever available.
+ *
+ * ## The second line
+ *
+ * Under the bar sits [`OfferNotice`](./OfferNotice.tsx), which is nothing at
+ * all until another manager bids on a player of yours. It is *inside* this
+ * element rather than under it in the shell so that it sticks with the bar
+ * instead of scrolling away, and it is here rather than in
+ * [`AppShell`](./AppShell.tsx) for the same reason. It is the only thing in
+ * this header that knows anything about the league's data; what that costs and
+ * what makes it reappear is written up in the component.
  */
 export function Header({ onOpenNav }: { onOpenNav: () => void }) {
   return (
@@ -44,6 +55,8 @@ export function Header({ onOpenNav }: { onOpenNav: () => void }) {
 
         <UserMenu />
       </div>
+
+      <OfferNotice />
     </header>
   )
 }

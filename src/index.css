@@ -127,10 +127,34 @@
   --shadow-raise-far: oklch(0 0 0 / 0.25);
 
   --header-h: 3.5rem;
+  /* The notification row the header grows when one is up — see
+     [`OfferNotice`](./components/layout/OfferNotice.tsx). The row's own height
+     and the offset's extra term are the same number, declared once. */
+  --notice-h: 2.25rem;
   /* The bar plus the notch padding above it — i.e. how far down the page
      actually starts. What anything sticking *below* the header needs. */
   --header-total: calc(var(--header-h) + env(safe-area-inset-top, 0px));
   color-scheme: dark;
+}
+
+/* …and the same offset while the header carries its notification row.
+
+   The row lives inside the sticky header, so everything that pins below the
+   header — the [sidebar](./components/layout/NavSidebar.tsx), the squad's
+   sticky [sale calculator](./pages/SquadPage.tsx) — has to clear the row too,
+   or it pins underneath and is covered by it.
+
+   `:has()` on the document rather than a prop threaded through the shell: the
+   row is rendered deep inside the header and read about here and in two
+   sticky offsets, none of which are on its path. It is the same arrangement
+   the shell uses to hide the floating dots under a docked bottom bar. `body`
+   is the ancestor of everything that consumes the variable, so redeclaring it
+   there wins over the `:root` value above for exactly as long as the row is
+   on screen. */
+body:has([data-offer-notice]) {
+  --header-total: calc(
+    var(--header-h) + env(safe-area-inset-top, 0px) + var(--notice-h)
+  );
 }
 
 /* ---------------------------------------------------------------------------

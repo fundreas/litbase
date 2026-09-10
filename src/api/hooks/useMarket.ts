@@ -80,7 +80,13 @@ export function useMarket(
     // while a listing runs out, and nothing else would take the settled ones
     // off it. React Query pauses the interval while the tab is in the
     // background, so it costs nothing when nobody is looking.
-    refetchInterval: 30_000,
+    //
+    // Since the shell's [offer notice](../../components/layout/OfferNotice.tsx)
+    // mounted this too, the poll runs on **every** page of a league — that
+    // notice is the app's way of saying a bid has landed on one of your
+    // listings, and the bids arrive in this payload. One key, so it is still
+    // one request every thirty seconds however many observers there are, and
+    // arriving on the market page finds the list already fetched.
     queryFn: async () => {
       const data = await get<MarketResponse>(
         endpoints.leagues.market(leagueId as string),

@@ -293,10 +293,10 @@ backdrop blur, padded for notches with `pt-safe`. It spans the **full window
 width** at every size and sits above both navigation surfaces, so the sidebar
 starts underneath it rather than beside it.
 
-Two custom properties in [`index.css`](../src/index.css) keep the offsets in
-one place: `--header-h` is the bar itself, and `--header-total` adds the notch
-padding above it — which is what anything sticking *below* the header needs,
-the sidebar included.
+Three custom properties in [`index.css`](../src/index.css) keep the offsets in
+one place: `--header-h` is the bar itself, `--notice-h` is the notification row
+below it, and `--header-total` adds the notch padding above the bar — which is
+what anything sticking *below* the header needs, the sidebar included.
 
 Three slots:
 
@@ -305,6 +305,9 @@ Three slots:
 | Left | Hamburger button, opens the nav drawer — **`lg:hidden`** |
 | Centre | [`LeagueSwitcher`](../src/components/layout/LeagueSwitcher.tsx) |
 | Right | [`UserMenu`](../src/components/layout/UserMenu.tsx) |
+
+…and one more line under all three, when there is something to say — see
+[The notification row](#the-notification-row).
 
 The bar's contents are **not** capped to the content column's `max-w-3xl` any
 more. With a sidebar down the left of a wide window, a centred bar left the
@@ -323,6 +326,55 @@ why the settings page is reached from here and has no entry in the drawer or
 in the dots sheet, both of which list the league's pages. It deliberately has
 **no** "switch league" entry — `/leagues` forwards straight into a league, so
 such an item would bounce right back.
+
+### The notification row
+
+[`OfferNotice`](../src/components/layout/OfferNotice.tsx) is a second line
+inside the same sticky header, and it is nothing at all until **another manager
+bids on a player you put on the market**:
+
+```
+┌─────────────────────────────────────┐
+│ ☰   MADMASSCREM Sunday Leauge   (A) │  the bar
+├─────────────────────────────────────┤
+│ ⚖ 3 Gebote für 2 deiner Spieler › ✕ │  --notice-h, links to /market/offers
+├─────────────────────────────────────┤
+│           <Outlet />                │
+```
+
+A bid is the one thing in this app that **lands while you are looking at
+something else and goes away if you ignore it** — it stands until you accept
+it, decline it, or the bidder pulls it — and the only other place it shows is
+the market page's [*Gebote*](pages/market.md#the-selling-side-when-there-is-one--gebote)
+view, which nobody opens on the off-chance. So the count and the way there
+belong to the chrome.
+
+- **It is inside the `<header>`**, not a sibling under it, so it sticks with the
+  bar rather than scrolling away.
+- **The header is therefore taller while it is up**, and everything pinned
+  below the header has to clear it: the sidebar, the squad's sticky sale
+  calculator. That is done in CSS, not in props — the row marks itself
+  `data-offer-notice` and `body:has([data-offer-notice])` redeclares
+  `--header-total` with `--notice-h` added. Same `:has()` trick the shell uses
+  to hide the floating dots under a docked bottom bar: no state to lift, and
+  nothing for a page to remember.
+- **It costs no request.** The bids arrive on your own listings in the market
+  payload, so the row mounts
+  [`useMarket`](../src/api/hooks/useMarket.ts) — the same query key the market
+  page reads. One cache entry, one timer, **thirty seconds**, paused by React
+  Query while the tab is in the background. The one poll in the app now runs on
+  every page of a league, and arriving on *Transfermarkt* finds the list
+  already fetched.
+- **The ✕ dismisses the bids standing now**, not the notice. The poll keeps
+  running and the next bid brings the row back, counting all of them again —
+  what is remembered is a *set of offer ids* per league, in
+  [`seenOffers`](../src/lib/seenOffers.ts), because a count would be fooled by
+  one bid pulled and another placed between two polls. It is written to
+  `localStorage`, so a reload does not undo a dismissal and another tab shares
+  it.
+- **Opening *Gebote* counts as being told**, however you got there, and the row
+  hides entirely while that view is open — it would otherwise be a link to the
+  page underneath it, over a list of the very bids it is counting.
 
 ## Navigation
 

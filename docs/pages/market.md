@@ -495,9 +495,19 @@ counting the bids on it.
 
 It is **the third cut of the same payload, and costs no request.** A listing
 names its seller (`u`) and the signed-in manager's id is on the session, so
-"mine" is a filter; the bids arrive with them in `ofs`. The page's
-thirty-second poll — already running for the market list — is what keeps the
-tab live.
+"mine" is a filter — [`ownListingsOf`](../../src/api/models.ts); the bids
+arrive with them in `ofs`. The thirty-second poll — already running for the
+market list — is what keeps the tab live.
+
+**You are told about a bid without being here.** The shell's
+[offer notice](../routing-and-layout.md#the-notification-row) is a row under
+the app bar, on every page of the league, counting the bids standing on your
+listings and linking straight to this view. It reads them out of this same
+payload with the same query key, which is what makes the market's poll run
+app-wide: a bid stands until it is answered or pulled, and a view nobody opens
+on the off-chance is not where it should first be seen. Its count and the badge
+on the *Gebote* tab come from one function
+([`offersReceived`](../../src/api/models.ts)) so the two cannot disagree.
 
 One card per listed player: the player and the ask as the header, the bids
 under it, highest first, and a closing line comparing the best of them with the
