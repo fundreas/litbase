@@ -1,4 +1,4 @@
-import { AlertTriangle, Armchair, Info, UserMinus } from 'lucide-react'
+import { AlertTriangle, Armchair, Info, Target, UserMinus } from 'lucide-react'
 import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -31,6 +31,7 @@ import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
+import { expectedPointsTotal, useExpectedPoints } from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import {
   emptySlotPenalty,
@@ -69,6 +70,7 @@ export function LineupTab({
   squad,
   editor,
   fixtureByTeamId,
+  matchday,
   startProbabilities,
   statusReasons,
   onShowLegend,
@@ -76,6 +78,8 @@ export function LineupTab({
   squad: SquadMember[]
   editor: LineupEditor
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  /** The matchday the expected points on the chip are filed under. */
+  matchday: number | undefined
   startProbabilities: Map<string, StartProbability>
   /** `stxt` per unavailable player; empty until the lookups land. */
   statusReasons: Map<string, string>
@@ -193,6 +197,11 @@ export function LineupTab({
             </span>
           )}
 
+          {/* What the eleven is expected to bring in, if anything has been
+              guessed at — the point of entering the guesses one by one on the
+              Kader is reading them added up here. */}
+          <ExpectedTotal lineup={lineup} matchday={matchday} />
+
           {editor.isSaving && (
             <span className="flex items-center gap-1 text-xs text-faint">
               <Spinner size={12} />
@@ -297,6 +306,52 @@ export function LineupTab({
         onShowLegend={onShowLegend}
       />
     </div>
+  )
+}
+
+/**
+ * **What the eleven is expected to score**, added up — beside the count that
+ * says how many of them are actually picked.
+ *
+ * The guesses are entered one player at a time, on the Kader, against a single
+ * fixture. This is the only place they become one figure, which is the whole
+ * reason for entering them: an eleven is chosen against the alternatives, and
+ * the alternatives are other elevens.
+ *
+ * **The fraction is not decoration.** 640 points off four guesses and 640 off
+ * eleven are wildly different claims, and the total alone cannot tell them
+ * apart — so how many of the fielded players carry a guess is printed next to
+ * it, in a quieter weight, always. Only the players *on the pitch* are counted:
+ * the bench scores nothing.
+ *
+ * Absent until at least one guess exists. A `0` over an untouched squad would
+ * read as a prediction rather than as an empty column.
+ */
+function ExpectedTotal({
+  lineup,
+  matchday,
+}: {
+  lineup: readonly SquadMember[]
+  matchday: number | undefined
+}) {
+  const expected = useExpectedPoints(matchday)
+  const { total, count } = expectedPointsTotal(lineup, expected)
+  if (count === 0) return null
+
+  const label = `Erwartete Punkte der Aufstellung: ${points(total)} aus ${String(count)} von ${String(lineup.length)} Einträgen`
+
+  return (
+    <span
+      title={label}
+      className="nums flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent"
+    >
+      <Target size={12} aria-hidden="true" />
+      <span aria-hidden="true">{points(total)}</span>
+      <span aria-hidden="true" className="font-medium text-muted">
+        {count}/{lineup.length}
+      </span>
+      <span className="sr-only">{label}</span>
+    </span>
   )
 }
 

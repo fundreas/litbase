@@ -333,6 +333,7 @@ function WhatIfScenario({
   const editor = useLineupEditor({ squad: remaining, leagueId, persist: false })
   const matchday = useCurrentMatchday(competitionId)
   const fixtureByTeamId = matchday.data?.fixtureByTeamId
+  const day = matchday.data?.day
   // Held here, not per tab, so the list and the pitch share one set of
   // requests. `full` rather than `remaining`: a player marked for sale is
   // still drawn on the Kader, marked.
@@ -487,6 +488,7 @@ function WhatIfScenario({
             editor={editor}
             leagueId={leagueId}
             fixtureByTeamId={fixtureByTeamId}
+            matchday={day}
             startProbabilities={startProbabilities}
             statusReasons={statusReasons}
             forSale={sold}
@@ -504,6 +506,7 @@ function WhatIfScenario({
             squad={remaining}
             editor={editor}
             fixtureByTeamId={fixtureByTeamId}
+            matchday={day}
             startProbabilities={startProbabilities}
             statusReasons={statusReasons}
             onShowLegend={() => {
@@ -516,7 +519,7 @@ function WhatIfScenario({
       <SquadLegendDialog
         open={isLegendOpen}
         onOpenChange={setIsLegendOpen}
-        showShirtRail={tab === TABS.squad}
+        isSquadList={tab === TABS.squad}
       />
 
       {/* The editor's, not a view's: either squad tab can fill a position that

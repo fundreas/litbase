@@ -19,6 +19,7 @@ import { useStatusReasons } from '@/api/hooks/useStatusReasons'
 import { liveMatchday, type SquadMember } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
+import { ExpectedPointsDialog } from '@/components/squad/ExpectedPointsDialog'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { LiveTab } from '@/components/squad/LiveTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
@@ -306,7 +307,7 @@ export function SquadPage() {
       <SquadLegendDialog
         open={legend.isOpen}
         onOpenChange={legend.setOpen}
-        showShirtRail={view === VIEWS.squad}
+        isSquadList={view === VIEWS.squad}
       />
 
       {/* The content column claims whatever height is left, which is what
@@ -547,6 +548,19 @@ function SquadViews({
   const editor = useLineupEditor({ squad, leagueId })
   const matchday = useCurrentMatchday(competitionId)
   const fixtureByTeamId = matchday.data?.fixtureByTeamId
+  const day = matchday.data?.day
+  /**
+   * The expected-points sheet — `#expected:<playerId>`, so the back gesture
+   * closes it and a refresh under it puts it back. It passes the test the
+   * [hook](../lib/useHashModal.ts) sets for a hash modal: its subject is a
+   * player, and a player is recoverable from an id.
+   *
+   * It lives here, above both views, because the pitch has to be able to
+   * close it as well — switching to the lineup with the sheet open would
+   * otherwise leave a hash naming a modal nothing renders.
+   */
+  const expected = useHashModal('expected')
+  const expectedPlayer = squad.find((player) => player.id === expected.id)
   // Held here rather than in each view so the two share one set of requests:
   // switching to the pitch must not re-fetch what the list already knows.
   const startProbabilities = useStartProbabilities(leagueId, squad)
@@ -560,10 +574,14 @@ function SquadViews({
           editor={editor}
           leagueId={leagueId}
           fixtureByTeamId={fixtureByTeamId}
+          matchday={day}
           startProbabilities={startProbabilities}
           statusReasons={statusReasons}
           forSale={forSale}
           onToggleForSale={onToggleForSale}
+          onEditExpected={(player) => {
+            expected.open(player.id)
+          }}
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -571,11 +589,26 @@ function SquadViews({
             squad={squad}
             editor={editor}
             fixtureByTeamId={fixtureByTeamId}
+            matchday={day}
             startProbabilities={startProbabilities}
             statusReasons={statusReasons}
             onShowLegend={onShowLegend}
           />
         </div>
+      )}
+
+      {/* `key` per player: the figure in the field is seeded once, at mount,
+          so opening the sheet on a second player has to be a second
+          component. It waits for the matchday number — the guess is filed
+          under it — which arrives with the fixtures the crest already shows. */}
+      {expected.isOpen && expectedPlayer !== undefined && day !== undefined && (
+        <ExpectedPointsDialog
+          key={expectedPlayer.id}
+          player={expectedPlayer}
+          fixture={fixtureByTeamId?.get(expectedPlayer.teamId)}
+          matchday={day}
+          onClose={expected.close}
+        />
       )}
 
       <SwapDialog

@@ -15,6 +15,25 @@ import { cn } from '@/lib/cn'
  */
 const STEPS = [100_000, 10_000, 1_000, 1] as const
 
+/**
+ * The steps a row of **points** offers, same order, same reasoning one scale
+ * down: fifty is a good matchday's worth, ten is the size of the adjustment
+ * "he might get an assist" is worth, five is the last nudge.
+ *
+ * Points are not money, so they get their own list — but they get the
+ * identical control, down to the hold-to-repeat, because the gesture is the
+ * same one. See [`ExpectedPointsDialog`](../squad/ExpectedPointsDialog.tsx).
+ */
+const POINT_STEPS = [50, 10, 5] as const
+
+/** Which scale the buttons step on. */
+export type StepScale = 'money' | 'points'
+
+const SCALES: Record<StepScale, readonly number[]> = {
+  money: STEPS,
+  points: POINT_STEPS,
+}
+
 /** `+100k`, `−10k`, `+1k`, `+1` — compact enough for an eight-button grid. */
 function stepLabel(amount: number, sign: 1 | -1): string {
   const prefix = sign > 0 ? '+' : '−'
@@ -151,13 +170,25 @@ function AmountStepButton({
  * and fires it repeatedly, so a delta applied to a value captured at press time
  * would add the same step to the same number for as long as the finger stayed
  * down. Give it the functional form of a `setState`.
+ *
+ * `scale` picks which list of steps the rows offer, and is the only thing the
+ * points caller changes: the labels are derived from the figures, so a
+ * three-digit step prints as `+50` without being told it is not euros.
  */
-export function AmountSteps({ onStep }: { onStep: (delta: number) => void }) {
+export function AmountSteps({
+  onStep,
+  scale = 'money',
+}: {
+  onStep: (delta: number) => void
+  scale?: StepScale
+}) {
+  const steps = SCALES[scale]
+
   return (
     <>
       {([1, -1] as const).map((sign) => (
         <div key={String(sign)} className="flex gap-2">
-          {STEPS.map((step) => (
+          {steps.map((step) => (
             <AmountStepButton
               key={String(step)}
               amount={step}

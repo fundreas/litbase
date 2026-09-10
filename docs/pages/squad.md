@@ -347,7 +347,8 @@ duplicated here.
 | Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name |
 | Market value | `marketValue` | Compact euros, tabular figures |
 | 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
-| Fixture panel | `useCurrentMatchday` | Full-height panel on the right, house/aeroplane + opponent crest |
+| Fixture panel | `useCurrentMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — opens the [expected-points sheet](#erwartete-punkte) |
+| Expected points | `localStorage` | Accent chip under the crest, **only when a guess exists** for this matchday |
 
 The lineup rail is **always rendered** and only tinted when the player is
 fielded, so rows stay aligned either way. It is also the row's lineup control:
@@ -409,6 +410,106 @@ squad — the API does not return a squad total on this endpoint. The league
 selection payload has a `tv` field, but it is the *team value* used for
 ranking and does not always equal the sum of current market values, so it is
 deliberately not reused here.
+
+## Erwartete Punkte
+
+**Your own guess at what a player will score this matchday**, entered on the
+Kader and added up over the pitch. It is the one number on this page that
+comes from nobody but the reader: Kickbase has no endpoint for it, no other
+manager can see it, and nothing in the app acts on it.
+
+### Where it is entered
+
+The **fixture panel at the end of a row is the tap target**. It is already the
+only part of the row that is about the coming matchday rather than about the
+season or the market, so "what will he score on Saturday?" belongs on it — and
+a row carrying a portrait, two marks, a market value and its overnight change
+has no room for a control of its own.
+
+```
+┌──┬────────┬──────────────────────┬───────┐
+│▐ │portrait│ Name          4,2 Mio│ crest │  ← tap the crest …
+│  │        │ ◆ likely       ↗ +80k│  ⊙120 │  ← … the guess lands under it
+└──┴────────┴──────────────────────┴───────┘
+```
+
+The sheet is
+[`ExpectedPointsDialog`](../../src/components/squad/ExpectedPointsDialog.tsx),
+addressed as **`#expected:<playerId>`** through
+[`useHashModal`](../../src/lib/useHashModal.ts) — so the back gesture closes it
+and a refresh under it puts it back. It passes that hook's test for a hash
+modal: its subject is a player, and a player is recoverable from an id. It is
+rendered by the page rather than by the tab, because switching to the pitch has
+to close it too.
+
+| Part | Why |
+| ---- | --- |
+| Match summary | The same crest that was tapped, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it |
+| The field | Opens at **100**, or at the guess already stored. Text, not `type="number"`, so it can be cleared to retype; a leading minus survives, because Kickbase points genuinely go below zero |
+| Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the only figure in the sheet that is not the reader's own invention, and what a guess is calibrated against |
+| `+50 +10 +5` / `−50 −10 −5` | The market's [`AmountSteps`](../../src/components/ui/AmountSteps.tsx) at `scale="points"` — the identical control, hold-to-repeat included, on its own list of steps |
+| **✗** on the field | Deletes the guess, exactly where the market's *withdraw* sits on the amount it takes back. Only there once something is stored, so it cannot be mistaken for "clear the field" |
+
+**Opening at 100 rather than at nothing** is the one substantive choice here.
+An empty field asks the reader to invent a scale; a round hundred is roughly a
+good matchday and puts the question where it belongs — *more than that, or
+less?* — which is exactly what the shortcut rows then answer in taps.
+
+### Where it shows
+
+| Place | Rendering |
+| ----- | --------- |
+| Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) under the crest — target glyph plus the figure, accent-tinted |
+| Pitch header | `⊙ 840 · 9/11` beside `11/11 aufgestellt`, the fielded players' guesses summed |
+| Grid tiles | Nothing — a tile shows no fixture either, so there is nothing to hang it on |
+| [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
+
+A player with no guess shows **no chip at all**. Its absence is the "not
+guessed yet" state, and an empty slot on every row would be a column of
+nothing.
+
+The **fraction on the pitch chip is not decoration**: 640 points off four
+guesses and 640 off eleven are wildly different claims, and the total alone
+cannot tell them apart. Only players on the pitch count — the bench scores
+nothing — and the chip is absent entirely until at least one guess exists,
+because a `0` over an untouched squad reads as a prediction.
+
+### Storage
+
+[`lib/expectedPoints.ts`](../../src/lib/expectedPoints.ts), under
+`litbase.playerExpectedPoints.v1`:
+
+```jsonc
+{
+  "5":  { "237": 120, "1841": 85 },   // matchday → playerId → points
+  "6":  { "237": 140 }
+}
+```
+
+Keyed by matchday first, because that is the question asked of it: *what did I
+put down this week*. The matchday number is the one
+[`useCurrentMatchday`](../../src/api/hooks/useMatchday.ts) reports — the same
+query the crest beside the guess comes from, so the two can never disagree
+about which match is meant.
+
+**Nothing is ever pruned.** Last week's guesses stay where they are once the
+matchday rolls over; a season of them costs a few hundred bytes and is the raw
+material for ever asking *how good are my guesses?*. The only removal in the
+module is the ✗ on the field, which takes out exactly one entry (and the
+matchday key with it, if that was the last guess in it).
+
+It goes through the app's [safe storage wrapper](../../src/lib/storage.ts), and
+the parsed value is treated as **untrusted** — `localStorage` is editable by
+hand and outlives every version of this app, so anything that is not a finite
+number under two levels of plain object is dropped on load.
+
+Three components read it and one writes it, in different branches of the tree
+— the row, the pitch header, the sheet — so it is a module-level store read
+through `useSyncExternalStore` rather than state lifted to the page. A write
+updates all of them; a `storage` event adopts another tab's write; and the
+in-memory copy is swapped **whether or not the disk write lands**, because a
+guess that vanishes the moment it is typed is worse than one forgotten on the
+next reload.
 
 ## States
 
@@ -865,6 +966,10 @@ would push every band on the pitch.
 
 A team with no fixture that matchday renders `–` rather than breaking.
 
+On the squad list the crest is also the way in to the
+[expected-points sheet](#erwartete-punkte), and the guess sits under it.
+Everywhere else the badge is a picture and nothing more.
+
 Cached for an hour: one payload for the season, and it only shifts weekly.
 
 #### The swap dialog
@@ -1271,3 +1376,10 @@ who has been on the Kader view has already paid for most of these.
 - **Offer past matchdays here.** The data layer already takes any `day`; what
   is missing is a way to choose one, and a decision about whether that belongs
   on this tab or on a screen of its own.
+- **Score the guesses.** [Expected points](#erwartete-punkte) are kept per
+  matchday and never pruned, so once a matchday is over the actual points are
+  one query away and "you were 40 out on him" is a comparison nothing else in
+  the app can offer.
+- **Guess from the pitch too.** The sheet is opened from the Kader row only; a
+  long press on a pitch portrait is free real estate, though the short press
+  there already means "take him off".

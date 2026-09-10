@@ -9,6 +9,7 @@ import {
   type StartProbability,
   type TeamFixture,
 } from '@/api/models'
+import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
@@ -17,6 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { cn } from '@/lib/cn'
+import { useExpectedPoints } from '@/lib/expectedPoints'
 import { money, moneyDelta } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
@@ -60,16 +62,20 @@ export function PlayerListTab({
   editor,
   leagueId,
   fixtureByTeamId,
+  matchday,
   startProbabilities,
   statusReasons,
   forSale,
   onToggleForSale,
+  onEditExpected,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
   /** For linking each row to the player's detail page. */
   leagueId: string
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  /** The matchday the fixtures belong to, and the guesses are filed under. */
+  matchday: number | undefined
   startProbabilities: Map<string, StartProbability>
   /** `stxt` per unavailable player; empty until the lookups land. */
   statusReasons: Map<string, string>
@@ -84,10 +90,24 @@ export function PlayerListTab({
    */
   forSale: ReadonlySet<string> | null
   onToggleForSale: (playerId: string) => void
+  /**
+   * Open the [expected-points sheet](./ExpectedPointsDialog.tsx) for a player.
+   *
+   * The page owns the sheet, not this tab: it is addressed by the URL hash,
+   * and the pitch has to be able to close it too.
+   *
+   * Optional, because one caller has no sheet to open — the
+   * [what-if page](../../pages/WhatIfPage.tsx) runs this list permanently in
+   * calculator mode, where a row has one meaning and it is not this one. The
+   * guesses already made still show there; they simply cannot be edited from
+   * a scenario.
+   */
+  onEditExpected?: (player: SquadMember) => void
 }) {
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
   const [view, setView] = useSquadView()
+  const expected = useExpectedPoints(matchday)
 
   const handleToggle = (player: SquadMember) => {
     if (editor.isFielded(player.id)) {
@@ -155,6 +175,8 @@ export function PlayerListTab({
                   isForSale={forSale?.has(player.id)}
                   onToggleForSale={onToggleForSale}
                   onToggle={handleToggle}
+                  expectedPoints={expected[player.id]}
+                  onEditExpected={onEditExpected}
                 />
               ))}
             </ul>
@@ -343,6 +365,8 @@ function PlayerRow({
   isForSale,
   onToggleForSale,
   onToggle,
+  expectedPoints,
+  onEditExpected,
 }: {
   player: SquadMember
   isFielded: boolean
@@ -357,6 +381,10 @@ function PlayerRow({
   isForSale: boolean | undefined
   onToggleForSale: (playerId: string) => void
   onToggle: (player: SquadMember) => void
+  /** What the manager expects him to score, if anything is entered. */
+  expectedPoints: number | undefined
+  /** Absent where the row cannot open the sheet — see the tab's own prop. */
+  onEditExpected?: (player: SquadMember) => void
 }) {
   const isCalculating = isForSale !== undefined
 
@@ -486,12 +514,34 @@ function PlayerRow({
     </>
   )
 
-  /** Full-height fixture panel, matching the swap dialog's treatment. */
-  const fixturePanel = (
-    <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">
+  /* Full-height fixture panel, matching the swap dialog's treatment — and the
+     row's second control.
+
+     **The crest is where the guess is entered.** It is already the only part
+     of the row that is about the coming matchday rather than about the season
+     or the market, so "what will he score on Saturday?" belongs on it rather
+     than behind a button of its own; a row this dense has no room for one. The
+     guess, once made, lands directly under the crest it was made against. */
+  const panelClass =
+    /* `w-14`, near enough the 58px the crest plus its old padding took, so
+       the row's other columns keep the width they had. Fixed rather than
+       intrinsic: the chip appears and disappears per player, and a panel that
+       resized with it would leave the market values in a ragged column. */
+    'flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1'
+
+  const panelBody = (
+    <>
       <FixtureBadge fixture={fixture} size="lg" />
-    </span>
+      {expectedPoints !== undefined && (
+        <ExpectedPointsBadge value={expectedPoints} />
+      )}
+    </>
   )
+
+  /* In calculator mode it goes back to being a picture: the whole row is one
+     button then, HTML has no nested buttons, and a tap anywhere on the row
+     means "mark him for sale" — including here. */
+  const fixturePanel = <span className={panelClass}>{panelBody}</span>
 
   const shell = cn(
     'flex items-stretch overflow-hidden rounded-card border bg-surface',
@@ -560,7 +610,25 @@ function PlayerRow({
         {details}
       </Link>
 
-      {fixturePanel}
+      {onEditExpected === undefined ? (
+        fixturePanel
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            onEditExpected(player)
+          }}
+          title="Erwartete Punkte eintragen"
+          aria-label={`Erwartete Punkte für ${player.lastName} eintragen`}
+          className={cn(
+            panelClass,
+            'cursor-pointer transition-colors hover:bg-surface-2',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+          )}
+        >
+          {panelBody}
+        </button>
+      )}
     </li>
   )
 }

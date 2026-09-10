@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { House, PlaneTakeoff, Shirt } from 'lucide-react'
+import { House, PlaneTakeoff, Shirt, Target } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { START_PROBABILITY, START_PROBABILITY_TIERS } from '@/api/models'
@@ -24,14 +24,17 @@ export function SquadLegendDialog({
   open,
   onOpenChange,
   /**
-   * The shirt rail exists only on the squad list. On the lineup tab the
-   * section is dropped rather than explaining a control that is not on screen.
+   * Is the list of rows on screen, rather than the pitch?
+   *
+   * Two of the marks below are the **row's own controls** — the shirt rail
+   * and the expected-points chip — and neither exists on the lineup tab. They
+   * are dropped there rather than explaining something that is not on screen.
    */
-  showShirtRail,
+  isSquadList,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  showShirtRail: boolean
+  isSquadList: boolean
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -79,7 +82,7 @@ export function SquadLegendDialog({
               ))}
             </LegendSection>
 
-            {showShirtRail && (
+            {isSquadList && (
               <LegendSection title="Aufstellung">
                 {/* Mirrors the rail on the left edge of each squad row,
                     including its tint — the shape alone is not the signal
@@ -151,6 +154,19 @@ export function SquadLegendDialog({
                 label="Kein Spiel"
                 description="An diesem Spieltag spielfrei — der Spieler holt keine Punkte."
               />
+              {/* The glyph alone, at the size of its neighbours, rather than
+                  the chip as it appears on a row: the chip carries a figure,
+                  and a legend showing `120` would teach the number instead of
+                  the mark. */}
+              {isSquadList && (
+                <LegendRow
+                  symbol={
+                    <Target size={16} className="text-accent" aria-hidden />
+                  }
+                  label="Erwartete Punkte"
+                  description="Deine eigene Schätzung für diesen Spieltag. Auf das Wappen tippen, um sie einzutragen — sie bleibt auf diesem Gerät und sieht sie sonst niemand."
+                />
+              )}
             </LegendSection>
           </div>
 
