@@ -15,6 +15,7 @@ import {
   DUEL_PLAYER_STATUS_LABEL,
   duelPlayerStatus,
   fixtureState,
+  isBeforeKickoff,
   playerFigure,
   TEAM_SHEET_ROLE_LABEL,
   type DuelPlayer,
@@ -30,6 +31,10 @@ import {
 } from '@/components/player/playerFigure'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { TeamSheetCorner } from '@/components/player/TeamSheetMark'
+import {
+  expectedDescription,
+  expectedTextClass,
+} from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
@@ -38,10 +43,15 @@ import {
   usePitchBox,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
+import type {
+  ExpectedPointsEntry,
+  ExpectedPointsView,
+} from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import { emptySlotPenalty, LINEUP_SIZE } from '@/lib/lineup'
 import { readString, writeString } from '@/lib/storage'
@@ -222,6 +232,18 @@ export function LiveTab({
    */
   const sheetByTeamId = useTeamSheets(fixtures.data?.values())
 
+  /**
+   * **What the players whose matches are still to come are expected to
+   * bring** — the reader's own guesses where he entered any, the
+   * [model's](../../api/hooks/usePointcast.ts) prediction everywhere else.
+   *
+   * A live matchday spans a Friday evening to a Sunday night, so for most of
+   * the time this view is on screen half the eleven has not kicked off. Those
+   * are the players whose figure slot said nothing but a kick-off time, and
+   * they are exactly the ones the reader is still weighing.
+   */
+  const expected = useExpectedPointsView(day)
+
   const matchdayPoints = useMatchdayPoints(
     leagueId,
     day,
@@ -306,12 +328,13 @@ export function LiveTab({
       {view === 'pitch' ? (
         <LivePitch
           lineup={lineup}
+          expected={expected}
           onOpen={(player) => {
             breakdown.open(player.id)
           }}
         />
       ) : (
-        <LiveRanking players={ranked} leagueId={leagueId} />
+        <LiveRanking players={ranked} leagueId={leagueId} expected={expected} />
       )}
 
       {/* The breakdown for whichever portrait was tapped. Its header links to
@@ -497,9 +520,12 @@ function LiveViewToggle({
 function LivePitch({
   lineup,
   onOpen,
+  expected,
 }: {
   lineup: DuelPlayer[]
   onOpen: (player: DuelPlayer) => void
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
 }) {
   const { ref, box } = usePitchBox()
 
@@ -532,6 +558,7 @@ function LivePitch({
               players={lineup.filter((player) => player.position === position)}
               metrics={metrics}
               onOpen={onOpen}
+              expected={expected}
             />
           ))
         )}
@@ -544,10 +571,13 @@ function LivePitchRow({
   players,
   metrics,
   onOpen,
+  expected,
 }: {
   players: DuelPlayer[]
   metrics: PlayerMetrics
   onOpen: (player: DuelPlayer) => void
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden`, as on the editor's pitch: wrapping
@@ -561,6 +591,7 @@ function LivePitchRow({
           player={player}
           metrics={metrics}
           onOpen={onOpen}
+          expected={expected}
         />
       ))}
     </div>
@@ -590,13 +621,23 @@ function LivePitchPlayer({
   player,
   metrics,
   onOpen,
+  expected,
 }: {
   player: DuelPlayer
   metrics: PlayerMetrics
   onOpen: (player: DuelPlayer) => void
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
 }) {
   const isRunning = player.status === 'playing'
   const figure = playerFigure(player)
+  /* The expected figure takes the plate's second line while his match is
+     still to come, exactly as on the [duel pitch](../roster/RosterPitch.tsx):
+     the plate holds one number, and before a kick-off "was he worth picking"
+     is a better use of it than the time. The kick-off stays in the label. */
+  const entry: ExpectedPointsEntry | undefined = isBeforeKickoff(player)
+    ? expected.entry(player.id)
+    : undefined
   // Nothing to open without a fixture: no match that matchday, no actions.
   const canOpen = player.fixture !== undefined
   const Shell = canOpen ? 'button' : 'span'
@@ -615,7 +656,7 @@ function LivePitchPlayer({
       // Spelled out rather than left to the two lines of the plate, which read
       // as "Kane 215" — a number with no unit and no idea whether the match is
       // over.
-      aria-label={`${player.name}: ${figureDescription(figure)}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}${player.sheet === undefined ? '' : `, ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
+      aria-label={`${player.name}: ${entry === undefined ? '' : `${expectedDescription(entry)}, `}${figureDescription(figure)}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}${player.sheet === undefined ? '' : `, ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
       style={{ width: metrics.width }}
       className={cn(
         'flex shrink-0 flex-col items-center rounded-lg p-1',
@@ -660,12 +701,14 @@ function LivePitchPlayer({
             'nums max-w-full truncate font-bold',
             isRunning
               ? 'text-accent'
-              : isScore(figure)
-                ? 'text-white'
-                : 'text-white/55',
+              : entry !== undefined
+                ? expectedTextClass(entry)
+                : isScore(figure)
+                  ? 'text-white'
+                  : 'text-white/55',
           )}
         >
-          {figureLabel(figure)}
+          {entry === undefined ? figureLabel(figure) : points(entry.value)}
         </span>
       </span>
     </Shell>
@@ -691,9 +734,12 @@ function LivePitchPlayer({
 function LiveRanking({
   players,
   leagueId,
+  expected,
 }: {
   players: DuelPlayer[]
   leagueId: string
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
 }) {
   return (
     <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
@@ -706,7 +752,7 @@ function LiveRanking({
             to={`/leagues/${leagueId}/players/${player.id}`}
             className="min-w-0 flex-1 transition-colors hover:bg-surface-2/60"
           >
-            <DuelPlayerRow player={player} />
+            <DuelPlayerRow player={player} expected={expected} />
           </Link>
         </li>
       ))}

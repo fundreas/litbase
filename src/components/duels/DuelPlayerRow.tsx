@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { playerFigure, type DuelPlayer } from '@/api/models'
+import { isBeforeKickoff, playerFigure, type DuelPlayer } from '@/api/models'
 import { BenchMark } from '@/components/player/BenchMark'
 import { MatchEventBadge } from '@/components/player/MatchEventBadge'
 import { MatchStateBadge } from '@/components/player/MatchStateBadge'
@@ -10,9 +10,11 @@ import {
   isScore,
 } from '@/components/player/playerFigure'
 import { TeamSheetMark } from '@/components/player/TeamSheetMark'
+import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
+import type { ExpectedPointsView } from '@/lib/expectedPoints'
 
 /**
  * One player in a duel: who they are, what their match is doing, what they
@@ -41,19 +43,34 @@ import { cn } from '@/lib/cn'
  * play, and `–` only when there is nothing to say. That is [`playerFigure()`](../../api/models.ts), shared with
  * both pitches. Printing `0` would claim a player featured and failed to
  * score, which is why `points` is optional in the first place.
+ *
+ * **A match still to come gets a second figure**: the
+ * [expected points](../squad/ExpectedPointsBadge.tsx) chip, in front of the
+ * kick-off time rather than instead of it — a row is wide enough for both,
+ * unlike the pitch plate, and *when* and *what for* are both worth knowing
+ * while there is still time to change the lineup. Accent green when the reader
+ * entered the figure himself, orange when it is the model's, exactly as on his
+ * Kader. It is gone the moment real points exist.
  */
 export function DuelPlayerRow({
   player,
   showStatus = true,
   trailing,
+  expected,
 }: {
   player: DuelPlayer
   /** Off in the ranking tab, where the "Bank" tag carries the same load. */
   showStatus?: boolean
   /** Extra content on the right, e.g. the owning manager's avatar. */
   trailing?: ReactNode
+  /** This matchday's expected points, for the matches still to come. */
+  expected?: ExpectedPointsView
 }) {
   const figure = playerFigure(player)
+  const entry =
+    expected === undefined || !isBeforeKickoff(player)
+      ? undefined
+      : expected.entry(player.id)
   /*
    * Only the **bench** still has a mark on the second line. The other four
    * states are what the scoreline beside it now says — and better, since
@@ -108,6 +125,13 @@ export function DuelPlayerRow({
       </div>
 
       {trailing}
+
+      {/* In front of the figure column, so the column itself stays a column:
+          the kick-off times and points still line up down the right edge
+          however many rows carry a chip. */}
+      {entry !== undefined && (
+        <ExpectedPointsBadge value={entry.value} isForecast={!entry.isOwn} />
+      )}
 
       {/* The armchair takes the place of the number for a benched player who
           has no score — a mark where a figure would be, which reads as "there

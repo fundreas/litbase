@@ -1,4 +1,5 @@
 import {
+  isBeforeKickoff,
   playerFigure,
   TEAM_SHEET_ROLE_LABEL,
   type DuelPlayer,
@@ -14,11 +15,39 @@ import {
   TeamSheetMark,
 } from '@/components/player/TeamSheetMark'
 import {
+  expectedDescription,
+  expectedTextClass,
+  ExpectedPointsBadge,
+} from '@/components/squad/ExpectedPointsBadge'
+import {
   cornerBadgeSize,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
+import type {
+  ExpectedPointsEntry,
+  ExpectedPointsView,
+} from '@/lib/expectedPoints'
+import { points } from '@/lib/format'
+
+/**
+ * **What he is expected to score, where his match has not started.**
+ *
+ * One helper for all three pieces below, so the pitch and the bench cannot
+ * disagree about when the figure appears: the view answers *which* figure —
+ * the reader's own guess, else the model's prediction —
+ * [`isBeforeKickoff`](../../api/models.ts) answers *whether it is still worth
+ * showing*. `undefined` view is every caller that has no matchday to file a
+ * figure under, and every screen that has not been given one.
+ */
+function expectedFor(
+  player: DuelPlayer,
+  expected: ExpectedPointsView | undefined,
+): ExpectedPointsEntry | undefined {
+  if (expected === undefined || !isBeforeKickoff(player)) return undefined
+  return expected.entry(player.id)
+}
 
 /**
  * The pieces a **read-only matchday roster** is drawn from — a portrait on the
@@ -62,11 +91,14 @@ export function RosterBand({
   metrics,
   ring,
   onOpen,
+  expected,
 }: {
   players: DuelPlayer[]
   metrics: PlayerMetrics
   ring: RosterRing
   onOpen: (player: DuelPlayer) => void
+  /** This matchday's expected points, for the matches still to come. */
+  expected?: ExpectedPointsView
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
@@ -81,6 +113,7 @@ export function RosterBand({
           metrics={metrics}
           ring={ring}
           onOpen={onOpen}
+          expected={expected}
         />
       ))}
     </div>
@@ -88,15 +121,31 @@ export function RosterBand({
 }
 
 /**
- * A portrait and its one figure: the points, or the kick-off time while the
- * match is still to come — see
- * [`playerFigure()`](../../api/models.ts).
+ * A portrait and its one figure: the points, what he is **expected** to score
+ * while his match is still to come, or the kick-off time when nothing expects
+ * anything of him — see [`playerFigure()`](../../api/models.ts).
  *
- * The figure is tinted **only while the player's match is running** — the one
- * state that is going to change, and so the only one worth spotting across a
- * pitch of eleven or twenty-two. A real score is drawn at full contrast and a
- * placeholder (a kick-off day or time, a dash) stays quiet, so the eye finds
- * the numbers first.
+ * **The expected figure outranks the kick-off time**, because the plate holds
+ * exactly one number and the two are answers to different questions: *when*
+ * versus *what for*. Before a kick-off a pitch of eleven identical `Sa` plates
+ * says almost nothing, and eleven expected figures say what the eleven is
+ * worth — which is the question a lineup is looked at to answer. The time is
+ * not lost: it stays in the card's tooltip, spelled out in full beside the
+ * figure it gave its place to.
+ *
+ * It is drawn in the two colours the chips use — accent green for the reader's
+ * own guess, orange for the model's prediction — via
+ * [`expectedTextClass`](../squad/ExpectedPointsBadge.tsx), so one distinction
+ * has one vocabulary across the app.
+ *
+ * The figure is tinted **only while the player's match is running**, otherwise
+ * — the one state that is going to change, and so the only one worth spotting
+ * across a pitch of eleven or twenty-two. A real score is drawn at full
+ * contrast and a placeholder (a kick-off day or time, a dash) stays quiet, so
+ * the eye finds the numbers first. A running match and an expected figure
+ * cannot coexist, which is what keeps the accent green unambiguous: it is a
+ * live score before kick-off has happened to nobody, and a guess afterwards to
+ * nobody either.
  *
  * The corner carries the [club's team sheet](../player/TeamSheetMark.tsx) in
  * the hour a sheet exists and the match has not started, and nothing at all
@@ -116,17 +165,29 @@ export function RosterPortrait({
   metrics,
   ring,
   onOpen,
+  expected,
 }: {
   player: DuelPlayer
   metrics: PlayerMetrics
   ring: RosterRing
   onOpen: (player: DuelPlayer) => void
+  /** This matchday's expected points, for the matches still to come. */
+  expected?: ExpectedPointsView
 }) {
   const isRunning = player.status === 'playing'
   const figure = playerFigure(player)
+  const entry = expectedFor(player, expected)
   const canOpen = player.fixture !== undefined
 
   const Shell = canOpen ? 'button' : 'span'
+
+  /* Both halves when the expected figure has taken the plate: what it is, and
+     the kick-off it displaced. A tooltip is the one place on a pitch with room
+     to say both. */
+  const title =
+    entry === undefined
+      ? `${player.name}: ${figureDescription(figure)}`
+      : `${player.name}: ${expectedDescription(entry)} · ${figureDescription(figure)}`
 
   return (
     <Shell
@@ -138,7 +199,7 @@ export function RosterPortrait({
             },
           }
         : {})}
-      title={`${player.name}: ${figureDescription(figure)}`}
+      title={title}
       style={{ width: metrics.width }}
       className={cn(
         'flex shrink-0 flex-col items-center rounded-lg p-1',
@@ -170,12 +231,14 @@ export function RosterPortrait({
           'nums relative truncate rounded bg-black/70 px-1 text-center font-bold',
           isRunning
             ? 'text-accent'
-            : isScore(figure)
-              ? 'text-white'
-              : 'text-white/55',
+            : entry !== undefined
+              ? expectedTextClass(entry)
+              : isScore(figure)
+                ? 'text-white'
+                : 'text-white/55',
         )}
       >
-        {figureLabel(figure)}
+        {entry === undefined ? figureLabel(figure) : points(entry.value)}
       </span>
     </Shell>
   )
@@ -192,11 +255,18 @@ export function RosterPortrait({
  * Dimmed as a set by whoever lists them rather than tagged one by one — the
  * heading above says what they are, and repeating "Bank" down every row is
  * noise.
+ *
+ * **The expected chip sits beside the figure here rather than replacing it**,
+ * because a row has the width a plate does not. On the bench that figure is
+ * the interesting one: an expected 240 next to the armchair is the question
+ * *why is he not on the pitch*, and it is exactly the question a bench is on
+ * screen to raise.
  */
 export function RosterBenchRow({
   player,
   ring,
   onOpen,
+  expected,
 }: {
   player: DuelPlayer
   ring: RosterRing
@@ -209,11 +279,16 @@ export function RosterBenchRow({
    * benched player's points are exactly as unexplained as a fielded one's.
    */
   onOpen?: (player: DuelPlayer) => void
+  /** This matchday's expected points, for the matches still to come. */
+  expected?: ExpectedPointsView
 }) {
   const figure = playerFigure(player)
+  const entry = expectedFor(player, expected)
   const canOpen = onOpen !== undefined && player.fixture !== undefined
 
-  const title = `${player.name}: ${figureDescription(figure)}${
+  const title = `${player.name}: ${
+    entry === undefined ? '' : `${expectedDescription(entry)} · `
+  }${figureDescription(figure)}${
     player.sheet === undefined
       ? ''
       : ` · ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`
@@ -236,6 +311,16 @@ export function RosterBenchRow({
           might. */}
       {player.sheet !== undefined && (
         <TeamSheetMark role={player.sheet} size={12} />
+      )}
+      {/* Decorative: the row's `title` already reads the figure and its source
+          out in words, and a second label on a chip inside it would say the
+          same thing twice. */}
+      {entry !== undefined && (
+        <ExpectedPointsBadge
+          value={entry.value}
+          isForecast={!entry.isOwn}
+          decorative
+        />
       )}
       {figure.kind === 'bench' ? (
         <BenchMark size={12} className="text-faint" />

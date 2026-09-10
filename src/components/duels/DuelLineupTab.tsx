@@ -20,12 +20,14 @@ import {
   ROW_ORDER_MIRRORED,
   usePitchBox,
 } from '@/components/squad/pitchMetrics'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import {
   FullscreenButton,
   FullscreenPane,
 } from '@/components/ui/FullscreenPane'
 import { cn } from '@/lib/cn'
+import type { ExpectedPointsView } from '@/lib/expectedPoints'
 import { useHashModal } from '@/lib/useHashModal'
 import { useMemo, type ReactNode } from 'react'
 
@@ -89,6 +91,18 @@ export function DuelLineupTab({
   leagueId: string | undefined
 }) {
   const [top, bottom] = rosters
+
+  /**
+   * **What each of these twenty-two is expected to score**, for the matches
+   * that have not started — the reader's own guesses where he has entered any,
+   * the [model's](../../api/hooks/usePointcast.ts) prediction everywhere else.
+   *
+   * The point of a duel before the weekend is *am I ahead on paper*, and until
+   * now this page could only answer it after the fact. Both elevens read the
+   * same figures, off one cached file: a prediction is a property of a player
+   * and a matchday, not of whose team he happens to be in.
+   */
+  const expected = useExpectedPointsView(day)
   const { ref, box } = usePitchBox()
   /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
@@ -175,6 +189,7 @@ export function DuelLineupTab({
             metrics={metrics}
             ring={RING.top}
             onOpen={openBreakdown}
+            expected={expected}
           />
         ))}
         {ROW_ORDER.map((position) => (
@@ -184,6 +199,7 @@ export function DuelLineupTab({
             metrics={metrics}
             ring={RING.bottom}
             onOpen={openBreakdown}
+            expected={expected}
           />
         ))}
       </div>
@@ -259,8 +275,8 @@ export function DuelLineupTab({
           left/right arrangement the scoreline established and the corner
           labels bridge the two. */}
       <div className="grid grid-cols-2 gap-2">
-        <BenchColumn roster={top} side="top" />
-        <BenchColumn roster={bottom} side="bottom" />
+        <BenchColumn roster={top} side="top" expected={expected} />
+        <BenchColumn roster={bottom} side="bottom" expected={expected} />
       </div>
 
       {breakdownDialog}
@@ -344,7 +360,16 @@ function SideLabel({
  * Dimmed as a set rather than tagged one by one — the heading says what they
  * are, and repeating "Bank" down every row is noise.
  */
-function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
+function BenchColumn({
+  roster,
+  side,
+  expected,
+}: {
+  roster: DuelRoster
+  side: Side
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
+}) {
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
       {/* The armchair is what says "bench" here — the column is otherwise just
@@ -371,7 +396,12 @@ function BenchColumn({ roster, side }: { roster: DuelRoster; side: Side }) {
            this page belongs to the pitch. */
         <ul className="flex flex-col gap-1 opacity-75">
           {roster.bench.map((player) => (
-            <RosterBenchRow key={player.id} player={player} ring={RING[side]} />
+            <RosterBenchRow
+              key={player.id}
+              player={player}
+              ring={RING[side]}
+              expected={expected}
+            />
           ))}
         </ul>
       )}

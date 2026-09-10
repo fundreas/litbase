@@ -1,7 +1,35 @@
 import { Target } from 'lucide-react'
 
 import { cn } from '@/lib/cn'
+import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
+
+/**
+ * **The two colours, for the places that draw the figure as bare text.**
+ *
+ * A pitch plate is five characters wide over a portrait and has no room for a
+ * chip, so the colour has to do the work on its own there — and it must be the
+ * *same* colour it is inside a chip, or the reader would have two vocabularies
+ * for one distinction. Exported rather than duplicated for exactly that
+ * reason: [the live pitch](./LiveTab.tsx) and the
+ * [roster pitches](../roster/RosterPitch.tsx) both read it.
+ */
+export function expectedTextClass(entry: ExpectedPointsEntry): string {
+  return entry.isOwn ? 'text-accent' : 'text-warning'
+}
+
+/**
+ * What a figure about a match still to come says out loud.
+ *
+ * Spelled out for the places where the number is alone on a plate or beside a
+ * kick-off time: `231` there could be points already scored, and the whole
+ * point of the two colours is a distinction a screen reader cannot see.
+ */
+export function expectedDescription(entry: ExpectedPointsEntry): string {
+  return entry.isOwn
+    ? `Erwartete Punkte: ${points(entry.value)} (deine Schätzung)`
+    : `Erwartete Punkte: ${points(entry.value)} (Prognose)`
+}
 
 /**
  * **What he is expected to score**, as a chip on a squad row.

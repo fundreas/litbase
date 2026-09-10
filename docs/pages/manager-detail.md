@@ -150,7 +150,13 @@ pitch, with everyone they left out under it.
 **The same cards as the duel's**, from the shared
 [roster pieces](../../src/components/roster/RosterPitch.tsx): a portrait, one
 points figure, a team-sheet corner while the sheet is news, and a tap that opens
-the [breakdown](player-detail.md#the-match-breakdown) behind the number. What
+the [breakdown](player-detail.md#the-match-breakdown) behind the number. For a
+match that has not kicked off that one figure is what he is
+**[expected](squad.md#erwartete-punkte)** to score — orange for the model's
+prediction, accent green for a guess the reader entered himself — which is the
+whole point of looking at somebody else's eleven *before* the weekend rather
+than after it. The bench rows carry the same figure as a chip beside the
+armchair. What
 differs is the arrangement — four bands and a full-width bench where a duel has
 eight bands and two columns — so the cards are bigger here, and the bench rows
 are **controls**: a benched player's points are exactly as unexplained as a

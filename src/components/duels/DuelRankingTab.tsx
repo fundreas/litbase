@@ -9,8 +9,10 @@ import {
   type DuelRoster,
 } from '@/api/models'
 import { DuelPlayerRow } from '@/components/duels/DuelPlayerRow'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { PairToggle } from '@/components/ui/PairToggle'
+import type { ExpectedPointsView } from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
@@ -63,6 +65,11 @@ export function DuelRankingTab({
     [rosters],
   )
 
+  /* The same figures the [pitch](./DuelLineupTab.tsx) draws, off the same
+     cached file: this list is the other reading of one duel, and the two must
+     not disagree about what a player is expected to bring. */
+  const expected = useExpectedPointsView(day)
+
   return (
     <div className="flex flex-col gap-3">
       <PairToggle
@@ -75,6 +82,7 @@ export function DuelRankingTab({
       {view === 'combined' ? (
         <RankedList
           players={ranked}
+          expected={expected}
           trailing={(player) => (
             <Avatar
               // Always set on a duel roster; optional on the model only
@@ -98,8 +106,18 @@ export function DuelRankingTab({
         /* First manager above second — the order the header's scoreline
            establishes, and the one the pitch stacks them in. */
         <div className="flex flex-col gap-4">
-          <ManagerRanking roster={rosters[0]} leagueId={leagueId} day={day} />
-          <ManagerRanking roster={rosters[1]} leagueId={leagueId} day={day} />
+          <ManagerRanking
+            roster={rosters[0]}
+            leagueId={leagueId}
+            day={day}
+            expected={expected}
+          />
+          <ManagerRanking
+            roster={rosters[1]}
+            leagueId={leagueId}
+            day={day}
+            expected={expected}
+          />
         </div>
       )}
     </div>
@@ -162,10 +180,13 @@ function ManagerRanking({
   roster,
   leagueId,
   day,
+  expected,
 }: {
   roster: DuelRoster
   leagueId: string
   day: number | undefined
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
 }) {
   const players = useMemo(
     () => [...roster.lineup, ...roster.bench].sort(byMatchdayPoints),
@@ -209,7 +230,7 @@ function ManagerRanking({
           Keine Spieler für diesen Spieltag
         </p>
       ) : (
-        <RankedList players={players} />
+        <RankedList players={players} expected={expected} />
       )}
     </section>
   )
@@ -219,10 +240,13 @@ function ManagerRanking({
 function RankedList({
   players,
   trailing,
+  expected,
 }: {
   players: DuelPlayer[]
   /** Extra content on the right of each row — the manager, in the combined list. */
   trailing?: (player: DuelPlayer) => ReactNode
+  /** This matchday's expected points, for the matches still to come. */
+  expected?: ExpectedPointsView
 }) {
   return (
     <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
@@ -239,6 +263,7 @@ function RankedList({
               // whether it counted, which the "Bank" tag says on its own.
               showStatus={player.status === 'bench'}
               trailing={trailing?.(player)}
+              expected={expected}
             />
           </div>
         </li>

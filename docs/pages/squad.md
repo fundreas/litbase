@@ -511,6 +511,7 @@ afterwards moves it.
 | [Rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The badge inside the row's target, and a fourth tile totalling **his** fielded eleven |
 | [Club's roster](team.md#expected-points-a-club-at-a-time) | The badge inside the row's target. No total — a roster is not an eleven |
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
+| [Live view](#live-tab), [a rival's Aufstellung](manager-detail.md#aufstellung), the [duel pitch](duel-detail.md#layout) and its [ranking](duel-detail.md#the-ranking-tab) | For a player whose match **has not kicked off**: the figure takes the plate on grass, and rides beside the kick-off time as a chip in a row. Gone the moment real points exist — see [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets) |
 
 A player with **neither** figure shows no chip at all — a bye, a player the
 model has no file for, a league outside the Bundesliga. In a Bundesliga league
@@ -1298,12 +1299,17 @@ The fielded eleven, each portrait carrying the points it has scored so far:
 
 The points replace the fixture badge that the editor's plate carries, and the
 plate follows the same rule as the duel pitch: the points when they are known,
-the **kick-off** while the match is still to come — the time on the day it is
-played, the weekday (`So`) before that — and `–` only when there is nothing to
-say, never `0` for a player who has not scored. See
+the **[expected points](#erwartete-punkte)** while the match is still to come —
+orange for the model's prediction, accent green for the reader's own guess —
+the **kick-off** where no figure expects anything of him, and `–` only when
+there is nothing to say, never `0` for a player who has not scored. See
 [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets); on
 grass that distinction is the difference between *hasn't kicked off* and
 *played and scored nothing*.
+
+A live matchday runs from a Friday evening to a Sunday night, so for most of
+the hours this view is open half the eleven has not kicked off — which is
+exactly the half whose plate used to hold nothing but a time.
 
 **Tapping a portrait opens the actions behind its number** — the same
 [breakdown](player-detail.md#the-match-breakdown) the player page and the two
@@ -1324,7 +1330,9 @@ rules and the same source as on the duel page:
 **A running match tints the ring and the figure accent-coloured, and nothing
 else does.** It is the one state that is going to change, so it is the one
 worth spotting from across the pitch; if every state were coloured, eleven
-portraits would read as a warning light.
+portraits would read as a warning light. An expected figure borrows the same
+green when it is the reader's own guess, and the two can never be confused: a
+match cannot be running and still to come at once.
 
 The same four fixed bands and the same card sizing as the editor's pitch —
 both go through [`pitchMetrics`](../../src/components/squad/pitchMetrics.ts),
@@ -1356,7 +1364,8 @@ players are its `DuelPlayer` model, because a live squad *is* one side of a
 duel with the opponent left out: same statuses, same points rule, same bench.
 The only field with no meaning here is `managerId` — there is one manager — so
 that field became optional rather than a near-identical second model being
-written. Tapping a row, or a portrait on the pitch, opens the player's own
+written. The rows carry the expected-points chip for the matches still to
+come, in front of the figure column, exactly as they do on the duel page. Tapping a row, or a portrait on the pitch, opens the player's own
 page; there is nothing on this view to edit.
 
 ### The header

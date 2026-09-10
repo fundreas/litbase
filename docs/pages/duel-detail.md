@@ -56,9 +56,10 @@ gets clipped.
 
 **Portraits carry a picture and one figure, nothing else.** With 22 players on
 a 360px screen a name under each is unreadable and a fixture badge is noise.
-That figure is the points, or the **kick-off time** while the match is still to
-come — see [the one figure a player gets](#the-one-figure-a-player-gets) — and
-it is tinted accent while that player's match is running. The plate is sized
+That figure is the points, what he is **expected** to score while his match is
+still to come, or the kick-off time when nothing expects anything of him — see
+[the one figure a player gets](#the-one-figure-a-player-gets) — and it is
+tinted accent while that player's match is running. The plate is sized
 for one line
 (`plate: 'points'`), which is also what lets the avatar floor drop to 26px on a
 phone.
@@ -274,8 +275,19 @@ this order:
 | ----- | ---- | -------------- |
 | **Points** | they are known | The most informative thing available, benched players included — a bench that outscored the eleven is why benches are on screen at all |
 | **The armchair** ([`BenchMark`](../../src/components/player/BenchMark.tsx)) | benched, no points | A kick-off time would mislead: his match starting changes nothing, because his points will never count |
-| **Kick-off** (`20:30` today, `So` before that) | fielded, match still to come | Answers the question the dash left hanging. On a Friday evening most of a lineup has not kicked off |
+| **[Expected points](squad.md#erwartete-punkte)** | fielded, match still to come, and a figure exists for him | *What for* beats *when*: 22 identical `Sa` plates say almost nothing, and 22 expected figures say what the two elevens are worth. Orange for the model's prediction, accent green for the reader's own guess |
+| **Kick-off** (`20:30` today, `So` before that) | fielded, match still to come, no expected figure | Answers the question the dash left hanging. On a Friday evening most of a lineup has not kicked off |
 | **`–`** | nothing to say | No fixture that matchday, or a match under way whose points have not arrived |
+
+The expected figure is the one entry in the table that is **not** about this
+matchday's events, so it is the one with a second condition on it:
+[`isBeforeKickoff()`](../../src/api/models.ts) — no points yet *and* the
+fixture still ahead. It never sits next to a real score, and it is never shown
+for a matchday whose matches are over. On a **row**, where there is width for
+both, it does not take the kick-off's place at all: the chip goes in front of
+the figure column and the column stays a column. The bench gets one too, in
+the row's chip form beside the armchair — an expected 240 next to *did not
+count* is precisely the question a bench is on screen to raise.
 
 **Points are never `0` for a player who has not scored.** That distinction is
 why `DuelPlayer.points` is optional: printing `0` would claim they played and

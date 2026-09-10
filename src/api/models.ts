@@ -1519,6 +1519,29 @@ export function playerFigure(
 }
 
 /**
+ * **Is his match still to come?** — which is the window in which a figure
+ * about what he *will* score is worth anything at all.
+ *
+ * Deliberately not the same question as {@link playerFigure} answering
+ * `kickoff`. That case is a *fielded* player before kick-off; this is also
+ * true of a benched one, whose expected points are the counterfactual the
+ * bench is on screen for — *him, instead of the one I picked*. Both want the
+ * prediction; only the fielded one has a kick-off time in his figure slot.
+ *
+ * `points !== undefined` is the disqualifier rather than the fixture's clock
+ * alone: once Kickbase has scored him the guess is settled, and an expectation
+ * next to a real figure would be an invitation to argue with the past.
+ */
+export function isBeforeKickoff(
+  player: Pick<DuelPlayer, 'points' | 'fixture'>,
+  now: number = nowMs(),
+): boolean {
+  if (player.points !== undefined) return false
+  if (player.fixture === undefined) return false
+  return fixtureState(player.fixture, now) === 'upcoming'
+}
+
+/**
  * Sort comparator: **best first**, and a player with no points yet sorts
  * **last** rather than as zero — not knowing is not the same as nothing.
  *

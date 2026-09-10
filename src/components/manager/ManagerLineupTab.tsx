@@ -11,12 +11,14 @@ import {
   ROW_ORDER,
   usePitchBox,
 } from '@/components/squad/pitchMetrics'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import {
   FullscreenButton,
   FullscreenPane,
 } from '@/components/ui/FullscreenPane'
 import { cn } from '@/lib/cn'
+import type { ExpectedPointsView } from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import { useHashModal } from '@/lib/useHashModal'
 
@@ -56,6 +58,19 @@ export function ManagerLineupTab({
   isPointsPending: boolean
 }) {
   const { ref, box } = usePitchBox()
+
+  /**
+   * **What each of these players is expected to score**, for the matches of
+   * this matchday that have not started — the reader's own guesses where he
+   * has entered any, the [model's](../../api/hooks/usePointcast.ts) prediction
+   * everywhere else.
+   *
+   * Filed under the matchday this tab is showing, so a past matchday resolves
+   * to nothing at all and the pitch reads exactly as it always did: the
+   * predictions exist for the coming matchday only, and a settled match has
+   * real points to show instead.
+   */
+  const expected = useExpectedPointsView(day)
 
   /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
@@ -136,6 +151,7 @@ export function ManagerLineupTab({
             metrics={metrics}
             ring="light"
             onOpen={openBreakdown}
+            expected={expected}
           />
         ))}
       </div>
@@ -196,7 +212,11 @@ export function ManagerLineupTab({
         </p>
       )}
 
-      <Bench players={roster.bench} onOpen={openBreakdown} />
+      <Bench
+        players={roster.bench}
+        onOpen={openBreakdown}
+        expected={expected}
+      />
 
       {breakdownDialog}
     </div>
@@ -290,9 +310,12 @@ function FullscreenSummary({ roster }: { roster: DuelRoster }) {
 function Bench({
   players,
   onOpen,
+  expected,
 }: {
   players: DuelPlayer[]
   onOpen: (player: DuelPlayer) => void
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
 }) {
   return (
     <section className="flex flex-col gap-1.5">
@@ -318,6 +341,7 @@ function Bench({
               player={player}
               ring="light"
               onOpen={onOpen}
+              expected={expected}
             />
           ))}
         </ul>
