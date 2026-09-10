@@ -8,13 +8,17 @@ import {
   type PositionKey,
   type StartProbability,
 } from '@/api/models'
+import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
+import { ExpectedPointsTarget } from '@/components/squad/ExpectedPointsBadge'
+import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { StatTile } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
+import { expectedPointsTotal, useExpectedPoints } from '@/lib/expectedPoints'
 import { money, moneyDelta, points } from '@/lib/format'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
@@ -49,15 +53,48 @@ const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
  * Fifteen requests, once per half hour, against the `playerDetail` entries
  * the player pages and the market read too — so opening a player from here
  * finds his page already cached.
+ *
+ * **Expected points can be entered here too.** They are the reader's own
+ * guesses about the coming matchday, kept per player and per matchday on this
+ * device — see [`expectedPoints`](../../lib/expectedPoints.ts) — and a rival's
+ * squad is one of the places you most want to make them: what a duel comes
+ * down to is your eleven against his. The
+ * [target at the end of the row](../squad/ExpectedPointsBadge.tsx) is the way
+ * in, because these rows carry no fixture crest to hang the sheet on.
  */
 export function ManagerSquadTab({
   squad,
   leagueId,
+  competitionId,
 }: {
   squad: ManagerSquadMember[]
   leagueId: string
+  /** For the coming matchday's fixtures, which the sheet names. */
+  competitionId: string
 }) {
   const startProbabilities = useStartProbabilities(leagueId, squad)
+  /*
+   * The same cache entry the page's own season schedule reads — one payload
+   * for the season, cached for an hour — so the matchday number and the
+   * fixtures behind the sheet cost this tab no request of its own.
+   */
+  const matchday = useCurrentMatchday(competitionId)
+  const day = matchday.data?.day
+  const expectedPoints = useExpectedPoints(day)
+  const expected = useExpectedPointsSheet({
+    matchday: day,
+    resolve: (playerId) => {
+      const player = squad.find((member) => member.id === playerId)
+      if (player === undefined) return undefined
+      return {
+        id: player.id,
+        name: player.lastName,
+        averagePoints: player.averagePoints,
+        totalPoints: player.totalPoints,
+        fixture: matchday.data?.fixtureByTeamId.get(player.teamId),
+      }
+    },
+  })
 
   if (squad.length === 0) {
     return (
@@ -70,7 +107,18 @@ export function ManagerSquadTab({
   }
 
   const totalValue = squad.reduce((sum, player) => sum + player.marketValue, 0)
-  const fielded = squad.filter((player) => player.isFielded).length
+  const fieldedPlayers = squad.filter((player) => player.isFielded)
+  const fielded = fieldedPlayers.length
+  /**
+   * **What his eleven is expected to bring in**, by the reader's own reckoning.
+   *
+   * The point of guessing on a rival's players is comparing the two totals, so
+   * his is summed exactly as [one's own](../squad/LineupTab.tsx) is: over the
+   * fielded players only, with the count of how many of them actually carry a
+   * guess, because 640 off four guesses and 640 off eleven are different
+   * claims.
+   */
+  const guessed = expectedPointsTotal(fieldedPlayers, expectedPoints)
 
   const byPosition = POSITION_ORDER.map((position) => ({
     position,
@@ -81,7 +129,15 @@ export function ManagerSquadTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-3 gap-2">
+      {/* Two columns once the fourth tile exists, rather than a ragged row of
+          three and one. It comes and goes with the guesses, like the chip over
+          one's own pitch — a nought there would read as a prediction. */}
+      <div
+        className={cn(
+          'grid gap-2',
+          guessed.count === 0 ? 'grid-cols-3' : 'grid-cols-2',
+        )}
+      >
         <StatTile label="Spieler" value={points(squad.length)} />
         <StatTile label="Teamwert" value={money(totalValue)} />
         <StatTile
@@ -89,6 +145,13 @@ export function ManagerSquadTab({
           value={points(fielded)}
           hint={fielded === 11 ? 'komplett' : 'von 11'}
         />
+        {guessed.count > 0 && (
+          <StatTile
+            label="Erwartet"
+            value={points(guessed.total)}
+            hint={`${points(guessed.count)} von ${points(fielded)} geschätzt`}
+          />
+        )}
       </div>
 
       {byPosition.map((group) => (
@@ -110,11 +173,15 @@ export function ManagerSquadTab({
                 player={player}
                 startProbability={startProbabilities.get(player.id)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
+                expectedPoints={expectedPoints[player.id]}
+                onEditExpected={expected.open}
               />
             ))}
           </ul>
         </section>
       ))}
+
+      {expected.sheet}
     </div>
   )
 }
@@ -138,22 +205,41 @@ function PlayerRow({
   player,
   startProbability,
   to,
+  expectedPoints,
+  onEditExpected,
 }: {
   player: ManagerSquadMember
   startProbability: StartProbability | undefined
   to: string
+  /** The reader's guess for the coming matchday, if there is one. */
+  expectedPoints: number | undefined
+  onEditExpected: (playerId: string) => void
 }) {
   const changeDay = player.marketValueChangeDay
   const ChangeIcon =
     changeDay !== undefined && changeDay < 0 ? TrendingDown : TrendingUp
 
   return (
-    <li>
+    /* The shell moved onto the `li` and the link became the row's *body*, so
+       the target at the end can be a button: a link wrapping the whole row
+       would make a tap on it navigate, and HTML has no nested interactive
+       elements. Same split, same reasoning as one's own
+       [squad row](../squad/PlayerListTab.tsx). */
+    <li
+      className={cn(
+        'flex items-stretch overflow-hidden rounded-card border border-line bg-surface',
+        // The accent edge was on the link's own `hover:` until the link
+        // stopped being the whole row. `has-[a:hover]` puts it back on the
+        // border that is now the list item's, and only for the link — the
+        // target at the end lights its own ground instead.
+        'has-[a:hover]:border-accent/40',
+      )}
+    >
       <Link
         to={to}
         className={cn(
-          'flex items-stretch overflow-hidden rounded-card border border-line bg-surface',
-          'transition-colors hover:border-accent/40 hover:bg-surface-2',
+          'flex min-w-0 flex-1 items-stretch',
+          'transition-colors hover:bg-surface-2',
         )}
       >
         {/* A marker, not a control: this is not the reader's team to change.
@@ -243,6 +329,14 @@ function PlayerRow({
           </span>
         </span>
       </Link>
+
+      <ExpectedPointsTarget
+        value={expectedPoints}
+        playerName={player.lastName}
+        onClick={() => {
+          onEditExpected(player.id)
+        }}
+      />
     </li>
   )
 }

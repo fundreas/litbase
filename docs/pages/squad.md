@@ -442,11 +442,29 @@ modal: its subject is a player, and a player is recoverable from an id. It is
 rendered by the page rather than by the tab, because switching to the pitch has
 to close it too.
 
+**Three lists open the same sheet**, so the hash modal, the lookup and the
+dialog are one hook —
+[`useExpectedPointsSheet`](../../src/components/squad/ExpectedPointsSheet.tsx):
+
+| List | How it is opened |
+| ---- | ---------------- |
+| This page's Kader | The **fixture crest** at the end of the row |
+| A [rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | A **target** at the end of the row — those rows have no crest |
+| A [club's roster](team.md#expected-points-a-club-at-a-time) | The same target — thirty copies of one crest would say nothing |
+
+The caller supplies a `resolve(playerId)`, which is what lets the URL survive a
+refresh: the sheet reopens from an id alone against whatever the list has since
+re-fetched, and quietly opens nothing when the id names a player who has been
+sold out of it. What it hands back is an `ExpectedPointsSubject` — an id, a
+name, the fixture and whichever of the two season figures that payload has —
+deliberately **not** `SquadMember`, because a rival's Kader carries no first
+name and a club's roster carries no season total.
+
 | Part | Why |
 | ---- | --- |
-| Match summary | The same crest that was tapped, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it |
+| Match summary | The crest, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it, and on the two lists that have no crest it is the only place the fixture is named |
 | The field | Opens at **100**, or at the guess already stored. Text, not `type="number"`, so it can be cleared to retype; a leading minus survives, because Kickbase points genuinely go below zero |
-| Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the only figure in the sheet that is not the reader's own invention, and what a guess is calibrated against |
+| Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the only figure in the sheet that is not the reader's own invention, and what a guess is calibrated against. Only what the list knows: a club's roster has an average and no total, and the line shortens rather than printing a dash |
 | `+50 +10 +5` / `−50 −10 −5` | The market's [`AmountSteps`](../../src/components/ui/AmountSteps.tsx) at `scale="points"` — the identical control, hold-to-repeat included, on its own list of steps |
 | **✗** on the field | Deletes the guess, exactly where the market's *withdraw* sits on the amount it takes back. Only there once something is stored, so it cannot be mistaken for "clear the field" |
 
@@ -462,6 +480,8 @@ less?* — which is exactly what the shortcut rows then answer in taps.
 | Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) under the crest — target glyph plus the figure, accent-tinted |
 | Pitch header | `⊙ 840 · 9/11` beside `11/11 aufgestellt`, the fielded players' guesses summed |
 | Grid tiles | Nothing — a tile shows no fixture either, so there is nothing to hang it on |
+| [Rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The badge inside the row's target, and a fourth tile totalling **his** fielded eleven |
+| [Club's roster](team.md#expected-points-a-club-at-a-time) | The badge inside the row's target. No total — a roster is not an eleven |
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
 
 A player with no guess shows **no chip at all**. Its absence is the "not
@@ -503,9 +523,10 @@ the parsed value is treated as **untrusted** — `localStorage` is editable by
 hand and outlives every version of this app, so anything that is not a finite
 number under two levels of plain object is dropped on load.
 
-Three components read it and one writes it, in different branches of the tree
-— the row, the pitch header, the sheet — so it is a module-level store read
-through `useSyncExternalStore` rather than state lifted to the page. A write
+Several components read it and one writes it, in different branches of the
+tree and on three different pages — the rows, the pitch header, the rival's
+tile, the sheet — so it is a module-level store read through
+`useSyncExternalStore` rather than state lifted to a page. A write
 updates all of them; a `storage` event adopts another tab's write; and the
 in-memory copy is swapped **whether or not the disk write lands**, because a
 guess that vanishes the moment it is typed is worse than one forgotten on the
@@ -1380,6 +1401,9 @@ who has been on the Kader view has already paid for most of these.
   matchday and never pruned, so once a matchday is over the actual points are
   one query away and "you were 40 out on him" is a comparison nothing else in
   the app can offer.
-- **Guess from the pitch too.** The sheet is opened from the Kader row only; a
-  long press on a pitch portrait is free real estate, though the short press
-  there already means "take him off".
+- **Guess from the pitch too.** On this page the sheet opens from the Kader
+  row only; a long press on a pitch portrait is free real estate, though the
+  short press there already means "take him off".
+- **A total on a rival's Aufstellung**, next to the one on your own pitch —
+  the tab shows a *chosen* matchday, so it would have to appear only while
+  that is the current one.

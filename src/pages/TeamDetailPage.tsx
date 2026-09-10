@@ -262,7 +262,11 @@ export function TeamDetailPage() {
               }}
             />
           ) : (
-            <TeamSquadTab profile={profile.data} leagueId={leagueId} />
+            <TeamSquadTab
+              profile={profile.data}
+              leagueId={leagueId}
+              competitionId={competitionId}
+            />
           ))}
 
         {tab === TEAM_TABS.matches && (

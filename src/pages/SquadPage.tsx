@@ -19,7 +19,7 @@ import { useStatusReasons } from '@/api/hooks/useStatusReasons'
 import { liveMatchday, type SquadMember } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
-import { ExpectedPointsDialog } from '@/components/squad/ExpectedPointsDialog'
+import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { LiveTab } from '@/components/squad/LiveTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
@@ -550,17 +550,30 @@ function SquadViews({
   const fixtureByTeamId = matchday.data?.fixtureByTeamId
   const day = matchday.data?.day
   /**
-   * The expected-points sheet — `#expected:<playerId>`, so the back gesture
-   * closes it and a refresh under it puts it back. It passes the test the
-   * [hook](../lib/useHashModal.ts) sets for a hash modal: its subject is a
-   * player, and a player is recoverable from an id.
+   * The expected-points sheet — `#expected:<playerId>`, the same one a
+   * rival's Kader and a club's roster open. It lives here, above both views,
+   * because the pitch has to be able to close it as well: switching to the
+   * lineup with the sheet open would otherwise leave a hash naming a modal
+   * nothing renders.
    *
-   * It lives here, above both views, because the pitch has to be able to
-   * close it as well — switching to the lineup with the sheet open would
-   * otherwise leave a hash naming a modal nothing renders.
+   * The squad is the only list on this page, so resolving an id is a lookup
+   * in it — and a link to a player who has since been sold quietly opens
+   * nothing.
    */
-  const expected = useHashModal('expected')
-  const expectedPlayer = squad.find((player) => player.id === expected.id)
+  const expected = useExpectedPointsSheet({
+    matchday: day,
+    resolve: (playerId) => {
+      const player = squad.find((member) => member.id === playerId)
+      if (player === undefined) return undefined
+      return {
+        id: player.id,
+        name: [player.firstName, player.lastName].filter(Boolean).join(' '),
+        averagePoints: player.averagePoints,
+        totalPoints: player.totalPoints,
+        fixture: fixtureByTeamId?.get(player.teamId),
+      }
+    },
+  })
   // Held here rather than in each view so the two share one set of requests:
   // switching to the pitch must not re-fetch what the list already knows.
   const startProbabilities = useStartProbabilities(leagueId, squad)
@@ -597,19 +610,7 @@ function SquadViews({
         </div>
       )}
 
-      {/* `key` per player: the figure in the field is seeded once, at mount,
-          so opening the sheet on a second player has to be a second
-          component. It waits for the matchday number — the guess is filed
-          under it — which arrives with the fixtures the crest already shows. */}
-      {expected.isOpen && expectedPlayer !== undefined && day !== undefined && (
-        <ExpectedPointsDialog
-          key={expectedPlayer.id}
-          player={expectedPlayer}
-          fixture={fixtureByTeamId?.get(expectedPlayer.teamId)}
-          matchday={day}
-          onClose={expected.close}
-        />
-      )}
+      {expected.sheet}
 
       <SwapDialog
         incoming={editor.incoming}

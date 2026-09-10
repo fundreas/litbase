@@ -231,6 +231,35 @@ The change is drawn exactly as the squad list draws it: the arrow is the *same*
 signal as the amount, its direction, so the two cannot contradict each other,
 and it is omitted on a flat week rather than pointing nowhere.
 
+### Expected points, a club at a time
+
+The **target at the end of each row** opens the same
+[expected-points sheet](squad.md#erwartete-punkte) one's own Kader opens from
+the fixture crest — the reader's own guess at what the player will score on the
+coming matchday, filed on this device under
+`matchday → playerId → points`.
+
+A club's roster is where those guesses are **cheapest to make**: every player
+on it faces the same opponent, so one judgement about the fixture prices thirty
+rows, and the players nobody in the league owns yet are here and nowhere else.
+
+That sameness is also why the rows carry **no crest** to open the sheet from,
+the way one's own squad row does: thirty copies of one crest would say nothing.
+The fixture lives once in the [header's strip](#the-header), and the sheet
+names it again — *Auswärts bei FCB · Sa, 5. Sep. · 18:30* — so the guess is
+never made blind. One lookup in
+[`useCurrentMatchday`](../../src/api/hooks/useMatchday.ts) serves the whole
+tab, off the cache entry the header's strip already filled.
+
+The row is **a link plus a button** rather than one link, since HTML has no
+nested interactive elements; the divider between rows is the `li`'s, so the
+list looks exactly as it did.
+
+**No total here.** A club's roster is not an eleven, and adding thirty guesses
+together would produce a number that means nothing. The totals live where a
+lineup does: over [one's own pitch](squad.md#erwartete-punkte) and on a
+[rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players).
+
 ### One request, not twenty-six
 
 The whole tab comes from

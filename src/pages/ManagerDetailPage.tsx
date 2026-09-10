@@ -365,7 +365,11 @@ export function ManagerDetailPage() {
               }}
             />
           ) : (
-            <ManagerSquadTab squad={squad.data} leagueId={leagueId} />
+            <ManagerSquadTab
+              squad={squad.data}
+              leagueId={leagueId}
+              competitionId={competitionId}
+            />
           ))}
 
         {tab === MANAGER_TABS.events && (

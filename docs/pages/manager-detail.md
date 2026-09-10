@@ -223,6 +223,41 @@ The domain model is [`ManagerSquadMember`](../../src/api/models.ts), a smaller
 shape than `SquadMember` on purpose: filling the missing profit with a zero
 would draw a grey `±0` under every player, and that is a claim.
 
+### Expected points, on somebody else's players
+
+The **target at the end of each row** opens the same
+[expected-points sheet](squad.md#erwartete-punkte) one's own Kader opens from
+the fixture crest, and files the guess under the same
+`matchday → playerId → points` map on this device. A rival's squad is one of
+the two places you most want to make those guesses — a duel is your eleven
+against his — and it is the reason the feature is not confined to the page
+that introduced it.
+
+**A target rather than a crest**, because these rows have no fixture panel to
+hang a sheet on. It is visible whether or not a guess exists, which the badge
+on one's own row is not: with no crest to tap, an affordance that only appeared
+once you had used it could never be found the first time. Empty it is a faint
+outline; filled it is the same accent chip the squad list draws, so a guess
+looks identical wherever it is met.
+
+The row is now **a link plus a button** rather than one link — HTML has no
+nested interactive elements — with the card's border and its accent hover
+moved onto the `li` (`has-[a:hover]:`) so nothing about the row's appearance
+changed.
+
+A **fourth tile** appears over the list as soon as one of his *fielded* players
+carries a guess: `Erwartet 640 · 7 von 11 geschätzt`, summed the way the chip
+over one's own pitch is summed. The row of tiles goes from three columns to two
+so four tiles do not leave a ragged second row, and the tile is absent
+entirely until there is something in it — a nought there would read as a
+prediction rather than as an empty column.
+
+The matchday it files under comes from
+[`useCurrentMatchday`](../../src/api/hooks/useMatchday.ts), the **same cache
+entry** this page already reads for its matchday picker, so the tab pays no
+request for it. It is always the *current* matchday, never the one the picker
+is showing: the Kader is today's squad, and a guess is about the next match.
+
 ## Verlauf
 
 The league's [event feed](events.md), narrowed to this manager — their

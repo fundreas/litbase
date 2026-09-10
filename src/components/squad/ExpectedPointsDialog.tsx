@@ -1,7 +1,8 @@
 import { X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 
-import type { SquadMember, TeamFixture } from '@/api/models'
+import type { TeamFixture } from '@/api/models'
+import type { ExpectedPointsSubject } from '@/components/squad/ExpectedPointsSheet'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { AmountSteps } from '@/components/ui/AmountSteps'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -17,11 +18,17 @@ import { kickoff, points } from '@/lib/format'
 /**
  * **What do you think he will score?** — the guess, and the match it is about.
  *
- * Opened from the fixture crest at the end of a squad row, which is the one
- * part of the row that is already about the coming matchday. The guess is
- * stored per matchday in [`expectedPoints`](../../lib/expectedPoints.ts) and
- * goes nowhere near Kickbase: nobody else can see it, and nothing in the app
- * acts on it except the badge on the row and the total over the pitch.
+ * Opened from the fixture crest at the end of one's own squad row — the one
+ * part of that row already about the coming matchday — and from the target
+ * mark at the end of a row in a [rival's](../manager/ManagerSquadTab.tsx) or a
+ * [club's](../team/TeamSquadTab.tsx) squad, which have no crest to hang it on.
+ * Which list a player was tapped in changes nothing here: a guess is filed
+ * against a player and a matchday, not against a screen.
+ *
+ * The guess is stored per matchday in
+ * [`expectedPoints`](../../lib/expectedPoints.ts) and goes nowhere near
+ * Kickbase: nobody else can see it, and nothing in the app acts on it except
+ * the badge on the row and the total over the pitch.
  *
  * **It opens at 100 rather than at nothing.** An empty field asks the reader
  * to invent a scale from scratch; a round hundred is roughly a good matchday
@@ -30,10 +37,10 @@ import { kickoff, points } from '@/lib/format'
  * already entered wins over the default, because reopening the sheet is
  * almost always an adjustment.
  *
- * **The season's average sits under the field**, and is the only figure here
- * that is not the reader's own invention. It is what a guess is calibrated
- * against, and the two lines below it — the fixture and who it is against —
- * are what would move it away from the average.
+ * **The season's average sits under the field** wherever the list that opened
+ * the sheet knows it, and is the only figure here that is not the reader's own
+ * invention. It is what a guess is calibrated against, and the fixture above
+ * it — and who it is against — is what would move it away from the average.
  *
  * **✗ deletes the guess**, at the end of the field it deletes, exactly as the
  * market's withdraw sits on the amount it takes back. It appears only once
@@ -46,13 +53,10 @@ import { kickoff, points } from '@/lib/format'
  */
 export function ExpectedPointsDialog({
   player,
-  fixture,
   matchday,
   onClose,
 }: {
-  player: SquadMember
-  /** His club's fixture this matchday, or `undefined` on a bye. */
-  fixture: TeamFixture | undefined
+  player: ExpectedPointsSubject
   matchday: number
   onClose: () => void
 }) {
@@ -79,7 +83,6 @@ export function ExpectedPointsDialog({
 
   const value = Number(amount)
   const isValid = amount !== '' && amount !== '-' && Number.isFinite(value)
-  const name = [player.firstName, player.lastName].filter(Boolean).join(' ')
 
   return (
     <ConfirmDialog
@@ -87,8 +90,10 @@ export function ExpectedPointsDialog({
       onOpenChange={(open) => {
         if (!open) onClose()
       }}
-      title={name}
-      description={<MatchSummary fixture={fixture} matchday={matchday} />}
+      title={player.name}
+      description={
+        <MatchSummary fixture={player.fixture} matchday={matchday} />
+      }
       confirmLabel={stored === undefined ? 'Eintragen' : 'Ändern'}
       isConfirmDisabled={!isValid}
       onConfirm={() => {
@@ -113,11 +118,18 @@ export function ExpectedPointsDialog({
             const sign = raw.startsWith('-') ? '-' : ''
             setAmount(sign + raw.replace(/\D/g, ''))
           }}
+          /* Only what the list actually knows: a club's roster carries an
+             average and no season total, and a hint that printed `–` for it
+             would be inventing a gap rather than reporting one. */
           hint={
-            <span className="nums">
-              Ø {points(player.averagePoints)} pro Spiel ·{' '}
-              {points(player.totalPoints)} in dieser Saison
-            </span>
+            player.averagePoints === undefined ? undefined : (
+              <span className="nums">
+                Ø {points(player.averagePoints)} pro Spiel
+                {player.totalPoints !== undefined && (
+                  <> · {points(player.totalPoints)} in dieser Saison</>
+                )}
+              </span>
+            )
           }
           trailing={
             stored === undefined ? undefined : (

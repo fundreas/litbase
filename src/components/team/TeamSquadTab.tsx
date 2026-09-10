@@ -8,12 +8,16 @@ import {
   type TeamProfile,
   type TeamSquadPlayer,
 } from '@/api/models'
+import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
+import { ExpectedPointsTarget } from '@/components/squad/ExpectedPointsBadge'
+import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
+import { useExpectedPoints } from '@/lib/expectedPoints'
 import { money, moneyDelta } from '@/lib/format'
 
 /**
@@ -57,6 +61,18 @@ const POSITION_ORDER: Record<PositionKey, number> = {
  * column is not worth twenty-six requests — so the label says *7 Tage* rather
  * than quietly showing a week's movement under a day's heading.
  *
+ * **Expected points can be entered from here**, on the target at the end of
+ * each row — the reader's own guess at what the player will score on the
+ * coming matchday, kept per matchday on this device (see
+ * [`expectedPoints`](../../lib/expectedPoints.ts)). A club's roster is where
+ * the guesses are cheapest to make: every player on it faces the same
+ * opponent, so one judgement about the fixture prices thirty rows.
+ *
+ * That is also why there is **no crest on the rows** to open the sheet from,
+ * the way one's own [squad list](../squad/PlayerListTab.tsx) does: thirty
+ * copies of one crest would say nothing. The fixture is in the
+ * [header's strip](./TeamHeader.tsx), and the sheet names it again.
+ *
  * **Nothing sits above the list but one line of type.** The club's value and
  * its squad size used to be two `StatTile`s, and the projected eleven a third
  * card below them — three panels a reader scrolled past to reach the thing they
@@ -67,10 +83,36 @@ const POSITION_ORDER: Record<PositionKey, number> = {
 export function TeamSquadTab({
   profile,
   leagueId,
+  competitionId,
 }: {
   profile: TeamProfile
   leagueId: string
+  /** For the coming matchday — one fixture, shared by every row. */
+  competitionId: string
 }) {
+  /*
+   * The same cache entry the page already reads for its fixture strip — one
+   * payload for the season, cached for an hour — so this costs no request.
+   * One lookup, not one per player: a club has a single fixture a matchday,
+   * which is the whole reason these rows carry no crest.
+   */
+  const matchday = useCurrentMatchday(competitionId)
+  const day = matchday.data?.day
+  const fixture = matchday.data?.fixtureByTeamId.get(profile.teamId)
+  const expectedPoints = useExpectedPoints(day)
+  const expected = useExpectedPointsSheet({
+    matchday: day,
+    resolve: (playerId) => {
+      const player = profile.players.find((entry) => entry.id === playerId)
+      if (player === undefined) return undefined
+      return {
+        id: player.id,
+        name: player.name,
+        averagePoints: player.averagePoints,
+        fixture,
+      }
+    },
+  })
   /*
    * Not memoised: `select` rebuilds the profile whenever the standings resolve
    * behind it, so a memo keyed on the array would miss on exactly the render
@@ -113,13 +155,20 @@ export function TeamSquadTab({
           </p>
           <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
             {players.map((player) => (
-              <li key={player.id}>
-                <PlayerRow player={player} leagueId={leagueId} />
+              <li key={player.id} className="flex items-stretch">
+                <PlayerRow
+                  player={player}
+                  leagueId={leagueId}
+                  expectedPoints={expectedPoints[player.id]}
+                  onEditExpected={expected.open}
+                />
               </li>
             ))}
           </ul>
         </>
       )}
+
+      {expected.sheet}
     </div>
   )
 }
@@ -152,88 +201,106 @@ export function TeamSquadTab({
 function PlayerRow({
   player,
   leagueId,
+  expectedPoints,
+  onEditExpected,
 }: {
   player: TeamSquadPlayer
   leagueId: string
+  /** The reader's guess for the coming matchday, if there is one. */
+  expectedPoints: number | undefined
+  onEditExpected: (playerId: string) => void
 }) {
   const change = player.marketValueChangeWeek
   const ChangeIcon =
     change !== undefined && change < 0 ? TrendingDown : TrendingUp
 
   return (
-    <Link
-      to={`/leagues/${leagueId}/players/${player.id}`}
-      className="flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-surface-2/60"
-    >
-      <Avatar
-        src={player.image}
-        name={player.name}
-        size={36}
-        square
-        className="shrink-0 bg-surface-2"
-      />
+    /* The link is the row's *body* rather than the row, so the target at the
+       end can be a button — HTML has no nested interactive elements. The two
+       sit in the `li`, which is what the list's dividers separate. */
+    <>
+      <Link
+        to={`/leagues/${leagueId}/players/${player.id}`}
+        className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 transition-colors hover:bg-surface-2/60"
+      >
+        <Avatar
+          src={player.image}
+          name={player.name}
+          size={36}
+          square
+          className="shrink-0 bg-surface-2"
+        />
 
-      <div className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="min-w-0 truncate text-sm font-medium text-ink">
-            {player.name}
-          </span>
-          {/* No `stxt` on this payload, so no Kickbase-worded reason — the
+        <div className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="min-w-0 truncate text-sm font-medium text-ink">
+              {player.name}
+            </span>
+            {/* No `stxt` on this payload, so no Kickbase-worded reason — the
               badge falls back to its code's own label, which is what that
               parameter is optional for. */}
-          <PlayerStatusBadge status={player.availability} size={13} />
-        </span>
-
-        <span className="mt-0.5 flex items-center gap-1.5">
-          <span
-            title={POSITION_NAME[player.position]}
-            className="text-[0.625rem] tracking-wide text-faint uppercase"
-          >
-            {POSITION_LABEL[player.position]}
+            <PlayerStatusBadge status={player.availability} size={13} />
           </span>
-          {player.startProbability !== undefined && (
-            <StartProbabilityBadge tier={player.startProbability} size={13} />
-          )}
-        </span>
-      </div>
 
-      {player.owner !== undefined && (
-        <OwnerBadge owner={player.owner} size={22} />
-      )}
+          <span className="mt-0.5 flex items-center gap-1.5">
+            <span
+              title={POSITION_NAME[player.position]}
+              className="text-[0.625rem] tracking-wide text-faint uppercase"
+            >
+              {POSITION_LABEL[player.position]}
+            </span>
+            {player.startProbability !== undefined && (
+              <StartProbabilityBadge tier={player.startProbability} size={13} />
+            )}
+          </span>
+        </div>
 
-      <div className="w-24 shrink-0 text-right">
-        <span className="nums block text-sm font-semibold text-ink">
-          {money(player.marketValue)}
-        </span>
+        {player.owner !== undefined && (
+          <OwnerBadge owner={player.owner} size={22} />
+        )}
 
-        {/* The **last seven days** — `sdmvt`, which is what this payload
+        <div className="w-24 shrink-0 text-right">
+          <span className="nums block text-sm font-semibold text-ink">
+            {money(player.marketValue)}
+          </span>
+
+          {/* The **last seven days** — `sdmvt`, which is what this payload
             serves; `tfhmvt`'s 24 hours would cost one request per player. The
             arrow is drawn as the squad list draws it: the same signal as the
             amount, its direction, so the two cannot contradict each other, and
             omitted on a flat week rather than pointing nowhere. */}
-        <span
-          title={
-            change === undefined
-              ? 'Vor einer Woche noch ohne Marktwert — keine Veränderung berechenbar'
-              : 'Marktwertänderung in den letzten 7 Tagen'
-          }
-          className={cn(
-            'nums flex items-center justify-end gap-0.5 text-xs',
-            change !== undefined && change > 0 && 'text-positive',
-            change !== undefined && change < 0 && 'text-negative',
-            (change === undefined || change === 0) && 'text-faint',
-          )}
-        >
-          {change !== undefined && change !== 0 && (
-            <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
-          )}
-          {/* A dash for a player Kickbase only started pricing this week: his
+          <span
+            title={
+              change === undefined
+                ? 'Vor einer Woche noch ohne Marktwert — keine Veränderung berechenbar'
+                : 'Marktwertänderung in den letzten 7 Tagen'
+            }
+            className={cn(
+              'nums flex items-center justify-end gap-0.5 text-xs',
+              change !== undefined && change > 0 && 'text-positive',
+              change !== undefined && change < 0 && 'text-negative',
+              (change === undefined || change === 0) && 'text-faint',
+            )}
+          >
+            {change !== undefined && change !== 0 && (
+              <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
+            )}
+            {/* A dash for a player Kickbase only started pricing this week: his
               `sdmvt` is his whole value, and printing it would read as the
               biggest riser at the club. */}
-          {change === undefined ? '–' : moneyDelta(change)}
-          <span className="sr-only"> in den letzten 7 Tagen</span>
-        </span>
-      </div>
-    </Link>
+            {change === undefined ? '–' : moneyDelta(change)}
+            <span className="sr-only"> in den letzten 7 Tagen</span>
+          </span>
+        </div>
+      </Link>
+
+      <ExpectedPointsTarget
+        value={expectedPoints}
+        playerName={player.name}
+        onClick={() => {
+          onEditExpected(player.id)
+        }}
+      />
+    </>
   )
 }
