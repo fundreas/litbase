@@ -14,10 +14,11 @@ import { ExpectedPointsTarget } from '@/components/squad/ExpectedPointsBadge'
 import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { useExpectedPoints } from '@/lib/expectedPoints'
+import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
 import { money, moneyDelta } from '@/lib/format'
 
 /**
@@ -99,7 +100,7 @@ export function TeamSquadTab({
   const matchday = useCurrentMatchday(competitionId)
   const day = matchday.data?.day
   const fixture = matchday.data?.fixtureByTeamId.get(profile.teamId)
-  const expectedPoints = useExpectedPoints(day)
+  const expectedPoints = useExpectedPointsView(day)
   const expected = useExpectedPointsSheet({
     matchday: day,
     resolve: (playerId) => {
@@ -159,7 +160,7 @@ export function TeamSquadTab({
                 <PlayerRow
                   player={player}
                   leagueId={leagueId}
-                  expectedPoints={expectedPoints[player.id]}
+                  expectedPoints={expectedPoints.entry(player.id)}
                   onEditExpected={expected.open}
                 />
               </li>
@@ -206,8 +207,11 @@ function PlayerRow({
 }: {
   player: TeamSquadPlayer
   leagueId: string
-  /** The reader's guess for the coming matchday, if there is one. */
-  expectedPoints: number | undefined
+  /**
+   * What he is expected to score on the coming matchday — the reader's guess,
+   * or the model's prediction standing in for one.
+   */
+  expectedPoints: ExpectedPointsEntry | undefined
   onEditExpected: (playerId: string) => void
 }) {
   const change = player.marketValueChangeWeek
@@ -295,7 +299,8 @@ function PlayerRow({
       </Link>
 
       <ExpectedPointsTarget
-        value={expectedPoints}
+        value={expectedPoints?.value}
+        isForecast={expectedPoints?.isOwn === false}
         playerName={player.name}
         onClick={() => {
           onEditExpected(player.id)

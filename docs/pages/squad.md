@@ -348,7 +348,7 @@ duplicated here.
 | Market value | `marketValue` | Compact euros, tabular figures |
 | 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
 | Fixture panel | `useCurrentMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — opens the [expected-points sheet](#erwartete-punkte) |
-| Expected points | `localStorage` | Accent chip under the crest, **only when a guess exists** for this matchday |
+| Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip under the crest — **dashed** for the model's prediction, solid once the reader has entered his own figure |
 
 The lineup rail is **always rendered** and only tinted when the player is
 fielded, so rows stay aligned either way. It is also the row's lineup control:
@@ -413,10 +413,19 @@ deliberately not reused here.
 
 ## Erwartete Punkte
 
-**Your own guess at what a player will score this matchday**, entered on the
-Kader and added up over the pitch. It is the one number on this page that
-comes from nobody but the reader: Kickbase has no endpoint for it, no other
-manager can see it, and nothing in the app acts on it.
+**What a player will score this matchday**, per player, added up over the
+pitch. Two things wear that one chip:
+
+| Figure | Where it comes from | Drawn |
+| ------ | ------------------- | ----- |
+| The **prediction** | [pointcast](#woher-die-prognose-kommt), a nightly model run published as static JSON — every player in the competition, no Kickbase involvement | Dashed, quieter |
+| The reader's **own guess** | Typed into the sheet, kept in `localStorage` on this device | Solid, accent-tinted |
+
+**A guess always beats the prediction**, on the row, in the pitch total and in
+the sheet's own field. That is the whole arrangement: the model supplies a
+default so the numbers say something before anybody has typed anything, and
+the reader overrules it one player at a time. Neither figure ever reaches
+Kickbase, and no other manager sees either.
 
 ### Where it is entered
 
@@ -429,7 +438,7 @@ has no room for a control of its own.
 ```
 ┌──┬────────┬──────────────────────┬───────┐
 │▐ │portrait│ Name          4,2 Mio│ crest │  ← tap the crest …
-│  │        │ ◆ likely       ↗ +80k│  ⊙120 │  ← … the guess lands under it
+│  │        │ ◆ likely       ↗ +80k│  ⊙120 │  ← … the figure sits under it
 └──┴────────┴──────────────────────┴───────┘
 ```
 
@@ -463,36 +472,108 @@ name and a club's roster carries no season total.
 | Part | Why |
 | ---- | --- |
 | Match summary | The crest, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it, and on the two lists that have no crest it is the only place the fixture is named |
-| The field | Opens at **100**, or at the guess already stored. Text, not `type="number"`, so it can be cleared to retype; a leading minus survives, because Kickbase points genuinely go below zero |
-| Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the only figure in the sheet that is not the reader's own invention, and what a guess is calibrated against. Only what the list knows: a club's roster has an average and no total, and the line shortens rather than printing a dash |
+| The field | Opens at the **prediction**, or at the guess already stored, or at **100** when there is neither. Text, not `type="number"`, so it can be cleared to retype; a leading minus survives, because Kickbase points genuinely go below zero |
+| Prognose panel | Under the field, dashed like the chip: the model's figure, its `p20 – p80` band, *Startelf* and *Einsatz* as percentages — and **Übernehmen**, which puts the figure back in the field once it has been nudged off it. Always present: *wird geladen …* while the file is in flight, *keine Prognose* for a player the model has nothing for |
+| Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the one figure in the sheet that is a fact about the past, and what a guess is calibrated against. Only what the list knows: a club's roster has an average and no total, and the line shortens rather than printing a dash |
 | `+50 +10 +5` / `−50 −10 −5` | The market's [`AmountSteps`](../../src/components/ui/AmountSteps.tsx) at `scale="points"` — the identical control, hold-to-repeat included, on its own list of steps |
-| **✗** on the field | Deletes the guess, exactly where the market's *withdraw* sits on the amount it takes back. Only there once something is stored, so it cannot be mistaken for "clear the field" |
+| **✗** on the field | Deletes the guess, exactly where the market's *withdraw* sits on the amount it takes back. Only there once something is stored, so it cannot be mistaken for "clear the field" — and what is left afterwards is the prediction, not an empty row |
 
-**Opening at 100 rather than at nothing** is the one substantive choice here.
-An empty field asks the reader to invent a scale; a round hundred is roughly a
-good matchday and puts the question where it belongs — *more than that, or
-less?* — which is exactly what the shortcut rows then answer in taps.
+**Opening on the prediction rather than on nothing** is the one substantive
+choice here. An empty field asks the reader to invent a scale, and a guess is
+an adjustment to what is already expected far more often than a number
+invented from scratch — so the field starts where the model does and the
+shortcut rows answer the only question left, *more than that, or less?* Where
+the model has nothing to say it is a round hundred, which is roughly a good
+matchday and puts the same question the same way.
+
+The field **follows the default until it is touched**, rather than being
+seeded once at mount: the prediction arrives over the network — usually
+already cached by the list behind the sheet, but not always — and a figure
+frozen at mount would show 100 to anyone who opened the sheet a moment too
+early. The first keystroke or step pins the number, and nothing that lands
+afterwards moves it.
 
 ### Where it shows
 
 | Place | Rendering |
 | ----- | --------- |
-| Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) under the crest — target glyph plus the figure, accent-tinted |
-| Pitch header | `⊙ 840 · 9/11` beside `11/11 aufgestellt`, the fielded players' guesses summed |
+| Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) under the crest — target glyph plus the figure. **Dashed** while it is the model's, solid once it is the reader's, the same border idiom the market tab uses for a day that has not happened |
+| Pitch header | `⊙ 840 · 11/11` beside `11/11 aufgestellt`, the fielded players' figures summed. How many of them are the reader's own guesses is in the tooltip, not on the chip — a third figure in a pill that size is unreadable |
 | Grid tiles | Nothing — a tile shows no fixture either, so there is nothing to hang it on |
 | [Rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The badge inside the row's target, and a fourth tile totalling **his** fielded eleven |
 | [Club's roster](team.md#expected-points-a-club-at-a-time) | The badge inside the row's target. No total — a roster is not an eleven |
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
 
-A player with no guess shows **no chip at all**. Its absence is the "not
-guessed yet" state, and an empty slot on every row would be a column of
-nothing.
+A player with **neither** figure shows no chip at all — a bye, a player the
+model has no file for, a league outside the Bundesliga. In a Bundesliga league
+the practical effect of the defaults is that every row has a chip within a
+second of the page loading, and the dashed ones are the ones nobody has
+thought about yet.
 
 The **fraction on the pitch chip is not decoration**: 640 points off four
-guesses and 640 off eleven are wildly different claims, and the total alone
+figures and 640 off eleven are wildly different claims, and the total alone
 cannot tell them apart. Only players on the pitch count — the bench scores
-nothing — and the chip is absent entirely until at least one guess exists,
-because a `0` over an untouched squad reads as a prediction.
+nothing — and the chip is absent entirely until at least one figure exists,
+because a `0` over eleven players reads as a prediction of nothing.
+
+### Woher die Prognose kommt
+
+[litbase-pointcast](https://github.com/fundreas/litbase-pointcast) — a second
+static JSON tree on GitHub Pages beside the
+[market-value forecast](player-detail.md#the-forecast-on-top), and the same
+kind of dependency: **not Kickbase, no token, CORS open to anyone**, so the
+axios instance is deliberately bypassed for a plain `fetch`. Every interceptor
+on it — bearer token, 401 re-auth, Kickbase error mapping — is wrong for a
+foreign static host.
+
+A nightly run trains a two-stage LightGBM model on the competition's own
+history (`P(plays)`, `P(starts)`, points given an appearance, then quantiles)
+and publishes one file per matchday:
+
+| Path | Used |
+| ---- | ---- |
+| `/v1/matchday/{md}.json` | **Yes** — every player, one request per matchday |
+| `/v1/matchday/current.json` | No — the app knows the matchday it is asking about, and a file named for it can never answer about the wrong one |
+| `/v1/index.json`, `/v1/players/{id}.json` | No — model metadata and per-player features, nothing the squad screens show |
+
+```jsonc
+{
+  "matchday": 3,
+  "players": [
+    { "playerId": "1685", "xP": 230.9, "p20": 103.9, "p50": 210.5,
+      "p80": 274.7, "pStart": 0.644, "pPlay": 0.967 }
+  ]
+}
+```
+
+[`usePointcast`](../../src/api/hooks/usePointcast.ts) fetches and maps it:
+
+| Decision | Why |
+| -------- | --- |
+| **The whole file, one request** | That is how it is published, and every screen that wants a prediction wants a squad's worth at once — twenty rows would otherwise be twenty requests. One cache entry per competition and matchday serves the Kader, a rival's Kader, a club's roster and the sheet on top of any of them |
+| **Bundesliga only** (`competitionId === '1'`) | The run publishes for one competition. Checked before fetching, exactly as the forecast checks it, so a La Liga league does not pull 160 kB of players it does not own and hit on none of them |
+| **Rounded to whole points** | The only resolution anything downstream has: the field takes digits, the badge prints an integer, and a stored `231` has to be comparable with an `xP` of `230.9` without a tolerance |
+| **404 → `null`, never an error** | The run publishes the *coming* matchday, so asking for the one after it is a plain 404 — and the reader loses a default he never typed. `<!doctype html>` under a 200 is caught the same way, for a dev server that rewrote the unknown path |
+| **`staleTime` one hour** | Nightly data behind Pages' ten-minute cache. Long enough that an afternoon of tapping costs one request, short enough that a session left open overnight picks up the new matchday |
+| **`xP` is the only load-bearing field** | The band and the two probabilities describe the prediction rather than being it; a file that dropped one should cost the sheet a detail line, not the row its default |
+
+`xP` is `P(plays) × E[points | plays]`, so a doubtful starter is **already
+discounted** in the headline figure — `pPlay` is there to explain that number,
+not to be applied to it a second time. `p50` is the middle of the
+distribution and deliberately *not* `xP`; the sheet prints the `p20 – p80`
+band, sorted, because the model is free to produce a ceiling below its median
+for a player who mostly does not play.
+
+The two halves are joined in
+[`useExpectedPointsView`](../../src/components/squad/useExpectedPointsView.ts),
+which every list that shows expected points calls, and the rule lives in one
+function —
+[`expectedPointsView`](../../src/lib/expectedPoints.ts): a stored guess wins,
+otherwise the prediction, otherwise nothing. It hands back a **lookup** rather
+than a merged record, because the file holds ~460 players and a screen asks
+about twenty of them. What travels around the app is
+`{ value, isOwn }` — never the bare number, so nothing can draw a prediction
+as though the reader had decided it.
 
 ### Storage
 
@@ -988,7 +1069,8 @@ would push every band on the pitch.
 A team with no fixture that matchday renders `–` rather than breaking.
 
 On the squad list the crest is also the way in to the
-[expected-points sheet](#erwartete-punkte), and the guess sits under it.
+[expected-points sheet](#erwartete-punkte), and the expected points sit under
+it.
 Everywhere else the badge is a picture and nothing more.
 
 Cached for an hour: one payload for the season, and it only shifts weekly.

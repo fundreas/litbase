@@ -3186,3 +3186,57 @@ export function windowSlice(
 
   return { chart, rows }
 }
+
+/**
+ * **What a player is predicted to score on one matchday**, by the pointcast
+ * model rather than by the reader.
+ *
+ * Not Kickbase, and not a fact: a nightly LightGBM run over the competition's
+ * own history publishes one of these per player per matchday, and the app uses
+ * it as the *default* expected points on a squad row — a figure the reader
+ * overrules by typing their own. See
+ * [`usePointcast`](./hooks/usePointcast.ts).
+ *
+ * Every points figure is rounded to whole points on the way in, because that
+ * is the only resolution anything downstream has: the field the reader types
+ * in takes digits, the badge prints an integer, and a stored guess of `231`
+ * has to be comparable with a prediction of `230.9` without a tolerance.
+ */
+export interface PointcastPrediction {
+  /** Kickbase's player id — the same one every other payload uses. */
+  playerId: string
+  /**
+   * The headline figure: `P(plays) × E[points | plays]`, so a doubtful starter
+   * is already discounted here rather than needing {@link playChance} applied
+   * to him a second time.
+   */
+  expected: number
+  /** The pessimistic case (`p20`) — it includes not being played at all. */
+  low: number
+  /** The middle of the distribution (`p50`), which is *not* {@link expected}. */
+  median: number
+  /** The ceiling (`p80`). */
+  high: number
+  /** `0…1` — the chance he starts, meaning 60 minutes or more. */
+  startChance: number
+  /** `0…1` — the chance he appears at all. */
+  playChance: number
+}
+
+/**
+ * One matchday's predictions, as the app holds them.
+ *
+ * The file is fetched whole — every player in the competition, ~460 of them —
+ * because that is how it is published and because every screen that wants a
+ * prediction wants a squad's worth at once. {@link matchday} is carried along
+ * so a caller can tell that what it got answers the question it asked: the
+ * nightly run publishes the *coming* matchday, and asking for one it has not
+ * reached yet is a 404, never last week's numbers under this week's name.
+ */
+export interface PointcastMatchday {
+  /** The matchday the file is about, as the file itself declares it. */
+  matchday: number
+  /** When the run that wrote it happened, ISO 8601, when the file says. */
+  generatedAt?: string
+  byPlayerId: ReadonlyMap<string, PointcastPrediction>
+}

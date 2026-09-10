@@ -14,11 +14,15 @@ import { ExpectedPointsTarget } from '@/components/squad/ExpectedPointsBadge'
 import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { StatTile } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { expectedPointsTotal, useExpectedPoints } from '@/lib/expectedPoints'
+import {
+  expectedPointsTotal,
+  type ExpectedPointsEntry,
+} from '@/lib/expectedPoints'
 import { money, moneyDelta, points } from '@/lib/format'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
@@ -80,7 +84,7 @@ export function ManagerSquadTab({
    */
   const matchday = useCurrentMatchday(competitionId)
   const day = matchday.data?.day
-  const expectedPoints = useExpectedPoints(day)
+  const expectedPoints = useExpectedPointsView(day)
   const expected = useExpectedPointsSheet({
     matchday: day,
     resolve: (playerId) => {
@@ -110,13 +114,15 @@ export function ManagerSquadTab({
   const fieldedPlayers = squad.filter((player) => player.isFielded)
   const fielded = fieldedPlayers.length
   /**
-   * **What his eleven is expected to bring in**, by the reader's own reckoning.
+   * **What his eleven is expected to bring in** — the model's reckoning where
+   * the reader has not made his own.
    *
-   * The point of guessing on a rival's players is comparing the two totals, so
-   * his is summed exactly as [one's own](../squad/LineupTab.tsx) is: over the
-   * fielded players only, with the count of how many of them actually carry a
-   * guess, because 640 off four guesses and 640 off eleven are different
-   * claims.
+   * The point of putting a figure on a rival's players is comparing the two
+   * totals, so his is summed exactly as [one's own](../squad/LineupTab.tsx) is:
+   * over the fielded players only, with the count of how many of them actually
+   * carry a figure, because 640 off four and 640 off eleven are different
+   * claims — and with how many of those the reader stands behind himself,
+   * which is the difference between a comparison and a model's opinion of one.
    */
   const guessed = expectedPointsTotal(fieldedPlayers, expectedPoints)
 
@@ -130,8 +136,10 @@ export function ManagerSquadTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Two columns once the fourth tile exists, rather than a ragged row of
-          three and one. It comes and goes with the guesses, like the chip over
-          one's own pitch — a nought there would read as a prediction. */}
+          three and one. It comes and goes with the figures, like the chip over
+          one's own pitch — a nought there would read as a prediction of
+          nothing. In a Bundesliga league it is simply always there, because
+          every fielded player has a prediction. */}
       <div
         className={cn(
           'grid gap-2',
@@ -149,7 +157,11 @@ export function ManagerSquadTab({
           <StatTile
             label="Erwartet"
             value={points(guessed.total)}
-            hint={`${points(guessed.count)} von ${points(fielded)} geschätzt`}
+            hint={
+              guessed.ownCount === 0
+                ? `Prognose · ${points(guessed.count)} von ${points(fielded)}`
+                : `${points(guessed.count)} von ${points(fielded)} · ${points(guessed.ownCount)} geschätzt`
+            }
           />
         )}
       </div>
@@ -173,7 +185,7 @@ export function ManagerSquadTab({
                 player={player}
                 startProbability={startProbabilities.get(player.id)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
-                expectedPoints={expectedPoints[player.id]}
+                expectedPoints={expectedPoints.entry(player.id)}
                 onEditExpected={expected.open}
               />
             ))}
@@ -211,8 +223,11 @@ function PlayerRow({
   player: ManagerSquadMember
   startProbability: StartProbability | undefined
   to: string
-  /** The reader's guess for the coming matchday, if there is one. */
-  expectedPoints: number | undefined
+  /**
+   * What he is expected to score on the coming matchday — the reader's guess,
+   * or the model's prediction standing in for one.
+   */
+  expectedPoints: ExpectedPointsEntry | undefined
   onEditExpected: (playerId: string) => void
 }) {
   const changeDay = player.marketValueChangeDay
@@ -331,7 +346,8 @@ function PlayerRow({
       </Link>
 
       <ExpectedPointsTarget
-        value={expectedPoints}
+        value={expectedPoints?.value}
+        isForecast={expectedPoints?.isOwn === false}
         playerName={player.lastName}
         onClick={() => {
           onEditExpected(player.id)

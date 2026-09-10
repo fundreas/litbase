@@ -65,6 +65,7 @@ runs with no `.env` file at all.
 | `VITE_API_BASE_URL` | `https://api.kickbase.com` | REST base |
 | `VITE_CDN_BASE_URL` | `https://kickbase.b-cdn.net` | Image CDN |
 | `VITE_FORECAST_BASE_URL` | `https://fundreas.github.io/litbase-foresight` | [Market-value forecast](pages/player-detail.md#the-forecast-on-top) — not Kickbase |
+| `VITE_POINTCAST_BASE_URL` | `https://fundreas.github.io/litbase-pointcast` | [Expected-points prediction](pages/squad.md#erwartete-punkte) — not Kickbase |
 | `VITE_USE_DEV_PROXY` | unset | Route API traffic through the Vite dev server |
 
 **The browser calls Kickbase directly.** The API reflects

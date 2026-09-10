@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
+import type { PointcastPrediction } from '@/api/models'
 import { readJson, writeJson } from '@/lib/storage'
 
 /**
@@ -32,7 +33,14 @@ import { readJson, writeJson } from '@/lib/storage'
 
 const STORAGE_KEY = 'litbase.playerExpectedPoints.v1'
 
-/** What the dialog opens with when nothing has been entered yet. */
+/**
+ * What the dialog opens with when there is **neither a guess nor a
+ * prediction** — a player the model has no file for, or a matchday it has not
+ * reached.
+ *
+ * A round hundred rather than an empty field, for the reason the sheet spells
+ * out: it puts the question where it belongs, *more than that or less?*
+ */
 export const DEFAULT_EXPECTED_POINTS = 100
 
 /** `matchday → playerId → points`, exactly as it is stored. */
@@ -185,26 +193,86 @@ export function useExpectedPoints(
 }
 
 /**
- * What a set of players is expected to score between them, and how many of
- * them have actually been guessed at.
+ * **A figure on a row, and where it came from.**
  *
- * The count travels with the sum because the sum alone is a half-truth: 480
+ * The two are inseparable. A prediction and a guess are drawn differently, and
+ * a reader who cannot tell them apart cannot tell what he has already decided
+ * from what a model decided for him — so nothing in the app carries the number
+ * around without the flag.
+ */
+export interface ExpectedPointsEntry {
+  value: number
+  /** `true` when the reader typed it, `false` when it is the model's. */
+  isOwn: boolean
+}
+
+/**
+ * **What a player is expected to score, whoever said so** — the reader's guess
+ * where he made one, the [pointcast](../api/hooks/usePointcast.ts) prediction
+ * everywhere else.
+ *
+ * A lookup rather than a merged record: the prediction file holds every player
+ * in the competition and a screen asks about twenty of them, so building four
+ * hundred entries per render to read a squad's worth would be work nobody
+ * wants. Construct it with {@link expectedPointsView}, once per set of inputs.
+ */
+export interface ExpectedPointsView {
+  /** The figure that stands for a player, or `undefined` if none does. */
+  entry: (playerId: string) => ExpectedPointsEntry | undefined
+}
+
+/**
+ * The view over one matchday's guesses and predictions.
+ *
+ * **A guess always wins.** That is the whole rule: the prediction is a
+ * default, and the reader typing over it is the point of the feature — the
+ * model never gets a second say, not even when it is refreshed afterwards.
+ *
+ * `predictions` is `undefined` while the file loads, has 404ed, or names a
+ * competition the run does not cover, and the view then answers with guesses
+ * alone — which is exactly what this feature was before there was a model.
+ */
+export function expectedPointsView(
+  own: ExpectedPointsByPlayer,
+  predictions: ReadonlyMap<string, PointcastPrediction> | undefined,
+): ExpectedPointsView {
+  return {
+    entry: (playerId) => {
+      const stored = own[playerId]
+      if (stored !== undefined) return { value: stored, isOwn: true }
+
+      const predicted = predictions?.get(playerId)
+      if (predicted === undefined) return undefined
+      return { value: predicted.expected, isOwn: false }
+    },
+  }
+}
+
+/**
+ * What a set of players is expected to score between them, and how much of
+ * that the reader stands behind himself.
+ *
+ * The counts travel with the sum because the sum alone is a half-truth: 480
  * points off four players and 480 off eleven mean very different things, and
- * the reader has no way to tell them apart from the total.
+ * the reader has no way to tell them apart from the total. {@link ownCount} is
+ * the second half of the same point — a total that is all model is a different
+ * claim from one the reader put together himself.
  */
 export function expectedPointsTotal(
   players: readonly { id: string }[],
-  expected: ExpectedPointsByPlayer,
-): { total: number; count: number } {
+  expected: ExpectedPointsView,
+): { total: number; count: number; ownCount: number } {
   let total = 0
   let count = 0
+  let ownCount = 0
 
   for (const player of players) {
-    const value = expected[player.id]
-    if (value === undefined) continue
-    total += value
+    const entry = expected.entry(player.id)
+    if (entry === undefined) continue
+    total += entry.value
     count += 1
+    if (entry.isOwn) ownCount += 1
   }
 
-  return { total, count }
+  return { total, count, ownCount }
 }

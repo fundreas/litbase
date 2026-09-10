@@ -4,11 +4,20 @@ import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
 
 /**
- * **What you expect him to score**, as a chip on a squad row.
+ * **What he is expected to score**, as a chip on a squad row.
  *
- * Only ever drawn when a guess exists: an empty slot on every row would be a
- * column of nothing, and the whole feature is opt-in per player. Its absence
- * is the "not guessed yet" state.
+ * Two figures live in this one chip, and the difference between them is the
+ * whole reason it takes a flag: **your own guess is drawn solid, the model's
+ * prediction dashed and quieter.** A prediction is a default — it is there on
+ * every row from the moment the file loads, which is what makes the pitch
+ * total mean something before anybody has typed anything — and drawing it
+ * exactly like a decision the reader made would quietly credit him with four
+ * hundred of them. The dashes are the same idiom the market tab uses for a day
+ * that has not happened yet.
+ *
+ * Only ever drawn when there *is* a figure: no guess, and no prediction
+ * either — a bye, a player the model has no file for, a competition it does
+ * not cover — is a chip that is simply absent.
  *
  * The target glyph is what keeps a bare accent number from reading as points
  * already scored — the one thing on a squad row it could plausibly be
@@ -19,15 +28,20 @@ import { points } from '@/lib/format'
  */
 export function ExpectedPointsBadge({
   value,
+  /** The model's figure rather than the reader's — see above. */
+  isForecast = false,
   /** Inside a button that already says what it is — see {@link ExpectedPointsTarget}. */
   decorative = false,
   className,
 }: {
   value: number
+  isForecast?: boolean
   decorative?: boolean
   className?: string
 }) {
-  const label = `Erwartete Punkte: ${points(value)}`
+  const label = isForecast
+    ? `Prognose: ${points(value)} Punkte`
+    : `Erwartete Punkte: ${points(value)}`
 
   return (
     <span
@@ -36,7 +50,10 @@ export function ExpectedPointsBadge({
         : { role: 'img', 'aria-label': label, title: label })}
       className={cn(
         'nums flex shrink-0 items-center gap-0.5 rounded-full border px-1 py-px',
-        'border-accent/40 bg-accent/15 text-[0.625rem] leading-none font-semibold text-accent',
+        'text-[0.625rem] leading-none font-semibold',
+        isForecast
+          ? 'border-dashed border-accent/35 text-accent/75'
+          : 'border-accent/40 bg-accent/15 text-accent',
         className,
       )}
     >
@@ -56,20 +73,24 @@ export function ExpectedPointsBadge({
  * copies of one crest — every player faces the same opponent — so those rows
  * get a target of their own at the end instead.
  *
- * **It is visible whether or not a guess exists**, unlike the badge, and that
+ * **It is visible whether or not a figure exists**, unlike the badge, and that
  * is the whole difference: with no crest to tap, an affordance that only
  * appeared once you had used it could never be found the first time. Empty it
  * is a faint outline that reads as "nothing here yet"; filled it is the same
- * chip the squad list draws, so a guess looks identical wherever it is met.
+ * chip the squad list draws — dashed for the model's figure, solid for
+ * yours — so a figure looks identical wherever it is met.
  */
 export function ExpectedPointsTarget({
   value,
+  /** The model's figure rather than the reader's — see {@link ExpectedPointsBadge}. */
+  isForecast = false,
   playerName,
   onClick,
   className,
 }: {
-  /** The stored guess, or `undefined` when there is none yet. */
+  /** The figure that stands for him, or `undefined` when none does. */
   value: number | undefined
+  isForecast?: boolean
   /** Named in the label, since a row is one of thirty on the screen. */
   playerName: string
   onClick: () => void
@@ -78,7 +99,9 @@ export function ExpectedPointsTarget({
   const label =
     value === undefined
       ? `Erwartete Punkte für ${playerName} eintragen`
-      : `Erwartete Punkte für ${playerName}: ${points(value)} — ändern`
+      : isForecast
+        ? `Prognose für ${playerName}: ${points(value)} Punkte — eigene Erwartung eintragen`
+        : `Erwartete Punkte für ${playerName}: ${points(value)} — ändern`
 
   return (
     <button
@@ -98,7 +121,7 @@ export function ExpectedPointsTarget({
       {value === undefined ? (
         <Target size={15} aria-hidden="true" className="text-faint/70" />
       ) : (
-        <ExpectedPointsBadge value={value} decorative />
+        <ExpectedPointsBadge value={value} isForecast={isForecast} decorative />
       )}
     </button>
   )

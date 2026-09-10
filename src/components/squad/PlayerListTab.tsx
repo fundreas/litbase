@@ -14,11 +14,12 @@ import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { cn } from '@/lib/cn'
-import { useExpectedPoints } from '@/lib/expectedPoints'
+import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
 import { money, moneyDelta } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
@@ -107,7 +108,7 @@ export function PlayerListTab({
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
   const [view, setView] = useSquadView()
-  const expected = useExpectedPoints(matchday)
+  const expected = useExpectedPointsView(matchday)
 
   const handleToggle = (player: SquadMember) => {
     if (editor.isFielded(player.id)) {
@@ -175,7 +176,7 @@ export function PlayerListTab({
                   isForSale={forSale?.has(player.id)}
                   onToggleForSale={onToggleForSale}
                   onToggle={handleToggle}
-                  expectedPoints={expected[player.id]}
+                  expectedPoints={expected.entry(player.id)}
                   onEditExpected={onEditExpected}
                 />
               ))}
@@ -381,8 +382,11 @@ function PlayerRow({
   isForSale: boolean | undefined
   onToggleForSale: (playerId: string) => void
   onToggle: (player: SquadMember) => void
-  /** What the manager expects him to score, if anything is entered. */
-  expectedPoints: number | undefined
+  /**
+   * What he is expected to score — the manager's own guess, or the model's
+   * prediction standing in for one. `undefined` when neither exists.
+   */
+  expectedPoints: ExpectedPointsEntry | undefined
   /** Absent where the row cannot open the sheet — see the tab's own prop. */
   onEditExpected?: (player: SquadMember) => void
 }) {
@@ -521,7 +525,8 @@ function PlayerRow({
      of the row that is about the coming matchday rather than about the season
      or the market, so "what will he score on Saturday?" belongs on it rather
      than behind a button of its own; a row this dense has no room for one. The
-     guess, once made, lands directly under the crest it was made against. */
+     figure lands directly under the crest it is about — dashed while it is
+     still the model's, solid once the guess is the reader's own. */
   const panelClass =
     /* `w-14`, near enough the 58px the crest plus its old padding took, so
        the row's other columns keep the width they had. Fixed rather than
@@ -533,7 +538,10 @@ function PlayerRow({
     <>
       <FixtureBadge fixture={fixture} size="lg" />
       {expectedPoints !== undefined && (
-        <ExpectedPointsBadge value={expectedPoints} />
+        <ExpectedPointsBadge
+          value={expectedPoints.value}
+          isForecast={!expectedPoints.isOwn}
+        />
       )}
     </>
   )

@@ -41,6 +41,7 @@ docker build \
 | `VITE_API_BASE_URL` | `https://api.kickbase.com` |
 | `VITE_CDN_BASE_URL` | `https://kickbase.b-cdn.net` |
 | `VITE_FORECAST_BASE_URL` | `https://fundreas.github.io/litbase-foresight` |
+| `VITE_POINTCAST_BASE_URL` | `https://fundreas.github.io/litbase-pointcast` |
 
 `VITE_USE_DEV_PROXY` is deliberately not wired up: it only affects the Vite dev
 server, which is not part of the image. See

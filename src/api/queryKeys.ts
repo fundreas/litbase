@@ -201,6 +201,17 @@ export const qk = {
    */
   playerForecast: (competitionId: string, playerId: string) =>
     [...qk.competition(competitionId), 'playerForecast', playerId] as const,
+  /**
+   * **One matchday's expected points for every player**, from the
+   * [pointcast API](./hooks/usePointcast.ts) rather than Kickbase.
+   *
+   * Keyed by competition and matchday, and by nothing else: the file is one
+   * per matchday for the whole competition, so every screen that wants a
+   * prediction — one's own Kader, a rival's, a club's roster — shares a single
+   * entry and a single request.
+   */
+  pointcast: (competitionId: string, matchday: number) =>
+    [...qk.competition(competitionId), 'pointcast', matchday] as const,
   competitionTable: (competitionId: string) =>
     [...qk.competition(competitionId), 'table'] as const,
   competitionMatchdays: (competitionId: string) =>

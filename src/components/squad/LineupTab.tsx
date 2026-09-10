@@ -28,10 +28,11 @@ import {
   type LineupDrag,
 } from '@/components/squad/useLineupDrag'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
-import { expectedPointsTotal, useExpectedPoints } from '@/lib/expectedPoints'
+import { expectedPointsTotal } from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import {
   emptySlotPenalty,
@@ -318,14 +319,24 @@ export function LineupTab({
  * reason for entering them: an eleven is chosen against the alternatives, and
  * the alternatives are other elevens.
  *
- * **The fraction is not decoration.** 640 points off four guesses and 640 off
- * eleven are wildly different claims, and the total alone cannot tell them
- * apart — so how many of the fielded players carry a guess is printed next to
- * it, in a quieter weight, always. Only the players *on the pitch* are counted:
- * the bench scores nothing.
+ * **Mostly the model's arithmetic, until you overrule it.** Every fielded
+ * player carries a figure from the moment the
+ * [pointcast](../../api/hooks/usePointcast.ts) file lands — his prediction
+ * where no guess has been entered — so this chip says something on a squad
+ * nobody has touched, which is the whole point of having defaults. A guess
+ * always replaces the prediction it stands in for, one player at a time.
  *
- * Absent until at least one guess exists. A `0` over an untouched squad would
- * read as a prediction rather than as an empty column.
+ * **The fraction is not decoration.** 640 points off four figures and 640 off
+ * eleven are wildly different claims, and the total alone cannot tell them
+ * apart — so how many of the fielded players carry one is printed next to it,
+ * in a quieter weight, always. Only the players *on the pitch* are counted:
+ * the bench scores nothing. How many of them are the reader's own guesses is
+ * in the label rather than on the chip: it changes what the total *means*, but
+ * a third figure in a pill this size would make it unreadable.
+ *
+ * Absent until at least one figure exists — an untouched squad in a
+ * competition the model does not cover, or a file that has not arrived. A `0`
+ * over eleven players would read as a prediction of nothing.
  */
 function ExpectedTotal({
   lineup,
@@ -334,11 +345,15 @@ function ExpectedTotal({
   lineup: readonly SquadMember[]
   matchday: number | undefined
 }) {
-  const expected = useExpectedPoints(matchday)
-  const { total, count } = expectedPointsTotal(lineup, expected)
+  const expected = useExpectedPointsView(matchday)
+  const { total, count, ownCount } = expectedPointsTotal(lineup, expected)
   if (count === 0) return null
 
-  const label = `Erwartete Punkte der Aufstellung: ${points(total)} aus ${String(count)} von ${String(lineup.length)} Einträgen`
+  const label =
+    `Erwartete Punkte der Aufstellung: ${points(total)} aus ${String(count)} von ${String(lineup.length)} Spielern` +
+    (ownCount === 0
+      ? ' — alles Prognosen'
+      : `, davon ${String(ownCount)} eigene Schätzungen`)
 
   return (
     <span

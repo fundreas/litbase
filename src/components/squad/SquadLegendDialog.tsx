@@ -164,7 +164,7 @@ export function SquadLegendDialog({
                     <Target size={16} className="text-accent" aria-hidden />
                   }
                   label="Erwartete Punkte"
-                  description="Deine eigene Schätzung für diesen Spieltag. Auf das Wappen tippen, um sie einzutragen — sie bleibt auf diesem Gerät und sieht sie sonst niemand."
+                  description="Gestrichelt: die Prognose des Modells für diesen Spieltag. Auf das Wappen tippen, um deine eigene Schätzung einzutragen — sie gilt dann statt der Prognose, bleibt auf diesem Gerät und sieht sie sonst niemand."
                 />
               )}
             </LegendSection>

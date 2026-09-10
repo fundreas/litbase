@@ -237,7 +237,9 @@ The **target at the end of each row** opens the same
 [expected-points sheet](squad.md#erwartete-punkte) one's own Kader opens from
 the fixture crest — the reader's own guess at what the player will score on the
 coming matchday, filed on this device under
-`matchday → playerId → points`.
+`matchday → playerId → points`, over the
+[model's prediction](squad.md#woher-die-prognose-kommt) that stands there
+until he makes one.
 
 A club's roster is where those guesses are **cheapest to make**: every player
 on it faces the same opponent, so one judgement about the fixture prices thirty
@@ -255,7 +257,7 @@ The row is **a link plus a button** rather than one link, since HTML has no
 nested interactive elements; the divider between rows is the `li`'s, so the
 list looks exactly as it did.
 
-**No total here.** A club's roster is not an eleven, and adding thirty guesses
+**No total here.** A club's roster is not an eleven, and adding thirty figures
 together would produce a number that means nothing. The totals live where a
 lineup does: over [one's own pitch](squad.md#erwartete-punkte) and on a
 [rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players).

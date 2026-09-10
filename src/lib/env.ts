@@ -11,6 +11,15 @@ const DEFAULT_CDN_BASE_URL = 'https://kickbase.b-cdn.net'
  */
 const DEFAULT_FORECAST_BASE_URL = 'https://fundreas.github.io/litbase-foresight'
 
+/**
+ * The expected-points API — a second static JSON tree on GitHub Pages, written
+ * nightly by [litbase-pointcast](https://github.com/fundreas/litbase-pointcast):
+ * one file per matchday holding every player's predicted Kickbase points. Not
+ * Kickbase, no token, CORS open to anyone; see `usePointcast`.
+ */
+const DEFAULT_POINTCAST_BASE_URL =
+  'https://fundreas.github.io/litbase-pointcast'
+
 /** Vite mode of the live-simulation profile — `npm run dev:live`. */
 const LIVE_MODE = 'live'
 
@@ -67,6 +76,9 @@ export const env = {
   ),
   forecastBaseUrl: trimTrailingSlash(
     import.meta.env.VITE_FORECAST_BASE_URL || DEFAULT_FORECAST_BASE_URL,
+  ),
+  pointcastBaseUrl: trimTrailingSlash(
+    import.meta.env.VITE_POINTCAST_BASE_URL || DEFAULT_POINTCAST_BASE_URL,
   ),
   isDev: import.meta.env.DEV,
   devProfile: readDevProfile(),
