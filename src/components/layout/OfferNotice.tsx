@@ -1,13 +1,12 @@
 import { ChevronRight, Gavel, X } from 'lucide-react'
-import { useEffect } from 'react'
-import { Link, useLocation } from 'react-router'
+import { useState } from 'react'
+import { Link } from 'react-router'
 
 import { useMarket } from '@/api/hooks/useMarket'
 import { offersReceived, ownListingsOf } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
-import { markOffersSeen, useSeenOffers } from '@/lib/seenOffers'
 
 /**
  * **"3 Gebote für 2 deiner Spieler"** — a row under the app bar, on every page
@@ -54,49 +53,52 @@ import { markOffersSeen, useSeenOffers } from '@/lib/seenOffers'
  *
  * ## Closing it, and what brings it back
  *
- * The **X** dismisses the bids standing *now*. It does not stop the poll and
- * does not turn the notice off: the next bid is one you have not been told
- * about, and the row comes back with it, counting all of them again. What is
- * remembered is a set of offer ids rather than a flag — see
- * [`seenOffers`](../../lib/seenOffers.ts) for why, and for why it is written
- * down rather than held in state.
+ * The **X** dismisses the bids standing *now* — it does not stop the poll and
+ * it does not turn the notice off. Three things bring the row back, and they
+ * are the three ways the situation can change:
  *
- * **Opening *Gebote* counts as being told**, on the same set of ids, however
- * you got there. Without it the row would be waiting again the moment you
- * navigated away from the view it had just sent you to, which is the ordinary
- * way through it. And while that view is open the row hides altogether: it
- * would be a link to the page underneath it, over a list of the very bids it
- * is counting.
+ *  - **A new bid.** What is dismissed is a set of offer ids, not a flag and
+ *    not a count: an id nobody has closed the row on is a bid the reader has
+ *    not seen, so the row returns counting all of them again. A count would
+ *    have been fooled by one bid pulled and another placed between two polls.
+ *  - **A reload.** The set is React state and **deliberately not persisted**.
+ *    A bid is money waiting on an answer and it stands until it is answered,
+ *    so the reader should meet it again on the next visit; a dismissal that
+ *    outlived the tab would quietly bury a live offer for as long as it stood.
+ *  - **Switching leagues.** The set is reset with the league — see below.
+ *
+ * The row stays up **on the *Gebote* view as well**, where the bids it counts
+ * are listed. It is the one page where it is redundant, and hiding it there
+ * was worse than redundant: it read as the notice being consumed by the tap
+ * that opened the view, and the count vanished from the chrome at the moment
+ * the reader was working through it.
  */
 export function OfferNotice() {
   const { leagueId } = useActiveLeague()
   const { user } = useAuth()
-  const location = useLocation()
   const { data } = useMarket(leagueId)
-  const seen = useSeenOffers(leagueId)
 
   const offers = offersReceived(data?.listings, user?.id)
   const ids = offers.map((offer) => offer.id)
-  /* The effect's dependency below, and the reason the ids are joined rather
-     than handed over as the array: that array is rebuilt on every poll,
-     whether anything moved or not. */
-  const key = ids.join(',')
 
-  const offersPath = `/leagues/${leagueId}/market/offers`
-  const isOnOffers = location.pathname === offersPath
-  const hasUnseen = ids.some((id) => !seen.includes(id))
+  /**
+   * The ids the X was pressed on, alongside the league they belong to.
+   *
+   * Adjusted **during render** when the league changes, the pattern the
+   * [shell](./AppShell.tsx) uses for the drawer: this component is not
+   * remounted by a league switch — the shell outlives it — and a set carried
+   * across would dismiss bids in a market it was never shown in.
+   */
+  const [dismissed, setDismissed] = useState<{
+    leagueId: string
+    ids: string[]
+  }>({ leagueId, ids: [] })
+  if (dismissed.leagueId !== leagueId) {
+    setDismissed({ leagueId, ids: [] })
+  }
 
-  /* Reading the bids where they live is being told about them, so the visit
-     writes the dismissal the X would have written. An effect because it is a
-     write to storage — the store outside React that the row renders off —
-     rather than a piece of state to keep in step; `hasUnseen` keeps a poll
-     that moved nothing from writing anything. */
-  useEffect(() => {
-    if (!isOnOffers || !hasUnseen) return
-    markOffersSeen(leagueId, key === '' ? [] : key.split(','))
-  }, [isOnOffers, hasUnseen, key, leagueId])
-
-  if (offers.length === 0 || !hasUnseen || isOnOffers) return null
+  const isPending = ids.some((id) => !dismissed.ids.includes(id))
+  if (!isPending) return null
 
   // How many of your listings those bids are spread over — the count alone
   // would leave "3 Gebote" ambiguous between three managers after one player
@@ -115,7 +117,7 @@ export function OfferNotice() {
       )}
     >
       <Link
-        to={offersPath}
+        to={`/leagues/${leagueId}/market/offers`}
         className={cn(
           'flex min-w-0 flex-1 items-center gap-2 px-3 lg:px-4',
           'transition-colors hover:bg-accent/20',
@@ -151,7 +153,7 @@ export function OfferNotice() {
       <button
         type="button"
         onClick={() => {
-          markOffersSeen(leagueId, ids)
+          setDismissed({ leagueId, ids })
         }}
         title="Hinweis ausblenden"
         aria-label="Hinweis ausblenden"

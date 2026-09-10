@@ -365,16 +365,17 @@ belong to the chrome.
   Query while the tab is in the background. The one poll in the app now runs on
   every page of a league, and arriving on *Transfermarkt* finds the list
   already fetched.
-- **The ✕ dismisses the bids standing now**, not the notice. The poll keeps
-  running and the next bid brings the row back, counting all of them again —
-  what is remembered is a *set of offer ids* per league, in
-  [`seenOffers`](../src/lib/seenOffers.ts), because a count would be fooled by
-  one bid pulled and another placed between two polls. It is written to
-  `localStorage`, so a reload does not undo a dismissal and another tab shares
-  it.
-- **Opening *Gebote* counts as being told**, however you got there, and the row
-  hides entirely while that view is open — it would otherwise be a link to the
-  page underneath it, over a list of the very bids it is counting.
+- **The ✕ dismisses the bids standing now**, not the notice. Three things bring
+  the row back: **a new bid** (what is dismissed is a *set of offer ids*, so an
+  id nobody has closed the row on is a bid unseen — a count would be fooled by
+  one bid pulled and another placed between two polls), **a reload**, and
+  **switching leagues**. The set is React state and **deliberately not
+  persisted**: a bid stands until it is answered, so a dismissal that outlived
+  the tab would bury a live offer for as long as it stood.
+- **It stays up on the *Gebote* view too**, where the bids it counts are
+  listed. Hiding it there read as the notice being consumed by the tap that
+  opened the view, and took the count out of the chrome at the moment the
+  reader was working through it.
 
 ## Navigation
 

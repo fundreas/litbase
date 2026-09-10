@@ -501,8 +501,8 @@ market list — is what keeps the tab live.
 
 **You are told about a bid without being here.** The shell's
 [offer notice](../routing-and-layout.md#the-notification-row) is a row under
-the app bar, on every page of the league, counting the bids standing on your
-listings and linking straight to this view. It reads them out of this same
+the app bar, on every page of the league — this one included — counting the
+bids standing on your listings and linking straight to this view. It reads them out of this same
 payload with the same query key, which is what makes the market's poll run
 app-wide: a bid stands until it is answered or pulled, and a view nobody opens
 on the off-chance is not where it should first be seen. Its count and the badge
