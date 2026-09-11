@@ -530,6 +530,27 @@ export const endpoints = {
         (suffix === '' ? '' : `?${suffix}`)
       )
     },
+    /**
+     * **Player search by name** — the one endpoint that reaches a player who
+     * is in nobody's squad, on no market and in no top-25 list.
+     *
+     * Two query parameters are declared required and both are passed:
+     * **`query`**, matched against the name, and **`leagueId`**, which scopes
+     * the answer to one league. The path is competition-scoped and the result
+     * is not: `onm` names the manager *in that league* who owns the player, so
+     * the same search in two leagues answers differently and the cache is
+     * keyed by league accordingly.
+     *
+     * `start` and `max` page the result; neither is sent, because a name
+     * search over one competition is short by construction and the endpoint's
+     * own default is the whole of it.
+     *
+     * Taken from the published spec, not yet re-probed — see
+     * [`usePlayerSearch`](./hooks/usePlayerSearch.ts) for what that leaves
+     * unknown.
+     */
+    playerSearch: (competitionId: string) =>
+      `/v4/competitions/${competitionId}/players/search`,
     /** Real-world league table. */
     table: (competitionId: string) => `/v4/competitions/${competitionId}/table`,
     /**

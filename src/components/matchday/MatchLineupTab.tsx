@@ -161,6 +161,14 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  * no detail response yet — are counted under it rather than dropped silently or
  * defaulted into midfield.
  *
+ * **On a landscape pitch the benches move to the touchlines** — home's column,
+ * the grass, away's column, left to right in the order the scoreline names
+ * them. A landscape pitch is wide and the page's well is not, so the grass
+ * gives up width for them; what it buys is the whole match on one screen, the
+ * eleven who are on and the ones who are not, instead of a scroll between the
+ * two. Portrait keeps them underneath, where a phone has the width for two
+ * columns of names and none to spare beside the pitch.
+ *
  * **The corner opens the pitch [full screen](../ui/FullscreenPane.tsx)**, which
  * is what twenty-two portraits on a phone have always wanted: the benches, the
  * scoreline and the tab bar step aside, the pitch measures the whole viewport,
@@ -363,12 +371,36 @@ export function MatchLineupTab({
     )
   }
 
+  const isLandscape = orientation === 'landscape'
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {/* `min-h-0 flex-1` so the pitch claims whatever height the page has
-          left after the benches rather than sitting at its floor on a
-          desktop. */}
-      {pitch}
+      {isLandscape ? (
+        /* **Three columns: home's bench, the grass, away's bench.** A
+           landscape pitch is wide and the page is not, so the benches stop
+           being a block underneath and become the two touchlines — which is
+           where a substitute stands, and which is the arrangement the
+           scoreline in the header and the pitch itself now both use: home
+           left, away right, all the way down the page.
+
+           They cost the grass width, and that is the trade: eight bands in
+           ~460px rather than ~740px. Worth it, because the two things a match
+           page is read for — who is on and who is not — are then on screen at
+           the same time rather than one scroll apart. */
+        <div className="flex min-h-0 flex-1 items-stretch gap-2">
+          <BenchColumn lineup={home} side="home" leagueId={leagueId} isBeside />
+          {/* The pitch's own `flex-1` grows it *down* the column, so it needs a
+              column of its own inside this row. `min-w-0` lets it give way to
+              the two fixed benches rather than overflowing the well. */}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">{pitch}</div>
+          <BenchColumn lineup={away} side="away" leagueId={leagueId} isBeside />
+        </div>
+      ) : (
+        /* `min-h-0 flex-1` so the pitch claims whatever height the page has
+           left after the benches rather than sitting at its floor on a
+           desktop. */
+        pitch
+      )}
 
       {(isPointsPending || unplaced > 0) && (
         <p className="flex items-center gap-2 px-0.5 text-xs text-muted">
@@ -384,13 +416,17 @@ export function MatchLineupTab({
         </p>
       )}
 
-      {/* Two columns, home left and away right — the arrangement the header's
-          scoreline establishes. The pitch has to stack the teams to make them
-          face each other, and the corner labels bridge the two. */}
-      <div className="grid grid-cols-2 gap-2">
-        <BenchColumn lineup={home} side="home" leagueId={leagueId} />
-        <BenchColumn lineup={away} side="away" leagueId={leagueId} />
-      </div>
+      {/* Underneath, on a portrait pitch: two columns, home left and away
+          right — the arrangement the header's scoreline establishes. The pitch
+          has to stack the teams to make them face each other, and the corner
+          labels bridge the two. Landscape draws them beside the grass instead,
+          above. */}
+      {!isLandscape && (
+        <div className="grid grid-cols-2 gap-2">
+          <BenchColumn lineup={home} side="home" leagueId={leagueId} />
+          <BenchColumn lineup={away} side="away" leagueId={leagueId} />
+        </div>
+      )}
 
       {breakdownDialog}
     </div>
@@ -631,14 +667,31 @@ function BenchColumn({
   lineup,
   side,
   leagueId,
+  isBeside = false,
 }: {
   lineup: MatchLineup
   side: Side
   leagueId: string
+  /**
+   * Drawn as a touchline beside a landscape pitch rather than as a block
+   * under a portrait one.
+   *
+   * Two things change and nothing else: the column takes a fixed width, since
+   * the grass should have every pixel it does not need, and the rows scroll
+   * inside it — a club may name twelve substitutes, and letting those set the
+   * height would push the pitch down the page, which is the opposite of what
+   * putting them here is for.
+   */
+  isBeside?: boolean
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-1.5">
-      <h3 className="flex min-w-0 items-center gap-1.5 px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
+    <section
+      className={cn(
+        'flex min-w-0 flex-col gap-1.5',
+        isBeside && 'min-h-0 w-36 shrink-0',
+      )}
+    >
+      <h3 className="flex min-w-0 shrink-0 items-center gap-1.5 px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
         <Avatar
           src={lineup.team.image}
           name={lineup.team.symbol}
@@ -654,7 +707,12 @@ function BenchColumn({
           Keine Ersatzspieler gemeldet
         </p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul
+          className={cn(
+            'flex flex-col gap-1',
+            isBeside && 'min-h-0 flex-1 overflow-y-auto pr-0.5',
+          )}
+        >
           {lineup.substitutes.map((player) => (
             <BenchRow
               key={player.id}

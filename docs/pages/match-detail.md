@@ -335,8 +335,15 @@ and the swap — which is the one place the width is free, and it is where
 `MatchPlayer.events` earns its keep.
 
 The **bench** goes underneath as two columns, home left and away right, matching
-the header's arrangement (the pitch has to stack the teams to make them face
-each other; the corner labels bridge the two). Rows rather than portraits, so
+the header's arrangement (a portrait pitch has to stack the teams to make them
+face each other; the corner labels bridge the two). **On a landscape pitch the
+two columns move to the touchlines instead** — home's bench, the grass, away's
+bench — so the page reads home-left, away-right the whole way down. The grass
+pays for them in width (eight bands in ~460px rather than ~740px, so portraits
+are ~44px rather than ~67px) and what it buys is the eleven who are on and the
+ones who are not on one screen, rather than a scroll apart. A side bench takes
+a fixed 9rem and scrolls inside itself: a club may name twelve substitutes, and
+those must not set the height of the pitch. Rows rather than portraits, so
 each gets a name. What it holds follows from the two arrangements above: while
 the match runs, whoever is *not on the pitch right now* — the substitutes who
 never came on, and under them the ones taken off; otherwise the club's own bench

@@ -1513,6 +1513,51 @@ export interface CompetitionPlayer {
   ot?: { i: string; tim?: string }
 }
 
+/**
+ * `GET /v4/competitions/{competitionId}/players/search` — **players whose
+ * name matches, across the whole competition**, scoped to one league.
+ *
+ * The only known way to reach a player who is neither in a squad, on the
+ * market nor in a top-25 list. Nine fields, no paging metadata: the rows are
+ * `it` and the caller counts them itself.
+ *
+ * The shape is taken from the published spec's captured example (`query=Kane`)
+ * and not yet re-probed here, so every field but `pi` and `n` is marked **?**
+ * — the example carries all nine, but says nothing about which of them are
+ * omitted for, say, an unowned player. See
+ * [docs/api/competitions.md](../../docs/api/competitions.md#get-v4competitionscompetitionidplayerssearch).
+ */
+export interface PlayerSearchResponse {
+  /** The matches. Absent rather than empty when nothing matched (**?**). */
+  it?: PlayerSearchPlayer[]
+}
+
+export interface PlayerSearchPlayer {
+  /** Player id. */
+  pi: string
+  /** Last name — the same `n` the top-25 list serves, not a full name. */
+  n: string
+  /** **?** Market value, in €. */
+  mv?: number
+  /** **?** Position, see {@link PLAYER_POSITION}. */
+  pos?: number
+  /** **?** Availability: `0` is fit. See {@link PLAYER_AVAILABILITY}. */
+  st?: number
+  /**
+   * **?** The owning manager's display name — `"Kickbase"` for a player
+   * nobody in the league holds, which is how the game words an unowned
+   * player elsewhere too. No id and no avatar travel with it, so a search row
+   * can name an owner but not link to them.
+   */
+  onm?: string
+  /** **?** He is listed on the transfer market. */
+  iotm?: boolean
+  /** **?** Team id. */
+  tid?: string
+  /** **?** Portrait, CDN-relative. */
+  pim?: string
+}
+
 /* -------------------------------------------------------------------------- */
 /* Competition                                                               */
 /* -------------------------------------------------------------------------- */

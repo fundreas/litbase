@@ -1,13 +1,15 @@
-import { Menu } from 'lucide-react'
+import { Menu, Search } from 'lucide-react'
+import { Link } from 'react-router'
 
 import { LeagueSwitcher } from '@/components/layout/LeagueSwitcher'
 import { OfferNotice } from '@/components/layout/OfferNotice'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { SimulationBadge } from '@/dev/SimulationBadge'
+import { useActiveLeague } from '@/league/useActiveLeague'
 
 /**
- * The app bar: hamburger on the left, league context in the middle, account
- * avatar on the right. Sticky, and padded for notched phones.
+ * The app bar: hamburger on the left, league context in the middle, search and
+ * the account avatar on the right. Sticky, and padded for notched phones.
  *
  * It spans the **full window width** and sits above both navigation surfaces,
  * so the [sidebar](./NavSidebar.tsx) starts underneath it rather than beside
@@ -17,6 +19,15 @@ import { SimulationBadge } from '@/dev/SimulationBadge'
  *
  * The hamburger is `lg:hidden` — the width at which the sidebar becomes
  * permanent — so exactly one navigation surface is ever available.
+ *
+ * ## The magnifier
+ *
+ * [Finding a player by name](../../pages/PlayersPage.tsx) is in the bar rather
+ * than in the drawer because it is wanted *from* a page — mid-thought, while
+ * reading about somebody else — and a search two taps deep is a search nobody
+ * makes. It sits beside the avatar for the same reason Einstellungen is behind
+ * it: the right-hand corner is the reader's own, and the drawer lists the
+ * league's pages.
  *
  * ## The second line
  *
@@ -29,6 +40,8 @@ import { SimulationBadge } from '@/dev/SimulationBadge'
  * what makes it reappear is written up in the component.
  */
 export function Header({ onOpenNav }: { onOpenNav: () => void }) {
+  const { leagueId } = useActiveLeague()
+
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur-md">
       <div className="pt-safe" />
@@ -52,6 +65,19 @@ export function Header({ onOpenNav }: { onOpenNav: () => void }) {
             lets the bundler drop the badge out of a production build rather
             than ship it rendering `null`. */}
         {import.meta.env.DEV && <SimulationBadge />}
+
+        {/* A link, not a button opening a sheet: the search is a page, so it
+            is linkable, bookmarkable and leaves the bar behind rather than
+            covering it. `shrink-0` keeps it in its corner while the league
+            name in the middle takes whatever width is left. */}
+        <Link
+          to={`/leagues/${leagueId}/players`}
+          aria-label="Spieler suchen"
+          title="Spieler suchen"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-ink active:bg-line"
+        >
+          <Search size={20} />
+        </Link>
 
         <UserMenu />
       </div>

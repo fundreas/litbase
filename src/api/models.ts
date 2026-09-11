@@ -1944,6 +1944,37 @@ export interface MatchdayTopScorers {
   players: CompetitionPlayerSummary[]
 }
 
+/**
+ * One hit from the [player search](../api/hooks/usePlayerSearch.ts).
+ *
+ * Thinner than every other player model in this file, and deliberately not
+ * widened with lookups: a search row's job is to identify the right player and
+ * hand him over to [his own page](../pages/PlayerDetailPage.tsx), where the
+ * history, the chart and the ownership detail already live.
+ *
+ * `owner` is a **name and nothing else** — the endpoint serves no manager id
+ * and no avatar, so the row can say whose he is but cannot link to them or
+ * draw an [`OwnerBadge`](../components/matchday/OwnerBadge.tsx). `undefined`
+ * means nobody in the league holds him, which is how the wire's `"Kickbase"`
+ * is read.
+ */
+export interface PlayerSearchResult {
+  id: string
+  /** Last name — all the endpoint serves. */
+  name: string
+  teamId?: string
+  position?: PositionKey
+  image?: string
+  /** Market value, in €. */
+  marketValue?: number
+  /** Availability code (`st`); `0` is fit. See {@link availabilityLabel}. */
+  availability: number
+  /** The manager in this league who owns him, by name only. */
+  owner?: string
+  /** He is on the transfer market right now. */
+  isListed: boolean
+}
+
 export interface TableRow {
   teamId: string
   teamName: string

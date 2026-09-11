@@ -132,6 +132,17 @@ export const qk = {
       day,
       seasonId ?? 'current',
     ] as const,
+  /**
+   * A player-name search, by term.
+   *
+   * **League-scoped although the endpoint is competition-scoped**: the answer
+   * carries who owns each player *here*, so two leagues in the same
+   * competition must not share an entry. Each term is its own entry, which is
+   * what makes backspacing through a word instant — the shorter term was
+   * fetched on the way in and is still cached.
+   */
+  playerSearch: (leagueId: string, term: string) =>
+    [...qk.league(leagueId), 'playerSearch', term] as const,
   /** The scoring-event catalogue. Global — not scoped to a league or season. */
   eventTypes: () => ['eventTypes'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
