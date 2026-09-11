@@ -320,7 +320,7 @@ Three slots:
 | -------- | --------- |
 | Left | Hamburger button, opens the nav drawer — **`lg:hidden`** |
 | Centre | [`LeagueSwitcher`](../src/components/layout/LeagueSwitcher.tsx) |
-| Right | [`UserMenu`](../src/components/layout/UserMenu.tsx) |
+| Right | Magnifier → [Spieler suchen](pages/players.md), then [`UserMenu`](../src/components/layout/UserMenu.tsx) |
 
 …and one more line under all three, when there is something to say — see
 [The notification row](#the-notification-row).
@@ -329,12 +329,21 @@ The bar's contents are **not** capped to the content column's `max-w-3xl` any
 more. With a sidebar down the left of a wide window, a centred bar left the
 avatar floating in the middle of the screen instead of in its corner.
 
+**The magnifier** is a plain `Link` to [Spieler suchen](pages/players.md), not
+a button that drops a search field into the bar. Search is a page here: the
+term lives in `?q=`, the result is linkable, and the back button is the way
+out of it. It sits in the bar rather than in the drawer because it is wanted
+*from* a page, mid-thought, and a search two taps deep is one nobody makes —
+the same argument that puts *Einstellungen* behind the avatar beside it.
+
 **`LeagueSwitcher`** is a Radix dropdown listing every league with its
 placement and budget, a check mark on the active one. With only one league it
 degrades to plain text — a dropdown with a single option is noise. This is
 the app's only league switcher.
 
-**`UserMenu`** is the avatar dropdown: name and email,
+**`UserMenu`** is the avatar dropdown. Its **head row — the avatar, name and
+email — is a link to the reader's own [manager page](pages/manager-detail.md)**,
+the same page a row of the standings opens; below it,
 [*Einstellungen*](pages/preferences.md), *Neu laden*, and *Abmelden*, plus a
 footnote showing when the session expires and whether it renews automatically.
 It is everything about **the reader** rather than about the league — which is

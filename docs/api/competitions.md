@@ -3,14 +3,18 @@
 [← API index](README.md)
 
 The real-world football underneath the game: which competitions exist, their
-players, their table and their fixture list. **None of these is league-scoped**
-— two managers in different leagues watching the same Bundesliga should share
-the answer, and the app's query keys reflect that.
+players, their table and their fixture list. **Almost none of these is
+league-scoped** — two managers in different leagues watching the same
+Bundesliga should share the answer, and the app's query keys reflect that. The
+exception is [player search](#get-v4competitionscompetitionidplayerssearch),
+which takes a `leagueId` and answers with each player's owner *there*; its
+cache hangs under the league accordingly.
 
 | Method | Path | Auth | Used |
 | ------ | ---- | ---- | ---- |
 | `GET` | [`/v4/competitions`](#get-v4competitions) | Bearer | yes |
 | `GET` | [`/v4/competitions/{competitionId}/players`](#get-v4competitionscompetitionidplayers) | Bearer | yes |
+| `GET` | [`/v4/competitions/{competitionId}/players/search`](#get-v4competitionscompetitionidplayerssearch) | Bearer | yes |
 | `GET` | [`/v4/competitions/{competitionId}/table`](#get-v4competitionscompetitionidtable) | Bearer | yes |
 | `GET` | [`/v4/competitions/{competitionId}/matchdays`](#get-v4competitionscompetitionidmatchdays) | Bearer | yes |
 | `GET` | [`/v4/competitions/{competitionId}/teams/{teamId}/teamprofile`](#get-v4competitionscompetitionidteamsteamidteamprofile) | Bearer | see note |
@@ -215,8 +219,7 @@ individually.
 ### Used by
 
 [`useCompetitionPlayers`](../../src/api/hooks/useCompetition.ts) → the
-**Rangliste** view of the [matchday page](../pages/matchday.md#rangliste), and
-the [All players](../pages/players.md) stub.
+**Rangliste** view of the [matchday page](../pages/matchday.md#rangliste).
 
 It is **the only bulk source of per-player matchday points in the API**, which
 is what makes that view cost one small request where
@@ -239,6 +242,84 @@ matchday page was built and removed for exactly that reason.
 `CompetitionPlayer` in [`types.ts`](../../src/api/types.ts) has `mi` and `ot`
 optional, which is what makes the `sorting=1` rows safe to map with the same
 code — a season row has neither.
+
+---
+
+## `GET /v4/competitions/{competitionId}/players/search`
+
+**Players whose name matches, anywhere in the competition** — the only known
+way to reach a player who is in nobody's squad, on no market and in no top-25
+list.
+
+⚠ **Documented from the published spec, not from a probe.** The path, the
+parameters and the row shape below are the shared Apidog document's, including
+its one captured example (`query=Kane`). Nothing here has been checked against
+a live league yet, so every field but `pi` and `n` carries a **?** and the
+questions under [What is not known](#what-is-not-known) are open.
+
+**Auth** Bearer.
+
+### Path parameters
+
+| Name | Description |
+| ---- | ----------- |
+| `competitionId` | The competition to search in |
+
+### Query parameters
+
+| Name | Required | Description |
+| ---- | -------- | ----------- |
+| `query` | yes | The search term, matched against the name |
+| `leagueId` | yes | **Scopes the answer to one league** — which is what makes `onm` mean anything |
+| `start` | no | Pagination offset, default `0` |
+| `max` | no | Page size |
+
+The path is competition-scoped and **the response is not**: `onm` names the
+manager *in that league* who owns the player, so the same search in two
+leagues of one competition answers differently. That is why the app's cache
+key for it hangs under the league rather than the competition — see
+[`queryKeys.ts`](../../src/api/queryKeys.ts).
+
+The app sends `query` and `leagueId` and neither pager: a name search over one
+competition is short by construction.
+
+### Response `200`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `it` | array | The matches. **?** whether an empty result is `[]` or an absent field |
+
+#### `it[]`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `pi` | string | Player id |
+| `n` | string | Last name — as everywhere else, **no first name** |
+| `mv` | number | **?** Market value, in € |
+| `pos` | number | **?** Position — see [Codes](codes.md#position-pos) |
+| `st` | number | **?** Availability — see [Codes](codes.md#availability-st-and-the-entries-of-stl) |
+| `onm` | string | **?** The owning manager's display name, **`"Kickbase"` when nobody in the league owns him**. No `oui` and no avatar travel with it |
+| `iotm` | boolean | **?** He is listed on the transfer market |
+| `tid` | string | **?** Club id — no crest, so it has to be resolved against the [table](#get-v4competitionscompetitionidtable) |
+| `pim` | string | **?** Portrait, CDN-relative |
+
+Nine fields and no paging metadata: the row count is the caller's own.
+
+### What is not known
+
+- **Prefix or substring**, and whether the match reaches **first names**. The
+  rows carry only a last name, which is evidence for neither.
+- **Whether `onm` is omitted** for an unowned player rather than reading
+  `"Kickbase"`. The app treats both as *frei*.
+- **Whether `max` caps at some ceiling**, as the top-25 endpoint's parameters
+  silently do.
+- What an **empty or one-character `query`** answers.
+
+### Used by
+
+[`usePlayerSearch`](../../src/api/hooks/usePlayerSearch.ts) → the
+[Spieler suchen](../pages/players.md) page, reached from the magnifier in the
+header.
 
 ---
 

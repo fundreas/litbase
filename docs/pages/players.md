@@ -1,119 +1,152 @@
-# All players
+# Spieler suchen
 
-[← Back to index](../README.md) · Route `/leagues/:leagueId/players` ·
-[`src/pages/PlayersPage.tsx`](../../src/pages/PlayersPage.tsx)
+[← Back to index](../README.md)
 
-**Status: stub.** The query is wired and proven; the UI is not built.
+```
+/leagues/:leagueId/players?q=<term>
+```
 
-Every player in the competition — the scouting view, as opposed to
-[Squad](squad.md) (yours) or [Market](market.md) (for sale).
+[`PlayersPage`](../../src/pages/PlayersPage.tsx) — **find a player by name**,
+anywhere in the competition, owned or not.
 
-## ⚠ The endpoint is not what this page assumed
+Every other list of players in this app is a list somebody else assembled: a
+[squad](squad.md), the [market](market.md), a
+[top-25](matchday.md#rangliste), a [club's roster](team.md). Each answers a
+question *about* a set of players; none of them answers *where is this
+player*, and until this page there was no answer at all — a player in nobody's
+squad and on no market could only be reached by knowing his id.
 
-**`/v4/competitions/{competitionId}/players` returns the current matchday's
-twenty-five best players**, points descending — not a competition's players.
-See
-[the warning on the endpoint](../api/competitions.md#get-v4competitionscompetitionidplayers).
+The page hands off immediately: every row is a link to his
+[own page](player-detail.md), which is where the scoring history, the
+market-value chart and the ownership detail already live. A search result is a
+way in, not a place to stay.
 
-> An earlier reading of the same probe called it "one fixture's players",
-> because it was taken mid-matchday when only one fixture had been played and
-> all 25 rows shared its `mi`. That was wrong and is corrected on the endpoint
-> page; what survives is that it is **not** a list of everybody.
+## Getting there
 
-That invalidates most of what follows. "Expect several hundred" was a guess
-that nobody checked, and the row count this stub prints — 25 — looks perfectly
-reasonable until you ask *which* players are in it. The size problem this page
-was designed around therefore does not exist yet, and neither does the page's
-own premise: there is currently **no known endpoint that lists a competition's
-players**. `/v4/competitions/{id}/players/search` answers 200 and is unprobed;
-that is where to look first.
+The **magnifier in the header**, left of the avatar. Not the drawer: search is
+wanted *from* a page, mid-thought, while reading about somebody else, and a
+search two taps deep is a search nobody makes. It sits next to the avatar for
+the same reason [Einstellungen](preferences.md) sits behind it — the
+right-hand corner of the bar is the reader's own, and the drawer lists the
+league's pages.
 
-The endpoint did find a home in the meantime — it is what the matchday page's
-[Rangliste](matchday.md#rangliste) is built on, which is the view it was always
-shaped for.
+Like that page it therefore has **no entry in `NAV_ITEMS`**. It does light
+*Mannschaft*, because `alsoMatches: ['players']` on that entry covers
+`/players/:playerId` — the player detail page, which has no entry of its own —
+and the prefix cannot tell the two apart. See
+[`navigation.ts`](../../src/components/layout/navigation.ts).
 
-What *is* now available is a club's whole squad in one request —
-[`teamprofile`](../api/competitions.md#get-v4competitionscompetitionidteamsteamidteamprofile),
-which the [club page](team.md) is built on. Eighteen of those would be a real
-all-players list, at eighteen requests.
+## What it replaced
 
-## What it does today
+This route was the **All players** stub: a `PagePlaceholder` over
+`/v4/competitions/{id}/players`, designed around a payload of "every player in
+the competition" that does not exist. That endpoint serves the current
+matchday's **twenty-five best**, which is why the stub's plans — virtualise
+hundreds of rows, filter by position before rendering — were solving a problem
+the API never posed. The stub's own note said where to look first:
+`/players/search`, then unprobed. This is that page.
 
-Renders [`PagePlaceholder`](../../src/components/PagePlaceholder.tsx) with the
-row count from the live query.
+## The term lives in the URL
 
-## Scope: competition, not league
+`?q=` carries the settled term, written with `replace`:
 
-Like [Saison](season.md), this reads `competitionId` from
-`useActiveLeague()`, so its cache is shared across leagues in the same
-competition and survives a league switch.
+- a result list is **linkable and survives a reload**, and the box is seeded
+  from the parameter on arrival;
+- the **back button leaves the page** rather than walking back through half a
+  name, which is what a history entry per keystroke would do.
 
-## Data ready to use
+The input itself is ordinary React state. It is deliberately **not** bound to
+the query string in both directions — a field that read itself back from the
+URL every render would fight the debounce.
 
-[`useCompetitionPlayers(competitionId)`](../../src/api/hooks/useCompetition.ts)
-→ `/v4/competitions/{competitionId}/players`, mapped to
-`CompetitionPlayerSummary[]`:
+## The debounce, and the two states it creates
+
+500 ms after the last keystroke, the trimmed term settles and the request
+goes. A name typed at speed costs one request instead of eight, and a reader
+who has stopped to think does not notice the wait.
+
+Terms shorter than **two characters are not sent** at all: one letter matches
+a sizeable slice of the competition and answers a list nobody scrolls.
+
+Two things are therefore true at once while typing, and the page shows them as
+one: the box has a term the results do not answer to yet (`draft !== term`),
+or a request for the settled term is in flight. Either way the **magnifier in
+the field turns into a spinner** — to the reader they are the same fact, *what
+is on screen is not the answer to what I have typed*.
+
+The previous term's rows **stay on screen** while the next term loads
+(`placeholderData: keepPreviousData`), so typing through a name refines a list
+rather than flashing an empty one at every letter. Each term caches for two
+minutes, which is what makes backspacing instant: the shorter term was fetched
+on the way in.
+
+## The row
+
+```
+┌──────┬────────────────────────────────┬──────────────┐
+│      │ Kane                  ✚  🏷     │              │
+│  👤  │ [FCB]  ANG · Gehört Andreas     │ 65,8 Mio. €  │
+└──────┴────────────────────────────────┴──────────────┘
+   who        him, and whose he is          what he costs
+```
+
+Four things, and they are the four that tell two players of the same name
+apart: **club, position, market value, and who in this league owns him**. No
+filters, no sorting, no position chips — a name search returns a handful of
+rows, the reader already knows which one they meant, and chips over a five-row
+list are furniture.
+
+- **The owner is a name, not a badge.** Every other list draws an
+  [`OwnerBadge`](../../src/components/matchday/OwnerBadge.tsx) here; this one
+  cannot, because the payload carries the manager's *name* and neither their
+  id nor their avatar. There is nothing to draw and nowhere to link. *Frei* is
+  the half worth having anyway: the first question about a player one has just
+  found is whether he can be had.
+- **The crest is resolved, not served.** Rows carry `tid` only, so the club
+  comes from [`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) — one
+  cached request the [Saison](season.md) page has usually paid for already.
+  Rows render without it rather than waiting for it.
+- **The availability mark** is the same one a club's Kader draws, worded from
+  the code: this payload has no `stxt`.
+- **A small store glyph** marks a player who is on the transfer market right
+  now, which is the one piece of "you could act on this" the payload offers.
+
+## Data
+
+[`usePlayerSearch(competitionId, leagueId, term)`](../../src/api/hooks/usePlayerSearch.ts)
+→ [`/v4/competitions/{competitionId}/players/search`](../api/competitions.md#get-v4competitionscompetitionidplayerssearch),
+mapped to `PlayerSearchResult[]`:
 
 | Field | Meaning |
 | ----- | ------- |
-| `id` | Player id (`pi` on the wire — note: **not** `i`, unlike the squad payload) |
-| `lastName` | Last name |
-| `teamId` | Club id |
+| `id` | Player id |
+| `name` | Last name — all the endpoint serves |
+| `teamId` | Club id; the crest is looked up |
 | `position` | `'gk' \| 'def' \| 'mid' \| 'fwd'` |
-| `points` | Season points |
-| `minutesPlayed` | Minutes |
-| `goals`, `assists` | Goals and assists |
-| `isInjured` | Injury flag (`il`) |
-| `image` | Player image, CDN-relative |
+| `marketValue` | In € |
+| `availability` | `st`; `0` is fit |
+| `owner` | The owning manager's **name**, or `undefined` when nobody holds him |
+| `isListed` | He is on the market right now |
+| `image` | Portrait, CDN-relative |
 
-`staleTime` is **1 hour**, the longest in the app — this is a large payload
-that barely moves within a matchday.
+The cache key hangs under the **league**, not the competition: the endpoint
+takes a `leagueId` and the owner it names is league-specific.
 
-## The one real constraint: size
+## ⚠ Built on the spec, not on a probe
 
-This is the biggest response the app touches. Rendering it as a plain mapped
-list will produce hundreds of DOM nodes and a visible jank on a phone.
-Whatever the design, it needs one of:
+The endpoint's shape comes from the published Apidog document and its one
+captured example (`query=Kane`) — it has **not** been checked against a live
+league. Four things are consequently unknown and handled defensively:
 
-- **Virtualisation** — only render the visible window. No virtualisation
-  library is currently a dependency; `@tanstack/react-virtual` would pair
-  naturally with the existing `@tanstack/*` chunk.
-- **Filtering first** — require a position or club filter, or a search box,
-  before rendering anything. Cheaper to build and arguably better UX for
-  scouting, which is rarely "show me everyone".
+- whether the match is a **prefix or a substring**, and whether it reaches
+  **first names** (the rows carry only a last name, which proves nothing
+  either way);
+- whether an **empty result** is `it: []` or a missing `it`;
+- whether `onm` is **omitted** for an unowned player rather than reading
+  `"Kickbase"` — both are treated as *frei*;
+- what an **empty or one-character query** answers, which the two-character
+  floor makes moot in the UI.
 
-The second is the pragmatic starting point.
-
-## Fields the model does not expose
-
-`CompetitionPlayer` in [`types.ts`](../../src/api/types.ts) also documents:
-
-- `mi` — match id of the next or current fixture.
-- `ot` — the opponent club for that fixture, with a crest path. This is
-  genuinely useful for scouting ("who plays a weak side next?") and is **not
-  currently mapped** into the model.
-- `st` — status code, mapped but unused; `isInjured` covers the common case.
-- `pes` — meaning unconfirmed, flagged as a guess in `types.ts`.
-- `cs` — clean sheets.
-
-Adding `ot` to `CompetitionPlayerSummary` is a small change in
-[`useCompetition.ts`](../../src/api/hooks/useCompetition.ts) and would make
-the page considerably more useful.
-
-## Note on market value
-
-This endpoint does **not** return market values — the competition player list
-carries performance data only. Values live on the league-scoped squad and
-market payloads. A "cheap players with good points" view would need either a
-different endpoint (unprobed) or a join against
-[`useMarket`](../../src/api/hooks/useMarket.ts), which only covers currently
-listed players.
-
-Worth probing before designing around it.
-
-## Suggested layout
-
-Search box plus position filter chips at the top, then rows showing name,
-club crest, points, and a points-per-minute or points-per-game figure —
-`points` and `minutesPlayed` are both present, and the derived rate is more
-informative than either alone for spotting under-priced players.
+The open questions are kept with the endpoint, in
+[Competitions](../api/competitions.md#what-is-not-known). Resolving them is
+one live search away and should delete this section.

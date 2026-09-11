@@ -18,7 +18,7 @@ instance, the query hooks, the domain models — is
 | [Squad and lineup](squad-and-lineup.md) | 9 | Who you own, who you field, historical snapshots |
 | [Transfer market](market.md) | 6 | Listings, bids, selling — both sides of a deal |
 | [Players](players.md) | 4 | One player: detail, history, market value, owners |
-| [Competitions](competitions.md) | 5 | Bundesliga & co: table, fixtures, one club's whole squad |
+| [Competitions](competitions.md) | 6 | Bundesliga & co: table, fixtures, player search, one club's whole squad |
 | [Matches](matches.md) | 2 | One match live, and the scoring-event catalogue |
 | [Codes and enums](codes.md) | — | Every numeric code the payloads use, in one place |
 
@@ -68,6 +68,7 @@ the two marked *none*.
 | `GET` | `/v4/leagues/{leagueId}/players/{playerId}/transferHistory` | ✔ | [Players](players.md#get-v4leaguesleagueidplayersplayeridtransferhistory) |
 | `GET` | `/v4/competitions` | ✔ | [Competitions](competitions.md#get-v4competitions) |
 | `GET` | `/v4/competitions/{competitionId}/players` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidplayers) |
+| `GET` | `/v4/competitions/{competitionId}/players/search` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidplayerssearch) |
 | `GET` | `/v4/competitions/{competitionId}/table` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidtable) |
 | `GET` | `/v4/leagues/{leagueId}/teams/{teamId}/teamprofile` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidteamsteamidteamprofile) |
 | `GET` | `/v4/competitions/{competitionId}/matchdays` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidmatchdays) |
@@ -220,7 +221,6 @@ simply unbuilt:
 | Path | Why it is interesting |
 | ---- | --------------------- |
 | `GET /v4/base/predictions/teams/{competitionId}` | The lineup-probability posters keyed by team — the bulk source behind `plpim`. See [Codes](codes.md#lineup-probability-prob) |
-| `GET /v4/competitions/{id}/players/search` | Player search, which the [All players](../pages/players.md) stub would want |
 | `GET /v4/leagues/{id}/managers/{id}/performance` | **Used** since 2026-09-08 by `useManagerPerformance` for the [manager page](../pages/manager-detail.md#details)'s matchday list — the only per-manager source of **points per matchday** (`/ranking`'s `lp` is the lineup, not points). [Documented](leagues.md#get-v4leaguesleagueidmanagersmanageridperformance). Briefly the source of the title stars too, until `swc` on `/ranking` turned out to carry **how often a manager has won the league** directly |
 | `POST /v4/leagues/{id}/market/{playerId}/offers/{offerId}/accept` · `/decline` | Selling — accepting a bid on your own listing |
 | `POST /v4/leagues/{id}/market/{playerId}/sell` | Selling straight back to Kickbase |

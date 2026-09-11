@@ -47,7 +47,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/managers/:managerId/events` | [Manager — Verlauf](pages/manager-detail.md#verlauf) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/details` | [Manager — Details](pages/manager-detail.md#details) | Implemented |
 | `/leagues/:leagueId/preferences` | [Einstellungen](pages/preferences.md) | Implemented |
-| `/leagues/:leagueId/players` | [All players](pages/players.md) | Stub |
+| `/leagues/:leagueId/players` | [Spieler suchen](pages/players.md) | Implemented |
 | `/leagues/:leagueId/players/:playerId` | [Player detail](pages/player-detail.md) | Implemented |
 | `/leagues/:leagueId/teams` | [Saison — Tabelle](pages/season.md) | Implemented |
 | `/leagues/:leagueId/teams/ranking` | [Saison — Rangliste](pages/season.md#rangliste) | Implemented |
