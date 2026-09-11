@@ -1073,8 +1073,8 @@ would push every band on the pitch.
 
 | Where | Variant | Notes |
 | ----- | ------- | ----- |
-| Pitch plate | `metrics.badgeCrest`, `onPitch` tone | Second line under the name; the chip takes the black wash the pitch's other corner marks use |
-| Bench card | `md` | **Replaces** the average-points line — only one secondary fact fits, and the opponent is the one that decides whether to field a player |
+| Pitch plate | `metrics.badgeCrest`, `onPitch` tone | Second line under the name, beside the [expected figure](#erwartete-punkte); the chip takes the black wash the pitch's other corner marks use |
+| Bench card | `md` | **Replaced** the average-points line, and now shares its own with the [expected figure](#erwartete-punkte): the opponent is why that figure is what it is, and together they are the decision to bring him on |
 | Squad list, swap dialog | `lg` | Full-height panel on the right |
 | Duel rows | `sm` | Beside the scoreline |
 
