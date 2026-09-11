@@ -132,11 +132,11 @@ export const SIDE_LABEL_CLASS: Record<PitchOrientation, [string, string]> = {
 }
 
 /**
- * Bands in drawing order: attack first, keeper last.
+ * Bands top-to-bottom on a portrait pitch: attack first, keeper last.
  *
- * Top-to-bottom on a portrait pitch and, since a landscape one
- * ({@link PitchOrientation}) is that same picture turned a quarter turn
- * anticlockwise, left-to-right on a wide screen.
+ * On a landscape pitch this is the **away** half of a head-to-head — attack at
+ * the halfway line, keeper at the far right. A lone eleven is drawn
+ * keeper-first instead; see {@link singleTeamOrder}.
  */
 export const ROW_ORDER: PositionKey[] = ['fwd', 'mid', 'def', 'gk']
 
@@ -149,9 +149,35 @@ export const ROW_ORDER: PositionKey[] = ['fwd', 'mid', 'def', 'gk']
  * the two ends, strikers either side of the halfway line.
  *
  * Drawn first, so on a landscape pitch this is the **left-hand** half — the
- * home side, where a scoreline puts it.
+ * home side, where a scoreline puts it, keeper at the far left.
+ *
+ * It is also how a **lone eleven** is drawn in landscape — see
+ * {@link singleTeamOrder}.
  */
 export const ROW_ORDER_MIRRORED: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
+
+/**
+ * The band order for a pitch with **one eleven on it** — the squad's own
+ * pitches, a manager's, a club's team sheet.
+ *
+ * Portrait keeps {@link ROW_ORDER}: attacking up the screen, own goal at the
+ * bottom, which is how a lineup has always read on a phone.
+ *
+ * Landscape does **not** simply inherit that. Turning the phone's pitch a
+ * quarter turn would leave the keeper on the right and the attack on the left,
+ * which is backwards from how a team is written down and read — 4-4-2 runs
+ * from the back, and so does every formation graphic anyone has seen. So a
+ * lone eleven takes the *mirrored* order: **keeper at the far left, strikers
+ * at the right**, attacking rightwards.
+ *
+ * A head-to-head pitch has no such freedom and does not use this: the two
+ * elevens have to face each other, so home keeps the mirrored order and away
+ * the normal one — home's keeper at the far left, away's at the far right,
+ * the two attacks meeting in the middle.
+ */
+export function singleTeamOrder(orientation: PitchOrientation): PositionKey[] {
+  return orientation === 'landscape' ? ROW_ORDER_MIRRORED : ROW_ORDER
+}
 
 /**
  * Bounds for the on-pitch avatar, which scales with the pitch itself.

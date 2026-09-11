@@ -47,6 +47,7 @@ import {
   pitchGridClass,
   pitchSpanClass,
   ROW_ORDER,
+  singleTeamOrder,
   usePitchBox,
   usePitchOrientation,
   type PitchOrientation,
@@ -567,6 +568,8 @@ function LivePitch({
   /** Portrait on a phone, on its side from `lg` up — as the editor's pitch is,
       so the two views of the same eleven still agree about everything. */
   const orientation = usePitchOrientation()
+  /** Keeper-first when the pitch is on its side — see `singleTeamOrder`. */
+  const bands = singleTeamOrder(orientation)
 
   const metrics = useMemo(
     () =>
@@ -603,7 +606,7 @@ function LivePitch({
             Für diesen Spieltag ist kein Spieler aufgestellt.
           </p>
         ) : (
-          ROW_ORDER.map((position) => (
+          bands.map((position) => (
             <LivePitchRow
               key={position}
               players={lineup.filter((player) => player.position === position)}

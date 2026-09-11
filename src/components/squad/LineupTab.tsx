@@ -22,6 +22,7 @@ import {
   pitchGridClass,
   PLATE_BLEED,
   ROW_ORDER,
+  singleTeamOrder,
   usePitchBox,
   usePitchOrientation,
   type PitchOrientation,
@@ -129,12 +130,15 @@ export function LineupTab({
   // whatever height the flex chain actually hands it.
   const { ref: pitchRef, box: pitchBox } = usePitchBox()
   /**
-   * Portrait on a phone, on its side from `lg` up — attack at the left edge,
-   * keeper at the right. The bands become columns and every card turns with
-   * them; nothing about a drag changes, since a drop is decided by what is
-   * under the pointer rather than by which way the band runs.
+   * Portrait on a phone, on its side from `lg` up — keeper at the left edge,
+   * the attack at the right, the way a formation is written down. The bands
+   * become columns and every card turns with them; nothing about a drag
+   * changes, since a drop is decided by what is under the pointer rather than
+   * by which way the band runs.
    */
   const orientation = usePitchOrientation()
+  /** Keeper-first when the pitch is on its side — see `singleTeamOrder`. */
+  const bands = singleTeamOrder(orientation)
 
   /**
    * An incomplete lineup is legal and it saves — but every empty slot costs
@@ -296,7 +300,7 @@ export function LineupTab({
             pitchGridClass(ROW_ORDER.length, orientation),
           )}
         >
-          {ROW_ORDER.map((position) => (
+          {bands.map((position) => (
             <PitchRow
               key={position}
               position={position}

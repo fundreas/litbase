@@ -33,6 +33,7 @@ import {
   pitchGridClass,
   pitchSpanClass,
   ROW_ORDER,
+  singleTeamOrder,
   usePitchBox,
   usePitchOrientation,
   type PitchOrientation,
@@ -324,6 +325,8 @@ function SidePitch({
   const { ref, box } = usePitchBox()
   /** Portrait on a phone, on its side from `lg` up. */
   const orientation = usePitchOrientation()
+  /** Keeper-first when the pitch is on its side — see `singleTeamOrder`. */
+  const bands = singleTeamOrder(orientation)
 
   const metrics = useMemo(
     () =>
@@ -364,7 +367,7 @@ function SidePitch({
               Die Aufstellung ist noch nicht veröffentlicht.
             </p>
           ) : (
-            ROW_ORDER.map((position) => (
+            bands.map((position) => (
               <PitchBand
                 key={position}
                 players={lineup.starters.filter(

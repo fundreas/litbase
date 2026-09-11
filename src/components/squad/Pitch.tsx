@@ -107,7 +107,7 @@ export function Pitch({
               <line x1="75" y1="3" x2="75" y2="97" />
               <circle cx="75" cy="50" r="14" />
               <circle cx="75" cy="50" r="0.8" fill="oklch(1 0 0 / 0.28)" />
-              {/* Left penalty area — the home goal */}
+              {/* Left penalty area — the home keeper's, or a lone eleven's */}
               <rect x="3" y="22" width="27" height="56" />
               <rect x="3" y="38" width="8" height="24" />
               {/* Right penalty area */}

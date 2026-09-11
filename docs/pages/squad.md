@@ -1211,11 +1211,24 @@ including re-measuring after a delay to prove the layout settles.
 
 From **`lg` (64rem)** — the same breakpoint the sidebar appears at, see
 [routing and layout](../routing-and-layout.md#the-same-breakpoint-turns-the-pitches)
-— every pitch in the app is drawn **on its side**: the same picture turned a
-quarter turn anticlockwise. The first band moves to the left edge, so a squad
-attacks leftwards and the **home half of a head-to-head pitch lands on the
-left**, where the scoreline above it already puts that team. Each band becomes
-a column of players.
+— every pitch in the app is drawn **on its side**, each band a column of
+players instead of a row.
+
+**Which end the keeper goes depends on how many elevens are on the grass**, and
+the two answers are not the same rotation:
+
+- **One eleven** — the [lineup editor](#lineup-tab), the [live pitch](#live-tab),
+  a [manager's](manager-detail.md), a [club's team sheet](team.md) — is drawn
+  **keeper at the far left, strikers at the right**, attacking rightwards
+  (`singleTeamOrder()` hands back `ROW_ORDER_MIRRORED`). Turning the phone's
+  pitch literally would have put the keeper on the right, which is backwards
+  from how a team is written down and read: 4-4-2 runs from the back, and so
+  does every formation graphic anyone has seen.
+- **Two elevens** — [duel](duel-detail.md) and [match](match-detail.md) — have
+  no such freedom, because the halves must face each other. Home keeps the
+  mirrored order and away the normal one, so **home's keeper is at the far
+  left and away's at the far right**, the two attacks meeting in the middle —
+  which is also where the scoreline above already puts those two teams.
 
 **It is a rearrangement, not a CSS `rotate`.** A rotated pitch would take every
 name, number and badge with it and leave the reader tilting their head. So:

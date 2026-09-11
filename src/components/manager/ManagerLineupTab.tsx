@@ -11,6 +11,7 @@ import {
   fitPitchMetrics,
   pitchGridClass,
   ROW_ORDER,
+  singleTeamOrder,
   usePitchBox,
   usePitchOrientation,
 } from '@/components/squad/pitchMetrics'
@@ -69,6 +70,8 @@ export function ManagerLineupTab({
   /** Portrait on a phone, on its side from `lg` up — the pitch is one picture
       either way, and a wide screen has the width for the long side. */
   const orientation = usePitchOrientation()
+  /** Keeper-first when the pitch is on its side — see `singleTeamOrder`. */
+  const bands = singleTeamOrder(orientation)
 
   /**
    * **What each of these players is expected to score**, for the matches of
@@ -177,7 +180,7 @@ export function ManagerLineupTab({
           pitchGridClass(ROW_ORDER.length, orientation),
         )}
       >
-        {ROW_ORDER.map((position) => (
+        {bands.map((position) => (
           <RosterBand
             key={position}
             players={roster.lineup.filter(
