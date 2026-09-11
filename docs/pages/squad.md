@@ -513,6 +513,7 @@ afterwards moves it.
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
 | [Live view](#live-tab), [a rival's Aufstellung](manager-detail.md#aufstellung), the [duel pitch](duel-detail.md#layout) and its [ranking](duel-detail.md#the-ranking-tab) | For a player whose match **has not kicked off**: the figure takes the plate on grass — target glyph included, so it cannot be read as a score — and rides beside the kick-off time as a chip in a row. Gone the moment real points exist — see [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets) |
 | Lineup totals — [live header](#live-tab), [a rival's corner plate](manager-detail.md#aufstellung), both [duel corners](duel-detail.md#layout) | `⌖ 1.240`: `SUM(coalesce(real, own guess, prediction))` over the fielded eleven. Where an eleven is **heading**, next to what it has scored; absent once every match is settled |
+| [The lineup editor's pitch](#lineup-tab) | A third plate line under the fixture badge: glyph and figure, in the same two colours. The pitch budgets the line (`plate: 'fullFigure'`) only while there is a figure to show |
 | [The action breakdown](duel-detail.md#the-expected-points-in-the-header-of-the-breakdown) | **Both** figures in the header — the reader's guess *and* the model's prediction — beside the real total. The one screen where the two are worth separating rather than resolved |
 
 A player with **neither** figure shows no chip at all — a bye, a player the
@@ -1219,6 +1220,27 @@ would imply a shape the user has not chosen.
 Each fielded player shows their image with a white ring, a name label on a
 dark plate beneath (legible over grass), the status mark in the top-left corner
 when not match-fit, and their next fixture.
+
+**And what he is expected to score**, on a third plate line under the fixture
+badge: the target glyph and the figure, accent green for the reader's own guess
+and orange for the model's prediction — the same figure the
+[row one tab away](#erwartete-punkte) carries on its crest. An eleven is chosen
+against the alternatives and this is the pitch the choosing happens on, so the
+figure belongs here most of all. A line rather than a corner badge, because
+both corners of this portrait are taken (status mark, lineup probability) and
+the middle is the remove control on hover.
+
+The line **costs height**, so it is budgeted rather than squeezed in:
+`plate: 'fullFigure'` in
+[`pitchMetrics`](../../src/components/squad/pitchMetrics.ts) adds one text line
+and one gap to the card, and the pitch only asks for it when some player on it
+actually has a figure — a competition the model does not cover, and a reader
+who has entered nothing, keep the two-line plate and the larger portraits that
+come with it. One answer for the whole pitch, never per player: eleven cards at
+eleven heights is not a pitch. The three-line plate also gets a **lower avatar
+floor** (34px, between the other two), because on a short phone pitch holding
+the 40px floor would push the card past its band and clip the very line it was
+added for.
 
 ### Verified
 

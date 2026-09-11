@@ -10,6 +10,10 @@ import {
   type StartProbability,
   type TeamFixture,
 } from '@/api/models'
+import {
+  expectedTextClass,
+  ExpectedPointsFigure,
+} from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { FormationsDialog } from '@/components/squad/FormationsDialog'
 import { Pitch } from '@/components/squad/Pitch'
@@ -32,7 +36,11 @@ import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
-import { expectedPointsTotal } from '@/lib/expectedPoints'
+import {
+  expectedPointsTotal,
+  type ExpectedPointsEntry,
+  type ExpectedPointsView,
+} from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import {
   emptySlotPenalty,
@@ -147,6 +155,27 @@ export function LineupTab({
    * to fill takes exactly the room a player would, so leaving it out of the
    * count would oversize the cards on a half-built lineup.
    */
+  /**
+   * **What each fielded player is expected to score** — his own guess where
+   * the reader entered one, the [model's](../../api/hooks/usePointcast.ts)
+   * prediction everywhere else. The same view the
+   * [list](./PlayerListTab.tsx) reads, so the crest chip on a row and the
+   * plate on the grass are the same figure for the same man.
+   */
+  const expected = useExpectedPointsView(matchday)
+
+  /*
+   * Does anything on this pitch have a figure at all? It decides how tall a
+   * card is — the plate takes a third line for it — and so it has to be one
+   * answer for the whole pitch rather than per player, or eleven cards would
+   * be eleven heights. A competition the model does not cover, and a reader
+   * who has entered nothing, keep the two-line plate and the larger portraits
+   * that come with it.
+   */
+  const hasExpected = lineup.some(
+    (player) => expected.entry(player.id) !== undefined,
+  )
+
   const metrics = useMemo(
     () =>
       fitPitchMetrics(
@@ -158,8 +187,9 @@ export function LineupTab({
               missingAtPosition(counts, position),
           ),
         ),
+        { plate: hasExpected ? 'fullFigure' : 'full' },
       ),
-    [pitchBox, lineup, counts],
+    [pitchBox, lineup, counts, hasExpected],
   )
 
   return (
@@ -201,7 +231,7 @@ export function LineupTab({
           {/* What the eleven is expected to bring in, if anything has been
               guessed at — the point of entering the guesses one by one on the
               Kader is reading them added up here. */}
-          <ExpectedTotal lineup={lineup} matchday={matchday} />
+          <ExpectedTotal lineup={lineup} expected={expected} />
 
           {editor.isSaving && (
             <span className="flex items-center gap-1 text-xs text-faint">
@@ -279,6 +309,7 @@ export function LineupTab({
               fixtureByTeamId={fixtureByTeamId}
               startProbabilities={startProbabilities}
               statusReasons={statusReasons}
+              expected={expected}
               metrics={metrics}
               drag={drag}
               onRemove={editor.remove}
@@ -293,6 +324,7 @@ export function LineupTab({
           fixture={fixtureByTeamId?.get(drag.dragging.teamId)}
           startProbability={startProbabilities.get(drag.dragging.id)}
           statusReason={statusReasons.get(drag.dragging.id)}
+          expected={expected.entry(drag.dragging.id)}
           metrics={metrics}
           ghostRef={drag.ghostRef}
         />
@@ -347,12 +379,12 @@ export function LineupTab({
  */
 function ExpectedTotal({
   lineup,
-  matchday,
+  expected,
 }: {
   lineup: readonly SquadMember[]
-  matchday: number | undefined
+  /** This matchday's figures, resolved once for the whole tab. */
+  expected: ExpectedPointsView
 }) {
-  const expected = useExpectedPointsView(matchday)
   const { total, count, ownCount } = expectedPointsTotal(lineup, expected)
   if (count === 0) return null
 
@@ -394,6 +426,7 @@ function PitchRow({
   fixtureByTeamId,
   startProbabilities,
   statusReasons,
+  expected,
   metrics,
   drag,
   onRemove,
@@ -405,6 +438,8 @@ function PitchRow({
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   startProbabilities: Map<string, StartProbability>
   statusReasons: Map<string, string>
+  /** This matchday's figures, for the plate's third line. */
+  expected: ExpectedPointsView
   metrics: PlayerMetrics
   drag: LineupDrag<SquadMember>
   onRemove: (playerId: string) => void
@@ -430,6 +465,7 @@ function PitchRow({
           fixture={fixtureByTeamId?.get(player.teamId)}
           startProbability={startProbabilities.get(player.id)}
           statusReason={statusReasons.get(player.id)}
+          expected={expected.entry(player.id)}
           metrics={metrics}
           isDragging={drag.dragging?.id === player.id}
           dragProps={drag.dragProps(player)}
@@ -499,6 +535,7 @@ function PitchPlayer({
   fixture,
   startProbability,
   statusReason,
+  expected,
   metrics,
   isDragging,
   dragProps,
@@ -508,6 +545,8 @@ function PitchPlayer({
   fixture: TeamFixture | undefined
   startProbability: StartProbability | undefined
   statusReason: string | undefined
+  /** What he is expected to score, when anything expects anything. */
+  expected: ExpectedPointsEntry | undefined
   metrics: PlayerMetrics
   /** This portrait is the one being carried; the ghost shows it instead. */
   isDragging: boolean
@@ -542,6 +581,7 @@ function PitchPlayer({
         fixture={fixture}
         startProbability={startProbability}
         statusReason={statusReason}
+        expected={expected}
         metrics={metrics}
       />
     </button>
@@ -552,18 +592,32 @@ function PitchPlayer({
  * The portrait and its name plate — everything inside a pitch player except
  * the button. Shared with the drag ghost so the thing under the finger is
  * literally the thing that was picked up.
+ *
+ * **The plate takes a third line for the expected points** when there is a
+ * figure for the player: the target glyph and the number, accent green for the
+ * reader's own guess and orange for the model's, exactly as on the row the
+ * same player has in the [list](./PlayerListTab.tsx). An eleven is chosen
+ * against the alternatives, and this is the pitch the choosing happens on —
+ * the figure that lives one tab away on a row belongs here most of all.
+ *
+ * A line rather than a corner badge: both corners of this portrait are taken,
+ * by the status mark and the lineup probability, and the middle of it is the
+ * remove control on hover. The plate is where this card's figures live.
  */
 function PlayerFace({
   player,
   fixture,
   startProbability,
   statusReason,
+  expected,
   metrics,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
   startProbability: StartProbability | undefined
   statusReason: string | undefined
+  /** What he is expected to score, when anything expects anything. */
+  expected: ExpectedPointsEntry | undefined
   metrics: PlayerMetrics
 }) {
   return (
@@ -625,6 +679,20 @@ function PlayerFace({
           tone="onPitch"
           size={metrics.badgeCrest}
         />
+        {expected !== undefined && (
+          <span
+            style={{ fontSize: metrics.nameFontSize }}
+            className={cn(
+              'nums flex max-w-full items-center gap-0.5 leading-none font-bold',
+              expectedTextClass(expected),
+            )}
+          >
+            <ExpectedPointsFigure
+              value={expected.value}
+              fontSize={metrics.nameFontSize}
+            />
+          </span>
+        )}
       </span>
     </>
   )
@@ -643,6 +711,7 @@ function DragGhost({
   fixture,
   startProbability,
   statusReason,
+  expected,
   metrics,
   ghostRef,
 }: {
@@ -650,6 +719,8 @@ function DragGhost({
   fixture: TeamFixture | undefined
   startProbability: StartProbability | undefined
   statusReason: string | undefined
+  /** What he is expected to score — the ghost is the card, figure included. */
+  expected: ExpectedPointsEntry | undefined
   metrics: PlayerMetrics
   ghostRef: (node: HTMLElement | null) => void
 }) {
@@ -666,6 +737,7 @@ function DragGhost({
           fixture={fixture}
           startProbability={startProbability}
           statusReason={statusReason}
+          expected={expected}
           metrics={metrics}
         />
       </span>
