@@ -79,11 +79,18 @@ const RING: Record<Side, RosterRing> = { top: 'light', bottom: 'accent' }
  *
  * **And there is a way to make them bigger.** The corner opens the pitch
  * [full screen](../ui/FullscreenPane.tsx), which is the answer to the one
- * complaint 22 portraits on a phone will always have: the benches and the page
- * header step aside, the pitch measures the whole viewport, and the same
- * sizing search hands every card the extra room. The `summary` the page passes
- * becomes the bar at the top, so the two totals stay on screen — they are the
- * reason to be looking at all.
+ * complaint 22 portraits on a phone will always have: the page header steps
+ * aside, the pitch measures the whole viewport, and the same sizing search
+ * hands every card the extra room. The `summary` the page passes becomes the
+ * bar at the top, so the two totals stay on screen — they are the reason to be
+ * looking at all.
+ *
+ * **Full screen and on its side, the benches come with it** — manager one's
+ * column, the grass, manager two's, in the order the header pairs them. There
+ * is nothing underneath to scroll to on that screen, and a window with the
+ * whole pitch in it has width to lend, so the half of a duel that the grass
+ * cannot show comes along. Upright they stay behind: eight bands plus two
+ * columns in a portrait window is the page underneath again.
  */
 export function DuelLineupTab({
   rosters,
@@ -292,9 +299,6 @@ export function DuelLineupTab({
   )
 
   if (fullscreen.isOpen) {
-    /* The benches stay behind. They are rows of names, which is what the page
-       underneath is for; this screen exists to make the *grass* bigger, and
-       eight bands plus two columns would put us back where we started. */
     return (
       <FullscreenPane
         open
@@ -302,7 +306,36 @@ export function DuelLineupTab({
         title="Aufstellung im Vollbild"
         summary={summary}
       >
-        {pitch}
+        {orientation === 'landscape' ? (
+          /* **Three columns: one bench, the grass, the other** — the
+             arrangement the [match page](../matchday/MatchLineupTab.tsx) uses,
+             for the same reasons. The columns keep the header's own order,
+             manager one left and manager two right, which on a landscape pitch
+             is also which half of the grass is whose.
+
+             It is worth the width *here* and nowhere else: full screen the
+             pitch has the whole window, and it is the one view with nothing
+             underneath to scroll to — so the two benches, which are half of
+             what decides a duel, come along rather than being left behind. */
+          <div className="flex min-h-0 flex-1 items-stretch gap-2">
+            <BenchColumn roster={top} side="top" expected={expected} isBeside />
+            {/* The pitch's own `flex-1` grows it *down* the column, so it needs
+                a column of its own inside this row. `min-w-0` lets it give way
+                to the two fixed benches rather than overflowing the window. */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">{pitch}</div>
+            <BenchColumn
+              roster={bottom}
+              side="bottom"
+              expected={expected}
+              isBeside
+            />
+          </div>
+        ) : (
+          /* Upright, the benches stay behind: eight bands plus two columns in a
+             portrait window is the page underneath again, and this screen
+             exists to make the *grass* bigger. */
+          pitch
+        )}
         {breakdownDialog}
       </FullscreenPane>
     )
@@ -314,11 +347,11 @@ export function DuelLineupTab({
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       {pitch}
 
-      {/* Two columns, laid out the way the header is: manager one on the
-          left, manager two on the right. The pitch has to stack them top and
-          bottom to make them face each other, so the benches keep the
-          left/right arrangement the scoreline established and the corner
-          labels bridge the two. */}
+      {/* Two columns underneath, laid out the way the header is: manager one on
+          the left, manager two on the right. A portrait pitch has to stack them
+          top and bottom to make them face each other, so the benches keep the
+          left/right arrangement the scoreline established and the corner labels
+          bridge the two. Full screen they move beside the grass; see above. */}
       <div className="grid grid-cols-2 gap-2">
         <BenchColumn roster={top} side="top" expected={expected} />
         <BenchColumn roster={bottom} side="bottom" expected={expected} />
@@ -428,18 +461,35 @@ function BenchColumn({
   roster,
   side,
   expected,
+  isBeside = false,
 }: {
   roster: DuelRoster
   side: Side
   /** This matchday's expected points, for the matches still to come. */
   expected: ExpectedPointsView
+  /**
+   * Drawn as a touchline beside the [full-screen](../ui/FullscreenPane.tsx)
+   * landscape pitch rather than as a block under the page's own.
+   *
+   * Two things change and nothing else: the column takes a fixed width — wider
+   * where the window has room for it, since the grass should keep every pixel
+   * it can — and the rows scroll inside it. A bench is seven or more rows
+   * deep, and letting those set the height would squeeze the pitch, which is
+   * the opposite of what full screen is for.
+   */
+  isBeside?: boolean
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-1.5">
+    <section
+      className={cn(
+        'flex min-w-0 flex-col gap-1.5',
+        isBeside && 'min-h-0 w-36 shrink-0 lg:w-48',
+      )}
+    >
       {/* The armchair is what says "bench" here — the column is otherwise just
           a manager's name over some players, and the word would eat width a
           truncated name needs. */}
-      <h3 className="flex min-w-0 items-center gap-1.5 px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
+      <h3 className="flex min-w-0 shrink-0 items-center gap-1.5 px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
         <Avatar
           src={roster.manager.image}
           name={roster.manager.name}
@@ -458,7 +508,12 @@ function BenchColumn({
            what these are. The rows are the shared
            [bench row](../roster/RosterPitch.tsx), and inert here — a tap on
            this page belongs to the pitch. */
-        <ul className="flex flex-col gap-1 opacity-75">
+        <ul
+          className={cn(
+            'flex flex-col gap-1 opacity-75',
+            isBeside && 'min-h-0 flex-1 overflow-y-auto pr-0.5',
+          )}
+        >
           {roster.bench.map((player) => (
             <RosterBenchRow
               key={player.id}

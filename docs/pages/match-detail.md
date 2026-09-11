@@ -336,14 +336,8 @@ and the swap — which is the one place the width is free, and it is where
 
 The **bench** goes underneath as two columns, home left and away right, matching
 the header's arrangement (a portrait pitch has to stack the teams to make them
-face each other; the corner labels bridge the two). **On a landscape pitch the
-two columns move to the touchlines instead** — home's bench, the grass, away's
-bench — so the page reads home-left, away-right the whole way down. The grass
-pays for them in width (eight bands in ~460px rather than ~740px, so portraits
-are ~44px rather than ~67px) and what it buys is the eleven who are on and the
-ones who are not on one screen, rather than a scroll apart. A side bench takes
-a fixed 9rem and scrolls inside itself: a club may name twelve substitutes, and
-those must not set the height of the pitch. Rows rather than portraits, so
+face each other; the corner labels bridge the two). [Full
+screen](#full-screen) they move beside the grass instead. Rows rather than portraits, so
 each gets a name. What it holds follows from the two arrangements above: while
 the match runs, whoever is *not on the pitch right now* — the substitutes who
 never came on, and under them the ones taken off; otherwise the club's own bench
@@ -551,9 +545,19 @@ is a dialog rather than a route on purpose: full screen is a way of *looking* at
 what is already on the page, so closing it has to land you exactly where you
 were, mid-tab and mid-scroll, without spending an entry in the history stack.
 
-The benches stay behind. They are rows of names, which the page underneath
-already does well, and eight bands plus two columns would put us back where we
-started.
+**On its side, the benches come along** — home's column, the grass, away's
+column, left to right in the order the bar above names them, which is where a
+substitute stands anyway. It is worth the grass's width here and nowhere else:
+full screen the pitch has the whole window, so a column either side costs it
+little (on a desktop the portraits stay at their 96px ceiling), and this is the
+one view with nothing underneath to scroll to — who is on and who is not, on
+one screen. Each column takes a fixed 9rem, 12rem where the window is `lg` or
+wider, and scrolls inside itself: a club may name twelve substitutes, and those
+must not squeeze the pitch.
+
+**Upright they stay behind.** They are rows of names, which the page underneath
+already does well, and eight bands plus two columns in a portrait window is that
+page again.
 
 ## Ranking — who actually scored
 

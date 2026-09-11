@@ -161,19 +161,18 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  * no detail response yet — are counted under it rather than dropped silently or
  * defaulted into midfield.
  *
- * **On a landscape pitch the benches move to the touchlines** — home's column,
- * the grass, away's column, left to right in the order the scoreline names
- * them. A landscape pitch is wide and the page's well is not, so the grass
- * gives up width for them; what it buys is the whole match on one screen, the
- * eleven who are on and the ones who are not, instead of a scroll between the
- * two. Portrait keeps them underneath, where a phone has the width for two
- * columns of names and none to spare beside the pitch.
- *
  * **The corner opens the pitch [full screen](../ui/FullscreenPane.tsx)**, which
- * is what twenty-two portraits on a phone have always wanted: the benches, the
- * scoreline and the tab bar step aside, the pitch measures the whole viewport,
- * and the sizing search hands every card the room. The `summary` the page
- * passes becomes the bar, so the score and the minute stay on screen.
+ * is what twenty-two portraits on a phone have always wanted: the scoreline and
+ * the tab bar step aside, the pitch measures the whole viewport, and the sizing
+ * search hands every card the room. The `summary` the page passes becomes the
+ * bar, so the score and the minute stay on screen.
+ *
+ * **Full screen and on its side, the benches come with it** — home's column,
+ * the grass, away's column, in the order the scoreline names them. There is
+ * nothing underneath to scroll to on that screen, and a window with the whole
+ * pitch in it has width to lend: the eleven who are on and the ones who are
+ * not, at once. Upright they stay behind, because eight bands and two columns
+ * in a portrait window is the page underneath again.
  */
 export function MatchLineupTab({
   home,
@@ -355,9 +354,6 @@ export function MatchLineupTab({
     )
 
   if (fullscreen.isOpen) {
-    /* The benches stay behind, as on the duel pitch: they are rows of names,
-       which the page underneath already does well, and this screen exists to
-       make the grass bigger. */
     return (
       <FullscreenPane
         open
@@ -365,42 +361,53 @@ export function MatchLineupTab({
         title="Aufstellung im Vollbild"
         summary={summary}
       >
-        {pitch}
+        {orientation === 'landscape' ? (
+          /* **Three columns: home's bench, the grass, away's bench** — which
+             is where a substitute actually stands, and the order the scoreline
+             in the bar above names them.
+
+             It is worth the grass's width *here* and nowhere else. Full screen
+             the pitch has the whole window, so a column either side costs it
+             little; inline it would be taking width from a pitch that is
+             already sharing the page with everything else. And full screen is
+             the one view with nothing underneath to scroll to, which is what
+             makes the benches worth carrying along: who is on and who is not,
+             on one screen. */
+          <div className="flex min-h-0 flex-1 items-stretch gap-2">
+            <BenchColumn
+              lineup={home}
+              side="home"
+              leagueId={leagueId}
+              isBeside
+            />
+            {/* The pitch's own `flex-1` grows it *down* the column, so it needs
+                a column of its own inside this row. `min-w-0` lets it give way
+                to the two fixed benches rather than overflowing the window. */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">{pitch}</div>
+            <BenchColumn
+              lineup={away}
+              side="away"
+              leagueId={leagueId}
+              isBeside
+            />
+          </div>
+        ) : (
+          /* Upright, the benches stay behind: eight bands and two columns in a
+             portrait window is the page underneath again, and this screen
+             exists to make the grass bigger. */
+          pitch
+        )}
         {breakdownDialog}
       </FullscreenPane>
     )
   }
 
-  const isLandscape = orientation === 'landscape'
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {isLandscape ? (
-        /* **Three columns: home's bench, the grass, away's bench.** A
-           landscape pitch is wide and the page is not, so the benches stop
-           being a block underneath and become the two touchlines — which is
-           where a substitute stands, and which is the arrangement the
-           scoreline in the header and the pitch itself now both use: home
-           left, away right, all the way down the page.
-
-           They cost the grass width, and that is the trade: eight bands in
-           ~460px rather than ~740px. Worth it, because the two things a match
-           page is read for — who is on and who is not — are then on screen at
-           the same time rather than one scroll apart. */
-        <div className="flex min-h-0 flex-1 items-stretch gap-2">
-          <BenchColumn lineup={home} side="home" leagueId={leagueId} isBeside />
-          {/* The pitch's own `flex-1` grows it *down* the column, so it needs a
-              column of its own inside this row. `min-w-0` lets it give way to
-              the two fixed benches rather than overflowing the well. */}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">{pitch}</div>
-          <BenchColumn lineup={away} side="away" leagueId={leagueId} isBeside />
-        </div>
-      ) : (
-        /* `min-h-0 flex-1` so the pitch claims whatever height the page has
-           left after the benches rather than sitting at its floor on a
-           desktop. */
-        pitch
-      )}
+      {/* `min-h-0 flex-1` so the pitch claims whatever height the page has
+          left after the benches rather than sitting at its floor on a
+          desktop. */}
+      {pitch}
 
       {(isPointsPending || unplaced > 0) && (
         <p className="flex items-center gap-2 px-0.5 text-xs text-muted">
@@ -416,17 +423,14 @@ export function MatchLineupTab({
         </p>
       )}
 
-      {/* Underneath, on a portrait pitch: two columns, home left and away
-          right — the arrangement the header's scoreline establishes. The pitch
-          has to stack the teams to make them face each other, and the corner
-          labels bridge the two. Landscape draws them beside the grass instead,
-          above. */}
-      {!isLandscape && (
-        <div className="grid grid-cols-2 gap-2">
-          <BenchColumn lineup={home} side="home" leagueId={leagueId} />
-          <BenchColumn lineup={away} side="away" leagueId={leagueId} />
-        </div>
-      )}
+      {/* Two columns, home left and away right — the arrangement the header's
+          scoreline establishes. The pitch has to stack the teams to make them
+          face each other, and the corner labels bridge the two. Full screen
+          they move beside the grass instead; see below. */}
+      <div className="grid grid-cols-2 gap-2">
+        <BenchColumn lineup={home} side="home" leagueId={leagueId} />
+        <BenchColumn lineup={away} side="away" leagueId={leagueId} />
+      </div>
 
       {breakdownDialog}
     </div>
@@ -673,14 +677,14 @@ function BenchColumn({
   side: Side
   leagueId: string
   /**
-   * Drawn as a touchline beside a landscape pitch rather than as a block
-   * under a portrait one.
+   * Drawn as a touchline beside the [full-screen](../ui/FullscreenPane.tsx)
+   * landscape pitch rather than as a block under the page's own.
    *
-   * Two things change and nothing else: the column takes a fixed width, since
-   * the grass should have every pixel it does not need, and the rows scroll
-   * inside it — a club may name twelve substitutes, and letting those set the
-   * height would push the pitch down the page, which is the opposite of what
-   * putting them here is for.
+   * Two things change and nothing else: the column takes a fixed width — wider
+   * where the window has room for it, since the grass should keep every pixel
+   * it can — and the rows scroll inside it. A club may name twelve
+   * substitutes, and letting those set the height would squeeze the pitch,
+   * which is the opposite of what full screen is for.
    */
   isBeside?: boolean
 }) {
@@ -688,7 +692,7 @@ function BenchColumn({
     <section
       className={cn(
         'flex min-w-0 flex-col gap-1.5',
-        isBeside && 'min-h-0 w-36 shrink-0',
+        isBeside && 'min-h-0 w-36 shrink-0 lg:w-48',
       )}
     >
       <h3 className="flex min-w-0 shrink-0 items-center gap-1.5 px-0.5 text-[0.625rem] font-semibold tracking-wider text-faint uppercase">

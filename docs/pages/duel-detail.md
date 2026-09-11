@@ -185,9 +185,18 @@ is a dialog rather than a route on purpose: full screen is a way of *looking* at
 what is already on the page, so closing it lands you exactly where you were,
 mid-tab and mid-scroll, without spending an entry in the history stack.
 
-The benches stay behind: they are rows of names, which the page underneath
-already does well, and eight bands plus two columns would put us back where we
-started.
+**On its side, the benches come along** — manager one's column, the grass,
+manager two's, in the order the header pairs them, which on a landscape pitch is
+also which half of the grass is whose. Full screen the pitch has the whole
+window, so a column either side costs it little (on a desktop the portraits stay
+at their 96px ceiling), and this is the one view with nothing underneath to
+scroll to — so the half of a duel the grass cannot show comes with it. Each
+column takes a fixed 9rem, 12rem where the window is `lg` or wider, and scrolls
+inside itself rather than squeezing the pitch.
+
+**Upright they stay behind:** they are rows of names, which the page underneath
+already does well, and eight bands plus two columns in a portrait window is that
+page again.
 
 ## The routes are the views
 
