@@ -511,7 +511,7 @@ afterwards moves it.
 | [Rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The badge inside the row's target, and a fourth tile totalling **his** fielded eleven |
 | [Club's roster](team.md#expected-points-a-club-at-a-time) | The badge inside the row's target. No total — a roster is not an eleven |
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
-| [Live view](#live-tab), [a rival's Aufstellung](manager-detail.md#aufstellung), the [duel pitch](duel-detail.md#layout) and its [ranking](duel-detail.md#the-ranking-tab) | For a player whose match **has not kicked off**: the figure takes the plate on grass, and rides beside the kick-off time as a chip in a row. Gone the moment real points exist — see [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets) |
+| [Live view](#live-tab), [a rival's Aufstellung](manager-detail.md#aufstellung), the [duel pitch](duel-detail.md#layout) and its [ranking](duel-detail.md#the-ranking-tab) | For a player whose match **has not kicked off**: the figure takes the plate on grass — target glyph included, so it cannot be read as a score — and rides beside the kick-off time as a chip in a row. Gone the moment real points exist — see [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets) |
 
 A player with **neither** figure shows no chip at all — a bye, a player the
 model has no file for, a league outside the Bundesliga. In a Bundesliga league
@@ -1300,7 +1300,8 @@ The fielded eleven, each portrait carrying the points it has scored so far:
 The points replace the fixture badge that the editor's plate carries, and the
 plate follows the same rule as the duel pitch: the points when they are known,
 the **[expected points](#erwartete-punkte)** while the match is still to come —
-orange for the model's prediction, accent green for the reader's own guess —
+the target glyph and the figure, orange for the model's prediction and accent
+green for the reader's own guess —
 the **kick-off** where no figure expects anything of him, and `–` only when
 there is nothing to say, never `0` for a player who has not scored. See
 [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets); on

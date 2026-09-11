@@ -18,6 +18,7 @@ import {
   expectedDescription,
   expectedTextClass,
   ExpectedPointsBadge,
+  ExpectedPointsFigure,
 } from '@/components/squad/ExpectedPointsBadge'
 import {
   cornerBadgeSize,
@@ -29,7 +30,6 @@ import type {
   ExpectedPointsEntry,
   ExpectedPointsView,
 } from '@/lib/expectedPoints'
-import { points } from '@/lib/format'
 
 /**
  * **What he is expected to score, where his match has not started.**
@@ -133,10 +133,18 @@ export function RosterBand({
  * not lost: it stays in the card's tooltip, spelled out in full beside the
  * figure it gave its place to.
  *
- * It is drawn in the two colours the chips use — accent green for the reader's
- * own guess, orange for the model's prediction — via
- * [`expectedTextClass`](../squad/ExpectedPointsBadge.tsx), so one distinction
- * has one vocabulary across the app.
+ * It wears the **target glyph** and the two colours the chips use — accent
+ * green for the reader's own guess, orange for the model's prediction — via
+ * [`ExpectedPointsFigure`](../squad/ExpectedPointsBadge.tsx), so one
+ * distinction has one vocabulary across the app. The glyph is what keeps the
+ * plate from reading as points already scored, which is the one thing a number
+ * over a portrait on a pitch is otherwise taken for.
+ *
+ * It is **in the plate rather than on the portrait**: the corner is the
+ * [team sheet's](../player/TeamSheetMark.tsx), and that mark appears in
+ * exactly this window — the hour before a kick-off — so a second corner badge
+ * would have to displace the one thing that can say the striker is not in the
+ * eighteen. The glyph belongs next to the figure it qualifies anyway.
  *
  * The figure is tinted **only while the player's match is running**, otherwise
  * — the one state that is going to change, and so the only one worth spotting
@@ -228,7 +236,10 @@ export function RosterPortrait({
           fontSize: metrics.nameFontSize,
         }}
         className={cn(
-          'nums relative truncate rounded bg-black/70 px-1 text-center font-bold',
+          /* A flex row rather than one truncating line, because the expected
+             figure is two things — the target and the number — and the number
+             is the half that may be clipped. */
+          'nums relative flex items-center justify-center gap-0.5 rounded bg-black/70 px-1 font-bold',
           isRunning
             ? 'text-accent'
             : entry !== undefined
@@ -238,7 +249,14 @@ export function RosterPortrait({
                 : 'text-white/55',
         )}
       >
-        {entry === undefined ? figureLabel(figure) : points(entry.value)}
+        {entry === undefined ? (
+          <span className="min-w-0 truncate">{figureLabel(figure)}</span>
+        ) : (
+          <ExpectedPointsFigure
+            value={entry.value}
+            fontSize={metrics.nameFontSize}
+          />
+        )}
       </span>
     </Shell>
   )

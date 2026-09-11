@@ -34,6 +34,7 @@ import { TeamSheetCorner } from '@/components/player/TeamSheetMark'
 import {
   expectedDescription,
   expectedTextClass,
+  ExpectedPointsFigure,
 } from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
@@ -634,7 +635,9 @@ function LivePitchPlayer({
   /* The expected figure takes the plate's second line while his match is
      still to come, exactly as on the [duel pitch](../roster/RosterPitch.tsx):
      the plate holds one number, and before a kick-off "was he worth picking"
-     is a better use of it than the time. The kick-off stays in the label. */
+     is a better use of it than the time. It carries the target glyph, so a
+     coloured number under a portrait cannot be read as points already scored.
+     The kick-off stays in the label. */
   const entry: ExpectedPointsEntry | undefined = isBeforeKickoff(player)
     ? expected.entry(player.id)
     : undefined
@@ -698,7 +701,10 @@ function LivePitchPlayer({
         <span
           style={{ fontSize: metrics.nameFontSize }}
           className={cn(
-            'nums max-w-full truncate font-bold',
+            // A flex row for the same reason the duel plate is one: the
+            // expected figure is a glyph and a number, and the number is the
+            // half that may be clipped.
+            'nums flex max-w-full items-center justify-center gap-0.5 font-bold',
             isRunning
               ? 'text-accent'
               : entry !== undefined
@@ -708,7 +714,14 @@ function LivePitchPlayer({
                   : 'text-white/55',
           )}
         >
-          {entry === undefined ? figureLabel(figure) : points(entry.value)}
+          {entry === undefined ? (
+            <span className="min-w-0 truncate">{figureLabel(figure)}</span>
+          ) : (
+            <ExpectedPointsFigure
+              value={entry.value}
+              fontSize={metrics.nameFontSize}
+            />
+          )}
         </span>
       </span>
     </Shell>

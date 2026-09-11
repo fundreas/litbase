@@ -275,9 +275,18 @@ this order:
 | ----- | ---- | -------------- |
 | **Points** | they are known | The most informative thing available, benched players included — a bench that outscored the eleven is why benches are on screen at all |
 | **The armchair** ([`BenchMark`](../../src/components/player/BenchMark.tsx)) | benched, no points | A kick-off time would mislead: his match starting changes nothing, because his points will never count |
-| **[Expected points](squad.md#erwartete-punkte)** | fielded, match still to come, and a figure exists for him | *What for* beats *when*: 22 identical `Sa` plates say almost nothing, and 22 expected figures say what the two elevens are worth. Orange for the model's prediction, accent green for the reader's own guess |
+| **[Expected points](squad.md#erwartete-punkte)** | fielded, match still to come, and a figure exists for him | *What for* beats *when*: 22 identical `Sa` plates say almost nothing, and 22 expected figures say what the two elevens are worth. The **target glyph** rides in front of the number, orange for the model's prediction and accent green for the reader's own guess — without it a coloured number on a pitch is what points already scored look like |
 | **Kick-off** (`20:30` today, `So` before that) | fielded, match still to come, no expected figure | Answers the question the dash left hanging. On a Friday evening most of a lineup has not kicked off |
 | **`–`** | nothing to say | No fixture that matchday, or a match under way whose points have not arrived |
+
+The glyph sits **in the plate, not in the portrait's corner**: that corner
+belongs to [the club's team sheet](#the-clubs-team-sheet), which appears in
+exactly this window — the hour before a kick-off — and a second badge there
+would have to displace the one mark that can say a fielded striker is not in
+the eighteen. It is sized from the plate's own font
+([`pitchMetrics`](../../src/components/squad/pitchMetrics.ts)), so it tracks a
+10px phone plate and a 16px desktop one instead of being a speck at one end and
+a dinner plate at the other.
 
 The expected figure is the one entry in the table that is **not** about this
 matchday's events, so it is the one with a second condition on it:

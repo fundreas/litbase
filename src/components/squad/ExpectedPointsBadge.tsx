@@ -32,6 +32,45 @@ export function expectedDescription(entry: ExpectedPointsEntry): string {
 }
 
 /**
+ * **The expected figure as a pitch plate reads it** — the target glyph, then
+ * the number.
+ *
+ * The chip below is a row's shape: a border, a fill, a pill. None of that
+ * survives at plate size, where the whole figure gets about five characters
+ * over a portrait — so what carries across from the row is the glyph and the
+ * colour, which are the two things that say *this is a prediction, and whose*.
+ * Without the target the plate is a bare number in a colour, and a bare number
+ * on a pitch is what points already scored look like.
+ *
+ * `fontSize` is the plate's own, from
+ * [`pitchMetrics`](./pitchMetrics.ts): the glyph is sized from the text rather
+ * than fixed, because the same plate is 10px on a phone's head-to-head pitch
+ * and 16px on a desktop's single eleven, and a fixed glyph would be a speck at
+ * one end and a dinner plate at the other.
+ *
+ * The colour is the caller's — it is set on the plate, which also colours a
+ * real score and a kick-off time, so this inherits rather than fighting it.
+ */
+export function ExpectedPointsFigure({
+  value,
+  fontSize,
+}: {
+  value: number
+  fontSize: number
+}) {
+  return (
+    <>
+      <Target
+        size={Math.max(7, Math.round(fontSize * 0.8))}
+        aria-hidden="true"
+        className="shrink-0"
+      />
+      <span className="min-w-0 truncate">{points(value)}</span>
+    </>
+  )
+}
+
+/**
  * **What he is expected to score**, as a chip on a squad row.
  *
  * Two figures live in this one chip, and the difference between them is the
