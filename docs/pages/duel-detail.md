@@ -84,9 +84,8 @@ The chips exist because the header pairs the managers *left and right* while a
 portrait pitch has to stack them *top and bottom* — something has to bridge
 those two arrangements, and a legend would cost a row of height the pitch
 cannot spare. (On a landscape pitch the two arrangements finally agree, and the
-chips sit **side by side along the top**, left and right, reading as one line in
-the order the header names them. The full-screen button drops to the bottom
-right to make room.)
+chips sit **side by side along the bottom**, left and right, reading as one line
+in the order the header names them.)
 
 Each chip is also **a link to that manager**, matchday and all — see
 [Manager](manager-detail.md). It is the only thing on this pitch that names a

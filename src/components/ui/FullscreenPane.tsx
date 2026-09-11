@@ -109,23 +109,13 @@ export function FullscreenPane({
   )
 }
 
-/** Which corner of the pitch the button sits in. */
-export type FullscreenCorner = 'top-right' | 'bottom-right'
-
-const CORNER_CLASS: Record<FullscreenCorner, string> = {
-  'top-right': 'top-1 right-1',
-  'bottom-right': 'bottom-1 right-1',
-}
-
 /**
- * The way in: a small control in a **corner of the pitch itself**.
+ * The way in: a small control in the **top-right corner of the pitch itself**.
  *
  * On the pitch rather than beside it, because that is what it acts on, and in
- * whichever corner the [side labels](../duels/DuelLineupTab.tsx) leave free.
- * Which that is follows the pitch's orientation: a portrait pitch stacks its
- * halves and keeps both labels on the left, so the button takes the top right;
- * a landscape one puts them side by side with **both labels along the top**, so
- * the button drops to the bottom right. Drawn as the same smoked disc those
+ * the one corner the [side labels](../duels/DuelLineupTab.tsx) never take —
+ * they keep to the left on a portrait pitch and to the bottom on a landscape
+ * one, so this corner is free in both. Drawn as the same smoked disc those
  * labels use, so it reads as furniture belonging to the pitch rather than a
  * button floating over the grass.
  *
@@ -135,12 +125,9 @@ const CORNER_CLASS: Record<FullscreenCorner, string> = {
 export function FullscreenButton({
   onClick,
   label = 'Vollbild',
-  corner = 'top-right',
 }: {
   onClick: () => void
   label?: string
-  /** Defaults to the top right, which is where a portrait pitch has room. */
-  corner?: FullscreenCorner
 }) {
   return (
     <button
@@ -149,8 +136,7 @@ export function FullscreenButton({
       title={label}
       aria-label={label}
       className={cn(
-        'absolute z-10 flex h-8 w-8 items-center justify-center rounded-full',
-        CORNER_CLASS[corner],
+        'absolute top-1 right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full',
         'bg-black/45 text-white/85 backdrop-blur-sm transition-colors',
         'hover:bg-black/65 hover:text-white',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',

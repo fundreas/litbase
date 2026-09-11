@@ -143,25 +143,15 @@ export function pitchSpanClass(
  * Portrait stacks the halves, so both plates keep to the left edge — one at
  * the top of the pitch, one at the bottom, each against the half it names.
  *
- * Landscape puts the halves side by side, and both plates go **along the top**:
- * home at the left corner, away at the right. That reads as one line — two
- * badges at the same height, in the order the scoreline names them — where a
- * plate dropped into the bottom corner read as a footnote to the wrong half.
- * The [full-screen button](../ui/FullscreenPane.tsx) moves to the bottom right
- * to make room, which is the one corner nothing else wants.
+ * Landscape puts the halves side by side, and both plates go **along the
+ * bottom**: home at the left corner, away at the right. One line, at the same
+ * height, in the order the scoreline names them — and out of the way of the
+ * [full-screen button](../ui/FullscreenPane.tsx), which keeps the top-right
+ * corner it has in every orientation.
  */
 export const SIDE_LABEL_CLASS: Record<PitchOrientation, [string, string]> = {
   portrait: ['top-1 left-1', 'bottom-1 left-1'],
-  landscape: ['top-1 left-1', 'top-1 right-1'],
-}
-
-/** The corner the [full-screen button](../ui/FullscreenPane.tsx) keeps out of. */
-export const FULLSCREEN_CORNER: Record<
-  PitchOrientation,
-  'top-right' | 'bottom-right'
-> = {
-  portrait: 'top-right',
-  landscape: 'bottom-right',
+  landscape: ['bottom-1 left-1', 'bottom-1 right-1'],
 }
 
 /**
