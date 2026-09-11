@@ -1179,9 +1179,24 @@ are all derived from one number by `playerMetrics()`, so nothing is left
 half-sized. Measured: 54px avatars with 10px names at 390px wide, 71px with
 14px names at 1280px.
 
-The name plate spans the portrait exactly and rides up over its lower edge by
-15%, so the two read as one object rather than a caption floating under a
-circle.
+The name plate rides up over the portrait's lower edge by 15%, so the two read
+as one object rather than a caption floating under a circle.
+
+##### Plates span the card
+
+The plate is **12px wider than the portrait** — it runs the full width of the
+button, not the width of the face. It used to span the face exactly, which
+looked tidy and left every plate too narrow for what it carries: a kick-off
+`Sa 15:30`, a crest beside an expected figure, a name. Those clipped or
+squeezed at the sizes where they matter most — a phone's duel pitch draws 39px
+portraits, whose plates went from 39px to 51px.
+
+**It costs nothing.** Those 12px were the button's own padding, already inside
+the footprint the band's fit budgets per card, so no portrait shrank and no
+font dropped — the only change is which part of the card the padding belongs
+to. Two neighbouring plates keep the band's `gap-1` between them, the same 4px
+that has always separated the cards. It also retired `PLATE_BLEED`, the 4px the
+editor's plate used to borrow for its fixture-and-figure line.
 
 The size comes from a `ResizeObserver` on the grid, then `fitAvatar()` takes
 the largest size that satisfies **both** limits: the width the busiest band can
@@ -1213,6 +1228,15 @@ From **`lg` (64rem)** — the same breakpoint the sidebar appears at, see
 [routing and layout](../routing-and-layout.md#the-same-breakpoint-turns-the-pitches)
 — every pitch in the app is drawn **on its side**, each band a column of
 players instead of a row.
+
+**And on a phone held sideways, full screen.** `usePitchOrientation()` takes an
+`isFullscreen` flag and adds `(orientation: landscape)` to the test when it is
+set, so turning the phone inside the
+[full-screen pane](../../src/components/ui/FullscreenPane.tsx) turns the pitch
+with it — which is the reason anybody turns a phone sideways looking at a
+lineup. **Only full screen**: inline, a sideways phone still has a header, a
+tab bar and a bench under the grass, so the pitch's own share of that window is
+a short wide strip, and four columns in it read worse than four rows.
 
 **Which end the keeper goes depends on how many elevens are on the grass**, and
 the two answers are not the same rotation:
@@ -1303,13 +1327,11 @@ a search that fits the busiest band, so every pitch on a phone would have shrunk
 to carry it. On one line the crest is still the tallest thing there, so the
 figure rides inside a height budget that was already solved.
 
-Width is what it costs instead, and two small allowances pay for it: the plate
-drops to `px-0.5`, and it may **bleed 4px past the portrait** into the button's
-own padding (`PLATE_BLEED` in
-[`pitchMetrics`](../../src/components/squad/pitchMetrics.ts)) — the band's fit
-budgets that padding per card already, so nothing about the sizing changes.
-Measured: a 50px portrait on a 360px phone has 4px to spare with a three-digit
-figure; only a pitch small enough to force the 40px floor clips one.
+Width is what it costs instead, and the plate pays for it twice over: it drops
+to `px-0.5`, and it **spans the whole card rather than the portrait** — 12px
+wider than the face, per [Plates span the card](#plates-span-the-card). This
+line is what that allowance was invented for, back when it was a 4px bleed for
+the editor alone.
 
 **The bench cards carry the pair too.** They used to show the fixture alone,
 on the argument that a card that size fits one secondary fact and the opponent

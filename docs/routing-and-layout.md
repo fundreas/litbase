@@ -284,9 +284,14 @@ those `lg:` classes.
 a class but a different arrangement of components and a different sizing
 budget, so it does go through `matchMedia`, in
 [`usePitchOrientation()`](../src/components/squad/pitchMetrics.ts) on top of
-the general [`useMediaQuery()`](../src/lib/useMediaQuery.ts). One query for all
+the general [`useMediaQuery()`](../src/lib/useMediaQuery.ts). One rule for all
 six pitches, so a reader never meets one of each; and the same 64rem as the
 sidebar, because "wide screen" should mean one thing in this app.
+
+A **full-screen** pitch adds `(orientation: landscape)` to that test, so a
+phone turned sideways with nothing else on the glass gets the sideways pitch
+too. Inline it does not: a sideways phone still spends its height on the
+header, the tab bar and whatever sits under the grass.
 
 Three behaviours:
 

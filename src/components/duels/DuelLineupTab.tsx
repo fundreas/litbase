@@ -127,13 +127,6 @@ export function DuelLineupTab({
   ]
   const { ref, box } = usePitchBox()
   /**
-   * Portrait on a phone, on its side from `lg` up. The two halves then sit
-   * **left and right** rather than top and bottom — the arrangement the
-   * scoreline in the header already uses, and the one a wide screen has the
-   * room for.
-   */
-  const orientation = usePitchOrientation()
-  /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
    * `#player:<id>` for a portrait's breakdown, stacking as
    * `#fullscreen/player:4711` when the sheet is opened from the big pitch. So
@@ -143,6 +136,15 @@ export function DuelLineupTab({
    */
   const fullscreen = useHashModal('fullscreen')
   const breakdown = useHashModal('player')
+
+  /**
+   * Portrait on a phone, on its side from `lg` up — and full screen on a phone
+   * held sideways, where the pitch is the whole glass. The two halves then sit
+   * **left and right** rather than top and bottom: the arrangement the
+   * scoreline in the header already uses, and the one a landscape viewport has
+   * the room for.
+   */
+  const orientation = usePitchOrientation({ isFullscreen: fullscreen.isOpen })
 
   /*
    * The tapped portrait, found back among the 22 on the pitch. The benches

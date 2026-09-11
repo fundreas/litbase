@@ -197,12 +197,6 @@ export function MatchLineupTab({
 }) {
   const { ref, box } = usePitchBox()
   /**
-   * Portrait on a phone, on its side from `lg` up — where the two halves sit
-   * **home left, away right**, which is how the scoreline above already reads
-   * and how the benches under the pitch are already arranged.
-   */
-  const orientation = usePitchOrientation()
-  /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
    * `#player:<id>` for a portrait's breakdown, stacking as
    * `#fullscreen/player:4711` when the sheet is opened from the big pitch, as
@@ -212,6 +206,14 @@ export function MatchLineupTab({
    */
   const fullscreen = useHashModal('fullscreen')
   const breakdown = useHashModal('player')
+
+  /**
+   * Portrait on a phone, on its side from `lg` up — and full screen on a phone
+   * held sideways, where the pitch is the whole glass. The two halves then sit
+   * **home left, away right**, which is how the scoreline above already reads
+   * and how the benches under the pitch are already arranged.
+   */
+  const orientation = usePitchOrientation({ isFullscreen: fullscreen.isOpen })
 
   /*
    * The tapped portrait, found back among the 22 on the pitch. The benches

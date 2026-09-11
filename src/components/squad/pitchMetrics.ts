@@ -47,11 +47,31 @@ export type PitchOrientation = 'portrait' | 'landscape'
 const LANDSCAPE_QUERY = '(min-width: 64rem)'
 
 /**
- * How this screen draws its pitches — one query, so every pitch in the app
+ * A viewport wider than it is tall — a phone turned on its side.
+ *
+ * Only consulted [full screen](../ui/FullscreenPane.tsx), where the pitch *is*
+ * the viewport. Inline it would be wrong: a sideways phone still has a header,
+ * a tab bar and a bench under the grass, so the pitch's own share of that
+ * window is a short wide strip, and four columns in it are worse than four
+ * rows. Full screen there is nothing else on the glass, so the pitch takes the
+ * shape the phone is being held in — which is the reason somebody turns a
+ * phone sideways in the first place.
+ */
+const SIDEWAYS_QUERY = '(orientation: landscape)'
+
+/**
+ * How this screen draws its pitches — one rule, so every pitch in the app
  * turns at the same moment and a reader never meets one of each.
  */
-export function usePitchOrientation(): PitchOrientation {
-  return useMediaQuery(LANDSCAPE_QUERY) ? 'landscape' : 'portrait'
+export function usePitchOrientation({
+  isFullscreen = false,
+}: {
+  /** True while this pitch has the whole viewport to itself. */
+  isFullscreen?: boolean
+} = {}): PitchOrientation {
+  const isWide = useMediaQuery(LANDSCAPE_QUERY)
+  const isSideways = useMediaQuery(SIDEWAYS_QUERY)
+  return isWide || (isFullscreen && isSideways) ? 'landscape' : 'portrait'
 }
 
 /**
@@ -199,19 +219,15 @@ const AVATAR_MAX = 96
  * clipped one.
  */
 const AVATAR_MIN_COMPACT = 26
-/** How much wider than its avatar a player button is (its own padding). */
-const PLAYER_PADDING = 12
 /**
- * How far a plate may spill past the portrait it belongs to — the button's own
- * `p-1`, and not a pixel more, so nothing about the band's fit changes.
+ * How much wider than its avatar a player button is.
  *
- * The [editor's](./LineupTab.tsx) plate needs it: its second line carries the
- * fixture crest *and* the expected figure, and on a phone's 50px portrait
- * those two are a few pixels wider than the face above them. Every other plate
- * spans its portrait exactly, which is the default {@link PlayerMetrics}
- * describes.
+ * It is also **exactly how much wider than the portrait the plate is** — see
+ * {@link playerMetrics}. This used to be padding and nothing else: 12px of
+ * empty grass around every face, while the plate underneath clipped its own
+ * contents.
  */
-export const PLATE_BLEED = 4
+const PLAYER_PADDING = 12
 /** The `gap-1` between two players in the same band. */
 const PLAYER_GAP = 4
 /** Button `p-1`, top and bottom. */
@@ -237,13 +253,29 @@ function avatarFloor(plate: PlateContent): number {
   return plate === 'points' ? AVATAR_MIN_COMPACT : AVATAR_MIN
 }
 
-/** Everything in a player card is derived from one number. */
+/**
+ * Everything in a player card is derived from one number.
+ *
+ * **The plate is wider than the portrait**, by the card's whole padding — it
+ * spans the button edge to edge. It used to span the face exactly, which read
+ * as one tidy object and left every plate too narrow for what it carries: a
+ * kick-off `Sa 15:30`, a crest beside an expected figure, a name. Those were
+ * clipped or squeezed at the very sizes where they matter most — a 39px
+ * portrait on a phone's duel pitch, whose plate is now 51px.
+ *
+ * **It costs nothing.** The padding was already inside the card's footprint,
+ * so the busiest band fits exactly as it did, no portrait shrank, and the only
+ * thing that changed is which part of the card the 12px belongs to. Two
+ * neighbouring plates keep the band's `gap-1` between them — the same 4px that
+ * has always separated the cards themselves.
+ */
 function playerMetrics(avatar: number) {
+  const width = avatar + PLAYER_PADDING
   return {
     avatar,
-    width: avatar + PLAYER_PADDING,
-    /** The plate spans the portrait exactly, so the card reads as one object. */
-    plateWidth: avatar,
+    width,
+    /** The plate spans the card, not the face — see above. */
+    plateWidth: width,
     plateOverlap: Math.round(avatar * PLATE_OVERLAP_RATIO),
     nameFontSize: Math.min(16, Math.max(10, Math.round(avatar * 0.2))),
     badgeCrest: Math.min(26, Math.max(14, Math.round(avatar * 0.3))),
@@ -306,14 +338,21 @@ function playerHeight(metrics: PlayerMetrics, plate: PlateContent): number {
  */
 function fitAvatar(
   maxHeight: number,
-  maxWidth: number,
+  maxCardWidth: number,
   plate: PlateContent,
 ): PlayerMetrics {
   const floor = avatarFloor(plate)
-  const ceiling = Math.min(AVATAR_MAX, Math.floor(maxWidth))
+  // A card is always wider than the face in it, so the width limit is a safe
+  // place to start looking from — never lower than the answer.
+  const ceiling = Math.min(AVATAR_MAX, Math.floor(maxCardWidth))
   for (let avatar = ceiling; avatar > floor; avatar -= 1) {
     const metrics = playerMetrics(avatar)
-    if (playerHeight(metrics, plate) <= maxHeight) return metrics
+    if (
+      metrics.width <= maxCardWidth &&
+      playerHeight(metrics, plate) <= maxHeight
+    ) {
+      return metrics
+    }
   }
   return playerMetrics(floor)
 }
@@ -364,18 +403,20 @@ export function fitPitchMetrics(
   const bands = Math.max(1, busiestBand)
   const lanes = Math.max(1, rows)
 
-  // Solve for the avatar that makes the busiest band exactly fit:
-  //   n * (size + PLAYER_PADDING) + (n - 1) * PLAYER_GAP <= along
-  // Dividing the length by the count alone overshoots, because each button is
-  // wider than its avatar and the gaps still have to go somewhere — which is
-  // what made a row of five defenders wrap on a phone.
+  // What one card in the busiest band may occupy, gaps taken out first:
+  //   n * cardWidth + (n - 1) * PLAYER_GAP <= along
+  // Dividing the length by the count alone overshoots, because the gaps still
+  // have to go somewhere — which is what made a row of five defenders wrap on
+  // a phone. The card's own width — plate, spill and padding — is then checked
+  // against this by the search, which is the only place that knows how the two
+  // relate.
   if (orientation === 'landscape') {
     const usable = box.height - (bands - 1) * PLAYER_GAP
-    return fitAvatar(usable / bands, box.width / lanes - PLAYER_PADDING, plate)
+    return fitAvatar(usable / bands, box.width / lanes, plate)
   }
 
   const usable = box.width - (bands - 1) * PLAYER_GAP
-  return fitAvatar(box.height / lanes, usable / bands - PLAYER_PADDING, plate)
+  return fitAvatar(box.height / lanes, usable / bands, plate)
 }
 
 export interface PitchFitOptions {

@@ -67,12 +67,6 @@ export function ManagerLineupTab({
   isPointsPending: boolean
 }) {
   const { ref, box } = usePitchBox()
-  /** Portrait on a phone, on its side from `lg` up — the pitch is one picture
-      either way, and a wide screen has the width for the long side. */
-  const orientation = usePitchOrientation()
-  /** Keeper-first when the pitch is on its side — see `singleTeamOrder`. */
-  const bands = singleTeamOrder(orientation)
-
   /**
    * **What each of these players is expected to score**, for the matches of
    * this matchday that have not started — the reader's own guesses where he
@@ -108,6 +102,12 @@ export function ManagerLineupTab({
    */
   const fullscreen = useHashModal('fullscreen')
   const breakdown = useHashModal('player')
+
+  /** Portrait on a phone, on its side from `lg` up — and full screen on a
+      phone held sideways, where the pitch is the whole glass. */
+  const orientation = usePitchOrientation({ isFullscreen: fullscreen.isOpen })
+  /** Keeper-first when the pitch is on its side — see `singleTeamOrder`. */
+  const bands = singleTeamOrder(orientation)
 
   /*
    * The tapped player, found back among the squad. Both the pitch and the bench

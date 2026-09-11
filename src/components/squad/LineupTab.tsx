@@ -20,7 +20,6 @@ import {
   fitPitchMetrics,
   PITCH_BAND_CLASS,
   pitchGridClass,
-  PLATE_BLEED,
   ROW_ORDER,
   singleTeamOrder,
   usePitchBox,
@@ -682,11 +681,10 @@ function PlayerFace({
           portrait in paint order. */}
       <span
         style={{
-          // Plus the bleed: this plate's second line is a crest, a glyph and
-          // three digits, which on a phone's portrait is a few pixels more
-          // than the face above it. The button's own padding absorbs them, so
-          // the band's fit is untouched.
-          width: metrics.plateWidth + PLATE_BLEED,
+          // Every plate now spans the card rather than the face, which is
+          // where this line's crest, glyph and three digits used to need a
+          // bleed of their own.
+          width: metrics.plateWidth,
           marginTop: -metrics.plateOverlap,
         }}
         /* `px-0.5` rather than `px-1`: the second line is a crest, a glyph
