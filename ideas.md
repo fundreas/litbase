@@ -1,16 +1,4 @@
 
-# forecast based on player history data
-  - market value
-  - matchday performance
-  - days to next match
-  - injuries
-
-# calculator preview in squad view
-  - select players to sell
-  - consider the offer that can be edited the same way
-  - show budget
-  - show the 33% threshold
-
 # Live points fixes
   - check in all live pages the logic and clearly define the workflow for where to fetch
 
@@ -24,5 +12,3 @@
 # bake build version/time into code show in user dropdown
 
 # when not winning a transfer -> show my offer in transfer details
-
-# think of a easy way to switch between main-menu-items without opening the sidebar-menu
