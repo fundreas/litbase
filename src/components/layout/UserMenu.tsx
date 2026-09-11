@@ -1,4 +1,4 @@
-import { LogOut, RefreshCw, Settings } from 'lucide-react'
+import { ChevronRight, LogOut, RefreshCw, Settings } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { useAuth } from '@/auth/useAuth'
@@ -19,9 +19,11 @@ import { date } from '@/lib/format'
  *
  * The menu is everything that is about **the reader** rather than about the
  * league: who is signed in,
- * [Einstellungen](../../pages/PreferencesPage.tsx), and the way out. That
- * split is why the settings page has no entry in the drawer or in the dots
- * sheet — those are the league's pages, and a face in the corner is the
+ * [Einstellungen](../../pages/PreferencesPage.tsx), and the way out. The head
+ * row is itself a link to one's own
+ * [manager page](../../pages/ManagerDetailPage.tsx) — the page a tap on any
+ * row of the standings opens, only about oneself. That split is why the
+ * settings page has no entry in the drawer or in the dots sheet — those are the league's pages, and a face in the corner is the
  * obvious place to look for one's own.
  */
 export function UserMenu() {
@@ -38,12 +40,30 @@ export function UserMenu() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent>
-        <DropdownMenuLabel>
-          <p className="truncate text-sm font-semibold text-ink">
-            {user?.name ?? 'Konto'}
-          </p>
-          <p className="truncate text-xs text-muted">{user?.email}</p>
-        </DropdownMenuLabel>
+        {/* The reader's own row is a link to their manager page — the same
+            page a row in the standings opens, only about oneself. Without a
+            signed-in user there is nothing to link to, so the head stays the
+            plain label it was. */}
+        {user !== null ? (
+          <DropdownMenuItem asChild className="h-auto gap-3 py-2">
+            <Link to={`/leagues/${leagueId}/managers/${user.id}`}>
+              <Avatar src={user.avatar} name={user.name} size={32} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-ink">
+                  {user.name}
+                </span>
+                <span className="block truncate text-xs text-muted">
+                  {user.email}
+                </span>
+              </span>
+              <ChevronRight size={16} className="shrink-0 text-faint" />
+            </Link>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuLabel>
+            <p className="truncate text-sm font-semibold text-ink">Konto</p>
+          </DropdownMenuLabel>
+        )}
         <DropdownMenuSeparator />
 
         {/* `asChild` so the row is a real link: it opens in a new tab on a
