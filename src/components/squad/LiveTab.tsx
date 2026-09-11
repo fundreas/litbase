@@ -43,8 +43,13 @@ import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
   fitPitchMetrics,
+  PITCH_BAND_CLASS,
+  pitchGridClass,
+  pitchSpanClass,
   ROW_ORDER,
   usePitchBox,
+  usePitchOrientation,
+  type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
@@ -559,6 +564,9 @@ function LivePitch({
   expected: ExpectedPointsView
 }) {
   const { ref, box } = usePitchBox()
+  /** Portrait on a phone, on its side from `lg` up — as the editor's pitch is,
+      so the two views of the same eleven still agree about everything. */
+  const orientation = usePitchOrientation()
 
   const metrics = useMemo(
     () =>
@@ -571,15 +579,27 @@ function LivePitch({
               lineup.filter((player) => player.position === position).length,
           ),
         ),
+        { orientation },
       ),
-    [box, lineup],
+    [box, lineup, orientation],
   )
 
   return (
-    <Pitch className="flex-1">
-      <div ref={ref} className="grid min-h-0 flex-1 grid-rows-4 px-2 py-3">
+    <Pitch orientation={orientation} className="flex-1">
+      <div
+        ref={ref}
+        className={cn(
+          'grid min-h-0 min-w-0 flex-1 px-2 py-3',
+          pitchGridClass(ROW_ORDER.length, orientation),
+        )}
+      >
         {lineup.length === 0 ? (
-          <p className="row-span-4 flex items-center justify-center px-6 text-center text-sm font-medium text-white/80">
+          <p
+            className={cn(
+              'flex items-center justify-center px-6 text-center text-sm font-medium text-white/80',
+              pitchSpanClass(ROW_ORDER.length, orientation),
+            )}
+          >
             Für diesen Spieltag ist kein Spieler aufgestellt.
           </p>
         ) : (
@@ -590,6 +610,7 @@ function LivePitch({
               metrics={metrics}
               onOpen={onOpen}
               expected={expected}
+              orientation={orientation}
             />
           ))
         )}
@@ -603,19 +624,23 @@ function LivePitchRow({
   metrics,
   onOpen,
   expected,
+  orientation,
 }: {
   players: DuelPlayer[]
   metrics: PlayerMetrics
   onOpen: (player: DuelPlayer) => void
   /** This matchday's expected points, for the matches still to come. */
   expected: ExpectedPointsView
+  /** Which way the band runs — see {@link PitchOrientation}. */
+  orientation: PitchOrientation
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden`, as on the editor's pitch: wrapping
-       would turn width pressure into height, which feeds back into the avatar
-       sizing and oscillates. The sizing already guarantees the busiest band
-       fits, so the clipping is a backstop rather than a normal state. */
-    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
+       would turn pressure along the band into pressure across it, which feeds
+       back into the avatar sizing and oscillates. The sizing already guarantees
+       the busiest band fits, so the clipping is a backstop rather than a normal
+       state. */
+    <div className={PITCH_BAND_CLASS[orientation]}>
       {players.map((player) => (
         <LivePitchPlayer
           key={player.id}

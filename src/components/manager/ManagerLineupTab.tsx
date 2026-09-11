@@ -9,8 +9,10 @@ import { ProjectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   fitPitchMetrics,
+  pitchGridClass,
   ROW_ORDER,
   usePitchBox,
+  usePitchOrientation,
 } from '@/components/squad/pitchMetrics'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
@@ -64,6 +66,9 @@ export function ManagerLineupTab({
   isPointsPending: boolean
 }) {
   const { ref, box } = usePitchBox()
+  /** Portrait on a phone, on its side from `lg` up — the pitch is one picture
+      either way, and a wide screen has the width for the long side. */
+  const orientation = usePitchOrientation()
 
   /**
    * **What each of these players is expected to score**, for the matches of
@@ -121,8 +126,9 @@ export function ManagerLineupTab({
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length,
       plate: 'points',
+      orientation,
     })
-  }, [box, roster.lineup])
+  }, [box, roster.lineup, orientation])
 
   /*
    * A player the pitch cannot place: no current squad knows his position and
@@ -143,6 +149,7 @@ export function ManagerLineupTab({
    */
   const pitch = (
     <Pitch
+      orientation={orientation}
       className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[22rem] flex-1'}
     >
       <TotalPlate
@@ -163,7 +170,13 @@ export function ManagerLineupTab({
         />
       )}
 
-      <div ref={ref} className="grid min-h-0 flex-1 grid-rows-4 px-2 py-3">
+      <div
+        ref={ref}
+        className={cn(
+          'grid min-h-0 min-w-0 flex-1 px-2 py-3',
+          pitchGridClass(ROW_ORDER.length, orientation),
+        )}
+      >
         {ROW_ORDER.map((position) => (
           <RosterBand
             key={position}
@@ -174,6 +187,7 @@ export function ManagerLineupTab({
             ring="light"
             onOpen={openBreakdown}
             expected={expected}
+            orientation={orientation}
           />
         ))}
       </div>

@@ -250,6 +250,11 @@ elevens stacked as lists lose the shape of a fixture, and the shape is most of
 what a lineup is for. **Eight bands**, four per half, and the card sizing has to
 be told so or every portrait is budgeted twice the height it has.
 
+From **`lg` up the pitch turns on its side**: home on the left, away on the
+right, attacking towards each other — the scoreline's own arrangement, and the
+benches' underneath. See
+[Landscape from `lg` up](squad.md#landscape-from-lg-up).
+
 Each portrait carries three things and no more:
 
 - the **points** on the plate — `–` rather than `0` while they are unknown,

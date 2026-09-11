@@ -54,6 +54,11 @@ and the bottom half runs the usual way up (`ROW_ORDER`). The card sizing in
 `rows: 8`, or every portrait is budgeted twice the height it has and the lot
 gets clipped.
 
+From **`lg` up the pitch turns on its side** and the two halves sit *left and
+right* instead — the first manager on the left, which is where the header's
+scoreline already has them. Same eight bands, drawn as columns; see
+[Landscape from `lg` up](squad.md#landscape-from-lg-up).
+
 **Portraits carry a picture and one figure, nothing else.** With 22 players on
 a 360px screen a name under each is unreadable and a fixture badge is noise.
 That figure is the points, what he is **expected** to score while his match is
@@ -75,10 +80,12 @@ disappear once every match is settled, and the composition is in the tooltip.
 
 **Telling the sides apart** takes two things: the ring around each portrait
 (white on top, accent below) and a small manager chip in each half's corner.
-The chips exist because the header pairs the managers *left and right* while
-the pitch has to stack them *top and bottom* — something has to bridge those
-two arrangements, and a legend would cost a row of height the pitch cannot
-spare.
+The chips exist because the header pairs the managers *left and right* while a
+portrait pitch has to stack them *top and bottom* — something has to bridge
+those two arrangements, and a legend would cost a row of height the pitch
+cannot spare. (On a landscape pitch the two arrangements finally agree, and the
+chips move to opposite ends: top-left and bottom-right, leaving the full-screen
+button its corner.)
 
 Each chip is also **a link to that manager**, matchday and all — see
 [Manager](manager-detail.md). It is the only thing on this pitch that names a

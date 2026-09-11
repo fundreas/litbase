@@ -26,9 +26,15 @@ import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
   fitPitchMetrics,
+  PITCH_BAND_CLASS,
+  pitchGridClass,
+  pitchSpanClass,
   ROW_ORDER,
   ROW_ORDER_MIRRORED,
+  SIDE_LABEL_CLASS,
   usePitchBox,
+  usePitchOrientation,
+  type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
@@ -191,6 +197,12 @@ export function MatchLineupTab({
 }) {
   const { ref, box } = usePitchBox()
   /**
+   * Portrait on a phone, on its side from `lg` up — where the two halves sit
+   * **home left, away right**, which is how the scoreline above already reads
+   * and how the benches under the pitch are already arranged.
+   */
+  const orientation = usePitchOrientation()
+  /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
    * `#player:<id>` for a portrait's breakdown, stacking as
    * `#fullscreen/player:4711` when the sheet is opened from the big pitch, as
@@ -225,8 +237,9 @@ export function MatchLineupTab({
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length * 2,
       plate: 'points',
+      orientation,
     })
-  }, [box, home.starters, away.starters])
+  }, [box, home.starters, away.starters, orientation])
 
   const unplaced = [...home.starters, ...away.starters].filter(
     (player) => player.position === undefined,
@@ -245,9 +258,10 @@ export function MatchLineupTab({
    */
   const pitch = (
     <Pitch
+      orientation={orientation}
       className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}
     >
-      <SideLabel lineup={home} side="home" />
+      <SideLabel lineup={home} side="home" orientation={orientation} />
 
       {/* The corner the two side labels leave free. Gone once full screen:
           there is nothing further to expand into, and the bar's ✗ is the way
@@ -261,7 +275,13 @@ export function MatchLineupTab({
         />
       )}
 
-      <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
+      <div
+        ref={ref}
+        className={cn(
+          'grid min-h-0 min-w-0 flex-1 px-2 py-3',
+          pitchGridClass(ROW_ORDER.length * 2, orientation),
+        )}
+      >
         {hasLineups ? (
           <>
             {ROW_ORDER_MIRRORED.map((position) => (
@@ -271,6 +291,7 @@ export function MatchLineupTab({
                 metrics={metrics}
                 side="home"
                 onOpen={openBreakdown}
+                orientation={orientation}
               />
             ))}
             {ROW_ORDER.map((position) => (
@@ -280,6 +301,7 @@ export function MatchLineupTab({
                 metrics={metrics}
                 side="away"
                 onOpen={openBreakdown}
+                orientation={orientation}
               />
             ))}
           </>
@@ -287,13 +309,18 @@ export function MatchLineupTab({
           /* Kickbase publishes the team sheets around an hour before
              kick-off. Until then the payload's lineup arrays are simply
              empty — not an error, and not a team of nobody. */
-          <p className="row-span-8 flex items-center justify-center px-6 text-center text-sm font-medium text-white/80">
+          <p
+            className={cn(
+              'flex items-center justify-center px-6 text-center text-sm font-medium text-white/80',
+              pitchSpanClass(ROW_ORDER.length * 2, orientation),
+            )}
+          >
             Die Aufstellungen sind noch nicht veröffentlicht.
           </p>
         )}
       </div>
 
-      <SideLabel lineup={away} side="away" />
+      <SideLabel lineup={away} side="away" orientation={orientation} />
     </Pitch>
   )
 
@@ -372,24 +399,27 @@ function countAt(players: MatchPlayer[], position: PositionKey): number {
   return players.filter((player) => player.position === position).length
 }
 
-/** One position's players, side by side. */
+/** One position's players, side by side — or stacked, on a landscape pitch. */
 function PitchBand({
   players,
   metrics,
   side,
   onOpen,
+  orientation,
 }: {
   players: MatchPlayer[]
   metrics: PlayerMetrics
   side: Side
   onOpen: (player: MatchPlayer) => void
+  /** Which way the band runs — see {@link PitchOrientation}. */
+  orientation: PitchOrientation
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
-       documents at length: wrapping turns width pressure into height, which
-       feeds back into the sizing and oscillates. The fit already guarantees the
-       busiest band fits, so clipping is a backstop. */
-    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
+       documents at length: wrapping turns pressure along the band into pressure
+       across it, which feeds back into the sizing and oscillates. The fit
+       already guarantees the busiest band fits, so clipping is a backstop. */
+    <div className={PITCH_BAND_CLASS[orientation]}>
       {players.map((player) => (
         <PitchPlayer
           key={player.id}
@@ -518,7 +548,16 @@ function PitchPlayer({
  * Absolutely positioned so it costs the bands no height: the pitch is the
  * scarcest space on the page and eight bands are already tight.
  */
-function SideLabel({ lineup, side }: { lineup: MatchLineup; side: Side }) {
+function SideLabel({
+  lineup,
+  side,
+  orientation,
+}: {
+  lineup: MatchLineup
+  side: Side
+  /** Which way the pitch is drawn, which decides the corner. */
+  orientation: PitchOrientation
+}) {
   const total = teamPoints(lineup)
   const name = lineup.team.name ?? lineup.team.symbol
   const label =
@@ -531,7 +570,7 @@ function SideLabel({ lineup, side }: { lineup: MatchLineup; side: Side }) {
       title={label}
       className={cn(
         'absolute z-10 flex items-center gap-1.5 rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm',
-        side === 'home' ? 'top-1 left-1' : 'bottom-1 left-1',
+        SIDE_LABEL_CLASS[orientation][side === 'home' ? 0 : 1],
       )}
     >
       <Avatar

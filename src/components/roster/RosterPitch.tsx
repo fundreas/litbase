@@ -24,6 +24,8 @@ import {
 } from '@/components/squad/expectedPointsLabels'
 import {
   cornerBadgeSize,
+  PITCH_BAND_CLASS,
+  type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
@@ -87,13 +89,17 @@ const RING_CLASS: Record<RosterRing, string> = {
   accent: 'ring-accent/80',
 }
 
-/** One position's players, side by side. */
+/**
+ * One position's players, side by side — or stacked, on a
+ * [landscape](../squad/pitchMetrics.ts) pitch, where the bands are columns.
+ */
 export function RosterBand({
   players,
   metrics,
   ring,
   onOpen,
   expected,
+  orientation = 'portrait',
 }: {
   players: DuelPlayer[]
   metrics: PlayerMetrics
@@ -101,13 +107,16 @@ export function RosterBand({
   onOpen: (player: DuelPlayer) => void
   /** This matchday's expected points, for the matches still to come. */
   expected?: ExpectedPointsView
+  /** Which way the band runs — see {@link PitchOrientation}. */
+  orientation?: PitchOrientation
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
-       documents at length: wrapping turns width pressure into height, which
-       feeds back into the sizing and oscillates. The caller's fit already
-       guarantees the busiest band fits, so clipping is a backstop. */
-    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
+       documents at length: wrapping turns pressure along the band into
+       pressure across it, which feeds back into the sizing and oscillates. The
+       caller's fit already guarantees the busiest band fits, so clipping is a
+       backstop. */
+    <div className={PITCH_BAND_CLASS[orientation]}>
       {players.map((player) => (
         <RosterPortrait
           key={player.id}

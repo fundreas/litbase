@@ -270,12 +270,23 @@ is one list of pages, not two that can drift.
 
 **The switch is CSS, not JavaScript.** The sidebar is `hidden lg:flex` and the
 hamburger is `lg:hidden`, so there is no flash on first paint and no layout
-that depends on a resize handler having fired. JavaScript knows the breakpoint
-in exactly one place, and only to **close an already-open drawer** when the
-window grows past it (rotating a tablet) — otherwise the drawer would sit on
-top of the sidebar that just appeared, with the hamburger gone. The
-`matchMedia` query in `AppShell` therefore has to stay in step with those `lg:`
-classes.
+that depends on a resize handler having fired. Navigation reads the breakpoint
+in JavaScript in exactly one place, and only to **close an already-open
+drawer** when the window grows past it (rotating a tablet) — otherwise the
+drawer would sit on top of the sidebar that just appeared, with the hamburger
+gone. The `matchMedia` query in `AppShell` therefore has to stay in step with
+those `lg:` classes.
+
+### The same breakpoint turns the pitches
+
+`lg` is also where **every pitch in the app turns on its side** — see
+[Landscape from `lg` up](pages/squad.md#landscape-from-lg-up). That one is not
+a class but a different arrangement of components and a different sizing
+budget, so it does go through `matchMedia`, in
+[`usePitchOrientation()`](../src/components/squad/pitchMetrics.ts) on top of
+the general [`useMediaQuery()`](../src/lib/useMediaQuery.ts). One query for all
+six pitches, so a reader never meets one of each; and the same 64rem as the
+sidebar, because "wide screen" should mean one thing in this app.
 
 Three behaviours:
 

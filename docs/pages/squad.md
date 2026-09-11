@@ -1137,10 +1137,11 @@ computed rather than assumed.
 ### Pitch rendering
 
 [`Pitch`](../../src/components/squad/Pitch.tsx) is inline SVG — no image
-request, no scaling artefacts, and the line colours can use theme values. It
-is drawn **vertically** (own goal at the bottom, attacking upward), which is
-how a lineup reads on a phone, with a turf gradient, mown bands, centre circle
-and both penalty areas.
+request, no scaling artefacts, and the line colours can use theme values. On a
+phone it is drawn **vertically** (own goal at the bottom, attacking upward),
+which is how a lineup reads in the hand; from `lg` up it turns on its side, per
+[Landscape from `lg` up](#landscape-from-lg-up). Either way: a turf gradient,
+mown bands, centre circle and both penalty areas.
 
 **The pitch fills the available height.** `AppShell`'s `main` is a flex column,
 and a `flex-1` + `min-h-0` chain runs from the page through the tabs into
@@ -1151,9 +1152,9 @@ its content, so the pitch would overflow rather than fit. The bench below is
 left — with a `min-h-72` floor so a short viewport scrolls instead of
 collapsing.
 
-The pitch is a **`grid-rows-4`: four equal bands, one per position**, running
-attack-first down the page — FWD, MID, DEF, GK — and all four are always
-rendered.
+The pitch is a **grid of four equal bands, one per position**, running
+attack-first — FWD, MID, DEF, GK — and all four are always rendered.
+`grid-rows-4` down a portrait pitch, `grid-cols-4` across a landscape one.
 
 The grid claims its height with **`flex-1`, not `h-full`**. That distinction
 was a real bug: as a flex item, `height: 100%` resolved against the grid's own
@@ -1205,6 +1206,42 @@ attempts worth recording:
 
 All three were caught by measuring in a real browser at 390×844 and 1280×900,
 including re-measuring after a delay to prove the layout settles.
+
+#### Landscape from `lg` up
+
+From **`lg` (64rem)** — the same breakpoint the sidebar appears at, see
+[routing and layout](../routing-and-layout.md#the-same-breakpoint-turns-the-pitches)
+— every pitch in the app is drawn **on its side**: the same picture turned a
+quarter turn anticlockwise. The first band moves to the left edge, so a squad
+attacks leftwards and the **home half of a head-to-head pitch lands on the
+left**, where the scoreline above it already puts that team. Each band becomes
+a column of players.
+
+**It is a rearrangement, not a CSS `rotate`.** A rotated pitch would take every
+name, number and badge with it and leave the reader tilting their head. So:
+
+| | Portrait | Landscape |
+| --- | --- | --- |
+| Band grid | `grid-rows-4` / `-8` | `grid-cols-4` / `-8` |
+| A band | a row of cards | a column of cards |
+| Markings | 100×150 viewBox | 150×100 viewBox, drawn out separately |
+| Corner plates | both left, stacked | opposite ends, top-left and bottom-right |
+| Sizing budget | bands cut from the height, players packed along the width | the two swapped |
+
+All of it goes through `pitchMetrics`: `usePitchOrientation()` answers the
+query once per pitch, `pitchGridClass()` / `PITCH_BAND_CLASS` give the two
+layouts their classes — written out as literals, because Tailwind scans source
+text and `grid-rows-${n}` is not a class it can see — and `fitPitchMetrics()`
+takes an `orientation` that swaps which dimension the bands are cut from and
+which the players are packed along. **Nothing about a card changes**: same
+portraits, same plates, same search for the largest one that fits.
+
+The sizing swap is the part that has to be right. In landscape the busiest band
+is a *column* of five, so the pitch's height is what those five share and the
+band's own width is what each card is measured against — the exact mirror of
+portrait, gaps included. A landscape pitch therefore wants more height than a
+portrait one before it hits the avatar floor (five stacked cards, not four
+bands), which is why `Pitch` carries a taller floor in that orientation.
 
 #### Placeholders stand for mandatory places only
 

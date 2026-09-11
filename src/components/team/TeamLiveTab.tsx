@@ -29,8 +29,13 @@ import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
   fitPitchMetrics,
+  PITCH_BAND_CLASS,
+  pitchGridClass,
+  pitchSpanClass,
   ROW_ORDER,
   usePitchBox,
+  usePitchOrientation,
+  type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { Avatar } from '@/components/ui/Avatar'
@@ -317,6 +322,8 @@ function SidePitch({
   leagueId: string
 }) {
   const { ref, box } = usePitchBox()
+  /** Portrait on a phone, on its side from `lg` up. */
+  const orientation = usePitchOrientation()
 
   const metrics = useMemo(
     () =>
@@ -326,9 +333,9 @@ function SidePitch({
           1,
           ...ROW_ORDER.map((position) => countAt(lineup.starters, position)),
         ),
-        { plate: 'points' },
+        { plate: 'points', orientation },
       ),
-    [box, lineup.starters],
+    [box, lineup.starters, orientation],
   )
 
   const unplaced = lineup.starters.filter(
@@ -337,12 +344,23 @@ function SidePitch({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <Pitch className="min-h-[22rem] flex-1">
-        <div ref={ref} className="grid min-h-0 flex-1 grid-rows-4 px-2 py-3">
+      <Pitch orientation={orientation} className="min-h-[22rem] flex-1">
+        <div
+          ref={ref}
+          className={cn(
+            'grid min-h-0 min-w-0 flex-1 px-2 py-3',
+            pitchGridClass(ROW_ORDER.length, orientation),
+          )}
+        >
           {lineup.starters.length === 0 ? (
             /* Kickbase publishes the team sheets around an hour before
                kick-off; until then the payload's arrays are simply empty. */
-            <p className="row-span-4 flex items-center justify-center px-6 text-center text-sm font-medium text-white/80">
+            <p
+              className={cn(
+                'flex items-center justify-center px-6 text-center text-sm font-medium text-white/80',
+                pitchSpanClass(ROW_ORDER.length, orientation),
+              )}
+            >
               Die Aufstellung ist noch nicht veröffentlicht.
             </p>
           ) : (
@@ -354,6 +372,7 @@ function SidePitch({
                 )}
                 metrics={metrics}
                 leagueId={leagueId}
+                orientation={orientation}
               />
             ))
           )}
@@ -379,16 +398,20 @@ function PitchBand({
   players,
   metrics,
   leagueId,
+  orientation,
 }: {
   players: MatchPlayer[]
   metrics: PlayerMetrics
   leagueId: string
+  /** Which way the band runs — see {@link PitchOrientation}. */
+  orientation: PitchOrientation
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden`, as on every other pitch in the app:
-       wrapping turns width pressure into height, which feeds back into the
-       sizing and oscillates. The fit already guarantees the busiest band fits. */
-    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
+       wrapping turns pressure along the band into pressure across it, which
+       feeds back into the sizing and oscillates. The fit already guarantees the
+       busiest band fits. */
+    <div className={PITCH_BAND_CLASS[orientation]}>
       {players.map((player) => (
         <PitchPlayer
           key={player.id}

@@ -17,9 +17,13 @@ import { ProjectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   fitPitchMetrics,
+  pitchGridClass,
   ROW_ORDER,
   ROW_ORDER_MIRRORED,
+  SIDE_LABEL_CLASS,
   usePitchBox,
+  usePitchOrientation,
+  type PitchOrientation,
 } from '@/components/squad/pitchMetrics'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
@@ -123,6 +127,13 @@ export function DuelLineupTab({
   ]
   const { ref, box } = usePitchBox()
   /**
+   * Portrait on a phone, on its side from `lg` up. The two halves then sit
+   * **left and right** rather than top and bottom — the arrangement the
+   * scoreline in the header already uses, and the one a wide screen has the
+   * room for.
+   */
+  const orientation = usePitchOrientation()
+  /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
    * `#player:<id>` for a portrait's breakdown, stacking as
    * `#fullscreen/player:4711` when the sheet is opened from the big pitch. So
@@ -157,8 +168,9 @@ export function DuelLineupTab({
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length * 2,
       plate: 'points',
+      orientation,
     })
-  }, [box, top.lineup, bottom.lineup])
+  }, [box, top.lineup, bottom.lineup, orientation])
 
   /*
    * One pitch, drawn in whichever of the two places is showing — inline under
@@ -174,6 +186,7 @@ export function DuelLineupTab({
    */
   const pitch = (
     <Pitch
+      orientation={orientation}
       className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}
     >
       {/* Name plates in the corners rather than a legend: the header pairs
@@ -186,6 +199,7 @@ export function DuelLineupTab({
         leagueId={leagueId}
         day={day}
         projected={projected[0]}
+        orientation={orientation}
       />
 
       {/* The one corner the two name plates leave free. Gone once the pitch is
@@ -200,7 +214,13 @@ export function DuelLineupTab({
         />
       )}
 
-      <div ref={ref} className="grid min-h-0 flex-1 grid-rows-8 px-2 py-3">
+      <div
+        ref={ref}
+        className={cn(
+          'grid min-h-0 min-w-0 flex-1 px-2 py-3',
+          pitchGridClass(ROW_ORDER.length * 2, orientation),
+        )}
+      >
         {ROW_ORDER_MIRRORED.map((position) => (
           <RosterBand
             key={`top-${position}`}
@@ -209,6 +229,7 @@ export function DuelLineupTab({
             ring={RING.top}
             onOpen={openBreakdown}
             expected={expected}
+            orientation={orientation}
           />
         ))}
         {ROW_ORDER.map((position) => (
@@ -219,6 +240,7 @@ export function DuelLineupTab({
             ring={RING.bottom}
             onOpen={openBreakdown}
             expected={expected}
+            orientation={orientation}
           />
         ))}
       </div>
@@ -230,6 +252,7 @@ export function DuelLineupTab({
         leagueId={leagueId}
         day={day}
         projected={projected[1]}
+        orientation={orientation}
       />
     </Pitch>
   )
@@ -312,7 +335,9 @@ function countAt(lineup: DuelPlayer[], position: PositionKey): number {
  * Whose half this is, in the corner of the pitch — **and the way to them.**
  *
  * Absolutely positioned so it costs the bands no height: the pitch is the
- * scarcest space on the page and eight bands are already tight.
+ * scarcest space on the page and eight bands are already tight. Which corner
+ * follows the orientation — see
+ * [`SIDE_LABEL_CLASS`](../squad/pitchMetrics.ts).
  *
  * A plate is small for a tap target, and it is the only thing on this pitch
  * naming a manager — the portraits are the players' and belong to the
@@ -327,6 +352,7 @@ function SideLabel({
   leagueId,
   day,
   projected,
+  orientation,
 }: {
   roster: DuelRoster
   side: Side
@@ -335,6 +361,8 @@ function SideLabel({
   day: number | undefined
   /** Where this eleven is heading, when any of it is still ahead. */
   projected: ProjectedPoints
+  /** Which way the pitch is drawn, which decides the corner. */
+  orientation: PitchOrientation
 }) {
   const body = (
     <>
@@ -359,7 +387,7 @@ function SideLabel({
 
   const className = cn(
     'absolute z-10 flex items-center gap-1.5 rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm',
-    side === 'top' ? 'top-1 left-1' : 'bottom-1 left-1',
+    SIDE_LABEL_CLASS[orientation][side === 'top' ? 0 : 1],
   )
 
   if (leagueId === undefined) {

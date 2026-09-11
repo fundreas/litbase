@@ -18,9 +18,13 @@ import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
   fitPitchMetrics,
+  PITCH_BAND_CLASS,
+  pitchGridClass,
   PLATE_BLEED,
   ROW_ORDER,
   usePitchBox,
+  usePitchOrientation,
+  type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
@@ -124,6 +128,13 @@ export function LineupTab({
   // The pitch is measured rather than guessed at, so the avatars scale with
   // whatever height the flex chain actually hands it.
   const { ref: pitchRef, box: pitchBox } = usePitchBox()
+  /**
+   * Portrait on a phone, on its side from `lg` up — attack at the left edge,
+   * keeper at the right. The bands become columns and every card turns with
+   * them; nothing about a drag changes, since a drop is decided by what is
+   * under the pointer rather than by which way the band runs.
+   */
+  const orientation = usePitchOrientation()
 
   /**
    * An incomplete lineup is legal and it saves — but every empty slot costs
@@ -174,8 +185,9 @@ export function LineupTab({
               missingAtPosition(counts, position),
           ),
         ),
+        { orientation },
       ),
-    [pitchBox, lineup, counts],
+    [pitchBox, lineup, counts, orientation],
   )
 
   return (
@@ -263,7 +275,7 @@ export function LineupTab({
         </p>
       )}
 
-      <Pitch className="flex-1">
+      <Pitch orientation={orientation} className="flex-1">
         {/* Four equal bands, one per position, always rendered.
             Distributing rows with `justify-around` instead made the geometry
             depend on how many rows happened to exist, so a lineup missing a
@@ -279,7 +291,10 @@ export function LineupTab({
             way to fill it. */}
         <div
           ref={pitchRef}
-          className="grid min-h-0 flex-1 grid-rows-4 px-2 py-3"
+          className={cn(
+            'grid min-h-0 min-w-0 flex-1 px-2 py-3',
+            pitchGridClass(ROW_ORDER.length, orientation),
+          )}
         >
           {ROW_ORDER.map((position) => (
             <PitchRow
@@ -299,6 +314,7 @@ export function LineupTab({
               metrics={metrics}
               drag={drag}
               onRemove={editor.remove}
+              orientation={orientation}
             />
           ))}
         </div>
@@ -417,6 +433,7 @@ function PitchRow({
   metrics,
   drag,
   onRemove,
+  orientation,
 }: {
   position: PositionKey
   players: SquadMember[]
@@ -430,21 +447,24 @@ function PitchRow({
   metrics: PlayerMetrics
   drag: LineupDrag<SquadMember>
   onRemove: (playerId: string) => void
+  /** Which way the band runs — see {@link PitchOrientation}. */
+  orientation: PitchOrientation
 }) {
   return (
     /* Deliberately `flex-nowrap` + `overflow-hidden`.
      *
      * Wrapping turned a width overflow into extra height, which fed straight
      * back into the avatar sizing: wider avatars → the band wraps → the band
-     * is taller → `byHeight` allows a wider avatar → it wraps harder. That
-     * loop settled with a 854px pitch on an 844px screen. With nowrap, width
-     * pressure can never become height, so the pitch height stays purely
-     * flex-driven and the calculation has a fixed point.
+     * is taller → the height budget allows a wider avatar → it wraps harder.
+     * That loop settled with a 854px pitch on an 844px screen. With nowrap,
+     * pressure along the band can never become pressure across it, so the
+     * pitch's size stays purely flex-driven and the calculation has a fixed
+     * point.
      *
      * The size calculation already guarantees the busiest band fits, so the
      * clipping here is a backstop, not a normal state.
      */
-    <div className="flex min-h-0 flex-nowrap items-center justify-center gap-1 overflow-hidden">
+    <div className={PITCH_BAND_CLASS[orientation]}>
       {players.map((player) => (
         <PitchPlayer
           key={player.id}

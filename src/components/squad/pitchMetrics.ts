@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { PositionKey } from '@/api/models'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 /**
  * How a player card on the pitch is sized.
@@ -15,7 +16,128 @@ import type { PositionKey } from '@/api/models'
  * that has to measure the DOM.
  */
 
-/** Rows top-to-bottom on a vertical pitch: attack first, keeper last. */
+/**
+ * Which way round the pitch is drawn.
+ *
+ * `portrait` is the phone's pitch and the one every measurement here was
+ * written for: own goal at the bottom, bands stacked top to bottom, players
+ * side by side within a band.
+ *
+ * `landscape` is the **same picture turned a quarter turn anticlockwise**, for
+ * a screen wide enough to have stopped being a phone layout: the first band
+ * moves to the left edge — so the home half of a head-to-head pitch ends up on
+ * the left, where the scoreline above it already puts that team — and each
+ * band becomes a column of players. It is a rearrangement, not a CSS `rotate`:
+ * a rotated pitch would take every name, number and badge with it and leave
+ * the reader tilting their head.
+ *
+ * Nothing else about a card changes. The same portraits, the same plates, the
+ * same sizing search — only which of the box's two dimensions the bands are
+ * cut from, and which the players are packed along.
+ */
+export type PitchOrientation = 'portrait' | 'landscape'
+
+/**
+ * The width at which the pitch turns on its side.
+ *
+ * Deliberately the same 64rem as the shell's sidebar breakpoint
+ * ([`AppShell`](../layout/AppShell.tsx)): "wide screen" should mean one thing
+ * in this app, and that is the width at which it stops being a phone layout.
+ */
+const LANDSCAPE_QUERY = '(min-width: 64rem)'
+
+/**
+ * How this screen draws its pitches — one query, so every pitch in the app
+ * turns at the same moment and a reader never meets one of each.
+ */
+export function usePitchOrientation(): PitchOrientation {
+  return useMediaQuery(LANDSCAPE_QUERY) ? 'landscape' : 'portrait'
+}
+
+/**
+ * How many bands a pitch is drawn in: one eleven, or two facing each other.
+ * The only two counts that exist, and the grid classes are written for both.
+ */
+type PitchBands = 4 | 8
+
+/** 8 for a head-to-head pitch, 4 for everything else. */
+function bandCount(rows: number): PitchBands {
+  return rows >= 8 ? 8 : 4
+}
+
+/**
+ * The grid the bands are laid into: stacked rows, or columns across.
+ *
+ * Written out as literal class names rather than composed from the count,
+ * because Tailwind scans source text for the classes it generates and
+ * `grid-rows-${n}` is not a class it can see.
+ */
+const PITCH_GRID_CLASS: Record<PitchOrientation, Record<PitchBands, string>> = {
+  portrait: { 4: 'grid-rows-4', 8: 'grid-rows-8' },
+  landscape: { 4: 'grid-cols-4', 8: 'grid-cols-8' },
+}
+
+/** The band grid for `rows` bands — see {@link PITCH_GRID_CLASS}. */
+export function pitchGridClass(
+  rows: number,
+  orientation: PitchOrientation,
+): string {
+  return PITCH_GRID_CLASS[orientation][bandCount(rows)]
+}
+
+/**
+ * The class that makes a band's cards run the right way.
+ *
+ * `flex-nowrap` + `overflow-hidden` in both, for the reason the pitches
+ * document at length: wrapping turns pressure along the band into pressure
+ * across it, which feeds back into the sizing and oscillates. The fit already
+ * guarantees the busiest band fits, so the clipping is a backstop.
+ */
+export const PITCH_BAND_CLASS: Record<PitchOrientation, string> = {
+  portrait:
+    'flex min-h-0 min-w-0 flex-nowrap items-center justify-center gap-1 overflow-hidden',
+  landscape:
+    'flex min-h-0 min-w-0 flex-col flex-nowrap items-center justify-center gap-1 overflow-hidden',
+}
+
+/**
+ * How a message drawn *instead of* the bands spans the whole grid — an
+ * unpublished team sheet, an empty lineup.
+ */
+const PITCH_SPAN_CLASS: Record<PitchOrientation, Record<PitchBands, string>> = {
+  portrait: { 4: 'row-span-4', 8: 'row-span-8' },
+  landscape: { 4: 'col-span-4', 8: 'col-span-8' },
+}
+
+/** Spans all `rows` bands — see {@link PITCH_SPAN_CLASS}. */
+export function pitchSpanClass(
+  rows: number,
+  orientation: PitchOrientation,
+): string {
+  return PITCH_SPAN_CLASS[orientation][bandCount(rows)]
+}
+
+/**
+ * Where a half's corner plate sits, by the order its half is drawn in.
+ *
+ * Portrait stacks the halves, so both plates keep to the left edge and the
+ * [full-screen button](../ui/FullscreenPane.tsx) has the top-right corner to
+ * itself. Landscape puts the halves side by side, so the plates move to
+ * opposite ends — and the second one takes the *bottom* right, leaving that
+ * same button its corner.
+ */
+export const SIDE_LABEL_CLASS: Record<PitchOrientation, [string, string]> = {
+  portrait: ['top-1 left-1', 'bottom-1 left-1'],
+  landscape: ['top-1 left-1', 'bottom-1 right-1'],
+}
+
+/**
+ * Bands in drawing order: attack first, keeper last.
+ *
+ * Top-to-bottom on a portrait pitch and, since a landscape one
+ * ({@link PitchOrientation}) is that same picture turned a quarter turn
+ * anticlockwise, left-to-right on a wide screen.
+ */
 export const ROW_ORDER: PositionKey[] = ['fwd', 'mid', 'def', 'gk']
 
 /**
@@ -25,6 +147,9 @@ export const ROW_ORDER: PositionKey[] = ['fwd', 'mid', 'def', 'gk']
  * downwards towards the centre line. Used with `ROW_ORDER` underneath it, the
  * two elevens end up facing each other the way a real fixture does: keepers at
  * the two ends, strikers either side of the halfway line.
+ *
+ * Drawn first, so on a landscape pitch this is the **left-hand** half — the
+ * home side, where a scoreline puts it.
  */
 export const ROW_ORDER_MIRRORED: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 
@@ -140,12 +265,13 @@ function playerHeight(metrics: PlayerMetrics, plate: PlateContent): number {
 }
 
 /**
- * The largest avatar that fits both the band's height and its width.
+ * The largest avatar that fits both the room along the band and the room
+ * across it.
  *
  * Searched rather than solved because the plate does not scale linearly with
  * the portrait — the font size and crest are both clamped, so the height is
- * piecewise. Stepping down from the width limit until the card fits the band
- * is exact and costs at most a few dozen iterations.
+ * piecewise. Stepping down from the width limit until the card fits is exact
+ * and costs at most a few dozen iterations.
  *
  * Fitting *exactly* matters more than it looks. An earlier version took a
  * fixed 54% of the band, which overshot by ~2px; the card then pushed the
@@ -153,7 +279,7 @@ function playerHeight(metrics: PlayerMetrics, plate: PlateContent): number {
  * and the size oscillated between two values on every render.
  */
 function fitAvatar(
-  bandHeight: number,
+  maxHeight: number,
   maxWidth: number,
   plate: PlateContent,
 ): PlayerMetrics {
@@ -161,7 +287,7 @@ function fitAvatar(
   const ceiling = Math.min(AVATAR_MAX, Math.floor(maxWidth))
   for (let avatar = ceiling; avatar > floor; avatar -= 1) {
     const metrics = playerMetrics(avatar)
-    if (playerHeight(metrics, plate) <= bandHeight) return metrics
+    if (playerHeight(metrics, plate) <= maxHeight) return metrics
   }
   return playerMetrics(floor)
 }
@@ -174,10 +300,10 @@ export interface PitchBox {
 /**
  * How large an avatar can be without crowding its band.
  *
- * Two limits, whichever bites first: the height a band has left after the
- * name plate, and the width the *busiest* band can give each player. A row of
- * five defenders is what constrains a narrow screen; the band height is what
- * constrains a wide one.
+ * Two limits, whichever bites first: the room a band has **across** it once
+ * the plate is paid for, and the room the *busiest* band can give each player
+ * **along** it. A row of five defenders is what constrains a narrow screen;
+ * the band's own thickness is what constrains a wide one.
  *
  * `busiestBand` is the most cards any one band has to hold — on the editor
  * that includes the mandatory placeholders, since an empty slot takes exactly
@@ -185,28 +311,45 @@ export interface PitchBox {
  *
  * `rows` is how many bands the pitch is divided into: four for one eleven,
  * **eight** for the head-to-head duel pitch, which stacks two of them. Getting
- * this wrong is not cosmetic — the height budget per band is `height / rows`,
+ * this wrong is not cosmetic — the budget per band is the pitch divided by it,
  * so a pitch that claimed four while drawing eight would size every card at
  * twice the room it has and clip the lot.
+ *
+ * **Landscape swaps the two axes and nothing else.** The bands are then cut
+ * out of the width and the players stack down the height, so the pitch's
+ * height is what the busiest band has to share and the band's own width is
+ * what each card is measured against. Which is why the gaps move too: they
+ * sit between players, and the players have turned a quarter turn with the
+ * pitch.
  */
 export function fitPitchMetrics(
   box: PitchBox,
   busiestBand: number,
-  { rows = ROW_ORDER.length, plate = 'full' }: PitchFitOptions = {},
+  {
+    rows = ROW_ORDER.length,
+    plate = 'full',
+    orientation = 'portrait',
+  }: PitchFitOptions = {},
 ): PlayerMetrics {
-  if (box.height === 0) return playerMetrics(avatarFloor(plate))
+  if (box.height === 0 || box.width === 0) {
+    return playerMetrics(avatarFloor(plate))
+  }
 
   const bands = Math.max(1, busiestBand)
+  const lanes = Math.max(1, rows)
 
   // Solve for the avatar that makes the busiest band exactly fit:
-  //   n * (size + PLAYER_PADDING) + (n - 1) * PLAYER_GAP <= width
-  // Dividing the width by the count alone overshoots, because each button is
+  //   n * (size + PLAYER_PADDING) + (n - 1) * PLAYER_GAP <= along
+  // Dividing the length by the count alone overshoots, because each button is
   // wider than its avatar and the gaps still have to go somewhere — which is
   // what made a row of five defenders wrap on a phone.
-  const usable = box.width - (bands - 1) * PLAYER_GAP
-  const byWidth = usable / bands - PLAYER_PADDING
+  if (orientation === 'landscape') {
+    const usable = box.height - (bands - 1) * PLAYER_GAP
+    return fitAvatar(usable / bands, box.width / lanes - PLAYER_PADDING, plate)
+  }
 
-  return fitAvatar(box.height / Math.max(1, rows), byWidth, plate)
+  const usable = box.width - (bands - 1) * PLAYER_GAP
+  return fitAvatar(box.height / lanes, usable / bands - PLAYER_PADDING, plate)
 }
 
 export interface PitchFitOptions {
@@ -214,6 +357,8 @@ export interface PitchFitOptions {
   rows?: number
   /** What each card's plate carries — see {@link PlateContent}. */
   plate?: PlateContent
+  /** Which way the pitch is drawn — see {@link PitchOrientation}. */
+  orientation?: PitchOrientation
 }
 
 /**
