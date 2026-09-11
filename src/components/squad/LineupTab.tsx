@@ -10,10 +10,8 @@ import {
   type StartProbability,
   type TeamFixture,
 } from '@/api/models'
-import {
-  expectedTextClass,
-  ExpectedPointsFigure,
-} from '@/components/squad/ExpectedPointsBadge'
+import { ExpectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
+import { expectedTextClass } from '@/components/squad/expectedPointsLabels'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { FormationsDialog } from '@/components/squad/FormationsDialog'
 import { Pitch } from '@/components/squad/Pitch'

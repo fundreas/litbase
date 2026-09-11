@@ -7,10 +7,12 @@ import {
   type ManagerSquadMember,
   type PositionKey,
   type StartProbability,
+  type TeamFixture,
 } from '@/api/models'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
-import { ExpectedPointsTarget } from '@/components/squad/ExpectedPointsBadge'
+import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
+import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
@@ -184,6 +186,7 @@ export function ManagerSquadTab({
                 key={player.id}
                 player={player}
                 startProbability={startProbabilities.get(player.id)}
+                fixture={matchday.data?.fixtureByTeamId.get(player.teamId)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
                 expectedPoints={expectedPoints.entry(player.id)}
                 onEditExpected={expected.open}
@@ -216,12 +219,15 @@ export function ManagerSquadTab({
 function PlayerRow({
   player,
   startProbability,
+  fixture,
   to,
   expectedPoints,
   onEditExpected,
 }: {
   player: ManagerSquadMember
   startProbability: StartProbability | undefined
+  /** His club's fixture this matchday, or `undefined` on a bye. */
+  fixture: TeamFixture | undefined
   to: string
   /**
    * What he is expected to score on the coming matchday — the reader's guess,
@@ -301,21 +307,27 @@ function PlayerRow({
               </span>
               <PlayerStatusBadge status={player.status} size={13} />
             </span>
-            {/* Probability first, then the points: an estimate about the
-                next matchday above a fact about the season so far. Both are
-                one line each, and the badge is absent — not blank — for a
-                player nobody has assessed. */}
-            <span className="mt-0.5 flex items-center gap-1.5">
-              {startProbability !== undefined && (
-                <StartProbabilityBadge tier={startProbability} size={13} />
-              )}
-              <span className="nums truncate text-xs text-muted">
-                {points(player.totalPoints)} Pkt
-                {player.averagePoints !== undefined && (
-                  <> · ⌀ {points(player.averagePoints)}</>
+            {/* **Two estimates about the coming matchday**, and nothing about
+                the season any more. *Will he play* and *what will he bring*
+                are the pair a rival's eleven is judged on, and they are read
+                together or not at all; the season total and average that used
+                to sit here are facts about the past, and they live on the
+                player's own page with a whole tab to themselves. Both badges
+                are absent — not blank — where there is nothing to say. */}
+            {(startProbability !== undefined ||
+              expectedPoints !== undefined) && (
+              <span className="mt-0.5 flex items-center gap-1.5">
+                {startProbability !== undefined && (
+                  <StartProbabilityBadge tier={startProbability} size={13} />
+                )}
+                {expectedPoints !== undefined && (
+                  <ExpectedPointsBadge
+                    value={expectedPoints.value}
+                    isForecast={!expectedPoints.isOwn}
+                  />
                 )}
               </span>
-            </span>
+            )}
           </span>
 
           <span className="shrink-0 text-right">
@@ -345,14 +357,27 @@ function PlayerRow({
         </span>
       </Link>
 
-      <ExpectedPointsTarget
-        value={expectedPoints?.value}
-        isForecast={expectedPoints?.isOwn === false}
-        playerName={player.lastName}
+      {/* **The crest at the end of the row, and the way into the sheet** —
+          the arrangement one's own Kader has, now that this row carries the
+          same figures. The panel says who he plays and where, the tap enters
+          what you think he will score against them, and the figure itself
+          reads up beside the probability. A rival's row and your own are the
+          same row now, which is the point: the two are meant to be compared. */}
+      <button
+        type="button"
         onClick={() => {
           onEditExpected(player.id)
         }}
-      />
+        title="Erwartete Punkte eintragen"
+        aria-label={`Erwartete Punkte für ${player.lastName} eintragen`}
+        className={cn(
+          'flex w-14 shrink-0 cursor-pointer flex-col items-center justify-center self-stretch',
+          'border-l border-line bg-canvas/40 px-1 transition-colors hover:bg-surface-2',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+        )}
+      >
+        <FixtureBadge fixture={fixture} size="lg" />
+      </button>
     </li>
   )
 }

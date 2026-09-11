@@ -1,5 +1,6 @@
-import { X } from 'lucide-react'
+import { ChevronRight, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
+import { Link } from 'react-router'
 
 import type { PointcastPrediction, TeamFixture } from '@/api/models'
 import type { ExpectedPointsSubject } from '@/components/squad/ExpectedPointsSheet'
@@ -15,6 +16,7 @@ import {
   setExpectedPoints,
   useExpectedPoints,
 } from '@/lib/expectedPoints'
+import { useActiveLeague } from '@/league/useActiveLeague'
 import { kickoff, points } from '@/lib/format'
 
 /**
@@ -122,7 +124,11 @@ export function ExpectedPointsDialog({
       }}
       title={player.name}
       description={
-        <MatchSummary fixture={player.fixture} matchday={matchday} />
+        <MatchSummary
+          fixture={player.fixture}
+          matchday={matchday}
+          onNavigate={onClose}
+        />
       }
       confirmLabel={stored === undefined ? 'Eintragen' : 'Ändern'}
       isConfirmDisabled={!isValid}
@@ -292,21 +298,37 @@ function chance(value: number): string {
 }
 
 /**
- * The match the guess is about, in one line and a half.
+ * The match the guess is about, in one line and a half — **and the way to the
+ * opponent's page.**
  *
  * The same crest the row was tapped on, so the sheet is visibly about the
  * thing that opened it, with the fixture spelled out beside it — the badge is
  * wordless by design on a row, and a dialog has the width to say it properly.
+ *
+ * It is a link because the question it raises has an answer one tap away:
+ * *what am I guessing against?* The [club page](../../pages/TeamDetailPage.tsx)
+ * has that opponent's form, its fixtures and its whole squad. The chevron is
+ * what says so — a header that navigates without looking like it does is a
+ * trap — and the link closes the sheet on the way, because leaving the page is
+ * what it means.
+ *
+ * A bye has nothing to link to: no opponent, no page, and the summary stays a
+ * plain line.
  */
 function MatchSummary({
   fixture,
   matchday,
+  onNavigate,
 }: {
   fixture: TeamFixture | undefined
   matchday: number
+  /** Closes the sheet, since the link leaves the page under it. */
+  onNavigate: () => void
 }) {
-  return (
-    <span className="flex items-center gap-2.5">
+  const { leagueId } = useActiveLeague()
+
+  const body = (
+    <>
       <FixtureBadge fixture={fixture} size="lg" />
       <span className="min-w-0 flex-1">
         <span className="block font-medium text-ink">
@@ -319,6 +341,22 @@ function MatchSummary({
           {fixture !== undefined && ` · ${kickoff(fixture.kickoff)}`}
         </span>
       </span>
-    </span>
+    </>
+  )
+
+  if (fixture === undefined) {
+    return <span className="flex items-center gap-2.5">{body}</span>
+  }
+
+  return (
+    <Link
+      to={`/leagues/${leagueId}/teams/${fixture.opponentId}`}
+      onClick={onNavigate}
+      title={`${fixture.opponentSymbol} ansehen`}
+      className="-m-1 flex items-center gap-2.5 rounded-lg p-1 transition-colors hover:bg-surface-2"
+    >
+      {body}
+      <ChevronRight size={16} aria-hidden="true" className="shrink-0" />
+    </Link>
   )
 }

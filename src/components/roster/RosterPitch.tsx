@@ -15,11 +15,13 @@ import {
   TeamSheetMark,
 } from '@/components/player/TeamSheetMark'
 import {
-  expectedDescription,
-  expectedTextClass,
   ExpectedPointsBadge,
   ExpectedPointsFigure,
 } from '@/components/squad/ExpectedPointsBadge'
+import {
+  expectedDescription,
+  expectedTextClass,
+} from '@/components/squad/expectedPointsLabels'
 import {
   cornerBadgeSize,
   type PlayerMetrics,

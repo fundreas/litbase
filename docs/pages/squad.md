@@ -344,11 +344,11 @@ duplicated here.
 | Image | `player.image` (`pim`) | Full-bleed portrait via `Avatar fill` — no padding, flush against the rail, inner edge masked |
 | Name | `player.lastName` | Last name only — first names rarely fit |
 | Status mark | `player.status !== 0` | `PlayerStatusBadge` — red card when suspended, white cross in a red disc otherwise, tooltip from `stxt` |
-| Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name |
+| Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name — beside the expected-points chip |
 | Market value | `marketValue` | Compact euros, tabular figures |
 | 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
 | Fixture panel | `useCurrentMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — opens the [expected-points sheet](#erwartete-punkte) |
-| Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip under the crest — **orange** for the model's prediction, **accent green** once the reader has entered his own figure |
+| Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The crest panel enters it; it does not display it |
 
 The lineup rail is **always rendered** and only tinted when the player is
 fielded, so rows stay aligned either way. It is also the row's lineup control:
@@ -443,10 +443,15 @@ season or the market, so "what will he score on Saturday?" belongs on it — and
 a row carrying a portrait, two marks, a market value and its overnight change
 has no room for a control of its own.
 
+**The panel enters the figure; it no longer shows it.** The figure reads beside
+the lineup-probability glyph under the name, where it sits next to the other
+estimate about the same match, and the crest gets its full size back to say one
+thing: who, and where.
+
 ```
 ┌──┬────────┬──────────────────────┬───────┐
-│▐ │portrait│ Name          4,2 Mio│ crest │  ← tap the crest …
-│  │        │ ◆ likely       ↗ +80k│  ⊙120 │  ← … the figure sits under it
+│▐ │portrait│ Name          4,2 Mio│       │
+│  │        │ ◆ ⌖120         ↗ +80k│ crest │  ← tap the crest to enter it
 └──┴────────┴──────────────────────┴───────┘
 ```
 
@@ -479,7 +484,7 @@ name and a club's roster carries no season total.
 
 | Part | Why |
 | ---- | --- |
-| Match summary | The crest, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it, and on the two lists that have no crest it is the only place the fixture is named |
+| Match summary | The crest, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it, and on the list that has no crest it is the only place the fixture is named. **It is a link to the opponent's [club page](team.md)** — *what am I guessing against* is the question this line raises and that page answers — with a chevron to say so, and it closes the sheet on the way out. A bye has nothing to link to and stays a plain line |
 | The field | Opens at the **prediction**, or at the guess already stored, or at **100** when there is neither. Text, not `type="number"`, so it can be cleared to retype; a leading minus survives, because Kickbase points genuinely go below zero |
 | Prognose panel | Under the field, orange and dashed like the chip: the model's figure, its `p20 – p80` band, *Startelf* and *Einsatz* as percentages — and **Übernehmen**, which puts the figure back in the field once it has been nudged off it. Always present: *wird geladen …* while the file is in flight, *keine Prognose* for a player the model has nothing for |
 | Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the one figure in the sheet that is a fact about the past, and what a guess is calibrated against. Only what the list knows: a club's roster has an average and no total, and the line shortens rather than printing a dash |
@@ -505,7 +510,7 @@ afterwards moves it.
 
 | Place | Rendering |
 | ----- | --------- |
-| Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) under the crest — target glyph plus the figure. **Orange** while it is the model's, **accent green** once it is the reader's |
+| Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) beside the lineup-probability glyph, under the name — target glyph plus the figure. **Orange** while it is the model's, **accent green** once it is the reader's. The two belong together: *will he play* and *what will he bring* are the same question asked twice |
 | Pitch header | `⊙ 840 · 11/11` beside `11/11 aufgestellt`, the fielded players' figures summed. **Orange while every figure in it is the model's, accent green from the first guess entered over one** — a pure prediction must not wear the colour of the reader's own decisions. How many of them are his own is in the tooltip, not on the chip: a third figure in a pill that size is unreadable |
 | Grid tiles | Nothing — a tile shows no fixture either, so there is nothing to hang it on |
 | [Rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The badge inside the row's target, and a fourth tile totalling **his** fielded eleven |

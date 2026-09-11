@@ -222,16 +222,25 @@ worth, how many are fielded.
 honest division between the two tabs: the Aufstellung is a *matchday*, the Kader
 is a *squad*, and a player bought yesterday is in the second and not the first.
 
-Rows are the [squad page](squad.md)'s design: the **24-hour change** in euros
-under the market value, arrow and amount, and the **lineup probability** badge
-under the name. Both were missing until 2026-09-08 — the change because the
-model claimed `tfhmvt` was not on this payload (it is, on every player probed;
-see [Squad and lineup](../api/squad-and-lineup.md)), the probability because
-nobody fetched it. What stays off is what Kickbase only tells you about your own
-players: the offer count, and the shirt rail is a **marker** rather than a
-control. What the rows add is a points line (`p`/`ap`), because "what has this
-cost him all season" is half the reason to look at somebody else's squad. Every
-row opens the player.
+Rows are the [squad page](squad.md)'s design, and by now they are that row
+almost exactly: the **24-hour change** in euros under the market value, arrow
+and amount; the **lineup probability** badge under the name with the
+**[expected-points chip](squad.md#erwartete-punkte)** beside it; and the
+**fixture crest** at the end, which is the way into the sheet. Both figures on
+that second line are estimates about the same coming matchday, and the pair is
+what a rival's eleven is judged on.
+
+**The season line is gone.** `p`/`ap` used to sit under the name — "what has
+this cost him all season" — and it was a fact about the past holding the place
+of the two things that say what happens next. It is not lost: the player's own
+page has a whole tab of it.
+
+The change and the probability were missing until 2026-09-08 — the change
+because the model claimed `tfhmvt` was not on this payload (it is, on every
+player probed; see [Squad and lineup](../api/squad-and-lineup.md)), the
+probability because nobody fetched it. What stays off is what Kickbase only
+tells you about your own players: the offer count, and the shirt rail is a
+**marker** rather than a control. Every row opens the player.
 
 **The probability is a detail request per player**, the same gap-filling
 [`useStartProbabilities`](../../src/api/hooks/useStartProbabilities.ts) the squad
@@ -246,23 +255,24 @@ would draw a grey `±0` under every player, and that is a claim.
 
 ### Expected points, on somebody else's players
 
-The **target at the end of each row** opens the same
+The **fixture crest at the end of each row** opens the same
 [expected-points sheet](squad.md#erwartete-punkte) one's own Kader opens from
-the fixture crest, and files the guess under the same
-`matchday → playerId → points` map on this device. Until one is entered the
-target carries the [model's prediction](squad.md#woher-die-prognose-kommt),
-in orange, off the same cached file the Kader reads. A rival's squad is one of
+its own crest, and files the guess under the same
+`matchday → playerId → points` map on this device. The figure it enters reads
+beside the probability up in the row — his own guess, or the
+[model's prediction](squad.md#woher-die-prognose-kommt) in orange until he
+makes one, off the same cached file the Kader reads. A rival's squad is one of
 the two places you most want to make those guesses — a duel is your eleven
 against his — and it is the reason the feature is not confined to the page
 that introduced it.
 
-**A target rather than a crest**, because these rows have no fixture panel to
-hang a sheet on. It is visible whether or not a figure exists, which the badge
-on one's own row is not: with no crest to tap, an affordance that only appeared
-once you had used it could never be found the first time. Empty it is a faint
-outline; filled it is the same chip the squad list draws — orange for the
-prediction, accent green for a guess — so a figure looks identical wherever it
-is met.
+**A crest rather than a target.** These rows carried a plain target glyph while
+they had no fixture panel of their own; now they have one, for the same reason
+the squad page does — it is the only part of the row about the coming matchday,
+so the question *what will he score on Saturday* belongs on it. A rival's row
+and your own are the same row now, which is the point: the two are meant to be
+compared, and a difference in how they are drawn is a difference the reader has
+to think about.
 
 The row is now **a link plus a button** rather than one link — HTML has no
 nested interactive elements — with the card's border and its accent hover

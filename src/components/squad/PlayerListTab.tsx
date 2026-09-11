@@ -476,10 +476,24 @@ function PlayerRow({
               Glyph only, no label: five tier names repeated down a list is a
               lot of text for something the reader learns to recognise in
               seconds. The legend in the page header explains the scale, and
-              each badge keeps its tooltip. */}
-        {startProbability !== undefined && (
-          <span className="mt-0.5 flex items-center">
-            <StartProbabilityBadge tier={startProbability} size={13} />
+              each badge keeps its tooltip.
+
+              **The expected figure sits beside it**, because the two are the
+              same kind of statement about the same match — *will he play* and
+              *what will he bring* — and reading them together is what a lineup
+              decision actually needs. It used to live under the crest at the
+              end of the row; the crest kept the tap that enters it. */}
+        {(startProbability !== undefined || expectedPoints !== undefined) && (
+          <span className="mt-0.5 flex items-center gap-1.5">
+            {startProbability !== undefined && (
+              <StartProbabilityBadge tier={startProbability} size={13} />
+            )}
+            {expectedPoints !== undefined && (
+              <ExpectedPointsBadge
+                value={expectedPoints.value}
+                isForecast={!expectedPoints.isOwn}
+              />
+            )}
           </span>
         )}
       </span>
@@ -524,27 +538,16 @@ function PlayerRow({
      **The crest is where the guess is entered.** It is already the only part
      of the row that is about the coming matchday rather than about the season
      or the market, so "what will he score on Saturday?" belongs on it rather
-     than behind a button of its own; a row this dense has no room for one. The
-     figure lands directly under the crest it is about — dashed while it is
-     still the model's, solid once the guess is the reader's own. */
+     than behind a button of its own; a row this dense has no room for one.
+     The figure it enters now reads beside the probability badge up in the
+     row — the crest kept the tap and gave up the number, so this panel says
+     one thing (*who, and where*) and says it at full size. */
   const panelClass =
     /* `w-14`, near enough the 58px the crest plus its old padding took, so
-       the row's other columns keep the width they had. Fixed rather than
-       intrinsic: the chip appears and disappears per player, and a panel that
-       resized with it would leave the market values in a ragged column. */
-    'flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1'
+       the row's other columns keep the width they had. */
+    'flex w-14 shrink-0 flex-col items-center justify-center self-stretch border-l border-line bg-canvas/40 px-1'
 
-  const panelBody = (
-    <>
-      <FixtureBadge fixture={fixture} size="lg" />
-      {expectedPoints !== undefined && (
-        <ExpectedPointsBadge
-          value={expectedPoints.value}
-          isForecast={!expectedPoints.isOwn}
-        />
-      )}
-    </>
-  )
+  const panelBody = <FixtureBadge fixture={fixture} size="lg" />
 
   /* In calculator mode it goes back to being a picture: the whole row is one
      button then, HTML has no nested buttons, and a tap anywhere on the row

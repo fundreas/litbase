@@ -10,7 +10,10 @@ import {
 } from '@/api/models'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
-import { ExpectedPointsTarget } from '@/components/squad/ExpectedPointsBadge'
+import {
+  ExpectedPointsBadge,
+  ExpectedPointsTarget,
+} from '@/components/squad/ExpectedPointsBadge'
 import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
@@ -24,16 +27,12 @@ import { money, moneyDelta } from '@/lib/format'
 /**
  * Sort weight per position — the order a team sheet is always written in.
  *
- * The list is flat rather than sectioned, so this is an index rather than a
- * set of headings: every row carries its own position, which is what a heading
- * would otherwise have said once for the group.
+ * Both an order and the sections themselves: the list is grouped under one
+ * heading per position, exactly as one's own [Kader](../squad/PlayerListTab.tsx)
+ * and a [rival's](../manager/ManagerSquadTab.tsx) are, and the heading is what
+ * a label on every row used to say thirty times over.
  */
-const POSITION_ORDER: Record<PositionKey, number> = {
-  gk: 0,
-  def: 1,
-  mid: 2,
-  fwd: 3,
-}
+const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 
 /**
  * The club's whole roster, with **what each player costs, how likely he is to
@@ -122,11 +121,16 @@ export function TeamSquadTab({
    * `localeCompare` rather than `<`, because the names are German and a plain
    * comparison sorts every umlaut after Z: Özcan would land under Zirkzee.
    */
-  const players = [...profile.players].sort(
-    (a, b) =>
-      POSITION_ORDER[a.position] - POSITION_ORDER[b.position] ||
-      a.name.localeCompare(b.name, 'de'),
+  const players = [...profile.players].sort((a, b) =>
+    a.name.localeCompare(b.name, 'de'),
   )
+
+  /* One section per position, empty ones dropped: a club with no listed
+     keeper should show three headings, not four with a gap under one. */
+  const byPosition = POSITION_ORDER.map((position) => ({
+    position,
+    players: players.filter((player) => player.position === position),
+  })).filter((group) => group.players.length > 0)
 
   return (
     <div className="flex flex-col gap-3">
@@ -154,18 +158,36 @@ export function TeamSquadTab({
               Marktwert · 7 Tage
             </span>
           </p>
-          <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
-            {players.map((player) => (
-              <li key={player.id} className="flex items-stretch">
-                <PlayerRow
-                  player={player}
-                  leagueId={leagueId}
-                  expectedPoints={expectedPoints.entry(player.id)}
-                  onEditExpected={expected.open}
-                />
-              </li>
-            ))}
-          </ul>
+          {byPosition.map((group) => (
+            <section key={group.position} className="flex flex-col gap-1.5">
+              {/* The same heading a rival's Kader carries, down to the count
+                  beside it — three lists of players in this app now read the
+                  same way, and the position each row used to repeat is said
+                  once here instead. */}
+              <h3
+                className="px-0.5 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase"
+                title={POSITION_NAME[group.position]}
+              >
+                {POSITION_LABEL[group.position]}
+                <span className="nums ml-1.5 font-normal">
+                  {group.players.length}
+                </span>
+              </h3>
+
+              <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+                {group.players.map((player) => (
+                  <li key={player.id} className="flex items-stretch">
+                    <PlayerRow
+                      player={player}
+                      leagueId={leagueId}
+                      expectedPoints={expectedPoints.entry(player.id)}
+                      onEditExpected={expected.open}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
         </>
       )}
 
@@ -246,17 +268,28 @@ function PlayerRow({
             <PlayerStatusBadge status={player.availability} size={13} />
           </span>
 
-          <span className="mt-0.5 flex items-center gap-1.5">
-            <span
-              title={POSITION_NAME[player.position]}
-              className="text-[0.625rem] tracking-wide text-faint uppercase"
-            >
-              {POSITION_LABEL[player.position]}
+          {/* The position is gone from the row — the section heading above
+              says it once for the whole group — and what stands in its place
+              is the pair that decides a purchase: **will he play, and what
+              will he bring**. Both are about the coming matchday, both are
+              estimates, and neither means much without the other. */}
+          {(player.startProbability !== undefined ||
+            expectedPoints !== undefined) && (
+            <span className="mt-0.5 flex items-center gap-1.5">
+              {player.startProbability !== undefined && (
+                <StartProbabilityBadge
+                  tier={player.startProbability}
+                  size={13}
+                />
+              )}
+              {expectedPoints !== undefined && (
+                <ExpectedPointsBadge
+                  value={expectedPoints.value}
+                  isForecast={!expectedPoints.isOwn}
+                />
+              )}
             </span>
-            {player.startProbability !== undefined && (
-              <StartProbabilityBadge tier={player.startProbability} size={13} />
-            )}
-          </span>
+          )}
         </div>
 
         {player.owner !== undefined && (
@@ -298,9 +331,10 @@ function PlayerRow({
         </div>
       </Link>
 
+      {/* The figure moved up beside the probability, so this is the plain
+          target again: the way *in*, not a second copy of the number. */}
       <ExpectedPointsTarget
-        value={expectedPoints?.value}
-        isForecast={expectedPoints?.isOwn === false}
+        value={undefined}
         playerName={player.name}
         onClick={() => {
           onEditExpected(player.id)

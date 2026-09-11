@@ -195,13 +195,18 @@ match rankings hold.
 
 The tab the page is worth building for — and, since 2026-09-05, one request.
 
-**Every player, always, in one flat list.** No filters and no sections: a club
-has twenty-five to thirty players, which is a single screenful of scrolling,
-and a filter over a list that short mostly hides the comparison the reader came
-to make. Sorted by **position, then name** — so the shape of the squad is the
-order of the list, and a player is found where his name puts him rather than
-where this week's form does. Names sort through `localeCompare(…, 'de')`,
-without which every umlaut lands after Z and Özcan turns up under Zirkzee.
+**Every player, always, and no filters**: a club has twenty-five to thirty
+players, which is a single screenful of scrolling, and a filter over a list
+that short mostly hides the comparison the reader came to make.
+
+**Grouped by position under a heading each**, the same sections one's own
+[Kader](squad.md#kader--two-layouts) and a
+[rival's](manager-detail.md#kader) carry, with the count beside the label — so
+the shape of the squad is the shape of the page, and three lists of players in
+this app now read the same way. Names sort through `localeCompare(…, 'de')`
+inside each group, without which every umlaut lands after Z and Özcan turns up
+under Zirkzee. **The row lost its position label with it**: the heading says
+once what thirty rows were repeating.
 
 Each row is a link to the [player's own page](player-detail.md), where the
 season history, the market-value chart and the ownership detail live.
@@ -215,12 +220,20 @@ Everything on a row comes off one response:
 | **Startelf-Wahrscheinlichkeit** | `prob` |
 | **Besitzer**, as the manager's photo | `oui` + `onm` |
 | Verletzt / gesperrt | `st` |
-| Name, Position | `n`, `pos` |
+| Name | `n` |
+| Position | `pos` — the **section heading** now, not a label on the row |
 
-The probability sits on the second line **beside the position**, not next to
-the name — beside the name it would collide with the availability mark, and the
-two mean different things: *verletzt* is a fact, *unwahrscheinlich* is
-somebody's estimate. Same separation the [squad list](squad.md) makes.
+The probability sits on the second line **beside the expected-points chip**,
+not next to the name — beside the name it would collide with the availability
+mark, and the two mean different things: *verletzt* is a fact,
+*unwahrscheinlich* is somebody's estimate. Same separation the
+[squad list](squad.md) makes.
+
+That second line is now the pair a purchase is decided on: **will he play, and
+what will he bring**. Both are estimates about the same coming matchday and
+neither means much alone — an unlikely starter with a high figure is a bench
+risk, a certain starter with a low one is a safe disappointment. The position
+label that used to open the line is in the section heading above.
 
 The availability mark stays even though it is not one of the columns this list
 is for. A `prob` tier does not imply it — an injured player often carries no
@@ -239,7 +252,9 @@ the fixture crest — the reader's own guess at what the player will score on th
 coming matchday, filed on this device under
 `matchday → playerId → points`, over the
 [model's prediction](squad.md#woher-die-prognose-kommt) that stands there
-until he makes one.
+until he makes one. The target is the way **in**: the figure itself reads on
+the second line beside the probability, so the end of the row is a control and
+not a second copy of a number.
 
 A club's roster is where those guesses are **cheapest to make**: every player
 on it faces the same opponent, so one judgement about the fixture prices thirty

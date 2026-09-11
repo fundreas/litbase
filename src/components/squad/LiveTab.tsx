@@ -32,11 +32,13 @@ import {
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { TeamSheetCorner } from '@/components/player/TeamSheetMark'
 import {
-  expectedDescription,
-  expectedTextClass,
   ExpectedPointsFigure,
   ProjectedPointsFigure,
 } from '@/components/squad/ExpectedPointsBadge'
+import {
+  expectedDescription,
+  expectedTextClass,
+} from '@/components/squad/expectedPointsLabels'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
