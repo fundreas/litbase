@@ -80,6 +80,16 @@ rather than flashing an empty one at every letter. Each term caches for two
 minutes, which is what makes backspacing instant: the shorter term was fetched
 on the way in.
 
+## No heading, no chrome
+
+The page is a field and a list, in that order and with nothing above them. A
+title over a search box says what the reader has just tapped a magnifier to
+do, and costs a line between the tap and the keyboard — so the
+[`PageHeading`](../../src/components/PageHeading.tsx) every other page starts
+with is deliberately absent here. The field's label survives for screen
+readers via `hideLabel` on [`Input`](../../src/components/ui/Input.tsx), which
+have no magnifier to have tapped.
+
 ## The row
 
 ```
@@ -93,8 +103,8 @@ on the way in.
 Four things, and they are the four that tell two players of the same name
 apart: **club, position, market value, and who in this league owns him**. No
 filters, no sorting, no position chips — a name search returns a handful of
-rows, the reader already knows which one they meant, and chips over a five-row
-list are furniture.
+rows, the reader already knows which one they meant, and chips over a
+five-row list are furniture, in the space the heading is not taking either.
 
 - **The owner is a name, not a badge.** Every other list draws an
   [`OwnerBadge`](../../src/components/matchday/OwnerBadge.tsx) here; this one

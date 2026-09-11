@@ -7,6 +7,15 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string
   hint?: ReactNode
   trailing?: ReactNode
+  /**
+   * Keep the label for screen readers but take it off the screen.
+   *
+   * For the field that *is* the page — a search box at the top of a page of
+   * results, where a caption over it says what the placeholder already says
+   * and pushes the results down a line. Still required, never optional: a
+   * field with no accessible name is a field nobody can fill in blind.
+   */
+  hideLabel?: boolean
 }
 
 export function Input({
@@ -14,6 +23,7 @@ export function Input({
   error,
   hint,
   trailing,
+  hideLabel = false,
   className,
   id,
   ...rest
@@ -26,7 +36,10 @@ export function Input({
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={inputId}
-        className="text-xs font-medium tracking-wide text-muted uppercase"
+        className={cn(
+          'text-xs font-medium tracking-wide text-muted uppercase',
+          hideLabel && 'sr-only',
+        )}
       >
         {label}
       </label>

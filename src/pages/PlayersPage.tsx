@@ -9,7 +9,6 @@ import {
   POSITION_NAME,
   type PlayerSearchResult,
 } from '@/api/models'
-import { PageHeading } from '@/components/PageHeading'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { Input } from '@/components/ui/Input'
@@ -55,11 +54,13 @@ const DEBOUNCE_MS = 500
  *
  * ## What it does not do
  *
- * No filters, no sorting, no position chips. A name search returns a handful
- * of rows and the reader already knows which one they meant; chips over a
- * five-row list are furniture. The row carries the four things that tell two
- * players of the same name apart — club, position, value, and **who in this
- * league owns him** — and nothing else.
+ * No filters, no sorting, no position chips, and **no page heading**: a name
+ * search returns a handful of rows, the reader already knows which one they
+ * meant, and a title over a search box is a line of type between the tap that
+ * opened the page and the keyboard. The field is at the top, the results are
+ * under it, and the row carries the four things that tell two players of the
+ * same name apart — club, position, value, and **who in this league owns
+ * him** — and nothing else.
  */
 export function PlayersPage() {
   const { leagueId, competitionId } = useActiveLeague()
@@ -104,19 +105,19 @@ export function PlayersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeading
-        title="Spieler suchen"
-        subtitle="Jeder Spieler der Liga — mit Marktwert und Besitzer."
-      />
-
+      {/* No page heading. The field is the whole page, and a title over a
+          search box says what the reader has just tapped a magnifier to do —
+          a line of type between the tap and the keyboard. The label stays for
+          screen readers, which have no magnifier to have tapped. */}
       <Input
-        label="Name"
+        label="Spieler suchen"
+        hideLabel
         type="search"
         value={draft}
         onChange={(event) => {
           setDraft(event.target.value)
         }}
-        placeholder="z. B. Kane"
+        placeholder="Name, z. B. Kane"
         autoFocus
         autoCapitalize="none"
         autoCorrect="off"
