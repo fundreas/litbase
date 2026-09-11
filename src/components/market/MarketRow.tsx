@@ -282,14 +282,14 @@ export function MarketRow({
  * has a figure for the player.
  */
 const MATCHDAY_PANEL =
-  'flex w-12 shrink-0 flex-col items-center justify-center gap-1 self-stretch border-l border-line bg-canvas/40 px-0.5'
+  'flex w-13 shrink-0 flex-col items-center justify-center gap-1 self-stretch border-l border-line bg-canvas/40 px-1'
 
 /**
  * The last column of the row, whatever ends up in it. Fixed width so the
  * figures above stop in the same place on every row, expiring or not.
  */
 const PANEL =
-  'flex w-15 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1 text-center'
+  'flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1 text-center'
 
 /**
  * **The overnight move**, under a computer listing's price.
@@ -305,7 +305,11 @@ function Change({ value }: { value: number | undefined }) {
   return (
     <span
       className={cn(
-        'nums flex items-center justify-end gap-0.5 text-xs',
+        // 11px, the size the countdown panel gives its own second line: this
+        // is a subtitle under the figure it qualifies, and at `text-xs` the
+        // widest of them (`↘ −390 Tsd. €`) was the thing squeezing the name
+        // column on a narrow phone.
+        'nums flex items-center justify-end gap-0.5 text-[0.6875rem]',
         value !== undefined && value > 0 && 'text-positive',
         value !== undefined && value < 0 && 'text-negative',
         (value === undefined || value === 0) && 'text-faint',
@@ -363,7 +367,8 @@ function Premium({
   return (
     <span
       className={cn(
-        'nums block text-xs font-medium',
+        // The same 11px as {@link Change}, whose line this one takes.
+        'nums block text-[0.6875rem] font-medium',
         premium > 0 && 'text-warning',
         premium < 0 && 'text-positive',
         premium === 0 && 'text-faint',
@@ -453,7 +458,10 @@ function Countdown({
     <span className={PANEL}>
       <span
         className={cn(
-          'nums text-[0.6875rem] leading-tight font-semibold',
+          // `truncate`: this line is usually four characters of figure, but
+          // for the second between expiry and the next poll it is the word
+          // `abgelaufen`, which is wider than the panel.
+          'nums w-full truncate text-[0.6875rem] leading-tight font-semibold',
           isUrgent ? 'text-accent' : 'text-ink',
         )}
       >

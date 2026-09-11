@@ -30,19 +30,69 @@ door, because Kickbase's market is what the page is opened for, and the other
 two tabs appear only when there is something in them
 ([below](#the-bar-and-which-tabs-it-has)).
 
-Each row of the market list carries what a buying decision actually needs:
+Each row of the market list carries what a buying decision actually needs, in
+four bands, each answering one question:
 
 ```
-┌────┬─────────────────────────────┬────┬────────┐
-│ 👤 │ Kohr          7,77 Mio. €   │ 🏠 │ 9 Std. │
-│    │ ABW          ↘ −390 Tsd. €  │ FCB│ 22:48  │
-└────┴─────────────────────────────┴────┴────────┘
+┌──────┬─────────────────────────┬──────┬────────┐
+│      │ Guerreiro               │      │        │
+│  👤  │ ABW ✓      7,8 Mio. €   │ FCB  │ 9 Std. │
+│      │          ↘ −390 Tsd. €  │ ⌖231 │ 22:48  │
+└──────┴─────────────────────────┴──────┴────────┘
+   who    who · what he costs    spieltag   when
 ```
 
-name · position, and the manager who owns him when one does · **one** money
-figure and its overnight move · his club's next fixture, home or away · how
-long the listing has left, and the clock time that lands on — or, on a
-manager's listing, **what he is asking over the market value**.
+**who he is** — portrait, name, position, and whether he will be on the pitch
+at all · **what he costs** — one money figure and its overnight move, or on a
+manager's listing what he is asking over the market value · **what he does
+with the matchday** — his club's next fixture, home or away, and under it what
+he is expected to score in it · **when this settles**, or whose listing it is.
+
+### The two matchday marks
+
+A market row used to say everything about a player except the two things that
+decide whether he is worth buying *this week*: **will he start**, and **what
+will he score**. Both were already on the Kader and neither was here, so the
+same player read one way in the squad and another on the market.
+
+They are drawn exactly where [the Kader](squad.md) draws them, because a
+player met in two places must not need two vocabularies:
+
+- the **lineup-probability tier** as a glyph beside the position — the
+  five-step Ligainsider scale, colour *and* shape, no label
+  ([`StartProbabilityBadge`](../../src/components/squad/StartProbabilityBadge.tsx));
+- the **expected points** as a chip under the crest, orange while the figure
+  is the model's and accent green once the reader has overruled it
+  ([`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx)).
+
+The chip is **read-only here.** On one's own Kader the panel it sits in is a
+button that opens the sheet; this row has already spent that panel, and every
+other part of itself, on the bid. The guess is entered from the player's own
+page, and a row with three targets would make every tap a question about
+which one was meant.
+
+**Neither costs the page a request.** `prob` rides on the market payload
+itself, and the listings it omits are filled from `qk.playerDetail` — the very
+cache entries [the 24-hour move](#the-24-hour-change-costs-a-fan-out) has
+already fetched for every listing. The expected points are one static file per
+competition and matchday, the same one the Kader reads.
+
+### The height they cost, and where it went
+
+Both marks are pure addition to a row that was already full, so the row grew
+from 52px to 76px — and the space went to the two things that were suffering
+most.
+
+The **portrait** is half again as large (`w-14` → `w-18`, on a row half again
+as tall): the sources are 1100×800 landscape and the box cover-crops them, so
+every pixel of both dimensions is a pixel of face.
+
+The **name** now has a line to itself. Four columns and a two-line money block
+left it about fifty pixels, so nearly every name arrived truncated — on the
+one page whose first question is *who is on the market*. Position and price
+moved down to share the line beneath it, each on its own side, and the
+subtitle under the price dropped to 11px, the size the countdown panel already
+gives its own second line.
 
 **The last panel answers the question the listing's kind leaves open.** For
 Kickbase's, that is *when does this settle?* A manager's has no answer to it —
@@ -269,6 +319,13 @@ one request per listing, about twenty, cached half an hour under
 probability lookups use, so a manager arriving from their own squad pays for
 the overlap once.
 
+The **lineup probability rides along for free** on the back of it.
+[`useStartProbabilities`](../../src/api/hooks/useStartProbabilities.ts) fills
+only the listings whose `prob` did not arrive on the market payload, and it
+asks for them under the same `qk.playerDetail` key this fan-out has already
+populated — so the badge costs zero additional requests, and would cost zero
+even if Kickbase stopped sending `prob` on the market entirely.
+
 ## The data
 
 [`useMarket(leagueId)`](../../src/api/hooks/useMarket.ts) →
@@ -301,6 +358,7 @@ Each listing:
 | `offerCount` | Offers **this account can see** — see below |
 | `ownOffer`, `ownOfferId` | This account's standing bid, and the id needed to withdraw it |
 | `image` | Player image, CDN-relative |
+| `startProbability` | Lineup-probability tier 1..5 from `prob`, when the payload carries it — gaps filled from the player detail, see below |
 
 `staleTime` is **30 seconds** and the query polls at the same rate — prices and
 countdowns are the most time-sensitive data Kickbase exposes.
@@ -312,7 +370,7 @@ The wire payload carries more still (`MarketPlayer` in
 | ---------- | ------- |
 | `isn` | **New to the market today** — see the correction below |
 | `p`, `ap` | Season points and average; absent for a player yet to appear |
-| `prob` | Lineup-probability tier, 1..5 — the same field the squad tabs use |
+| `plpim`, `ts` | The club's whole probable-XI poster and when it was last assessed — **not** a per-player icon, see [Codes](../api/codes.md#lineup-probability-prob) |
 | `ofs[]` | The offers this account may see: `{ u, unm, uoid, uop, st }` |
 | `iposl` | Position locked. `false` on every listing observed |
 
