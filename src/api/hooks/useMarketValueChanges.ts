@@ -3,7 +3,6 @@ import { useMemo } from 'react'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import type { MarketListing } from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { PlayerDetailResponse } from '@/api/types'
 
@@ -15,9 +14,9 @@ import type { PlayerDetailResponse } from '@/api/types'
 const STALE_MS = 30 * 60_000
 
 /**
- * Each listing's market-value move over the last 24 hours, keyed by player id.
+ * Each player's market-value move over the last 24 hours, keyed by player id.
  *
- * **One request per listing, because there is no bulk source.** `tfhmvt` is
+ * **One request per player, because there is no bulk source.** `tfhmvt` is
  * the figure, and it lives only on `/v4/leagues/{id}/players/{pid}` — the
  * market payload itself carries `mvt`, the *direction*, and no amount;
  * `/v4/competitions/{id}/players` carries neither. So this is the same
@@ -31,14 +30,19 @@ const STALE_MS = 30 * 60_000
  * A missing entry is the normal case while the requests are in flight, and is
  * indistinguishable on the wire from a player Kickbase has no figure for, so
  * nothing here surfaces an error — the row simply shows no change.
+ *
+ * **The caller owns the length of the list.** Anything with an `id` will do —
+ * market listings, or the rows of a
+ * [player search](../../pages/PlayersPage.tsx), which caps how many of them it
+ * asks about precisely because a fan-out is what this is.
  */
 export function useMarketValueChanges(
   leagueId: string | undefined,
-  listings: MarketListing[] | undefined,
+  players: readonly { id: string }[] | undefined,
 ): Map<string, number> {
   const playerIds = useMemo(
-    () => (listings ?? []).map((listing) => listing.id),
-    [listings],
+    () => (players ?? []).map((player) => player.id),
+    [players],
   )
 
   const queries = useQueries({

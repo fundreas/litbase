@@ -93,25 +93,40 @@ have no magnifier to have tapped.
 ## The row
 
 ```
-┌──────┬────────────────────────────────┬──────────────┐
-│      │ Kane                  ✚  🏷     │              │
-│  👤  │ [FCB]  ANG · Gehört Andreas     │ 65,8 Mio. €  │
-└──────┴────────────────────────────────┴──────────────┘
-   who        him, and whose he is          what he costs
+┌──────┬──────────────────────────┬─────┬──────────────┐
+│      │ Kane             ✚  🏷    │     │  65,8 Mio. € │
+│  👤  │ [FCB]  ANG               │ (A) │  ↘ −390 Tsd. │
+└──────┴──────────────────────────┴─────┴──────────────┘
+   who            him              whose    what he costs
 ```
 
-Four things, and they are the four that tell two players of the same name
-apart: **club, position, market value, and who in this league owns him**. No
-filters, no sorting, no position chips — a name search returns a handful of
-rows, the reader already knows which one they meant, and chips over a
-five-row list are furniture, in the space the heading is not taking either.
+What tells two players of the same name apart: **club, position, whose he is,
+and what he is worth today against yesterday**. No filters, no sorting, no
+position chips — a name search returns a handful of rows, the reader already
+knows which one they meant, and chips over a five-row list are furniture, in
+the space the heading is not taking either.
 
-- **The owner is a name, not a badge.** Every other list draws an
-  [`OwnerBadge`](../../src/components/matchday/OwnerBadge.tsx) here; this one
-  cannot, because the payload carries the manager's *name* and neither their
-  id nor their avatar. There is nothing to draw and nowhere to link. *Frei* is
-  the half worth having anyway: the first question about a player one has just
-  found is whether he can be had.
+- **The owner is a face in a column of its own**, not a *Gehört X* on the
+  second line. A long manager name pushed the club and the position out of the
+  line that identifies the player, and read as a sentence where every other
+  list in the app shows a portrait. A column of
+  [`OwnerBadge`](../../src/components/matchday/OwnerBadge.tsx)s answers *what
+  is still free here* in one sweep, and the reader's own players carry the
+  accent ring they carry everywhere else. **A free player keeps the column's
+  width** with a dashed outline, so *frei* is a shape rather than a gap.
+- **The face is a lookup.** The payload names the owner and carries neither an
+  id nor an avatar, so the name is joined against the league's member list
+  (`useLeagueDetails` — one cached request the [Liga](league.md) page has
+  usually paid for). A miss still draws the badge: the avatar falls back to
+  initials, which beats an empty column.
+- **Under the market value is the overnight move** — `tfhmvt`, the same
+  24-hour figure and the same arrow the [market](market.md) rows draw, because
+  a value without its direction is half a fact on a page about finding
+  somebody to buy. It lives **only on a player's own detail**, so it is one
+  request per row: [`useMarketValueChanges`](../../src/api/hooks/useMarketValueChanges.ts)
+  fans out over the **top 25 rows only**, a two-letter term being bounded by
+  nothing. A row without a figure shows no second line at all — a dash would
+  read as *no change*.
 - **The crest is resolved, not served.** Rows carry `tid` only, so the club
   comes from [`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) — one
   cached request the [Saison](season.md) page has usually paid for already.
@@ -135,7 +150,7 @@ mapped to `PlayerSearchResult[]`:
 | `position` | `'gk' \| 'def' \| 'mid' \| 'fwd'` |
 | `marketValue` | In € |
 | `availability` | `st`; `0` is fit |
-| `owner` | The owning manager's **name**, or `undefined` when nobody holds him |
+| `owner` | The owning manager's **name**, or `undefined` when nobody holds him. The face is looked up from it |
 | `isListed` | He is on the market right now |
 | `image` | Portrait, CDN-relative |
 
