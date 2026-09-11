@@ -420,10 +420,13 @@ charges for the truth here. Three things make it acceptable:
 - The manager list is `useRanking`, already fetched for the names and avatars.
 
 **`lp` and `nlp` are both read**, so the badge distinguishes a player who was
-*fielded* from one merely *owned and left out* — the second is drawn faded and
-worded differently, because it answers "why did he score me nothing" rather than
-"he played for me". Before kick-off `lp` is empty and `nlp` holds the whole
-squad, so an upcoming matchday still answers ownership correctly.
+*fielded* from one merely *owned and left out* — the second is **worded**
+differently, because it answers "why did he score me nothing" rather than "he
+played for me". It used to be drawn faded as well; at this size the fade cost
+the face its legibility, which is the badge's whole job, so every badge is now
+at full strength and the distinction lives in the label. Before kick-off `lp` is
+empty and `nlp` holds the whole squad, so an upcoming matchday still answers
+ownership correctly.
 
 `oui` survives as the **last resort**, for a matchday the snapshot has nothing at
 all for (out of range, or before the league existed). `needsOwner` on the points

@@ -224,8 +224,9 @@ legible where three icons would just be more to look at.
 `(ᴍ)` above is the **owning manager's avatar** — the same
 [`OwnerBadge`](../../src/components/matchday/OwnerBadge.tsx) the
 [match lineup](match-detail.md#ownership-is-the-point) uses, with the viewer's
-own players taking the accent ring and a player somebody owned but left out
-drawn faded.
+own players taking the accent ring. Every badge is drawn at full opacity — a
+player somebody owned but left out is told apart by its wording, not by a fade
+that only made a 16px face harder to recognise.
 
 That slot carried the player's **club crest** first, which was redundant on
 sight: the club is already named on the line below. The manager's avatar turns

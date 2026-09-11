@@ -19,10 +19,12 @@ import { cn } from '@/lib/cn'
  * every duel. The signed-in user's own players take the **accent ring**, so
  * "which of these are mine" is answered without reading anything at all.
  *
- * **A manager who owned the player and left him out is drawn faded**, because
- * the badge then makes a weaker claim — "mine, but not playing for me" — and it
- * should not compete with the one that counted. It is the same set of states
- * {@link ownerLabel} words.
+ * **Every badge is drawn at full strength**, including a manager who owned the
+ * player and left him out. That case used to be faded, on the reasoning that it
+ * makes a weaker claim — "mine, but not playing for me". At 16px on a busy
+ * pitch the fade cost legibility of the face, which is the badge's entire job,
+ * and bought a distinction the tooltip already states in words. The weaker
+ * claim is still worded by {@link ownerLabel}; it is no longer whispered.
  *
  * Wordless, therefore labelled: the manager's name rides along as the tooltip
  * and as screen-reader text, since a small circular photograph says nothing to
@@ -41,15 +43,13 @@ export function OwnerBadge({
   className?: string
 }) {
   const label = ownerLabel(owner)
-  /* A matchday claim that is only squad membership, not selection. */
-  const isBenched = owner.source === 'matchdayLineup' && !owner.wasFielded
 
   return (
     <span
       role="img"
       aria-label={label}
       title={label}
-      className={cn('flex shrink-0', isBenched && 'opacity-60', className)}
+      className={cn('flex shrink-0', className)}
     >
       <Avatar
         src={owner.image}
