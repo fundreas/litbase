@@ -13,6 +13,7 @@ import {
   RosterBenchRow,
   type RosterRing,
 } from '@/components/roster/RosterPitch'
+import { ProjectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   fitPitchMetrics,
@@ -27,7 +28,12 @@ import {
   FullscreenPane,
 } from '@/components/ui/FullscreenPane'
 import { cn } from '@/lib/cn'
-import type { ExpectedPointsView } from '@/lib/expectedPoints'
+import {
+  isProjection,
+  projectedPointsTotal,
+  type ExpectedPointsView,
+  type ProjectedPoints,
+} from '@/lib/expectedPoints'
 import { useHashModal } from '@/lib/useHashModal'
 import { useMemo, type ReactNode } from 'react'
 
@@ -103,6 +109,18 @@ export function DuelLineupTab({
    * and a matchday, not of whose team he happens to be in.
    */
   const expected = useExpectedPointsView(day)
+
+  /*
+   * **Where each eleven is heading**, not only where it stands: every real
+   * score already in, plus an expected figure for every match still to come.
+   * One per side, in the corner plate that names the manager — a duel read
+   * before the weekend is two projections against each other, and the
+   * scoreline above can only ever be two facts about the past.
+   */
+  const projected: [ProjectedPoints, ProjectedPoints] = [
+    projectedPointsTotal(top.lineup, expected),
+    projectedPointsTotal(bottom.lineup, expected),
+  ]
   const { ref, box } = usePitchBox()
   /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
@@ -167,6 +185,7 @@ export function DuelLineupTab({
         isViewer={top.manager.id === viewerId}
         leagueId={leagueId}
         day={day}
+        projected={projected[0]}
       />
 
       {/* The one corner the two name plates leave free. Gone once the pitch is
@@ -210,6 +229,7 @@ export function DuelLineupTab({
         isViewer={bottom.manager.id === viewerId}
         leagueId={leagueId}
         day={day}
+        projected={projected[1]}
       />
     </Pitch>
   )
@@ -306,12 +326,15 @@ function SideLabel({
   isViewer,
   leagueId,
   day,
+  projected,
 }: {
   roster: DuelRoster
   side: Side
   isViewer: boolean
   leagueId: string | undefined
   day: number | undefined
+  /** Where this eleven is heading, when any of it is still ahead. */
+  projected: ProjectedPoints
 }) {
   const body = (
     <>
@@ -320,6 +343,17 @@ function SideLabel({
         {roster.manager.name}
         {isViewer && <span className="ml-1 text-accent">du</span>}
       </span>
+      {/* The name gives up width for it — `max-w-28` truncates, and a
+          four-digit projection is worth more on this pitch than the last four
+          letters of a manager's name. Gone once every match is settled: the
+          scoreline in the header is then the whole story. */}
+      {isProjection(projected) && (
+        <ProjectedPointsFigure
+          projected={projected}
+          iconSize={8}
+          className="text-[0.625rem]"
+        />
+      )}
     </>
   )
 

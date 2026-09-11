@@ -249,6 +249,75 @@ export function expectedPointsView(
 }
 
 /**
+ * **What an eleven will end the matchday on**, as far as anything can say
+ * yet: the points a player has actually scored, and where he has none, what he
+ * is expected to score.
+ *
+ * `SUM(coalesce(real, own guess, prediction))`, in that order, which is the
+ * only order that makes sense — a real score is a fact, a guess is the
+ * reader's own correction of the model, and the model is the floor. The three
+ * kinds are counted separately because the total alone cannot say what it is:
+ * 1.240 off eleven settled matches is a result, and 1.240 off eleven
+ * predictions is a projection, and a reader has to be able to tell which he is
+ * looking at.
+ *
+ * **Only the players handed in.** Every caller passes a fielded eleven — the
+ * bench scores nothing — and no empty-slot penalty is modelled here: that is
+ * the [live header's](../components/squad/LiveTab.tsx) own chip, and folding
+ * it in would make this figure disagree with the rows it is drawn over.
+ */
+export interface ProjectedPoints {
+  /** The sum, over every player who contributed anything. */
+  total: number
+  /** How many contributed a real score. */
+  scored: number
+  /** How many contributed the reader's own guess. */
+  own: number
+  /** How many contributed the model's prediction. */
+  forecast: number
+  /** How many contributed nothing: no points, no guess, no prediction. */
+  missing: number
+}
+
+export function projectedPointsTotal(
+  players: readonly { id: string; points?: number }[],
+  expected: ExpectedPointsView,
+): ProjectedPoints {
+  const result: ProjectedPoints = {
+    total: 0,
+    scored: 0,
+    own: 0,
+    forecast: 0,
+    missing: 0,
+  }
+
+  for (const player of players) {
+    if (player.points !== undefined) {
+      result.total += player.points
+      result.scored += 1
+      continue
+    }
+
+    const entry = expected.entry(player.id)
+    if (entry === undefined) {
+      result.missing += 1
+      continue
+    }
+
+    result.total += entry.value
+    if (entry.isOwn) result.own += 1
+    else result.forecast += 1
+  }
+
+  return result
+}
+
+/** Is any of this total still a projection rather than a result? */
+export function isProjection(projected: ProjectedPoints): boolean {
+  return projected.own + projected.forecast > 0
+}
+
+/**
  * What a set of players is expected to score between them, and how much of
  * that the reader stands behind himself.
  *

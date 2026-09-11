@@ -5,6 +5,7 @@ import type { DuelPlayer, DuelRoster, PositionKey } from '@/api/models'
 import { BenchMark } from '@/components/player/BenchMark'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { RosterBand, RosterBenchRow } from '@/components/roster/RosterPitch'
+import { ProjectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   fitPitchMetrics,
@@ -18,7 +19,12 @@ import {
   FullscreenPane,
 } from '@/components/ui/FullscreenPane'
 import { cn } from '@/lib/cn'
-import type { ExpectedPointsView } from '@/lib/expectedPoints'
+import {
+  isProjection,
+  projectedPointsTotal,
+  type ExpectedPointsView,
+  type ProjectedPoints,
+} from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import { useHashModal } from '@/lib/useHashModal'
 
@@ -71,6 +77,18 @@ export function ManagerLineupTab({
    * real points to show instead.
    */
   const expected = useExpectedPointsView(day)
+
+  /**
+   * **What this eleven is on course to finish the matchday on** — every real
+   * score it already has, plus an expected figure for every match still to
+   * come.
+   *
+   * The plate's other number is Kickbase's own total, which is a fact about
+   * the past and says nothing about the four matches still to kick off. That
+   * gap is the whole reason to look at somebody else's eleven on a Friday, and
+   * until now the page could only be read after the fact.
+   */
+  const projected = projectedPointsTotal(roster.lineup, expected)
 
   /**
    * Both of this tab's modals live in the URL — `#fullscreen`, and
@@ -127,7 +145,11 @@ export function ManagerLineupTab({
     <Pitch
       className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[22rem] flex-1'}
     >
-      <TotalPlate roster={roster} isPointsPending={isPointsPending} />
+      <TotalPlate
+        roster={roster}
+        projected={projected}
+        isPointsPending={isPointsPending}
+      />
 
       {/* The corner the plate leaves free. Gone once the pitch is full screen:
           there is nothing further to expand into, and the bar's ✗ is the way
@@ -190,7 +212,7 @@ export function ManagerLineupTab({
         open
         onOpenChange={fullscreen.setOpen}
         title="Aufstellung im Vollbild"
-        summary={<FullscreenSummary roster={roster} />}
+        summary={<FullscreenSummary roster={roster} projected={projected} />}
       >
         {pitch}
         {breakdownDialog}
@@ -241,9 +263,11 @@ function countAt(lineup: DuelPlayer[], position: PositionKey): number {
  */
 function TotalPlate({
   roster,
+  projected,
   isPointsPending,
 }: {
   roster: DuelRoster
+  projected: ProjectedPoints
   isPointsPending: boolean
 }) {
   const pending = roster.activeMatches + roster.openMatches
@@ -261,6 +285,18 @@ function TotalPlate({
           Pkt
         </span>
       </span>
+      {/* Under the scored total, not beside it: the two are the same eleven
+          measured at two different times, and reading down from *what it has*
+          to *where it is going* is the order the question comes in. Absent
+          once every match is settled, where a projection would be the scored
+          total again in a different colour. */}
+      {isProjection(projected) && (
+        <ProjectedPointsFigure
+          projected={projected}
+          className="mt-0.5 text-[0.6875rem] leading-none"
+        />
+      )}
+
       {pending > 0 && (
         <span className="nums mt-0.5 text-[0.625rem] text-white/70">
           {roster.activeMatches} laufend · {roster.openMatches} offen
@@ -278,7 +314,13 @@ function TotalPlate({
  * screen is the pitch, and the bar has one row to say whose eleven this is and
  * what it has scored — the two things the header is read for.
  */
-function FullscreenSummary({ roster }: { roster: DuelRoster }) {
+function FullscreenSummary({
+  roster,
+  projected,
+}: {
+  roster: DuelRoster
+  projected: ProjectedPoints
+}) {
   return (
     <div className="flex items-center gap-2">
       <Avatar src={roster.manager.image} name={roster.manager.name} size={26} />
@@ -286,8 +328,13 @@ function FullscreenSummary({ roster }: { roster: DuelRoster }) {
         <p className="truncate text-[0.6875rem] text-muted">
           {roster.manager.name}
         </p>
-        <p className="nums truncate text-sm leading-tight font-bold text-ink">
-          {points(roster.totalPoints)} Pkt
+        <p className="nums flex items-center gap-2 truncate text-sm leading-tight font-bold text-ink">
+          <span>{points(roster.totalPoints)} Pkt</span>
+          {/* Beside it here rather than under it: the bar has one row, and
+              the pitch behind it is the whole point of the view. */}
+          {isProjection(projected) && (
+            <ProjectedPointsFigure projected={projected} iconSize={11} />
+          )}
         </p>
       </div>
     </div>

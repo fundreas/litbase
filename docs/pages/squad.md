@@ -512,6 +512,8 @@ afterwards moves it.
 | [Club's roster](team.md#expected-points-a-club-at-a-time) | The badge inside the row's target. No total — a roster is not an eleven |
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
 | [Live view](#live-tab), [a rival's Aufstellung](manager-detail.md#aufstellung), the [duel pitch](duel-detail.md#layout) and its [ranking](duel-detail.md#the-ranking-tab) | For a player whose match **has not kicked off**: the figure takes the plate on grass — target glyph included, so it cannot be read as a score — and rides beside the kick-off time as a chip in a row. Gone the moment real points exist — see [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets) |
+| Lineup totals — [live header](#live-tab), [a rival's corner plate](manager-detail.md#aufstellung), both [duel corners](duel-detail.md#layout) | `⌖ 1.240`: `SUM(coalesce(real, own guess, prediction))` over the fielded eleven. Where an eleven is **heading**, next to what it has scored; absent once every match is settled |
+| [The action breakdown](duel-detail.md#the-expected-points-in-the-header-of-the-breakdown) | **Both** figures in the header — the reader's guess *and* the model's prediction — beside the real total. The one screen where the two are worth separating rather than resolved |
 
 A player with **neither** figure shows no chip at all — a bye, a player the
 model has no file for, a league outside the Bundesliga. In a Bundesliga league
@@ -1311,6 +1313,17 @@ grass that distinction is the difference between *hasn't kicked off* and
 A live matchday runs from a Friday evening to a Sunday night, so for most of
 the hours this view is open half the eleven has not kicked off — which is
 exactly the half whose plate used to hold nothing but a time.
+
+**The header gained a second figure for the same reason:** `⌖ 1.240` beside
+the running total, which is
+`SUM(coalesce(real points, your guess, the model's prediction))` over the
+fielded eleven ([`projectedPointsTotal()`](../../src/lib/expectedPoints.ts)) —
+where the eleven is heading, not only where it stands. "200 behind" means
+nothing without "and four still to play", and this is that sentence as one
+number. Accent green once any part of it is a guess of the reader's own, orange
+while it is all the model's, gone once every match is settled. It deliberately
+does **not** fold in the empty-slot penalty: that is the chip next to it, and
+one figure carrying both would agree with nothing else on the screen.
 
 **Tapping a portrait opens the actions behind its number** — the same
 [breakdown](player-detail.md#the-match-breakdown) the player page and the two

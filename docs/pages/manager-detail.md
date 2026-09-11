@@ -170,6 +170,20 @@ forty points behind with four matches to play is winning). The figure is
 Kickbase's own `mdp` for the matchday, not the sum of the portraits, so it cannot
 disagree with the standings while the rows fill in.
 
+**Under it, where this eleven is heading:** `⌖ 1.240`, which is
+`SUM(coalesce(real points, your guess, the model's prediction))` over the
+fielded eleven — [`projectedPointsTotal()`](../../src/lib/expectedPoints.ts).
+The scored total is a fact about the past and says nothing about the four
+matches still to kick off, which is exactly the gap that makes somebody else's
+eleven worth looking at on a Friday. It is accent green as soon as any part of
+the projection is a guess the reader entered himself, orange while it is all
+the model's, and **absent once every match is settled** — a projection over a
+finished matchday is the scored total again in a different colour. What it is
+made of (`4 gespielt, 5 Prognose, 2 eigene Schätzungen`) rides along as the
+tooltip and the screen-reader text; no empty-slot penalty is modelled, because
+this figure has to agree with the portraits it is drawn over. The full-screen
+bar carries the same pair on one line.
+
 The pitch opens [full screen](duel-detail.md#full-screen) from its corner, and
 both layers live in the hash — `#fullscreen`, `#player:<id>`, stacking as
 `#fullscreen/player:4711`.

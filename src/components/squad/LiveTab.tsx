@@ -35,6 +35,7 @@ import {
   expectedDescription,
   expectedTextClass,
   ExpectedPointsFigure,
+  ProjectedPointsFigure,
 } from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
@@ -49,9 +50,11 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import type {
-  ExpectedPointsEntry,
-  ExpectedPointsView,
+import {
+  isProjection,
+  projectedPointsTotal,
+  type ExpectedPointsEntry,
+  type ExpectedPointsView,
 } from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import { emptySlotPenalty, LINEUP_SIZE } from '@/lib/lineup'
@@ -319,6 +322,7 @@ export function LiveTab({
       <LiveHeader
         day={day}
         lineup={lineup}
+        expected={expected}
         activeMatches={countState('running')}
         openMatches={countState('upcoming')}
         isPointsPending={matchdayPoints.isPending}
@@ -401,10 +405,18 @@ function useLiveView(): [LiveView, (view: LiveView) => void] {
  * The penalty chip appears when fewer than eleven are fielded, because that is
  * the one way this sum and Kickbase's official total legitimately differ —
  * every empty slot costs 100 points and the standings will subtract them.
+ *
+ * **The projected chip beside it is where the eleven is heading**: the scored
+ * rows plus an expected figure for every match still to come, in the colour of
+ * whatever carries it — accent green once the reader has overruled the model
+ * anywhere, orange while the projection is all the model's. It does not model
+ * the empty-slot penalty; that is the chip next to it, and folding the two
+ * together would make one figure that agrees with nothing on the screen.
  */
 function LiveHeader({
   day,
   lineup,
+  expected,
   activeMatches,
   openMatches,
   isPointsPending,
@@ -413,6 +425,8 @@ function LiveHeader({
 }: {
   day: number
   lineup: DuelPlayer[]
+  /** This matchday's expected points, for the matches still to come. */
+  expected: ExpectedPointsView
   activeMatches: number
   openMatches: number
   isPointsPending: boolean
@@ -420,6 +434,12 @@ function LiveHeader({
   onChangeView: (view: LiveView) => void
 }) {
   const total = lineup.reduce((sum, player) => sum + (player.points ?? 0), 0)
+  /* Where the eleven is heading: the scored rows, plus an expected figure for
+     every match still to come. The chip beside the total rather than a line of
+     its own, because it is the same eleven measured at a later time — and it
+     is what makes the running total answerable ("200 behind" means nothing
+     without "and four still to play"). */
+  const projected = projectedPointsTotal(lineup, expected)
   const missing = LINEUP_SIZE - lineup.length
   const penalty = emptySlotPenalty(lineup.length)
   const penaltyMessage = `${missing === 1 ? 'Ein leerer Platz kostet' : `${String(missing)} leere Plätze kosten`} dich ${points(penalty)} Punkte — Kickbase zieht sie vom Gesamtergebnis ab.`
@@ -433,6 +453,14 @@ function LiveHeader({
           </span>
           <span className="text-xs text-muted">Punkte</span>
           {isPointsPending && <Spinner size={12} />}
+          {isProjection(projected) && (
+            <ProjectedPointsFigure
+              projected={projected}
+              iconSize={11}
+              variant="chip"
+              className="text-xs"
+            />
+          )}
           {missing > 0 && (
             <span
               title={penaltyMessage}

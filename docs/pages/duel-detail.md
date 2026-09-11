@@ -64,6 +64,15 @@ for one line
 (`plate: 'points'`), which is also what lets the avatar floor drop to 26px on a
 phone.
 
+**Each corner chip also carries where that eleven is heading** — `⌖ 1.240`,
+`SUM(coalesce(real points, the reader's guess, the model's prediction))` over
+the fielded eleven ([`projectedPointsTotal()`](../../src/lib/expectedPoints.ts)).
+A duel read before the weekend is two projections against each other, and the
+scoreline in the header can only ever be two facts about the past. The
+manager's name gives up width for it (`max-w-28` truncates): four digits of
+projection beat the last four letters of a name on this pitch. Both chips
+disappear once every match is settled, and the composition is in the tooltip.
+
 **Telling the sides apart** takes two things: the ring around each portrait
 (white on top, accent below) and a small manager chip in each half's corner.
 The chips exist because the header pairs the managers *left and right* while
@@ -331,6 +340,25 @@ number and the mark is what says it did not count.
 
 A real score is drawn at full contrast and a placeholder stays quiet, so the
 eye finds the numbers first.
+
+## The expected points in the header of the breakdown
+
+Tapping a portrait opens the
+[action breakdown](player-detail.md#the-match-breakdown), and its header shows
+**both** expected figures for that player and that matchday beside the real
+total: the reader's own guess in accent green, the model's prediction in
+orange, each as the chip the squad rows draw.
+
+Both, unusually. Everywhere else in the app a guess overrules a prediction and
+the reader is shown one number — that is the whole arrangement. Here the
+question is *how did the two of us do*: before kick-off they are what the plate
+that opened the sheet was showing, and after the final whistle the figure that
+actually happened is sitting right next to them.
+
+Nothing is shown for an **archived season**: guesses are filed under a matchday
+number and nothing else, so "matchday 3" is the running season's, and printing
+it over a 2019 match would be a fabrication. `seasonId` is set only for
+archived seasons, which makes it the gate.
 
 ## The club's team sheet
 

@@ -9,10 +9,13 @@ import {
 import type { BreakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
 import { fixtureState, matchOutcome } from '@/api/models'
 import { Scoreline } from '@/components/player/PlayerMatchRow'
+import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
+import { usePointcastPrediction } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
+import { useExpectedPoints } from '@/lib/expectedPoints'
 import { delta, points as formatPoints } from '@/lib/format'
 
 /**
@@ -44,6 +47,24 @@ import { delta, points as formatPoints } from '@/lib/format'
  * a dead end is better than one that always looks tappable — `matchTo` is
  * `undefined` for an archived season and the header goes quiet.
  *
+ * ## Both expectations, beside what actually happened
+ *
+ * The header also carries **the reader's own guess and the model's
+ * prediction** for this player on this matchday, as the same two chips the
+ * squad rows draw — accent green for his, orange for the model's — and it
+ * carries *both* rather than the one the rest of the app resolves to. This is
+ * the one screen where the two are worth separating: everywhere else a guess
+ * overrules a prediction and the reader wants one number, but here the
+ * question is *how did the two of us do*, and after the final whistle the real
+ * total sits right next to them. Before kick-off they are what the plate that
+ * opened this sheet was showing.
+ *
+ * **Nothing is shown for an archived season.** Guesses are filed under a
+ * matchday number and nothing else — there was never a season in the storage
+ * key — so a guess for "matchday 3" belongs to the running season, and
+ * printing it over a 2019 match would be a fabrication. `seasonId` is set only
+ * for archived seasons, which makes it the gate.
+ *
  * The ✗ sits beside the header rather than inside it, so the two targets never
  * overlap: one navigates, one closes.
  */
@@ -71,6 +92,14 @@ export function PlayerMatchEventsDialog({
     day: match.day,
     seasonId,
   })
+
+  /*
+   * `undefined` for an archived season, which switches both lookups off: the
+   * store is keyed by matchday alone, and the prediction file is this season's.
+   */
+  const expectedDay = seasonId === undefined ? match.day : undefined
+  const ownExpected = useExpectedPoints(expectedDay)[playerId]
+  const { prediction } = usePointcastPrediction(expectedDay, playerId)
 
   const opponent = match.opponentName ?? '–'
   const outcome = matchOutcome(match.goalsFor, match.goalsAgainst)
@@ -138,6 +167,15 @@ export function PlayerMatchEventsDialog({
           <span className="font-semibold text-ink">
             {total === undefined ? '–' : formatPoints(total)} Punkte
           </span>
+          {/* The reader's first, the model's second: his is the one he is
+              accountable for, and the order is the same as the precedence
+              everywhere else in the app. */}
+          {ownExpected !== undefined && (
+            <ExpectedPointsBadge value={ownExpected} />
+          )}
+          {prediction !== undefined && (
+            <ExpectedPointsBadge value={prediction.expected} isForecast />
+          )}
         </span>
       </span>
     </>
