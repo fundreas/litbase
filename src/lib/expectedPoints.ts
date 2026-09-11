@@ -176,6 +176,27 @@ export function clearExpectedPoints(matchday: number, playerId: string): void {
 }
 
 /**
+ * **Every matchday's guesses at once**, for the one reader that spans them: a
+ * player's [season](../components/player/PlayerPerformanceTab.tsx), where the
+ * rows are matchdays rather than players.
+ *
+ * The store's own shape, handed out as it is stored. A per-player projection
+ * would be tidier to use and impossible to return safely — `getSnapshot` has
+ * to hand back the same reference until something actually changes, and a
+ * fresh object per call re-renders for ever.
+ */
+export type ExpectedPointsByMatchday = Readonly<
+  Record<string, Readonly<Record<string, number>>>
+>
+
+export function useAllExpectedPoints(): ExpectedPointsByMatchday {
+  return useSyncExternalStore(subscribe, snapshot, () => EMPTY_STORE)
+}
+
+/** The server-render answer for {@link useAllExpectedPoints}. */
+const EMPTY_STORE: ExpectedPointsByMatchday = Object.freeze({})
+
+/**
  * The guesses for one matchday, re-rendering the caller when they change.
  *
  * `undefined` while the fixture list is still loading — the matchday number

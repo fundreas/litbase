@@ -10,11 +10,7 @@ import {
 } from '@/api/models'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
-import {
-  ExpectedPointsBadge,
-  ExpectedPointsTarget,
-} from '@/components/squad/ExpectedPointsBadge'
-import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
+import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
@@ -61,17 +57,18 @@ const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
  * column is not worth twenty-six requests — so the label says *7 Tage* rather
  * than quietly showing a week's movement under a day's heading.
  *
- * **Expected points can be entered from here**, on the target at the end of
- * each row — the reader's own guess at what the player will score on the
- * coming matchday, kept per matchday on this device (see
- * [`expectedPoints`](../../lib/expectedPoints.ts)). A club's roster is where
- * the guesses are cheapest to make: every player on it faces the same
- * opponent, so one judgement about the fixture prices thirty rows.
+ * **Expected points are shown but not entered here.** The figure beside each
+ * probability badge is the reader's own guess where he made one and the
+ * model's prediction otherwise, exactly as on a Kader — but a club's roster is
+ * a scouting list, not a lineup, and the sheet that enters a guess now lives
+ * where a player's whole run of fixtures does: his
+ * [own page](../../pages/PlayerDetailPage.tsx), on the Leistung tab, where a
+ * tap on an upcoming match opens it against that matchday.
  *
- * That is also why there is **no crest on the rows** to open the sheet from,
- * the way one's own [squad list](../squad/PlayerListTab.tsx) does: thirty
- * copies of one crest would say nothing. The fixture is in the
- * [header's strip](./TeamHeader.tsx), and the sheet names it again.
+ * There is **no crest on the rows** either, the way one's own
+ * [squad list](../squad/PlayerListTab.tsx) has: thirty copies of one crest
+ * would say nothing, since every player here faces the same opponent. The
+ * fixture is in the [header's strip](./TeamHeader.tsx), once.
  *
  * **Nothing sits above the list but one line of type.** The club's value and
  * its squad size used to be two `StatTile`s, and the projected eleven a third
@@ -93,26 +90,13 @@ export function TeamSquadTab({
   /*
    * The same cache entry the page already reads for its fixture strip — one
    * payload for the season, cached for an hour — so this costs no request.
-   * One lookup, not one per player: a club has a single fixture a matchday,
-   * which is the whole reason these rows carry no crest.
+   * Only the matchday number is wanted: the figures are filed under it, and
+   * the fixture itself is the header's, said once for a club that has one
+   * match a matchday.
    */
   const matchday = useCurrentMatchday(competitionId)
   const day = matchday.data?.day
-  const fixture = matchday.data?.fixtureByTeamId.get(profile.teamId)
   const expectedPoints = useExpectedPointsView(day)
-  const expected = useExpectedPointsSheet({
-    matchday: day,
-    resolve: (playerId) => {
-      const player = profile.players.find((entry) => entry.id === playerId)
-      if (player === undefined) return undefined
-      return {
-        id: player.id,
-        name: player.name,
-        averagePoints: player.averagePoints,
-        fixture,
-      }
-    },
-  })
   /*
    * Not memoised: `select` rebuilds the profile whenever the standings resolve
    * behind it, so a memo keyed on the array would miss on exactly the render
@@ -181,7 +165,6 @@ export function TeamSquadTab({
                       player={player}
                       leagueId={leagueId}
                       expectedPoints={expectedPoints.entry(player.id)}
-                      onEditExpected={expected.open}
                     />
                   </li>
                 ))}
@@ -190,8 +173,6 @@ export function TeamSquadTab({
           ))}
         </>
       )}
-
-      {expected.sheet}
     </div>
   )
 }
@@ -225,16 +206,16 @@ function PlayerRow({
   player,
   leagueId,
   expectedPoints,
-  onEditExpected,
 }: {
   player: TeamSquadPlayer
   leagueId: string
   /**
    * What he is expected to score on the coming matchday — the reader's guess,
-   * or the model's prediction standing in for one.
+   * or the model's prediction standing in for one. Read-only here: this list
+   * **shows** the figure and no longer enters it, which is the
+   * [player's own page](../../pages/PlayerDetailPage.tsx)'s job now.
    */
   expectedPoints: ExpectedPointsEntry | undefined
-  onEditExpected: (playerId: string) => void
 }) {
   const change = player.marketValueChangeWeek
   const ChangeIcon =
@@ -330,16 +311,6 @@ function PlayerRow({
           </span>
         </div>
       </Link>
-
-      {/* The figure moved up beside the probability, so this is the plain
-          target again: the way *in*, not a second copy of the number. */}
-      <ExpectedPointsTarget
-        value={undefined}
-        playerName={player.name}
-        onClick={() => {
-          onEditExpected(player.id)
-        }}
-      />
     </>
   )
 }

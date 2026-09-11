@@ -464,15 +464,26 @@ modal: its subject is a player, and a player is recoverable from an id. It is
 rendered by the page rather than by the tab, because switching to the pitch has
 to close it too.
 
-**Three lists open the same sheet**, so the hash modal, the lookup and the
-dialog are one hook —
+**Three screens open the same sheet**, and the two that open it per *player*
+share one hook — the hash modal, the lookup and the dialog in
 [`useExpectedPointsSheet`](../../src/components/squad/ExpectedPointsSheet.tsx):
 
-| List | How it is opened |
-| ---- | ---------------- |
-| This page's Kader | The **fixture crest** at the end of the row |
-| A [rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | A **target** at the end of the row — those rows have no crest |
-| A [club's roster](team.md#expected-points-a-club-at-a-time) | The same target — thirty copies of one crest would say nothing |
+| Screen | How it is opened | Addressed as |
+| ------ | ---------------- | ------------ |
+| This page's Kader | The **fixture crest** at the end of the row | `#expected:<playerId>` |
+| A [rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The same crest, in the same place | `#expected:<playerId>` |
+| A player's [Leistung tab](player-detail.md#leistung) | A tap on **any fixture still to come** — the one screen that shows a player's whole run of them | `#expected:<matchday>` |
+
+The player page keys its hash by the **matchday** rather than the player, for
+the mirror of the reason the lists key theirs by the player: there, one
+matchday is fixed and the players vary; here, one player is fixed and the
+matchdays vary. The two never share a screen.
+
+A [club's roster](team.md#expected-points-a-club-at-a-time) **shows** the
+figures and no longer enters them. It is a scouting list rather than a lineup,
+and a control at the end of thirty rows to file a guess against a matchday the
+page never names was the weakest of the three ways in; the player's own page
+does it better, with his fixtures in front of you.
 
 The caller supplies a `resolve(playerId)`, which is what lets the URL survive a
 refresh: the sheet reopens from an id alone against whatever the list has since

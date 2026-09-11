@@ -246,31 +246,25 @@ and it is omitted on a flat week rather than pointing nowhere.
 
 ### Expected points, a club at a time
 
-The **target at the end of each row** opens the same
-[expected-points sheet](squad.md#erwartete-punkte) one's own Kader opens from
-the fixture crest — the reader's own guess at what the player will score on the
-coming matchday, filed on this device under
-`matchday → playerId → points`, over the
-[model's prediction](squad.md#woher-die-prognose-kommt) that stands there
-until he makes one. The target is the way **in**: the figure itself reads on
-the second line beside the probability, so the end of the row is a control and
-not a second copy of a number.
+Every row carries what that player is expected to score on the coming
+matchday — the reader's own guess where he has made one, the
+[model's prediction](squad.md#woher-die-prognose-kommt) otherwise — beside the
+probability badge on the second line. Two estimates about the same Saturday,
+which is the pair a purchase is decided on.
 
-A club's roster is where those guesses are **cheapest to make**: every player
-on it faces the same opponent, so one judgement about the fixture prices thirty
-rows, and the players nobody in the league owns yet are here and nowhere else.
+**Shown here, entered elsewhere.** A control at the end of thirty rows used to
+open the [sheet](squad.md#erwartete-punkte); it is gone. This is a scouting
+list, not a lineup: the page never names the matchday the guess would be filed
+under, every row would have offered the same fixture, and the one screen that
+shows a player's whole run of fixtures — his
+[Leistung tab](player-detail.md#leistung) — now opens the sheet from any match
+still to come. The figure a row shows is the figure that sheet enters, off the
+same store.
 
-That sameness is also why the rows carry **no crest** to open the sheet from,
-the way one's own squad row does: thirty copies of one crest would say nothing.
-The fixture lives once in the [header's strip](#the-header), and the sheet
-names it again — *Auswärts bei FCB · Sa, 5. Sep. · 18:30* — so the guess is
-never made blind. One lookup in
+One lookup in
 [`useCurrentMatchday`](../../src/api/hooks/useMatchday.ts) serves the whole
-tab, off the cache entry the header's strip already filled.
-
-The row is **a link plus a button** rather than one link, since HTML has no
-nested interactive elements; the divider between rows is the `li`'s, so the
-list looks exactly as it did.
+tab, off the cache entry the header's strip already filled: a club plays one
+match a matchday, so one matchday number answers for thirty rows.
 
 **No total here.** A club's roster is not an eleven, and adding thirty figures
 together would produce a number that means nothing. The totals live where a

@@ -239,6 +239,44 @@ Points read `–`, never `0`, for a match the player took no part in. `0` would
 claim they were on the pitch and scored nothing, which is a different — and
 much worse — thing to be told about your striker.
 
+### The matches still to come
+
+A season list is not only a record: the fixtures below today are the ones a
+reader can still act on, and they carry two things of their own.
+
+**A figure where the dash was.** What he is expected to score in that
+fixture — the reader's own guess if he has made one, the model's
+[prediction](squad.md#woher-die-prognose-kommt) otherwise — as the same chip
+every Kader draws, accent green for his and orange for the model's.
+
+**A tap enters it.** An upcoming row opens the
+[expected-points sheet](squad.md#erwartete-punkte) against *that matchday*,
+which is what makes this page the place the feature belongs: it is the only
+screen in the app that shows one player's whole run of fixtures, so a run of
+three away trips can be priced in one sitting. The hash is
+`#expected:<matchday>` — the player is the page, so the matchday is what varies
+— and the sheet is the one the squad rows open, writing to the same
+`matchday → playerId → points` store.
+
+| Row | Tap opens | Why |
+| --- | --------- | --- |
+| Played | [the breakdown](#the-match-breakdown) | The actions behind the number |
+| Still to come | the expected-points sheet | There are no actions yet; there is a decision |
+| Sat out, finished | nothing | Neither applies |
+
+**The model reaches exactly one row.** The pointcast publishes the *coming*
+matchday and nothing beyond it, so the request is made for the player's next
+fixture — if that is the published matchday a prediction comes back, and
+otherwise it is a 404 and the rows keep whatever the reader entered himself.
+One request, into the same cache entry every squad screen reads. Guesses, by
+contrast, come from `localStorage` for every matchday at once, which is why a
+row three weeks out can carry one.
+
+Only the **running season** gets either. Guesses are filed under a matchday
+number with no season beside it, so a 2019 matchday 3 is this season's matchday
+3 as far as the store is concerned — and an archived season's rows are all
+finished anyway.
+
 ### The match breakdown
 
 **Tapping a match he played opens every scoring action Kickbase credited him
