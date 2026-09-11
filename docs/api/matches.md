@@ -99,6 +99,37 @@ match is actually under way.
 > 45) therefore lands *after* `ke: 11` (minute 48). Never infer sequence from
 > array position.
 
+### There is no live player-event endpoint
+
+The question this feed invites — *can I watch a player's passes, duels, fouls
+and shots as they happen?* — has an answer, and it is not here. Checked on
+**2026-09-11** against the [published spec's](README.md#where-the-data-comes-from)
+complete path index, all 149 of them, plus what this app has already probed:
+
+| What carries events | Scale | Grain |
+| ------------------- | ----- | ----- |
+| `events[]` on this endpoint | `ke`, the small one | **Goals, cards, substitutions** and the match's own structure. Nothing finer exists on it |
+| [`/v4/live/eventtypes`](#get-v4liveeventtypes) | `eti`, the big one | The **catalogue**. 621 names, no match, no player, no parameters — despite the path, nothing about it is live |
+| [`/playercenter/{playerId}`](players.md#get-v4leaguesleagueidplayercenterplayerid) | `eti` | **Every scoring action of one player in one match**, with the points each was worth — the pass, the interception, the shot, the foul. **One player per request** |
+
+So the fine grain exists, and the only way to it is **one request per player**.
+There is no `/live/events`, no per-match action feed, no `?ids=` bulk form; the
+spec's `/v4/live/*` namespace contains exactly the one catalogue path. The
+nearest thing to a bulk source is
+`GET /v4/competitions/{competitionId}/teams/{teamId}/teamcenter?dayNumber=N`,
+which answers with **a whole club's players at once**, each carrying `p` and a
+`k[]` — but `k` is the *small* scale, the same goals-and-cards tally this
+endpoint already gives per player, so it would buy a cheaper score, not finer
+events. Spec-only: it is in the index with a captured example and this app has
+never called it. See [the unbuilt list](README.md#what-the-app-does-not-use).
+
+What follows from that is the shape of
+[the match pitch's event stream](../pages/match-detail.md#the-event-stream):
+a screen that wants live actions has to already be paying for the per-player
+fan-out, because on its own the feature would cost twenty-two requests every
+ten seconds. The full-screen lineup is, which is why the ticker is free there
+and exists nowhere else.
+
 ### `il` means nothing here — the sheet itself is the signal
 
 The app spent weeks drawing no [team-sheet marks](../pages/duel-detail.md#the-clubs-team-sheet)

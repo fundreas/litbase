@@ -228,6 +228,7 @@ simply unbuilt:
 | `GET /v4/leagues/{id}/user/achievements` | The viewer's 46 achievements with earned flags — the list behind the `/{type}` detail the events page reads. Type codes in [Codes](codes.md#achievement-type). Type `2001` *Meister* makes its `ac` the viewer's **league-title count**, the one figure `/managers/{id}/performance` can only be decoded into |
 | `GET /v4/leagues/{id}/managers/{id}/transfer` | A manager's completed deals, `tty` 1 bought / 2 sold. Not their bids — see [Leagues](leagues.md#where-a-bid-of-your-own-can-be-read-back) |
 | `GET /v4/bonus/collect` | Claims the daily login bonus (*Auflaufprämie*) for every league at once — a **write dressed as a `GET`**, so it was read from the spec and never called |
+| `GET /v4/competitions/{id}/teams/{teamId}/teamcenter` | **A whole club's players in one request**, each with `p` for the matchday and a `k[]` of goals-and-cards codes — the only bulk-ish per-player live source in the spec. It would make a club-shaped live view cost one request instead of eleven; what it does **not** carry is the fine `eti` actions, which stay one request per player. Spec-only, never called — see [Matches](matches.md#there-is-no-live-player-event-endpoint) |
 | `GET /v4/config` | Client configuration. Probed once — it names no game modes, which is why [`GAME_PLAY_MODE`](codes.md#game-modes-gpm) had to be inferred |
 
 ## Adding an endpoint here

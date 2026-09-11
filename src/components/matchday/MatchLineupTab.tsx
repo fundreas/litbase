@@ -11,10 +11,16 @@ import {
   type PlayerFigure,
   type PositionKey,
 } from '@/api/models'
+import type { PlayerCenterEvent } from '@/api/types'
+import {
+  LiveEventsToggle,
+  LiveEventTicker,
+} from '@/components/matchday/LiveEventTicker'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { matchPlayerFigure } from '@/components/matchday/matchPlayerFigure'
 import { ownerLabel } from '@/components/matchday/ownerLabel'
 import { teamPoints } from '@/components/matchday/teamPoints'
+import { useLiveEventTicker } from '@/components/matchday/useLiveEventTicker'
 import {
   figureDescription,
   figureLabel,
@@ -46,6 +52,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/cn'
 import { points } from '@/lib/format'
 import { useHashModal } from '@/lib/useHashModal'
+import { usePreferences } from '@/preferences/usePreferences'
 
 /** Which half of the pitch a team is drawn on. */
 type Side = 'home' | 'away'
@@ -167,6 +174,15 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  * search hands every card the room. The `summary` the page passes becomes the
  * bar, so the score and the minute stay on screen.
  *
+ * **Full screen, a running match gets an [event stream](./LiveEventTicker.tsx)**
+ * under the bar: one action at a time — the pass, the shot, the foul, the
+ * assist, the goal — for two seconds each, out of the player-centre payloads
+ * this tab is already polling for the numbers on the portraits, so it costs no
+ * request. The bell in the bar switches it off and the choice is remembered.
+ * Only full screen, and only while the match runs: inline, the strip would be
+ * taking height from a pitch that is already sharing the page, and a match that
+ * is over has nothing to announce.
+ *
  * **Full screen and on its side, the benches come with it** — home's column,
  * the grass, away's column, in the order the scoreline names them. There is
  * nothing underneath to scroll to on that screen, and a window with the whole
@@ -182,6 +198,8 @@ export function MatchLineupTab({
   summary,
   day,
   fixtures,
+  liveEvents,
+  isLive,
 }: {
   home: MatchLineup
   away: MatchLineup
@@ -201,6 +219,14 @@ export function MatchLineupTab({
    * dialog header shows. The page already holds it either way.
    */
   fixtures: Map<string, MatchdayFixture> | undefined
+  /**
+   * Every scoring action so far, per player id — what the
+   * [ticker](./LiveEventTicker.tsx) streams. Empty unless the matchday is
+   * live; see [`useMatchdayPoints`](../../api/hooks/useMatchdayPoints.ts).
+   */
+  liveEvents: Map<string, PlayerCenterEvent[]>
+  /** The match is under way, from the fixture — the only state with a stream. */
+  isLive: boolean
 }) {
   const { ref, box } = usePitchBox()
   /**
@@ -221,6 +247,22 @@ export function MatchLineupTab({
    * and how the benches under the pitch are already arranged.
    */
   const orientation = usePitchOrientation({ isFullscreen: fullscreen.isOpen })
+
+  /*
+   * The stream, and the bell that silences it. Both exist only on the
+   * full-screen pitch of a **running** match: the hook is handed `enabled`
+   * rather than being called conditionally, so the ids of everything that
+   * happens while it is off are still recorded — which is what makes switching
+   * it back on show the next action rather than the backlog.
+   */
+  const { preferences, setPreference } = usePreferences()
+  const isStreaming = isLive && fullscreen.isOpen
+  const liveEvent = useLiveEventTicker({
+    home,
+    away,
+    events: liveEvents,
+    enabled: isStreaming && preferences.liveEventStream,
+  })
 
   /*
    * The tapped portrait, found back among the 22 on the pitch. The benches
@@ -360,6 +402,24 @@ export function MatchLineupTab({
         onOpenChange={fullscreen.setOpen}
         title="Aufstellung im Vollbild"
         summary={summary}
+        actions={
+          isLive ? (
+            <LiveEventsToggle
+              enabled={preferences.liveEventStream}
+              onToggle={() => {
+                setPreference('liveEventStream', !preferences.liveEventStream)
+              }}
+            />
+          ) : undefined
+        }
+        /* Mounted while the stream is on — including between events, when it
+           draws its own idle mark. A strip that came and went with each action
+           would resize the pitch under it every two seconds. */
+        banner={
+          isStreaming && preferences.liveEventStream ? (
+            <LiveEventTicker event={liveEvent} />
+          ) : undefined
+        }
       >
         {orientation === 'landscape' ? (
           /* **Three columns: home's bench, the grass, away's bench** — which

@@ -170,6 +170,7 @@ export function MatchDetailPage() {
         ) : (
           <SquadsView
             view={view}
+            matchId={match.data.matchId}
             leagueId={leagueId}
             competitionId={competitionId}
             day={match.data.day}
@@ -207,6 +208,7 @@ export function MatchDetailPage() {
  */
 function SquadsView({
   view,
+  matchId,
   leagueId,
   competitionId,
   day,
@@ -216,6 +218,8 @@ function SquadsView({
   summary,
 }: {
   view: ViewValue
+  /** The fixture on screen — what the lineup tab's own memory is keyed to. */
+  matchId: string
   leagueId: string
   competitionId: string
   day: number
@@ -252,7 +256,14 @@ function SquadsView({
   }
 
   return (
+    /* Keyed by the match, so everything this tab remembers is about *this*
+       fixture. The page does not remount when the id in the URL changes — same
+       route, same component — and the
+       [event stream](../components/matchday/useLiveEventTicker.ts) holds the
+       ids it has already announced, which are only unique **within** a match.
+       Carried over, they would silently swallow the next match's events. */
     <MatchLineupTab
+      key={matchId}
       home={lineup.home}
       away={lineup.away}
       leagueId={leagueId}
@@ -260,6 +271,8 @@ function SquadsView({
       summary={summary}
       day={day}
       fixtures={fixtures.data}
+      liveEvents={lineup.liveEvents}
+      isLive={state === 'running'}
     />
   )
 }

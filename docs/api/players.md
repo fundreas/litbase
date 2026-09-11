@@ -278,6 +278,38 @@ twenty-two belong to nobody.
 > catalogue at all. A lookup miss there means the catalogue is short, not that
 > the event is unknown.
 
+### Reading it as a live feed
+
+This is the **only** source of fine-grained actions during a match — see
+[Matches](matches.md#there-is-no-live-player-event-endpoint) — and
+[the full-screen pitch's ticker](../pages/match-detail.md#the-event-stream)
+reads it as a stream rather than as a report. Three properties of the payload
+are what make that possible:
+
+- **Entries are appended, never edited.** Established by the reversal
+  behaviour documented above: when Kickbase re-classifies an action it adds a
+  new entry pointing `cei` at the old one rather than changing it. So an
+  action, once served, keeps its `ei` and its `p` for the rest of the match.
+- **`ei` is stable and unique within the match**, which makes a diff possible:
+  poll, subtract the ids seen last time, and what is left is what happened
+  since. The app keys on `<playerId>:<ei>` — `ei` has only ever been observed
+  unique across the whole fixture, and scoping it to the player costs nothing
+  and cannot collide.
+- **The whole match is in every response.** A read in the 70th minute carries
+  everything since kick-off, not a delta, so a consumer has to establish its
+  own baseline. The ticker's first payload is a *seed*: recorded, not
+  announced.
+
+**Nothing here has been diffed across a live poll yet.** The properties above
+are inferences from payloads captured in
+[`test-data/live-points`](../../test-data/live-points/README.md) and from the
+verified reversal behaviour — sound ones, and still inferences. What has not
+been watched is the *arrival*: whether a batch of actions lands on the tick
+after they happen, how far Kickbase's scoring lags the ball, and whether a
+reversal can arrive in the same payload as the entry it cancels. The next live
+matchday settles all three; until then the ticker's ten-second resolution is a
+ceiling, not a measurement.
+
 ### Which one wins
 
 `p` here is a **running tally, and it is never reconciled to the settled

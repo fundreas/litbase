@@ -47,6 +47,18 @@ export interface Preferences {
    */
   menuShortcut: MenuShortcutPosition
   theme: ThemeChoice
+  /**
+   * Whether the [event stream](../components/matchday/LiveEventTicker.tsx)
+   * runs on the full-screen match lineup.
+   *
+   * **Its control is the bell in that screen's bar, not the
+   * [preferences page](../pages/PreferencesPage.tsx)** — it is a setting about
+   * one screen, made while looking at that screen, and a reader who wants the
+   * ticker quiet wants it quiet *now*. It lives here all the same rather than
+   * in component state, because "I have seen enough passes" is a decision that
+   * should still hold the next time a match is opened.
+   */
+  liveEventStream: boolean
 }
 
 /**
@@ -63,6 +75,7 @@ export interface Preferences {
 export const DEFAULT_PREFERENCES: Preferences = {
   menuShortcut: 'right',
   theme: 'dark',
+  liveEventStream: true,
 }
 
 /**
@@ -81,6 +94,11 @@ function oneOf<T extends string>(
   return allowed.includes(value as T) ? (value as T) : fallback
 }
 
+/** The value if it is actually a boolean, the fallback otherwise. */
+function boolish(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
 export function loadPreferences(): Preferences {
   const stored = readJson<unknown>(PREFERENCES_KEY)
   if (typeof stored !== 'object' || stored === null) {
@@ -94,6 +112,10 @@ export function loadPreferences(): Preferences {
       DEFAULT_PREFERENCES.menuShortcut,
     ),
     theme: oneOf(THEME_CHOICES, candidate.theme, DEFAULT_PREFERENCES.theme),
+    liveEventStream: boolish(
+      candidate.liveEventStream,
+      DEFAULT_PREFERENCES.liveEventStream,
+    ),
   }
 }
 

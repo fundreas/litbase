@@ -568,6 +568,86 @@ must not squeeze the pitch.
 already does well, and eight bands plus two columns in a portrait window is that
 page again.
 
+### The event stream
+
+Full screen, while the match is **running**, a strip under the bar announces
+what just happened — one action at a time, two seconds each:
+
+```
+67′  (◯)  Grimaldo   Erfolgreicher Pass            +1
+```
+
+[`LiveEventTicker`](../../src/components/matchday/LiveEventTicker.tsx) draws it,
+[`useLiveEventTicker`](../../src/components/matchday/useLiveEventTicker.ts)
+decides what goes in it.
+
+**It costs no request.** This is the whole reason it exists here rather than
+anywhere else: the Aufstellung tab is *already* re-reading
+[`/playercenter/{pid}`](../api/players.md#get-v4leaguesleagueidplayercenterplayerid)
+for all twenty-two players every ten seconds to put a number on each portrait,
+and each of those payloads carries `events[]` — the actions that number is made
+of. Until now [`useMatchdayPoints`](../../src/api/hooks/useMatchdayPoints.ts)
+read `p` and dropped the rest; it now returns them as `eventsByPlayerId`, a
+by-product in the same class as the position and the owner it already hands
+back. The only addition on the wire is `/v4/live/eventtypes`, one shared entry
+cached for a day, which is what turns `eti: 4249` into a German sentence.
+
+There is **no other source**. The match's own feed (`/matches/{mi}/details` →
+`events[]`) carries goals, cards and substitutions and nothing finer — see
+[Matches](../api/matches.md#there-is-no-live-player-event-endpoint). Passes,
+duels, fouls, shots and interceptions exist **only** per player, on the player
+centre.
+
+Four rules decide what a reader actually sees:
+
+- **The poll rate is the resolution.** An action appears within ten seconds of
+  Kickbase scoring it, in a batch with everything else on that tick — not the
+  instant it happens on the grass.
+- **Nothing already on the payload is announced.** The first read of a match in
+  progress carries every action since kick-off, hundreds of them; opening the
+  pitch in the 70th minute must not replay the afternoon. So the first payload
+  that has events is a **seed**: every `ei` in it is recorded as seen and
+  nothing is drawn. From then on, only ids that were not there before.
+- **The queue is a window, not a backlog.** A busy tick delivers more actions
+  than two-second slots to show them in, so whatever is on screen finishes and
+  the overflow is dropped oldest-first, at most four waiting. A ticker that
+  queued everything would be announcing a pass while the reader watches a goal
+  go in. The complete record is the [timeline](#events--the-timeline) and each
+  player's own [breakdown](#the-action-breakdown), both unchanged.
+- **Two kinds of entry never appear**: reversals (an entry carrying `cei` —
+  Kickbase re-classifying something it already reported, which read aloud is the
+  scoring system's second thoughts rather than the match) and zero-point
+  structural entries (kick-off, the halves, added time, full time, on and off
+  the bench). The same two the breakdown dialog drops, for the same reasons.
+
+**The strip keeps its height between events**, showing the app's pulsing live
+dot and *Live-Events*. That is not decoration: the pitch under it sizes its
+portraits to the box it is given and re-runs that search whenever the box
+changes ([`usePitchBox`](../../src/components/squad/pitchMetrics.ts)), so a
+strip that appeared and vanished every two seconds would have twenty-two
+portraits breathing all afternoon.
+
+### The bell
+
+The one control in that bar besides the ✗, and the only opening in
+[`FullscreenPane`](../../src/components/ui/FullscreenPane.tsx)'s rule that the
+bar carries nothing but *close*: it acts on this screen instead of leaving it.
+A bell means the stream is running, a struck-through bell that it is not; it is
+drawn only while the match is live, because there is nothing to silence
+otherwise.
+
+The choice persists — `liveEventStream` in
+[the preferences object](../../src/preferences/preferences.ts), default on — so
+it holds for the next match too. It is **not** on the
+[preferences page](preferences.md): it is a decision made while being
+interrupted, and the reader who has had enough of successful passes wants them
+gone from the screen they are looking at, not after a trip to a settings list.
+
+Switched off, the bar and the strip both go, and the **ids keep being
+recorded** — which is what makes the bell instant in both directions. Turning it
+back on shows the next thing that happens, never the twenty minutes of football
+the reader chose not to watch.
+
 ## Ranking — who actually scored
 
 [`MatchRankingTab`](../../src/components/matchday/MatchRankingTab.tsx). Every

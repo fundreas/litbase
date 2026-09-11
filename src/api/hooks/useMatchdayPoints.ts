@@ -13,6 +13,7 @@ import {
 import { LIVE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type {
+  PlayerCenterEvent,
   PlayerCenterResponse,
   PlayerDetailResponse,
   PlayerMatchdayPoints,
@@ -155,6 +156,28 @@ export interface MatchdayPoints {
    * and scored nothing.
    */
   byPlayerId: Map<string, number>
+  /**
+   * **Every scoring action** the player centre reported, per player id — the
+   * same `events[]` a [breakdown dialog](./usePlayerMatchEvents.ts) draws, on
+   * the big `eti` scale.
+   *
+   * The third by-product, and the one that costs most to *not* keep: while a
+   * match runs this hook is already re-reading all twenty-two payloads every
+   * ten seconds for the totals, and each of them carries the actions that total
+   * is made of. Dropping them meant an "what just happened" view would have had
+   * to fetch the identical responses a second time.
+   *
+   * **Only for players the running poll covers.** A settled matchday answers
+   * out of `ph` and never touches the player centre, so the map is empty there
+   * — which is correct for its one consumer, the
+   * [live ticker](../../components/matchday/useLiveEventTicker.ts): a match
+   * that is over has nothing to announce.
+   *
+   * Raw rather than resolved: the names live in a catalogue this hook has no
+   * business fetching, and the reversal pairs need the whole list in hand to
+   * net out. Consumers map it.
+   */
+  eventsByPlayerId: Map<string, PlayerCenterEvent[]>
   /** True while any per-player request is in flight; rows render without them. */
   isPending: boolean
 }
@@ -356,6 +379,7 @@ export function useMatchdayPoints(
   })
 
   const livePoints = new Map<string, number>()
+  const eventsByPlayerId = new Map<string, PlayerCenterEvent[]>()
 
   for (const [index, query] of centerQueries.entries()) {
     const entry = wanted[index]
@@ -377,6 +401,11 @@ export function useMatchdayPoints(
       continue
     }
     if (center.p !== undefined) livePoints.set(entry.subject.id, center.p)
+    // Past the same `mi` guard as the total, so nothing here can describe a
+    // different fixture than the pitch it is drawn over.
+    if (center.events !== undefined) {
+      eventsByPlayerId.set(entry.subject.id, center.events)
+    }
   }
 
   // What the caller already knew is the same running tally, read from a
@@ -404,6 +433,7 @@ export function useMatchdayPoints(
     byPlayerId,
     positionByPlayerId,
     ownerIdByPlayerId,
+    eventsByPlayerId,
     isPending: [...detailQueries, ...centerQueries].some(
       (query) => query.isFetching,
     ),

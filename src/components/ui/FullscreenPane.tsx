@@ -36,6 +36,19 @@ import { cn } from '@/lib/cn'
  * account avatar are all navigation *away*, and there is exactly one thing to do
  * here: stop.
  *
+ * `actions` is the one opening in that rule, and it is a narrow one: a control
+ * that acts on **this screen** rather than leaving it — the match pitch's
+ * [event-stream bell](../matchday/LiveEventTicker.tsx). It sits left of the ✗,
+ * so *close* stays in the corner every one of these panes has put it in.
+ *
+ * `banner` is a strip **under** the bar and above the content, for something
+ * that changes while the reader watches. It takes its own height out of the
+ * pitch's, which is why it is a slot rather than something drawn over the
+ * grass: the pitch sizes its portraits to the box it is given, and a strip
+ * floating over it would be covering the top band of players. Pass it only
+ * while it has a reason to be there — a pitch whose box keeps changing re-runs
+ * its sizing search each time.
+ *
  * The height chain matters as much as the width: `min-h-0 flex-1` all the way
  * down, so the pitch inside measures the screen minus the bar and sizes its
  * portraits to it. That is what makes this worth having at all — the same eleven
@@ -54,6 +67,8 @@ export function FullscreenPane({
   onOpenChange,
   title,
   summary,
+  actions,
+  banner,
   children,
 }: {
   open: boolean
@@ -62,6 +77,10 @@ export function FullscreenPane({
   title: string
   /** What the bar shows: the two managers, or the two clubs and the score. */
   summary: ReactNode
+  /** A control acting on this screen, drawn left of the ✗. */
+  actions?: ReactNode
+  /** A strip between the bar and the content, mounted only when passed. */
+  banner?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -89,6 +108,8 @@ export function FullscreenPane({
             <Dialog.Title className="sr-only">{title}</Dialog.Title>
             <div className="min-w-0 flex-1">{summary}</div>
 
+            {actions}
+
             <Dialog.Close
               aria-label="Vollbild schließen"
               className="-mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-ink"
@@ -96,6 +117,8 @@ export function FullscreenPane({
               <X size={20} />
             </Dialog.Close>
           </div>
+
+          {banner}
 
           {/* Padded the way the content well is, so the pitch keeps its rounded
               card edge instead of bleeding into the screen's corners — and

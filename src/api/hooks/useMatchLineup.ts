@@ -10,6 +10,7 @@ import type {
   MatchPlayerOwner,
   OwnerSource,
 } from '@/api/models'
+import type { PlayerCenterEvent } from '@/api/types'
 
 /** Both team sheets, with everything the league knows layered on. */
 export interface MatchLineupData {
@@ -21,6 +22,16 @@ export interface MatchLineupData {
    */
   home: MatchLineup
   away: MatchLineup
+  /**
+   * **Every scoring action of the match so far, per player id**, on the big
+   * `eti` scale — straight off the player-centre payloads the points fan-out
+   * is already polling, so it costs nothing.
+   *
+   * Empty once the matchday is settled: the fan-out then answers out of `ph`
+   * and never asks the player centre. See
+   * [`useMatchdayPoints`](./useMatchdayPoints.ts).
+   */
+  liveEvents: Map<string, PlayerCenterEvent[]>
   /** True while either fan-out — the points or the owners — is still arriving. */
   isPending: boolean
 }
@@ -213,6 +224,7 @@ export function useMatchLineup(
   return {
     home: rebuild(detail.home11),
     away: rebuild(detail.away11),
+    liveEvents: points.eventsByPlayerId,
     // Both fan-outs, because both fill things the rows show: the points and
     // the ownership badges. A pitch that has drawn its portraits but is still
     // collecting badges should say so.
