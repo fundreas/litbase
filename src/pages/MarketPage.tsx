@@ -13,6 +13,7 @@ import { useLeagueDetails } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
 import { useMarketValueChanges } from '@/api/hooks/useMarketValueChanges'
 import { useCurrentMatchday } from '@/api/hooks/useMatchday'
+import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import {
   offersReceived,
   ownListingsOf,
@@ -25,6 +26,7 @@ import { ManagerListingsTab } from '@/components/market/ManagerListingsTab'
 import { MarketRow } from '@/components/market/MarketRow'
 import { OfferDialog } from '@/components/market/OfferDialog'
 import { OwnListingsTab } from '@/components/market/OwnListingsTab'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
@@ -153,6 +155,16 @@ export function MarketPage() {
   const details = useLeagueDetails(leagueId)
   const listings = data?.listings
   const marketValueChanges = useMarketValueChanges(leagueId, listings)
+  /* The two marks about the coming matchday, for every row of both buying
+     views — see [`MarketRow`](../components/market/MarketRow.tsx).
+
+     Neither costs this page a request. The market payload carries `prob`
+     itself, and the gaps in it are filled out of `qk.playerDetail`, which the
+     24-hour move above has already fetched for every listing. The expected
+     points are one static file per competition and matchday, shared with the
+     Kader — a manager arriving from his own squad pays for none of it twice. */
+  const startProbabilities = useStartProbabilities(leagueId, listings)
+  const expected = useExpectedPointsView(matchday.data?.day)
 
   // The list is sorted by expiry, so the first listing that has one is the
   // soonest — no scan needed. Everything speeds up together: one interval
@@ -348,6 +360,8 @@ export function MarketPage() {
         listings={managerListings}
         leagueId={leagueId}
         fixtureByTeamId={matchday.data?.fixtureByTeamId}
+        startProbabilities={startProbabilities}
+        expected={expected}
         onOffer={offer.open}
       />
     ) : houseListings.length === 0 ? (
@@ -371,6 +385,8 @@ export function MarketPage() {
               leagueId={leagueId}
               fixture={matchday.data?.fixtureByTeamId.get(entry.listing.teamId)}
               marketValueChange={marketValueChanges.get(entry.listing.id)}
+              startProbability={startProbabilities.get(entry.listing.id)}
+              expectedPoints={expected.entry(entry.listing.id)}
               now={now}
               onOffer={() => {
                 offer.open(entry.listing.id)

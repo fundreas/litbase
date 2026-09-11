@@ -48,28 +48,25 @@ const AVATAR_MAX = 96
  * clipped one.
  */
 const AVATAR_MIN_COMPACT = 26
-/**
- * Floor for the **three-line** plate — a name, a fixture badge and an expected
- * figure.
- *
- * Between the other two, and for the same reason each of them sits where it
- * does: the extra line costs about 13px of card, and on a short phone pitch
- * holding {@link AVATAR_MIN} would push the card past its band and clip the
- * very figure the line was added for. The name stays legible either way — its
- * font is clamped at 10px well before this size — so what gives is the
- * portrait.
- */
-const AVATAR_MIN_FIGURE = 34
 /** How much wider than its avatar a player button is (its own padding). */
 const PLAYER_PADDING = 12
+/**
+ * How far a plate may spill past the portrait it belongs to — the button's own
+ * `p-1`, and not a pixel more, so nothing about the band's fit changes.
+ *
+ * The [editor's](./LineupTab.tsx) plate needs it: its second line carries the
+ * fixture crest *and* the expected figure, and on a phone's 50px portrait
+ * those two are a few pixels wider than the face above them. Every other plate
+ * spans its portrait exactly, which is the default {@link PlayerMetrics}
+ * describes.
+ */
+export const PLATE_BLEED = 4
 /** The `gap-1` between two players in the same band. */
 const PLAYER_GAP = 4
 /** Button `p-1`, top and bottom. */
 const PLAYER_CHROME_HEIGHT = 8
 /** The plate's own `py-0.5` and the `gap-0.5` between its two lines. */
 const PLATE_CHROME_HEIGHT = 6
-/** One more `gap-0.5`, for the plate that carries a third line. */
-const PLATE_LINE_GAP = 2
 /** How far the name plate rides up over the portrait, as a share of it. */
 const PLATE_OVERLAP_RATIO = 0.15
 
@@ -86,9 +83,7 @@ export function cornerBadgeSize(avatar: number): number {
 
 /** The smallest portrait each plate is allowed to shrink to. */
 function avatarFloor(plate: PlateContent): number {
-  if (plate === 'points') return AVATAR_MIN_COMPACT
-  if (plate === 'fullFigure') return AVATAR_MIN_FIGURE
-  return AVATAR_MIN
+  return plate === 'points' ? AVATAR_MIN_COMPACT : AVATAR_MIN
 }
 
 /** Everything in a player card is derived from one number. */
@@ -111,15 +106,14 @@ export type PlayerMetrics = ReturnType<typeof playerMetrics>
  * What a card's plate holds, which is what decides how tall the card is.
  *
  *  - `full` — a name over a fixture badge, as the squad's own pitches draw it.
- *  - `fullFigure` — the same, plus a third line for the
- *    [expected points](./ExpectedPointsBadge.tsx). The lineup editor takes it
- *    only while there is a figure to show, so a competition the model does not
- *    cover keeps the larger portraits it always had.
+ *    The [expected points](./ExpectedPointsBadge.tsx) share that second line
+ *    with the badge rather than taking a third, which is what keeps this plate
+ *    — and so the portrait above it — the size it has always been.
  *  - `points` — one line, a points figure and nothing else. The head-to-head
  *    duel pitch, where 22 portraits have to fit and a name under each would be
  *    unreadable at that size anyway.
  */
-export type PlateContent = 'full' | 'fullFigure' | 'points'
+export type PlateContent = 'full' | 'points'
 
 /**
  * Total height a card occupies.
@@ -128,25 +122,18 @@ export type PlateContent = 'full' | 'fullFigure' | 'points'
  * its own height — that overlap has to come out of the budget or the sizing
  * search would leave a gap under every player.
  *
- * A `full` plate is measured with the **fixture badge**, the taller of the two
- * things on its second line: the live view's points figure is smaller, so it
- * fits inside a budget solved for a badge rather than needing its own.
- *
- * `fullFigure` adds one text line and one gap to that, and nothing else — the
- * expected figure's target glyph is sized from the same font, so the line it
- * sits on is a text line however large the card is.
+ * A `full` plate is measured with the **fixture badge**, the tallest thing its
+ * second line can hold: the live view's points figure and the editor's
+ * expected figure are both text, and text at this font is shorter than the
+ * crest at every size — so both fit inside a budget solved for a badge rather
+ * than needing one of their own.
  */
 function playerHeight(metrics: PlayerMetrics, plate: PlateContent): number {
   const textLine = Math.round(metrics.nameFontSize * 1.25)
   const plateHeight =
     plate === 'points'
       ? textLine + PLATE_CHROME_HEIGHT
-      : plate === 'fullFigure'
-        ? textLine * 2 +
-          metrics.badgeCrest +
-          PLATE_CHROME_HEIGHT +
-          PLATE_LINE_GAP
-        : textLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
+      : textLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
   return (
     PLAYER_CHROME_HEIGHT + metrics.avatar - metrics.plateOverlap + plateHeight
   )

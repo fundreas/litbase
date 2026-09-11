@@ -4,11 +4,15 @@ import { Link } from 'react-router'
 import {
   POSITION_LABEL,
   type MarketListing,
+  type StartProbability,
   type TeamFixture,
 } from '@/api/models'
+import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
+import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
+import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
 import {
   duration,
   money,
@@ -26,6 +30,41 @@ import {
  * that is what the market is *for*, and it deserves the large target rather
  * than the small one.
  *
+ * ## Four bands, and each one answers one question
+ *
+ * ```
+ * ┌──────┬────────────────────┬─────┬───────┐
+ * │      │ Guerreiro          │     │       │
+ * │  👤  │ ABW ✓    7,8 Mio. €│ FCB │ 9 Std.│
+ * │      │        ↘ −390 Tsd. │ ⌖231│ 22:48 │
+ * └──────┴────────────────────┴─────┴───────┘
+ *   who     who / what he costs  spieltag when
+ * ```
+ *
+ * *Who he is* — portrait, name, position, and **whether he will be on the
+ * pitch at all**. *What he costs* — one money figure and the one thing about
+ * it the figure does not say. *What he does with the matchday* — the fixture,
+ * and under it **what he is expected to score in it**. *When this settles*, or
+ * whose listing it is.
+ *
+ * The two matchday marks are the ones a buyer on a market page was missing,
+ * and they are drawn exactly where his own
+ * [Kader](../squad/PlayerListTab.tsx) draws them: the probability tier as a
+ * glyph beside the position, the expected points as a chip under the crest.
+ * A player met on the market and the same player met in the squad must not
+ * need two vocabularies.
+ *
+ * ## What the height bought
+ *
+ * Both marks are pure addition to a row that was already full, so the row
+ * grew — and the space went to the two things that were suffering most. The
+ * **portrait** is half again as large, and it is what identifies a player
+ * fastest. The **name** now has a line to itself: four columns and a two-line
+ * money block used to leave it about fifty pixels, so nearly every name on
+ * the page arrived truncated, on the one page whose first question is *who is
+ * on the market*. Position and price moved down to share the line under it,
+ * each on its own side.
+ *
  * `now` is passed in rather than read here so every row on the page counts down
  * against the same instant — twenty rows each holding their own interval would
  * drift apart visibly and re-render the list twenty times a second.
@@ -35,6 +74,8 @@ export function MarketRow({
   leagueId,
   fixture,
   marketValueChange,
+  startProbability,
+  expectedPoints,
   now,
   onOffer,
 }: {
@@ -49,6 +90,23 @@ export function MarketRow({
    */
   marketValueChange?: number
   /**
+   * His lineup-probability tier. `undefined` is the normal case — no
+   * Membership, off-season, nobody has assessed him — and draws nothing.
+   */
+  startProbability: StartProbability | undefined
+  /**
+   * What he is expected to score on the coming matchday: the reader's own
+   * guess, or the model's prediction standing in for one. `undefined` when
+   * neither exists, and then no chip at all.
+   *
+   * **Read-only here.** One's own Kader lets the figure be overruled by
+   * tapping the panel it sits in; this row has already spent that panel, and
+   * every other part of it, on the bid — the guess is entered from the
+   * player's own page. A row with three targets would make every tap a
+   * question about which one was meant.
+   */
+  expectedPoints: ExpectedPointsEntry | undefined
+  /**
    * The page's shared clock, in epoch millis. Only read by the countdown, so a
    * list of manager listings — which have none — can pass anything.
    */
@@ -59,13 +117,18 @@ export function MarketRow({
 
   /* Flush portrait, matching the squad row: the Kickbase cutouts are
      transparent PNGs, so a wash grounds the figure and the inner edge is
-     masked to dissolve into the row rather than ending on a line. */
+     masked to dissolve into the row rather than ending on a line.
+
+     `w-18` against the old `w-14`, on a row half again as tall. The sources
+     are 1100×800 landscape and this box cover-crops them, so every pixel of
+     both dimensions is a pixel of face: the figure is now read at a glance
+     rather than squinted at. */
   const portrait = (
     <Link
       to={`/leagues/${leagueId}/players/${listing.id}`}
       aria-label={`${listing.lastName} öffnen`}
       className={cn(
-        'flex w-14 shrink-0 self-stretch',
+        'flex w-18 shrink-0 self-stretch',
         'transition-opacity hover:opacity-80',
       )}
     >
@@ -85,7 +148,14 @@ export function MarketRow({
   return (
     <li
       className={cn(
-        'flex items-stretch overflow-hidden rounded-card border bg-surface',
+        // `min-h-19` — 76px against the 52 this row used to be, and a **floor**
+        // rather than a fixed height. The tallest column is the matchday
+        // panel, whose chip comes and goes with the model, so an intrinsic row
+        // would jitter by a dozen pixels from one listing to the next; a list
+        // that jitters is harder to scan than one that is slightly taller. The
+        // floor is what the three-line name block needs anyway, so nothing is
+        // padding.
+        'flex min-h-19 items-stretch overflow-hidden rounded-card border bg-surface',
         // A standing bid marks the **whole row**, the same outline the squad
         // page uses for a player marked for sale. A label under the price said
         // the same thing in a place you had to look for it; an outline is seen
@@ -103,54 +173,89 @@ export function MarketRow({
         aria-label={`Für ${listing.lastName} bieten`}
         className="flex min-w-0 flex-1 items-stretch text-left transition-colors hover:bg-surface-2"
       >
-        <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-ink">
-              {listing.lastName}
-            </span>
-
-            {/* The position, and nothing else. Who you would be buying from
-                is a **face** now, in the panel at the end of the row — see
-                {@link SellerPanel}. A name spelled out here was the widest
-                thing on the line and said less than the picture does at a
-                glance; the picture is also the one you already know from the
-                standings. */}
-            <span className="mt-0.5 block truncate text-xs tracking-wide text-muted uppercase">
-              {POSITION_LABEL[listing.position]}
-            </span>
+        {/* **The name gets the whole width, and the rest of him sits under
+            it.** Four columns and a two-line money block left about fifty
+            pixels for the name, which truncated nearly every one of them —
+            this is a page where the first question is *who is on the market*,
+            and a row answering it with `Guerr…` answers it badly. The height
+            the matchday marks bought is spent here: the name on its own line,
+            and beneath it the two things that qualify him, each on the side it
+            belongs to — what he is and whether he plays on the left, what he
+            costs on the right. */}
+        <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-3 py-2">
+          <span className="truncate text-sm font-semibold text-ink">
+            {listing.lastName}
           </span>
 
-          <span className="shrink-0 text-right">
-            {/* **One figure, the one that answers the question.** Your own
-                offer if you have made one, else what a manager is asking, else
-                the market value — which is what a computer listing charges
-                anyway. Printing all three stacked them into a column the eye
-                had to reconcile, and two of them are usually the same number.
-                The row's outline says when the figure is your own bid. */}
-            <span
-              className={cn(
-                'nums block text-sm font-semibold',
-                ownOffer === undefined ? 'text-ink' : 'text-accent',
+          <span className="flex items-start justify-between gap-2">
+            {/* The position, and the one mark that qualifies it: a defender
+                who will not be in the eleven is not a defender you are buying
+                this week. Who you would be buying *from* is a **face**, in the
+                panel at the end of the row — see {@link SellerPanel}. A name
+                spelled out here was the widest thing on the line and said less
+                than the picture does at a glance; the picture is also the one
+                you already know from the standings.
+
+                Glyph only, no tier name, exactly as on the squad list: five
+                labels repeated down a list is a lot of text for something the
+                reader learns to recognise in seconds, and the badge keeps its
+                tooltip. */}
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-xs tracking-wide text-muted uppercase">
+                {POSITION_LABEL[listing.position]}
+              </span>
+              {startProbability !== undefined && (
+                <StartProbabilityBadge tier={startProbability} size={13} />
               )}
-            >
-              {money(ownOffer ?? (seller === undefined ? marketValue : price))}
             </span>
 
-            {/* The subtitle says the one thing about the figure above that
-                the figure above does not. On a computer listing that is where
-                the market value has been going, since the price *is* the
-                market value. On a manager's it is how far his own number sits
-                from it — see {@link Premium}. */}
-            {seller === undefined ? (
-              <Change value={marketValueChange} />
-            ) : (
-              <Premium price={price} marketValue={marketValue} />
-            )}
+            <span className="shrink-0 text-right">
+              {/* **One figure, the one that answers the question.** Your own
+                  offer if you have made one, else what a manager is asking,
+                  else the market value — which is what a computer listing
+                  charges anyway. Printing all three stacked them into a column
+                  the eye had to reconcile, and two of them are usually the
+                  same number. The row's outline says when the figure is your
+                  own bid. */}
+              <span
+                className={cn(
+                  'nums block text-sm leading-tight font-semibold',
+                  ownOffer === undefined ? 'text-ink' : 'text-accent',
+                )}
+              >
+                {money(
+                  ownOffer ?? (seller === undefined ? marketValue : price),
+                )}
+              </span>
+
+              {/* The subtitle says the one thing about the figure above that
+                  the figure above does not. On a computer listing that is
+                  where the market value has been going, since the price *is*
+                  the market value. On a manager's it is how far his own number
+                  sits from it — see {@link Premium}. */}
+              {seller === undefined ? (
+                <Change value={marketValueChange} />
+              ) : (
+                <Premium price={price} marketValue={marketValue} />
+              )}
+            </span>
           </span>
         </span>
 
-        <span className="flex shrink-0 items-center self-stretch border-l border-line bg-canvas/40 px-2.5">
+        {/* **The matchday, in one column.** The crest says who against and
+            where; the chip under it says what that is worth. They belong
+            together and they belong apart from the money, which is about the
+            player and not about Saturday — the same split the squad row makes,
+            down to the chip's colours: orange while the figure is the model's,
+            accent green once the reader has overruled it. */}
+        <span className={MATCHDAY_PANEL}>
           <FixtureBadge fixture={fixture} size="md" />
+          {expectedPoints !== undefined && (
+            <ExpectedPointsBadge
+              value={expectedPoints.value}
+              isForecast={!expectedPoints.isOwn}
+            />
+          )}
         </span>
 
         {/* The last panel answers the question the listing's kind leaves
@@ -168,11 +273,23 @@ export function MarketRow({
 }
 
 /**
+ * The crest and the expected-points chip, stacked.
+ *
+ * As narrow as the wider of the two will go: a three-digit chip is about 38px
+ * and the crest 30, so 44px of usable width holds both and every pixel beyond
+ * that would come straight out of the name. Fixed, like the panel beyond it,
+ * so the money stops in the same place on every row whether or not the model
+ * has a figure for the player.
+ */
+const MATCHDAY_PANEL =
+  'flex w-12 shrink-0 flex-col items-center justify-center gap-1 self-stretch border-l border-line bg-canvas/40 px-0.5'
+
+/**
  * The last column of the row, whatever ends up in it. Fixed width so the
  * figures above stop in the same place on every row, expiring or not.
  */
 const PANEL =
-  'flex w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1.5 text-center'
+  'flex w-15 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-line bg-canvas/40 px-1 text-center'
 
 /**
  * **The overnight move**, under a computer listing's price.
@@ -286,7 +403,7 @@ function SellerPanel({
 }) {
   return (
     <span className={PANEL} title={`Angeboten von ${seller.name}`}>
-      <Avatar src={seller.image} name={seller.name} size={34} />
+      <Avatar src={seller.image} name={seller.name} size={36} />
       <span className="sr-only">Angeboten von {seller.name}</span>
     </span>
   )

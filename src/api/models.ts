@@ -1825,6 +1825,18 @@ export interface MarketListing {
   /** Id of that offer, needed to withdraw it. */
   ownOfferId?: string
   image?: string
+  /**
+   * Lineup-probability tier, when the market payload carries `prob`.
+   *
+   * Documented on this endpoint, unlike the squad's, but treated the same way:
+   * absent is the normal case — no Membership, off-season, nobody has assessed
+   * him — and the row simply draws no badge. The gaps are filled from the
+   * player detail by
+   * [`useStartProbabilities`](../api/hooks/useStartProbabilities.ts), which
+   * costs the market page nothing: it reads the very cache entries the
+   * 24-hour move already fetches for every listing.
+   */
+  startProbability?: StartProbability
 }
 
 /**

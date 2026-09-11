@@ -4,6 +4,7 @@ import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import {
   toPosition,
+  toStartProbability,
   toTrend,
   type Market,
   type MarketListing,
@@ -55,6 +56,10 @@ function mapMarket(data: MarketResponse): MarketListing[] {
     ownOffer: listing.uop,
     ownOfferId: listing.uoid,
     image: listing.pim,
+    // `prob` is documented on this endpoint, and when it arrives the row's
+    // badge costs nothing. `plpim` beside it is the club's whole probable-XI
+    // poster, not a per-player icon, and is deliberately left on the wire.
+    startProbability: toStartProbability(listing.prob),
   }))
 }
 

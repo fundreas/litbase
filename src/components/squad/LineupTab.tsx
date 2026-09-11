@@ -20,6 +20,7 @@ import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
   fitPitchMetrics,
+  PLATE_BLEED,
   ROW_ORDER,
   usePitchBox,
   type PlayerMetrics,
@@ -164,18 +165,6 @@ export function LineupTab({
    */
   const expected = useExpectedPointsView(matchday)
 
-  /*
-   * Does anything on this pitch have a figure at all? It decides how tall a
-   * card is — the plate takes a third line for it — and so it has to be one
-   * answer for the whole pitch rather than per player, or eleven cards would
-   * be eleven heights. A competition the model does not cover, and a reader
-   * who has entered nothing, keep the two-line plate and the larger portraits
-   * that come with it.
-   */
-  const hasExpected = lineup.some(
-    (player) => expected.entry(player.id) !== undefined,
-  )
-
   const metrics = useMemo(
     () =>
       fitPitchMetrics(
@@ -187,9 +176,8 @@ export function LineupTab({
               missingAtPosition(counts, position),
           ),
         ),
-        { plate: hasExpected ? 'fullFigure' : 'full' },
       ),
-    [pitchBox, lineup, counts, hasExpected],
+    [pitchBox, lineup, counts],
   )
 
   return (
@@ -335,6 +323,7 @@ export function LineupTab({
         isFielded={editor.isFielded}
         fixtureByTeamId={fixtureByTeamId}
         startProbabilities={startProbabilities}
+        expected={expected}
         onAdd={editor.toggle}
         onShowLegend={onShowLegend}
       />
@@ -655,18 +644,34 @@ function PlayerFace({
         </span>
       </span>
 
-      {/* One plate, two lines: name over fixture. Two separate chips read as
-          unrelated badges floating over the grass. */}
+      {/* One plate, two lines: the name, then the fixture **and** what he is
+          expected to score against it. Two separate chips read as unrelated
+          badges floating over the grass.
+
+          The two belong on one line because they are one thought — *Bayern
+          away, 141* — and because the alternative costs the portrait: a third
+          line is about 13px of card, and the cards are sized by a search that
+          fits the busiest band, so every pitch on a phone would have shrunk to
+          carry it. The crest is the tallest thing on the line either way, so
+          the figure rides along inside a budget that was already solved. */}
       {/* The plate scales with the portrait, spans its full width, and rides
           up over its lower edge so the two read as one object rather than a
           caption floating beneath a circle. `relative` puts it above the
           portrait in paint order. */}
       <span
         style={{
-          width: metrics.plateWidth,
+          // Plus the bleed: this plate's second line is a crest, a glyph and
+          // three digits, which on a phone's portrait is a few pixels more
+          // than the face above it. The button's own padding absorbs them, so
+          // the band's fit is untouched.
+          width: metrics.plateWidth + PLATE_BLEED,
           marginTop: -metrics.plateOverlap,
         }}
-        className="relative flex flex-col items-center gap-0.5 rounded bg-black/70 px-1 py-0.5 leading-tight"
+        /* `px-0.5` rather than `px-1`: the second line is a crest, a glyph
+           and three digits, and on a phone's 50px plate those four pixels of
+           padding are the difference between the figure fitting and the last
+           digit being clipped. */
+        className="relative flex flex-col items-center gap-0.5 rounded bg-black/70 px-0.5 py-0.5 leading-tight"
       >
         <span
           style={{ fontSize: metrics.nameFontSize }}
@@ -674,25 +679,27 @@ function PlayerFace({
         >
           {player.lastName}
         </span>
-        <FixtureBadge
-          fixture={fixture}
-          tone="onPitch"
-          size={metrics.badgeCrest}
-        />
-        {expected !== undefined && (
-          <span
-            style={{ fontSize: metrics.nameFontSize }}
-            className={cn(
-              'nums flex max-w-full items-center gap-0.5 leading-none font-bold',
-              expectedTextClass(expected),
-            )}
-          >
-            <ExpectedPointsFigure
-              value={expected.value}
-              fontSize={metrics.nameFontSize}
-            />
-          </span>
-        )}
+        <span className="flex max-w-full items-center gap-0.5">
+          <FixtureBadge
+            fixture={fixture}
+            tone="onPitch"
+            size={metrics.badgeCrest}
+          />
+          {expected !== undefined && (
+            <span
+              style={{ fontSize: metrics.nameFontSize }}
+              className={cn(
+                'nums flex min-w-0 items-center gap-0.5 leading-none font-bold',
+                expectedTextClass(expected),
+              )}
+            >
+              <ExpectedPointsFigure
+                value={expected.value}
+                fontSize={metrics.nameFontSize}
+              />
+            </span>
+          )}
+        </span>
       </span>
     </>
   )
@@ -765,6 +772,7 @@ function Bench({
   isFielded,
   fixtureByTeamId,
   startProbabilities,
+  expected,
   onAdd,
   onShowLegend,
 }: {
@@ -772,6 +780,8 @@ function Bench({
   isFielded: (playerId: string) => boolean
   fixtureByTeamId: Map<string, TeamFixture> | undefined
   startProbabilities: Map<string, StartProbability>
+  /** This matchday's figures — the reason to bring one of these on. */
+  expected: ExpectedPointsView
   onAdd: (player: SquadMember) => void
   onShowLegend: () => void
 }) {
@@ -839,6 +849,7 @@ function Bench({
                   player={player}
                   fixture={fixtureByTeamId?.get(player.teamId)}
                   startProbability={startProbabilities.get(player.id)}
+                  expected={expected.entry(player.id)}
                   onClick={() => {
                     onAdd(player)
                   }}
@@ -856,11 +867,14 @@ function BenchPlayer({
   player,
   fixture,
   startProbability,
+  expected,
   onClick,
 }: {
   player: SquadMember
   fixture: TeamFixture | undefined
   startProbability: StartProbability | undefined
+  /** What he is expected to score, when anything expects anything. */
+  expected: ExpectedPointsEntry | undefined
   onClick: () => void
 }) {
   return (
@@ -892,10 +906,25 @@ function BenchPlayer({
       <span className="max-w-full truncate text-[0.6875rem] font-medium text-ink">
         {player.lastName}
       </span>
-      {/* The next fixture replaces the average-points line: on a card this
-          size only one secondary fact fits, and which club a player faces is
-          the one that decides whether to field him this week. */}
-      <FixtureBadge fixture={fixture} size="md" />
+      {/* The fixture and what he is expected to score against it, on one
+          line — the same pairing the pitch card carries, and the pair a
+          decision is actually made on: the opponent is *why* the figure is
+          what it is, and the figure is the reason to bring him on. They
+          replaced the average-points line, which asked the reader to do this
+          arithmetic himself. */}
+      <span className="flex max-w-full items-center gap-1">
+        <FixtureBadge fixture={fixture} size="md" />
+        {expected !== undefined && (
+          <span
+            className={cn(
+              'nums flex min-w-0 items-center gap-0.5 text-[0.6875rem] leading-none font-bold',
+              expectedTextClass(expected),
+            )}
+          >
+            <ExpectedPointsFigure value={expected.value} fontSize={11} />
+          </span>
+        )}
+      </span>
     </button>
   )
 }

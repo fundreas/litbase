@@ -1,8 +1,9 @@
 import { Users } from 'lucide-react'
 
-import type { MarketListing, TeamFixture } from '@/api/models'
+import type { MarketListing, StartProbability, TeamFixture } from '@/api/models'
 import { MarketRow } from '@/components/market/MarketRow'
 import { EmptyState } from '@/components/ui/States'
+import type { ExpectedPointsView } from '@/lib/expectedPoints'
 
 /**
  * **What the league is selling**: every listing put up by another manager, and
@@ -46,12 +47,18 @@ export function ManagerListingsTab({
   listings,
   leagueId,
   fixtureByTeamId,
+  startProbabilities,
+  expected,
   onOffer,
 }: {
   /** Other managers' listings, in any order — this view imposes its own. */
   listings: MarketListing[]
   leagueId: string
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  /** Lineup-probability tiers, filled once for the whole payload. */
+  startProbabilities: Map<string, StartProbability>
+  /** What each player is expected to score this matchday — the page's view. */
+  expected: ExpectedPointsView
   onOffer: (playerId: string) => void
 }) {
   if (listings.length === 0) {
@@ -72,6 +79,8 @@ export function ManagerListingsTab({
           listing={listing}
           leagueId={leagueId}
           fixture={fixtureByTeamId?.get(listing.teamId)}
+          startProbability={startProbabilities.get(listing.id)}
+          expectedPoints={expected.entry(listing.id)}
           // No 24-hour move and no countdown: on a manager's listing the row
           // prints the premium under the price and his face at the end, so
           // neither the overnight figure nor the clock is ever read.
