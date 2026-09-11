@@ -381,7 +381,9 @@ archived seasons, which makes it the gate.
 For roughly the last hour before a kick-off there is one fact nobody's points
 and no scoreline can carry: **whether the club has actually named the player.**
 [`TeamSheetMark`](../../src/components/player/TeamSheetMark.tsx) draws it, on
-this page and on the [squad page's live view](squad.md#live-tab).
+this page, on the [squad page's live view](squad.md#live-tab) and on a
+[manager's lineup](manager-detail.md) — the three screens built on a roster, all
+fed by the same hook, so the mark cannot appear on one and not another.
 
 | Mark | Means | Where it is drawn |
 | ---- | ----- | ----------------- |
@@ -425,21 +427,35 @@ documents at length, and there is no other poll running on these pages before
 the matchday's first kick-off — a request-free heartbeat re-reads the clock
 every five minutes while a match is still waiting outside the window.
 
-### `il` is the gate, and it is the uncertain part
+### The gate was `il`, and `il` is not a thing
 
-A sheet is used **only when the payload says it is official** (`il`). That
-field is marked **?** in [the API notes](../api/matches.md): it reads `false` on
-a match played weeks ago, so it behaves like a flag raised around kick-off
-rather than a durable fact. Raised around kick-off is exactly what this needs,
-but it has **not been watched live** — one look at a real Saturday, an hour
-before the 15:30 block, settles it.
+These marks drew **nothing at all** from the day they were written until
+2026-09-11. The gate was `il`, on the reading that the flag means "these
+lineups are official rather than predicted", and the failure mode was picked so
+that a wrong reading would cost silence rather than a lie. It cost silence, for
+weeks — and silence is indistinguishable from a quiet Tuesday, which is the trap
+in choosing that failure mode and then not watching it.
 
-The failure mode was picked accordingly. If `il` never turns true, no marks
-appear and the pages read as they did before: the app says nothing rather than
-something wrong. Gating on "the lineup arrays are populated" instead would fail
-the other way — if Kickbase serves a *predicted* lineup ahead of the official
-one, every prediction would be drawn as a fact. `hasOfficialSheets()` is the
-one place that decision is made.
+Twenty minutes before Union–Schalke kicked off, with both sheets published and
+eleven names a side in the payload, **`il` was `false`** — the same `false` it
+reads nineteen hours before a match, on a match finished a week earlier, and on
+all 306 fixtures of the season. It is not the lineup flag; nothing observed here
+has ever set it. The full probe is in
+[the API notes](../api/matches.md#il-means-nothing-here-the-sheet-itself-is-the-signal).
+
+**The gate is now the sheet itself**: both clubs' starting elevens populated.
+Outside the publication window the arrays come back *empty*, so they already say
+the one thing that needed saying. The same probe retired the worry that made
+`il` look necessary — Kickbase serves **no predicted lineup** on this endpoint,
+only empty arrays and then the real thing, so a populated array cannot be a
+guess drawn as a fact. (Its projection is a *picture*, `t1pli`/`t2pli`, which no
+list can be read out of.) `hasOfficialSheets()` is still the one place the
+decision is made, and it requires **both** sides: a half-filled payload would
+turn the silent club's eleven into eleven men dropped from the squad.
+
+**The timing is measured now rather than assumed.** `ts1`/`ts2` are each club's
+publication timestamp, and they landed 57 and 56 minutes before kick-off (65 and
+63 on the finished match) — comfortably inside the two-hour fetch window.
 
 ## The squad it shows is the matchday's
 

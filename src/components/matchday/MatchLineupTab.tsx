@@ -582,10 +582,11 @@ function PitchPlayer({
  * points in this fixture were*, and the reason to open a match at all rather
  * than read the score off the list.
  *
- * The corner used to carry the **formation** (`ts1`/`ts2`, e.g. `4-2-3-1`).
- * That went: it reads as a date at 10px, and the shape of the bands underneath
- * is a rough answer to the same question — while nothing else on the screen
- * added up the two teams.
+ * The corner used to carry what was taken for the **formation** (`ts1`/`ts2`).
+ * That went because it reads as a date at 10px — which it turned out to be: the
+ * two fields are each club's team-sheet publication time. The shape of the
+ * bands underneath answers the formation question roughly anyway, while nothing
+ * else on the screen added up the two teams.
  *
  * Absolutely positioned so it costs the bands no height: the pitch is the
  * scarcest space on the page and eight bands are already tight.

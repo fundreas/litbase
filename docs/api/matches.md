@@ -45,11 +45,13 @@ a match.
 | `mtd` | string | The minute as a display string, e.g. `"90"` |
 | `md` | string | Kick-off, ISO 8601 |
 | `mst` | number | Match status. `2` is played to the end, as `st` is elsewhere — see [Codes](codes.md#match-status-st-on-a-fixture-mst-on-a-match) |
-| `il` | boolean | **?** "The lineups are official rather than predicted". `false` on a match played weeks ago, so it is less "the lineup is known" than a flag the app sets around kick-off — treat with care |
+| `il` | boolean | **Not the lineup flag it was taken for.** `false` in every state observed: nineteen hours out with no sheet, twenty minutes out with both sheets published, and on a match finished a week earlier. Nothing here has ever been seen to set it — see [`il` means nothing here](#il-means-nothing-here-the-sheet-itself-is-the-signal) |
 | `t1lp` · `t2lp` | array | The **starting elevens** |
 | `t1nlp` · `t2nlp` | array | The rest of each squad |
-| `ts1` · `ts2` | string | Formation strings, e.g. `"4-2-3-1"`. Note these are the **real** formations, which are richer than the ten Kickbase accepts for [your own lineup](codes.md#formations) |
+| `ts1` · `ts2` | string | **Each club's team-sheet publication time**, ISO 8601 — home and away, a minute or two apart. Absent until that club names its team. Earlier notes here called these formation strings (`"4-2-3-1"`); whatever they once were, on 2026-09-11 they are timestamps, and the app maps neither reading |
 | `events` | array | Everything that happened, **newest first** |
+| `bo` | object | **Bookmaker odds** — `{ o1, ox, o2 }`, home/draw/away, e.g. `2.3 · 3.45 · 2.9`. Present on upcoming matches, gone from a finished one. Unused |
+| `t1pli` · `t2pli` | string | Each club's **projected-lineup poster**, CDN-relative — the same kind of image `plpim` carries on a [player](players.md). Present on upcoming matches only. Unused |
 
 #### `t1lp[]` etc. — one player in a real lineup
 
@@ -97,6 +99,40 @@ match is actually under way.
 > 45) therefore lands *after* `ke: 11` (minute 48). Never infer sequence from
 > array position.
 
+### `il` means nothing here — the sheet itself is the signal
+
+The app spent weeks drawing no [team-sheet marks](../pages/duel-detail.md#the-clubs-team-sheet)
+because it believed `il` said whether a lineup was official. Watched live on
+**2026-09-11**, it does not:
+
+| Match | Probed | `mst` | `il` | `ts1` · `ts2` | `t1lp`/`t2lp` |
+| ----- | ------ | ----- | ---- | ------------- | ------------- |
+| `11974` FCU–S04, kick-off 18:30Z | 20 min before | `0` | `false` | `17:32:48Z` · `17:34:12Z` | 11 · 11 |
+| `11977` M05–SGE, kick-off next day | 19 h before | `0` | `false` | *absent* | 0 · 0 |
+| `11968` ELV–FCB, kick-off in two days | 45 h before | `0` | `false` | *absent* | 0 · 0 |
+| `11947` SVW–RBL | finished a week earlier | `2` | `false` | `12:25:24Z` · `12:27:12Z` | 11 · 11 |
+
+Two things follow, and they are what the
+[sheet marks](../pages/duel-detail.md#the-clubs-team-sheet) now rest on:
+
+- **The lineup arrays are the state.** Empty until the clubs name their teams,
+  populated afterwards, and they stay populated through the match and past the
+  whistle. Nothing else on the payload moves with them.
+- **There is no predicted lineup to guard against.** A match outside the
+  publication window answers with empty arrays, not a projection — so reading
+  a populated array as fact cannot draw a guess as a certainty. (The projection
+  exists, but as a *picture*: `t1pli`/`t2pli`, which no list can be derived
+  from.)
+
+`ts1`/`ts2` date the publication: **57 and 56 minutes** before tonight's
+kick-off, **65 and 63** before the finished match's. That is the hour the app's
+two-hour fetch window was sized for, now measured rather than assumed.
+
+> **What `il` is** remains unknown. The name recurs across the API meaning
+> different things — "is injured" on a player row, an unexplained boolean on a
+> table row and on a fixture, where it is likewise `false` on all 306 matches of
+> the season. Nothing reads it.
+
 ### Used by
 
 [`useMatchDetails`](../../src/api/hooks/useMatchDetails.ts) →
@@ -115,9 +151,9 @@ The last two are complementary halves of one cache entry and never overlap:
 `useLiveMatches` takes the matches that **have** kicked off and reads the score,
 the minute and the events, discarding the lineups; `useTeamSheets` takes those
 still **to** kick off — within two hours of it, at a five-minute tick — and
-reads only `t1lp`/`t1nlp`, and only when `il` says the sheets are official.
-That gate is the one uncertain thing about it; see
-[`il` is the gate](../pages/duel-detail.md#il-is-the-gate-and-it-is-the-uncertain-part).
+reads only `t1lp`/`t1nlp`, and only once both clubs' elevens are actually
+populated. It gated on `il` until 2026-09-11, which is why it drew nothing at
+all; see [above](#il-means-nothing-here-the-sheet-itself-is-the-signal).
 
 ---
 

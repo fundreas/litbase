@@ -533,8 +533,9 @@ whom.
 | `t1g` · `t2g` | number | Goals — present once played |
 | `st` | number | Match status — `0` upcoming, `2` finished; others **?** |
 | `mtd` | string | **?** Minute as a display string, `"90"` on a finished match |
-| `il` | boolean | **?** Same flag as elsewhere |
-| `bo` | object | **?** Betting odds — `{ o1, ox, o2 }`: home, draw, away. Not rendered, and presumably regional |
+| `il` | boolean | **Nothing.** `false` on all 306 fixtures of the season, including one whose team sheets were out — see [Matches](matches.md#il-means-nothing-here-the-sheet-itself-is-the-signal) |
+| `bo` | object | **?** Betting odds — `{ o1, ox, o2 }`: home, draw, away. Not rendered, and presumably regional. The same object appears on a [match's details](matches.md) |
+| `fst` | number | **Pre-match progress (?)** — across the whole season: `0` on 287 untouched fixtures, `6` on all 18 played ones, and `1` on exactly one, the match kicking off in twenty minutes whose team sheets had just been published. So it may be the cheap season-wide signal that a sheet is out, but a single observation cannot separate "sheets published" from "kick-off imminent", and this payload is cached for an hour either way |
 
 ### The score is here, but do not watch it here
 

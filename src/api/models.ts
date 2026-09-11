@@ -1119,11 +1119,13 @@ export interface MatchdayLineups {
 /**
  * One club's team sheet for a match.
  *
- * **No formation.** The payload has one (`ts1`/`ts2`, e.g. `"4-2-3-1"`) and it
- * was drawn in the pitch's corner labels for exactly as long as it took to see
- * that a dashed run of digits at 10px reads as a date. The corner carries the
- * team's points total instead, which nothing else on the screen added up. The
- * wire field stays documented in `types.ts` if it is ever wanted again.
+ * **No formation, and the payload has none either.** `ts1`/`ts2` were taken for
+ * formation strings and drawn in the pitch's corner labels for exactly as long
+ * as it took to see that a dashed run of digits at 10px reads as a date. It
+ * read as a date because it **is** one: they are each club's team-sheet
+ * publication time — 57 and 56 minutes before kick-off when this was finally
+ * watched live. The corner carries the team's points total instead, which
+ * nothing else on the screen added up.
  */
 export interface MatchLineup {
   team: MatchTeam
@@ -1158,10 +1160,14 @@ export interface MatchDetail {
   /** Kick-off, ISO 8601, when the payload names one. */
   kickoff?: string
   /**
-   * Kickbase says the team sheets are **official** rather than predicted
-   * (`il`). Observed `false` on a match played weeks ago, so it is closer to a
-   * flag set around kick-off than to a durable fact — the lineups are rendered
-   * either way and this only qualifies them.
+   * **Both clubs have named their teams.**
+   *
+   * Read from the sheets themselves — a match outside the publication window
+   * answers with empty lineup arrays, and Kickbase serves no prediction here to
+   * confuse with the real thing. It used to be `il`, which sounded like exactly
+   * this field and is `false` in every state ever observed, including twenty
+   * minutes before kick-off with both sheets out; see
+   * [the API notes](../../docs/api/matches.md#il-means-nothing-here-the-sheet-itself-is-the-signal).
    */
   isLineupOfficial: boolean
   home11: MatchLineup

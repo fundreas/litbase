@@ -212,9 +212,13 @@ function mapMatchDetail(data: MatchDetailsResponse): MatchDetail {
     minute: data.mt,
     isFinished: data.mst === MATCH_FINISHED,
     kickoff: data.md,
-    isLineupOfficial: data.il ?? false,
-    // `ts1`/`ts2`, the formation strings, are deliberately not mapped — see
-    // `MatchLineup`.
+    // Both sheets populated, which is the only thing on this payload that
+    // moves when the clubs name their teams. `il` reads `false` in every state
+    // including this one — see `MatchDetails.isLineupOfficial`.
+    isLineupOfficial:
+      (data.t1lp?.length ?? 0) > 0 && (data.t2lp?.length ?? 0) > 0,
+    // `ts1`/`ts2` — each club's publication timestamp, not the formation the
+    // name suggests — are deliberately not mapped; see `MatchLineup`.
     home11: toLineup(home, data.t1lp, data.t1nlp),
     away11: toLineup(away, data.t2lp, data.t2nlp),
     events,

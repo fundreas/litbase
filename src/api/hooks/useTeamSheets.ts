@@ -75,21 +75,30 @@ export type TeamSheets = Map<string, TeamSheet>
  * something re-reads the clock every few minutes. It costs no requests, which
  * is the whole reason it can be that simple.
  *
- * ## `il` is the gate, and it is the one uncertain thing here
+ * ## The gate is the sheet itself, not `il`
  *
- * A sheet is used **only when the payload says it is official** (`il`) — see
- * {@link hasOfficialSheets}, which is the single place that decision is made.
- * The field is documented as **?** in
- * [the API notes](../../docs/api/matches.md): it reads `false` on a match played
- * weeks ago, so it behaves more like a flag raised around kick-off than a
- * durable fact. Raised around kick-off is exactly what this needs, but it has
- * not been watched live.
+ * It used to be `il`, on the reading that the flag means "these lineups are
+ * official rather than predicted". **It does not, and the marks therefore
+ * never appeared.** Watched live on 2026-09-11, twenty minutes before
+ * FCU–S04 kicked off: both sheets out, eleven and nine a side, and `il`
+ * `false` — the same `false` it reads on a match finished a week earlier and
+ * on one still nineteen hours away. It is `false` in every state this hook can
+ * meet, so gating on it was gating on nothing.
  *
- * The failure mode was chosen deliberately. If `il` never turns true, no marks
- * appear and the pages read as they did before — the app says nothing rather
- * than something wrong. Gating on "the sheet arrays are populated" instead
- * would be the other way round: if Kickbase serves a *predicted* lineup before
- * the official one, every prediction would be drawn as a fact.
+ * What actually distinguishes the two states is the sheet: a match outside the
+ * publication window answers with **empty** `t1lp`/`t2lp`, and the arrays fill
+ * when the clubs name their teams. The same probe settled the worry that made
+ * `il` look necessary — Kickbase serves **no predicted lineup** on this
+ * endpoint, so there is no prediction here to mistake for a fact.
+ * {@link hasOfficialSheets} is still the single place the decision is made.
+ *
+ * `ts1`/`ts2` corroborate it and are the reason the timing is now known rather
+ * than assumed: they are each club's **publication timestamp**, and they
+ * arrived at 17:32:48Z and 17:34:12Z against an 18:30Z kick-off — 57 and 56
+ * minutes out, which is the hour {@link SHEET_WINDOW_MS} was sized for. They
+ * are not read here: presence of the sheet is the fact, and a gate that also
+ * demanded a timestamp would fail silently the day Kickbase drops one, which
+ * is exactly the failure this replaces.
  */
 export function useTeamSheets(
   matches:
@@ -177,18 +186,18 @@ function useHeartbeat(active: boolean): void {
 /**
  * Does this payload carry team sheets that can be presented as **fact**?
  *
- * `il` plus something to show for it: a raised flag over empty arrays is not a
- * team sheet, and would quietly turn every player of that club into "not in the
- * squad". Both sides are required, because the flag is match-level and one
- * club's sheet arriving without the other's has never been observed — if it
- * ever does, one missing side would be read as eleven players dropped.
+ * A populated starting eleven is the fact. Before the clubs name their teams
+ * the arrays are empty — verified on two matches 19 and 13 hours out — and
+ * nothing else on this payload changes when they fill, `il` least of all (see
+ * the note on {@link useTeamSheets}).
+ *
+ * **Both sides are required.** One club's sheet arriving without the other's
+ * has never been observed, and reading a half-filled payload would turn the
+ * silent club's eleven into eleven players dropped from the squad — the one
+ * mark here that accuses somebody of something.
  */
 function hasOfficialSheets(data: MatchDetailsResponse): boolean {
-  return (
-    data.il === true &&
-    (data.t1lp?.length ?? 0) > 0 &&
-    (data.t2lp?.length ?? 0) > 0
-  )
+  return (data.t1lp?.length ?? 0) > 0 && (data.t2lp?.length ?? 0) > 0
 }
 
 function toSheet(

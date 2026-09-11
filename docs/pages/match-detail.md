@@ -374,11 +374,12 @@ right, one line in the order the scoreline names them.
 The **top-right** corner is free in both, and it is the way into
 [full screen](#full-screen).
 
-The corner used to carry the **formation** (`ts1`/`ts2`, e.g. `4-2-3-1`) and
-that is gone: a dashed run of digits at 10px reads as a date, and the shape of
-the bands underneath is already a rough answer to the same question. The wire
-field stays documented in
-[`types.ts`](../../src/api/types.ts) if it is ever wanted again; nothing maps it.
+The corner used to carry what these notes called the **formation** (`ts1`/`ts2`)
+and that is gone: a dashed run of digits at 10px reads as a date. It reads as one
+because it **is** one — `ts1`/`ts2` are each club's team-sheet publication time,
+settled by [a live probe](../api/matches.md#il-means-nothing-here-the-sheet-itself-is-the-signal)
+on 2026-09-11. The formation is not in this payload at all; the shape of the
+bands underneath is the only answer the page has, and a rough one is enough.
 
 ### Ownership is the point
 

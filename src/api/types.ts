@@ -1812,20 +1812,37 @@ export interface MatchDetailsResponse {
   /** Minute as a display string, e.g. `"90"`. */
   mtd?: string
   /**
-   * The lineups are **official** rather than predicted.
-   *
-   * `false` on a match played weeks ago, so it is not "the lineup is known"
-   * so much as a flag the app sets around kick-off — treat with care.
+   * **Not the "lineups are official" flag it was read as.** `false` in every
+   * state observed — nineteen hours before kick-off with no sheet, twenty
+   * minutes before it with both sheets out, and on a finished match — and
+   * `false` on all 306 fixtures of the season. Nothing reads it; the populated
+   * lineup arrays are the signal. See
+   * [the API notes](../../docs/api/matches.md#il-means-nothing-here-the-sheet-itself-is-the-signal).
    */
   il?: boolean
-  /** Home starting eleven, and the rest of the squad. */
+  /**
+   * Home starting eleven, and the rest of the squad. **Empty until that club
+   * names its team**, roughly an hour before kick-off; never a prediction.
+   */
   t1lp?: MatchLineupPlayer[]
   t1nlp?: MatchLineupPlayer[]
   t2lp?: MatchLineupPlayer[]
   t2nlp?: MatchLineupPlayer[]
-  /** Formation strings, e.g. `"4-2-3-1"`. */
+  /**
+   * Each club's **team-sheet publication time**, ISO 8601 — home and away, a
+   * minute or two apart, absent until that club names its team. Documented
+   * here as formation strings (`"4-2-3-1"`) until 2026-09-11; they are dates.
+   */
   ts1?: string
   ts2?: string
+  /** Bookmaker odds — home, draw, away. Present before the match, then gone. */
+  bo?: { o1?: number; ox?: number; o2?: number }
+  /**
+   * Each club's **projected-lineup poster**, CDN-relative — the team-level
+   * image `plpim` also carries on a player. Upcoming matches only. Unused.
+   */
+  t1pli?: string
+  t2pli?: string
   /** Everything that happened, newest first. */
   events?: MatchEventItem[]
 }
