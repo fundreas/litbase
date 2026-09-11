@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 
+import { useTeamDirectory } from '@/api/hooks/useCompetition'
 import { useLeagueDetails } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
 import { useMarketValueChanges } from '@/api/hooks/useMarketValueChanges'
@@ -165,6 +166,13 @@ export function MarketPage() {
      Kader — a manager arriving from his own squad pays for none of it twice. */
   const startProbabilities = useStartProbabilities(leagueId, listings)
   const expected = useExpectedPointsView(matchday.data?.day)
+  /* His own club's crest, for the end of each row's name line. The market
+     payload names the club (`tid`) and does not picture it, so the crest comes
+     from the season's table — one request, cached ten minutes, and the same
+     cache entry the league table, the club pages and the Spieltag already
+     read. A club the current table does not hold simply has no crest, which is
+     how every other consumer of the directory treats it. */
+  const teams = useTeamDirectory(competitionId)
 
   // The list is sorted by expiry, so the first listing that has one is the
   // soonest — no scan needed. Everything speeds up together: one interval
@@ -360,6 +368,7 @@ export function MarketPage() {
         listings={managerListings}
         leagueId={leagueId}
         fixtureByTeamId={matchday.data?.fixtureByTeamId}
+        teams={teams.data}
         startProbabilities={startProbabilities}
         expected={expected}
         onOffer={offer.open}
@@ -384,6 +393,7 @@ export function MarketPage() {
               listing={entry.listing}
               leagueId={leagueId}
               fixture={matchday.data?.fixtureByTeamId.get(entry.listing.teamId)}
+              team={teams.data?.get(entry.listing.teamId)}
               marketValueChange={marketValueChanges.get(entry.listing.id)}
               startProbability={startProbabilities.get(entry.listing.id)}
               expectedPoints={expected.entry(entry.listing.id)}

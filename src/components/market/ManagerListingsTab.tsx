@@ -1,5 +1,6 @@
 import { Users } from 'lucide-react'
 
+import type { TeamSummary } from '@/api/hooks/useCompetition'
 import type { MarketListing, StartProbability, TeamFixture } from '@/api/models'
 import { MarketRow } from '@/components/market/MarketRow'
 import { EmptyState } from '@/components/ui/States'
@@ -47,6 +48,7 @@ export function ManagerListingsTab({
   listings,
   leagueId,
   fixtureByTeamId,
+  teams,
   startProbabilities,
   expected,
   onOffer,
@@ -55,6 +57,8 @@ export function ManagerListingsTab({
   listings: MarketListing[]
   leagueId: string
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  /** The season's clubs, for the crest on each row's name line. */
+  teams: Map<string, TeamSummary> | undefined
   /** Lineup-probability tiers, filled once for the whole payload. */
   startProbabilities: Map<string, StartProbability>
   /** What each player is expected to score this matchday — the page's view. */
@@ -79,6 +83,7 @@ export function ManagerListingsTab({
           listing={listing}
           leagueId={leagueId}
           fixture={fixtureByTeamId?.get(listing.teamId)}
+          team={teams?.get(listing.teamId)}
           startProbability={startProbabilities.get(listing.id)}
           expectedPoints={expected.entry(listing.id)}
           // No 24-hour move and no countdown: on a manager's listing the row

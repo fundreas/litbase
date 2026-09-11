@@ -30,46 +30,51 @@ door, because Kickbase's market is what the page is opened for, and the other
 two tabs appear only when there is something in them
 ([below](#the-bar-and-which-tabs-it-has)).
 
-Each row of the market list carries what a buying decision actually needs, in
-four bands, each answering one question:
+Each row of the market list carries what a buying decision actually needs, on
+three lines in two lanes:
 
 ```
-┌──────┬─────────────────────────┬──────┬────────┐
-│      │ Guerreiro               │      │        │
-│  👤  │ ABW ✓      7,8 Mio. €   │ FCB  │ 9 Std. │
-│      │          ↘ −390 Tsd. €  │ ⌖231 │ 22:48  │
-└──────┴─────────────────────────┴──────┴────────┘
-   who    who · what he costs    spieltag   when
+┌──────┬──────────────────────────┬─────┬────────┐
+│      │ Guerreiro           [BVB]│     │        │
+│  👤  │ ABW           7,8 Mio. € │ FCB │ 9 Std. │
+│      │ ✓ ⌖231     ↘ −390 Tsd. € │ 🏠  │ 22:48  │
+└──────┴──────────────────────────┴─────┴────────┘
+   who      him · what he costs    gegen    when
 ```
 
-**who he is** — portrait, name, position, and whether he will be on the pitch
-at all · **what he costs** — one money figure and its overnight move, or on a
-manager's listing what he is asking over the market value · **what he does
-with the matchday** — his club's next fixture, home or away, and under it what
-he is expected to score in it · **when this settles**, or whose listing it is.
+Left of every line is **him** — name, position, and the two marks about the
+coming matchday. Right of it is **what he costs** — his club crest, the one
+money figure, and the one thing about that figure the figure does not say. The
+two lanes never cross, so the eye reads straight down one of them instead of
+hunting a number that moved. Beyond them: **who he plays**, home or away, and
+**when this settles** — or, on a manager's listing, whose it is.
 
-### The two matchday marks
+### The third line is the matchday line
 
 A market row used to say everything about a player except the two things that
 decide whether he is worth buying *this week*: **will he start**, and **what
 will he score**. Both were already on the Kader and neither was here, so the
 same player read one way in the squad and another on the market.
 
-They are drawn exactly where [the Kader](squad.md) draws them, because a
-player met in two places must not need two vocabularies:
+They share a line because they are one thought — *will he play, and what will
+it be worth* — and neither half is worth reading without the other. They are
+drawn exactly as [the Kader](squad.md) draws them, because a player met in two
+places must not need two vocabularies:
 
-- the **lineup-probability tier** as a glyph beside the position — the
-  five-step Ligainsider scale, colour *and* shape, no label
+- the **lineup-probability tier** as a glyph, the five-step Ligainsider scale,
+  colour *and* shape, no label
   ([`StartProbabilityBadge`](../../src/components/squad/StartProbabilityBadge.tsx));
-- the **expected points** as a chip under the crest, orange while the figure
-  is the model's and accent green once the reader has overruled it
+- the **expected points** as a chip, orange while the figure is the model's
+  and accent green once the reader has overruled it
   ([`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx)).
 
+Either is simply absent when there is nothing to say — no assessment, no
+Membership, a competition the model does not cover.
+
 The chip is **read-only here.** On one's own Kader the panel it sits in is a
-button that opens the sheet; this row has already spent that panel, and every
-other part of itself, on the bid. The guess is entered from the player's own
-page, and a row with three targets would make every tap a question about
-which one was meant.
+button that opens the sheet; this row has spent every part of itself on the
+bid. The guess is entered from the player's own page, and a row with three
+targets would make every tap a question about which one was meant.
 
 **Neither costs the page a request.** `prob` rides on the market payload
 itself, and the listings it omits are filled from `qk.playerDetail` — the very
@@ -77,22 +82,38 @@ cache entries [the 24-hour move](#the-24-hour-change-costs-a-fan-out) has
 already fetched for every listing. The expected points are one static file per
 competition and matchday, the same one the Kader reads.
 
-### The height they cost, and where it went
+### Two crests, and they mean different things
 
-Both marks are pure addition to a row that was already full, so the row grew
-from 52px to 76px — and the space went to the two things that were suffering
-most.
+The small crest at the end of the **name's line is his own club** — *which*
+Müller, answered by the thing a reader recognises fastest, and the one fact
+about a market listing that was nowhere on the row. The crest in the **panel
+is the opponent**, and it wears the home-or-away chip that keeps the two from
+being confused.
 
-The **portrait** is half again as large (`w-14` → `w-18`, on a row half again
+His club is the one thing here the market payload names (`tid`) and does not
+picture, so it comes from the season's table through
+[`useTeamDirectory`](../../src/api/hooks/useCompetition.ts): one request,
+cached ten minutes, and the same cache entry the league table, the club pages
+and the Spieltag already read. A club the current table does not hold has no
+crest, which is how every consumer of that directory treats it.
+
+### The height it cost, and where it went
+
+Three lines and two new marks are pure addition to a row that was already
+full, so the row grew from 52px to 76px — and the space went to the two things
+that were suffering most.
+
+The **portrait** took the same increase (`w-14` → `w-18`, on a row half again
 as tall): the sources are 1100×800 landscape and the box cover-crops them, so
 every pixel of both dimensions is a pixel of face.
 
-The **name** now has a line to itself. Four columns and a two-line money block
+The **name** has a line to itself. Four columns and a two-line money block
 left it about fifty pixels, so nearly every name arrived truncated — on the
-one page whose first question is *who is on the market*. Position and price
-moved down to share the line beneath it, each on its own side, and the
-subtitle under the price dropped to 11px, the size the countdown panel already
-gives its own second line.
+one page whose first question is *who is on the market*. The subtitle under
+the price dropped to 11px, the size the countdown panel already gives its own
+second line, and the fixture panel to the width of a bare crest: on a 360px
+phone the matchday marks against a three-digit overnight move spend everything
+there is.
 
 **The last panel answers the question the listing's kind leaves open.** For
 Kickbase's, that is *when does this settle?* A manager's has no answer to it —
@@ -335,6 +356,12 @@ plus `marketValueUpdateAt`, `matchdayStartAt` and `day` — the response's own
 against a listing's `expiresAt`. Those are what the milestone rules are drawn
 from. `teamValue` (`tv`) rides along too: it is the base of the 33 % ceiling,
 and this is the one response the page already fetches that carries it.
+
+The club crests come from a third,
+[`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) →
+`/competitions/{id}/table`, read as a `teamId → { id, name, image }` map. It is
+the same cache entry the league table and the club pages use, cached ten
+minutes; until it lands the rows simply show no crest.
 
 The league's underpay setting comes from a second query,
 [`useLeagueDetails`](../../src/api/hooks/useLeague.ts) → `/overview`, as
