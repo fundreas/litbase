@@ -9,6 +9,7 @@ import { ProjectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   fitPitchMetrics,
+  FULLSCREEN_CORNER,
   pitchGridClass,
   ROW_ORDER,
   singleTeamOrder,
@@ -166,6 +167,7 @@ export function ManagerLineupTab({
           back. */}
       {!fullscreen.isOpen && (
         <FullscreenButton
+          corner={FULLSCREEN_CORNER[orientation]}
           label="Aufstellung im Vollbild"
           onClick={() => {
             fullscreen.open()

@@ -366,8 +366,14 @@ ranking's per-club headings.
 It answers the question the score cannot: *where in this fixture were the
 points*. Nothing else on the screen adds up the two teams.
 
-The **third** corner — top-right, the one the two labels leave free — is the
-way into [full screen](#full-screen).
+Where they sit follows the pitch. Portrait stacks the halves, so the labels
+stack with them: home top-left, away bottom-left, each against its own half.
+**Landscape puts both along the top** — home at the left corner, away at the
+right, one line in the order the scoreline names them.
+
+The corner the two labels leave free is the way into
+[full screen](#full-screen): top-right on a portrait pitch, bottom-right on a
+landscape one.
 
 The corner used to carry the **formation** (`ts1`/`ts2`, e.g. `4-2-3-1`) and
 that is gone: a dashed run of digits at 10px reads as a date, and the shape of

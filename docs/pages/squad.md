@@ -1262,7 +1262,8 @@ name, number and badge with it and leave the reader tilting their head. So:
 | Band grid | `grid-rows-4` / `-8` | `grid-cols-4` / `-8` |
 | A band | a row of cards | a column of cards |
 | Markings | 100×150 viewBox | 150×100 viewBox, drawn out separately |
-| Corner plates | both left, stacked | opposite ends, top-left and bottom-right |
+| Corner plates | both left, stacked | both along the top, left and right |
+| Full-screen button | top right | bottom right, the corner the plates leave |
 | Sizing budget | bands cut from the height, players packed along the width | the two swapped |
 
 All of it goes through `pitchMetrics`: `usePitchOrientation()` answers the

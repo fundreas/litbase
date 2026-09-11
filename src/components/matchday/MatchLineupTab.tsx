@@ -26,6 +26,7 @@ import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
   fitPitchMetrics,
+  FULLSCREEN_CORNER,
   PITCH_BAND_CLASS,
   pitchGridClass,
   pitchSpanClass,
@@ -277,6 +278,7 @@ export function MatchLineupTab({
           back. */}
       {!fullscreen.isOpen && (
         <FullscreenButton
+          corner={FULLSCREEN_CORNER[orientation]}
           label="Aufstellung im Vollbild"
           onClick={() => {
             fullscreen.open()
