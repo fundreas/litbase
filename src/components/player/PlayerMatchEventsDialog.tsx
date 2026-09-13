@@ -34,18 +34,23 @@ import { delta, points as formatPoints } from '@/lib/format'
  * a settled match — which is the property that makes this worth drawing at all
  * rather than a selection of highlights.
  *
- * ## The header is the way out, upwards
+ * ## The header is the player
  *
- * It carries the result from this player's side and his total, and it is a link
- * to [the match](../../pages/MatchDetailPage.tsx) — because the question this
- * dialog answers ("what did *he* do") has an obvious next one ("what happened
- * in the match"), and the app already has a page for it.
+ * **His face, his name, his total** — because that is whose sheet this is. The
+ * header used to lead with the opponent's crest and name, which read as a
+ * dialog about the *match*: opened from a pitch of twenty-two portraits, where
+ * every card on screen belongs to the same fixture, the one thing it needed to
+ * confirm was *which man you tapped*, and that was the one thing it did not
+ * say. The match has not gone anywhere — venue, opponent, score and matchday
+ * are the line underneath, which is where a qualifier belongs.
  *
- * The link is **only offered for the running season**: the match page resolves
- * a fixture from the current season's list, so a 2019 match id lands on its
- * "not found" state. A header that is not a link when the destination would be
- * a dead end is better than one that always looks tappable — `matchTo` is
- * `undefined` for an archived season and the header goes quiet.
+ * And it is a link to **his page**, for the same reason: the question this
+ * dialog answers ("what did he do in this match") has an obvious next one
+ * ("who is he, and what has he been doing all season"), and the app has a page
+ * for exactly that. Every caller that opens this from a pitch already sent the
+ * reader there; the two that open it *from* the player's own page pass no `to`
+ * at all, and the header goes quiet rather than offering a link back to the
+ * page under the sheet.
  *
  * ## Both expectations, beside what actually happened
  *
@@ -72,19 +77,44 @@ export function PlayerMatchEventsDialog({
   fixture,
   playerId,
   playerName,
+  playerImage,
   leagueId,
   seasonId,
   to,
+  matchTo,
   onClose,
 }: {
   fixture: BreakdownFixture
   playerId: string
   playerName: string
+  /**
+   * His portrait, for the header. Optional — the Avatar falls back to his
+   * initials, which is what a player the caller has no picture of gets.
+   */
+  playerImage?: string
   leagueId: string | undefined
   /** The season the match belongs to. Omitted for the running one. */
   seasonId?: string
-  /** Where the header goes, when there is somewhere for it to go. */
+  /**
+   * Where the header goes: **his page**, or nothing.
+   *
+   * Passed rather than built here so the two callers that open this sheet from
+   * the player's own page can pass `undefined` — a header linking to the page
+   * it is already sitting on is a target that does nothing. Those two pass
+   * {@link matchTo} instead.
+   */
   to?: string
+  /**
+   * Where the **match line** goes — and only honoured when {@link to} is not
+   * given.
+   *
+   * One target in a header, and it is whichever of the two the reader has not
+   * already got. Opened from a pitch, the match is the page underneath and his
+   * page is the useful direction; opened from his own page, that is reversed
+   * and the line about the fixture becomes the way out. They are never both
+   * links, which is also what keeps an anchor out of an anchor.
+   */
+  matchTo?: string
   onClose: () => void
 }) {
   const match = fixture
@@ -129,47 +159,98 @@ export function PlayerMatchEventsDialog({
     breakdown.data?.matchId === undefined ||
     breakdown.data.matchId === match.matchId
 
-  const header = (
+  /* The fixture, as facts — drawn plain under a header that is already a link
+     to his page, and wrapped in a link to the match when it is not. */
+  const matchFacts = (
     <>
+      <Venue
+        size={12}
+        aria-hidden="true"
+        className={cn(
+          'shrink-0',
+          match.isHome ? 'text-positive' : 'text-accent',
+        )}
+      />
       <Avatar
         src={match.opponentImage}
         name={opponent}
-        size={30}
+        size={14}
         square
         className="shrink-0 bg-transparent"
       />
+      <span className="min-w-0 truncate">{opponent}</span>
+      <Scoreline
+        goalsFor={match.goalsFor}
+        goalsAgainst={match.goalsAgainst}
+        outcome={outcome}
+      />
+      <span aria-hidden="true" className="text-faint">
+        ·
+      </span>
+      <span className="nums">{match.day}. Spieltag</span>
+    </>
+  )
+
+  // Never both — see `matchTo`. An anchor inside an anchor is invalid anyway.
+  const isMatchLink = to === undefined && matchTo !== undefined
+
+  const header = (
+    <>
+      {/* **His portrait**, where the opponent's crest used to be. The crest is
+          still here, at 14px on the line below: the match is what qualifies
+          this total, not what the sheet is about. */}
+      <Avatar
+        src={playerImage}
+        name={playerName}
+        size={34}
+        className="shrink-0"
+      />
       <span className="min-w-0 flex-1">
         <Dialog.Title asChild>
-          <span className="flex min-w-0 items-center gap-1.5">
-            <Venue
-              size={12}
-              aria-hidden="true"
-              className={cn(
-                'shrink-0',
-                match.isHome ? 'text-positive' : 'text-accent',
-              )}
-            />
+          <span className="flex min-w-0 items-baseline gap-1.5">
             <span className="min-w-0 truncate text-sm font-semibold text-ink">
-              {opponent}
+              {playerName}
             </span>
-            <Scoreline
-              goalsFor={match.goalsFor}
-              goalsAgainst={match.goalsAgainst}
-              outcome={outcome}
-            />
+            {/* The figure the rows below add up to, beside the man who scored
+                it. It was under the opponent's name before, where it read as
+                the match's. */}
+            <span className="nums shrink-0 text-sm font-semibold text-ink">
+              {total === undefined ? '–' : formatPoints(total)}
+              <span className="font-normal text-muted"> Punkte</span>
+            </span>
           </span>
         </Dialog.Title>
-        <span className="nums mt-0.5 flex items-center gap-1.5 text-xs text-muted">
-          <span>{match.day}. Spieltag</span>
-          <span aria-hidden="true" className="text-faint">
-            ·
-          </span>
-          <span className="font-semibold text-ink">
-            {total === undefined ? '–' : formatPoints(total)} Punkte
-          </span>
+        {/* The match, in one line under him: where, against whom, how it
+            ended, and which matchday. It **wraps** rather than truncating —
+            the sheet is 26rem at most and this line can carry two chips as
+            well, and a score cut off mid-colon says less than a second line
+            costs. */}
+        <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted">
+          {isMatchLink ? (
+            <Link
+              to={matchTo}
+              replace
+              title={`${spoken} – Spiel öffnen`}
+              className={cn(
+                '-m-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded p-0.5',
+                'transition-colors hover:bg-surface-2 hover:text-ink',
+                'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+              )}
+            >
+              {matchFacts}
+              <ChevronRight
+                size={12}
+                aria-hidden="true"
+                className="shrink-0 text-faint"
+              />
+            </Link>
+          ) : (
+            matchFacts
+          )}
           {/* The reader's first, the model's second: his is the one he is
               accountable for, and the order is the same as the precedence
-              everywhere else in the app. */}
+              everywhere else in the app. Outside the link either way: they are
+              about the matchday, not about the fixture. */}
           {ownExpected !== undefined && (
             <ExpectedPointsBadge value={ownExpected} />
           )}
@@ -196,8 +277,8 @@ export function PlayerMatchEventsDialog({
           )}
         />
         <Dialog.Content
-          // The header names the match and the list is the content; a
-          // description element would only repeat one of them.
+          // The header names the player and his match, and the list is the
+          // content; a description element would only repeat one of them.
           aria-describedby={undefined}
           className={cn(
             'fixed z-50 flex flex-col border border-line bg-surface shadow-raise',
@@ -217,12 +298,12 @@ export function PlayerMatchEventsDialog({
             ) : (
               // `replace`, and nothing that closes the sheet: it is the hash
               // on the page's URL, so leaving the page closes it — and the
-              // entry it lives in is better spent on the match than on a
+              // entry it lives in is better spent on his page than on a
               // sheet to come back through. See `useHashModal`.
               <Link
                 to={to}
                 replace
-                title={`${spoken} – Spiel öffnen`}
+                title={`${spoken} – Spielerseite öffnen`}
                 className={cn(
                   '-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1',
                   'transition-colors hover:bg-surface-2',

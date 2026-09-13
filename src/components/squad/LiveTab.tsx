@@ -366,8 +366,9 @@ export function LiveTab({
           )}
           playerId={openPlayer.id}
           playerName={openPlayer.name}
+          playerImage={openPlayer.image}
           leagueId={leagueId}
-          to={`/leagues/${leagueId}/matchday/${openPlayer.fixture.matchId}`}
+          to={`/leagues/${leagueId}/players/${openPlayer.id}`}
           onClose={breakdown.close}
         />
       )}

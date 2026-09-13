@@ -119,11 +119,12 @@ rather than leaving 239 to stand there unexplained. It works mid-match too —
 the endpoint serves the running tally with its events, so the list grows as the
 match does.
 
-**The header links to the player**, not the match: on a duel the fixture is
-usually beside the point and the man is not. That is the opposite of the
-[squad's live view](squad.md#live-tab), which links to the match, and the
-reasoning is the same both times — link to whatever the screen has not already
-told you.
+**The header is the player** — his face, his name, his total — and it links to
+[his page](player-detail.md). On a duel the fixture is usually beside the point
+and the man is not, and a pitch of twenty-two portraits is exactly where a
+sheet has to confirm *which* one you tapped. Every pitch in the app now reads
+the same way; only the player's own page differs, where the header would lead
+to the page under it and the match line takes the link instead.
 
 Portraits were not tappable at all before this, so nothing was taken away. A
 player whose club has no match that matchday has no actions to show and stays
@@ -377,7 +378,9 @@ Tapping a portrait opens the
 [action breakdown](player-detail.md#the-match-breakdown), and its header shows
 **both** expected figures for that player and that matchday beside the real
 total: the reader's own guess in accent green, the model's prediction in
-orange, each as the chip the squad rows draw.
+orange, each as the chip the squad rows draw. They sit on the match line, under
+his name — they are about the matchday rather than about the fixture, which is
+why they stay outside the link that line can carry.
 
 Both, unusually. Everywhere else in the app a guess overrules a prediction and
 the reader is shown one number — that is the whole arrangement. Here the

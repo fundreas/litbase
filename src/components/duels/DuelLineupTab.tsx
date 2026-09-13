@@ -294,6 +294,7 @@ export function DuelLineupTab({
           )}
           playerId={openPlayer.id}
           playerName={openPlayer.name}
+          playerImage={openPlayer.image}
           leagueId={leagueId}
           to={
             leagueId === undefined

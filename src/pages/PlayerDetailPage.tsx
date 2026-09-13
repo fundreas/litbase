@@ -232,6 +232,7 @@ export function PlayerDetailPage() {
               teams={teams.data}
               playerId={playerId ?? ''}
               playerName={player.data?.fullName ?? ''}
+              playerImage={player.data?.image}
               leagueId={leagueId}
             />
           ))}

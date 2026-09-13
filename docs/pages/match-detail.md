@@ -278,10 +278,11 @@ was worth.
 
 The plate's figure was the one thing on this screen nothing explained, and on a
 page opened to read a *match* the actions come before the profile. The player's
-page has not gone anywhere: it is the dialog's header, one tap on. That is the
-same choice the [duel lineup](duel-detail.md#the-action-breakdown) makes and the
-opposite of the [squad's live view](squad.md#live-tab), which links to the match
-— each links to whatever its own screen has not already answered.
+page has not gone anywhere: the dialog's header **is** him — face, name and
+total — and it is a link there, one tap on. That is the same reading every
+pitch in the app gives it, the [duel lineup](duel-detail.md#the-action-breakdown)
+and the [squad's live view](squad.md#live-tab) included: the match is the screen
+you are standing on, so the header points the other way.
 
 The dialog opens for **any** player on the pitch, owned or not, because
 `/playercenter/{pid}` answers for any player — which is what made this possible

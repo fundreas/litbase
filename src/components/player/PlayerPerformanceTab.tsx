@@ -72,6 +72,7 @@ export function PlayerPerformanceTab({
   teams,
   playerId,
   playerName,
+  playerImage,
   leagueId,
 }: {
   /** Newest first. */
@@ -79,6 +80,8 @@ export function PlayerPerformanceTab({
   teams: Map<string, TeamSummary> | undefined
   playerId: string
   playerName: string
+  /** His portrait, for the breakdown sheet's header. */
+  playerImage?: string
   leagueId: string | undefined
 }) {
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
@@ -219,9 +222,15 @@ export function PlayerPerformanceTab({
           fixture={breakdownFixture(openMatch, teams)}
           playerId={playerId}
           playerName={playerName}
+          playerImage={playerImage}
           leagueId={leagueId}
           seasonId={isRunningSeason ? undefined : selected.id}
-          to={
+          /* `matchTo`, not `to`: this sheet was opened *on* his page, so the
+             header's own link would lead to the page underneath it. The line
+             about the fixture takes the target instead — and only for the
+             running season, since the match page resolves a fixture from the
+             current season's list and a 2019 id lands on its "not found". */
+          matchTo={
             isRunningSeason && leagueId !== undefined
               ? `/leagues/${leagueId}/matchday/${openMatch.matchId}`
               : undefined

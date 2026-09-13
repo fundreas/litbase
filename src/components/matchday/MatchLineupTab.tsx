@@ -396,6 +396,7 @@ export function MatchLineupTab({
         fixture={breakdownFixtureFrom(openFixture, day, openPlayer.points)}
         playerId={openPlayer.id}
         playerName={openPlayer.name}
+        playerImage={openPlayer.image}
         leagueId={leagueId}
         to={`/leagues/${leagueId}/players/${openPlayer.id}`}
         onClose={breakdown.close}

@@ -193,8 +193,12 @@ export function PlayerDetailsTab({
           fixture={breakdownFixture(openMatch, teams)}
           playerId={player.id}
           playerName={player.fullName}
+          playerImage={player.image}
           leagueId={leagueId}
-          to={
+          /* `matchTo`, not `to`: this sheet was opened *on* his page, so the
+             header's own link would lead to the page underneath it. The line
+             about the fixture takes the target instead. */
+          matchTo={
             leagueId === undefined
               ? undefined
               : `/leagues/${leagueId}/matchday/${openMatch.matchId}`

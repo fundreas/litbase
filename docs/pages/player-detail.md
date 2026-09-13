@@ -293,8 +293,8 @@ per action and per minute, named through the
 
 ```
 ┌──────────────────────────────────────────┐
-│ (crest) ✈ Leipzig 1:3                 →  │  the header, a link to the match
-│         2. Spieltag · 238 Punkte     [✗] │
+│ (face)  Guerreiro          238 Punkte →  │  the header, a link to the player
+│         ✈ (crest) Leipzig 1:3 · 2. Sp[✗] │
 ├──────────────────────────────────────────┤
 │   0′  Startelf                       +5  │
 │   1′  Geklärt (außerhalb 16er)       +3  │  scrolls
@@ -339,16 +339,27 @@ minute reads as a single moment rather than five rows restating `45′`. That is
 what makes a hundred rows scannable: the gutter becomes a timeline instead of a
 repeated number.
 
-**The header is the way out, upwards.** It carries the result from this player's
-side and his total, and it links to [the match](match-detail.md) — the question
-this dialog answers ("what did *he* do") has an obvious next one ("what happened
-in the match"). The ✗ sits beside it rather than inside, so one target
-navigates and the other closes.
+**The header is the player.** His face, his name, his total — because that is
+whose sheet this is. It used to lead with the opponent's crest and name, which
+read as a dialog about the *match*: opened from a pitch of twenty-two portraits,
+where every card on screen belongs to the same fixture, the one thing it needed
+to confirm was *which man you tapped*, and that was the one thing it did not
+say. The match is still there, as the line underneath — venue, crest, opponent,
+score, matchday — which is where a qualifier belongs. The ✗ sits beside the
+header rather than inside, so one target navigates and the other closes.
 
-The link is **only offered for the running season.** The match page resolves a
-fixture from the current season's list, so a 2019 match id lands on its "not
-found" state; an archived season's header is not a link at all rather than one
-that looks tappable and dead-ends.
+**One link, and it is whichever direction the reader has not already got.**
+From a pitch the header is a link to **his page**: the match is the screen
+underneath, and the obvious next question is who he is and what he has been
+doing all season. From the player's own page that is reversed — the header
+would lead to the page it is sitting on — so the header goes quiet and the
+**match line** takes the target instead.
+
+That second case is **only offered for the running season.** The match page
+resolves a fixture from the current season's list, so a 2019 match id lands on
+its "not found" state; an archived season's line is not a link at all rather
+than one that looks tappable and dead-ends. The header's own link to his page
+has no such limit, because his page is his page in any season.
 
 **The archive is reachable even so**, which is the find that made this worth
 building: `?seasonId=` alongside `dayNumber` serves any season the player has
@@ -364,19 +375,18 @@ The same rows appear on the [Details tab](#details-tab)'s *Spiele* card and
 behave identically there, because they are the same component and a match should
 not be a different kind of thing depending on the tab it was found on.
 
-**And the dialog is now shared with three pitches.** Tapping a portrait on
-[duel detail](duel-detail.md#the-action-breakdown), the
-[match lineup](match-detail.md#the-action-breakdown) or the
+**And the dialog is now shared with four pitches.** Tapping a portrait — or a
+bench row — on [duel detail](duel-detail.md#the-action-breakdown), the
+[match lineup](match-detail.md#the-action-breakdown), a
+[manager's lineup](manager-detail.md#aufstellung) or the
 [squad's live view](squad.md#live-tab) opens the same breakdown of the same
-endpoint. What differs is only where the header goes, and it goes to whatever
-the screen has not already answered:
+endpoint. What differs is only which half of the header is the link, and it is
+whatever the screen has not already answered:
 
-| Opened from | The header links to | Because |
-| ----------- | ------------------- | ------- |
-| Player page | the **match** | you are on the man; the fixture is the unknown |
-| Duel lineup | the **player** | you are on the duel, and the question is whose players are carrying it |
-| Match lineup | the **player** | you are already in the match |
-| Squad live view | the **match** | it is your own eleven, so the men are the one thing you know |
+| Opened from | The link is | Because |
+| ----------- | ----------- | ------- |
+| Player page | the **match line** | you are on the man; the fixture is the unknown |
+| Any pitch | the **header**, to the player | the match is the screen you are standing on |
 
 ### The season picker
 

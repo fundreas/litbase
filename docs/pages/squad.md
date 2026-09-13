@@ -1446,10 +1446,13 @@ one figure carrying both would agree with nothing else on the screen.
 
 **Tapping a portrait opens the actions behind its number** — the same
 [breakdown](player-detail.md#the-match-breakdown) the player page and the two
-match pitches draw. Here the header links to the **match**, not the player: this
-is your own eleven, so the men are the one thing you already know, and what you
-do not is what is happening in the fixture. The Rangliste's rows still go to the
-player pages, so nothing became unreachable.
+match pitches draw. Its header is the **player**: his face, his name and the
+total the rows add up to, linking to his page, exactly as on every other pitch.
+It used to link to the match on the argument that this is your own eleven and
+the men are the one thing you already know — true, and still the wrong thing to
+put in a header, which has to say whose sheet you are looking at before it
+offers to take you anywhere. The matchday page is a tab away on the shell's own
+navigation.
 
 **The corner carries the club's team sheet** while one is out and the match has
 not started, and nothing at all outside that hour: a green check for the
