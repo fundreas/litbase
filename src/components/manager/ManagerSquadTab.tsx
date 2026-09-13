@@ -9,7 +9,10 @@ import {
   type StartProbability,
   type TeamFixture,
 } from '@/api/models'
-import { useCurrentMatchday } from '@/api/hooks/useMatchday'
+import {
+  useCurrentMatchday,
+  useUpcomingMatchday,
+} from '@/api/hooks/useMatchday'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
@@ -86,6 +89,11 @@ export function ManagerSquadTab({
    */
   const matchday = useCurrentMatchday(competitionId)
   const day = matchday.data?.day
+  /* The opponent on each row is the **next** one — the first matchday that has
+     not kicked off, not the one the competition still calls current while it is
+     being played. See [`useUpcomingMatchday`](../../api/hooks/useMatchday.ts):
+     same cache entry, no request of its own. */
+  const upcoming = useUpcomingMatchday(competitionId)
   const expectedPoints = useExpectedPointsView(day)
   const expected = useExpectedPointsSheet({
     matchday: day,
@@ -97,7 +105,7 @@ export function ManagerSquadTab({
         name: player.lastName,
         averagePoints: player.averagePoints,
         totalPoints: player.totalPoints,
-        fixture: matchday.data?.fixtureByTeamId.get(player.teamId),
+        fixture: upcoming?.fixtureByTeamId.get(player.teamId),
       }
     },
   })
@@ -186,7 +194,7 @@ export function ManagerSquadTab({
                 key={player.id}
                 player={player}
                 startProbability={startProbabilities.get(player.id)}
-                fixture={matchday.data?.fixtureByTeamId.get(player.teamId)}
+                fixture={upcoming?.fixtureByTeamId.get(player.teamId)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
                 expectedPoints={expectedPoints.entry(player.id)}
                 onEditExpected={expected.open}

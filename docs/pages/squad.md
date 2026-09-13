@@ -369,7 +369,7 @@ duplicated here.
 | Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name — beside the expected-points chip |
 | Market value | `marketValue` | Compact euros, tabular figures |
 | 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
-| Fixture panel | `useCurrentMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — opens the [expected-points sheet](#erwartete-punkte) |
+| Fixture panel | `useUpcomingMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays) — opens the [expected-points sheet](#erwartete-punkte) |
 | Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The crest panel enters it; it does not display it |
 
 The lineup rail is **always rendered** and only tinted when the player is
@@ -424,6 +424,38 @@ under the name until the [player detail page](player-detail.md) gave season
 scoring a whole tab of its own — per matchday, with minutes and events. This
 page is about who is fit, who is likely to start and what they are worth, and
 the row is quieter for keeping to that.
+
+## The opponent is the next one, not the current matchday's
+
+Every fixture badge on a player — the Kader's panel, the pitch plates, the
+bench, the swap dialog, a rival's Kader, and the market's rows — names the
+opponent of the **first matchday that has not kicked off**, which is
+[`useUpcomingMatchday`](../../src/api/hooks/useMatchday.ts).
+
+That is deliberately not the competition's *current* matchday. A matchday stays
+current until its last final whistle, so from Friday evening to Sunday night
+the current one is a matchday being played: a row saying *gegen FCB* on
+Saturday at 18:00 names a match that kicked off at 15:30 without the reader
+being able to do anything about it. What a row like that is read for is the
+next match he can still plan for.
+
+It is the same rule the [market](market.md#the-opponent-is-the-listings-not-the-pages)
+applies to a listing, with the moment being *now* rather than the listing's
+expiry — one rule, in one place
+([`fixtureAfter`](../../src/api/models.ts) over
+[`useSeasonFixtures`](../../src/api/hooks/useMatchday.ts)), so a player met on
+the market and the same player met in the squad cannot name two different
+opponents.
+
+**The clock is read when the query's data changes, not on a timer.** That is
+enough: the matchday list polls from ten minutes before a kick-off until the
+last whistle, which is exactly the window in which the answer moves.
+
+**What still follows the current matchday** is the *expected points* — the
+figures are published per matchday and the guess a reader entered is filed
+under one, so on a Saturday afternoon a row can show this matchday's figure
+beside next matchday's opponent. Both are right about the question they answer;
+they are simply two different questions.
 
 ## Header total
 

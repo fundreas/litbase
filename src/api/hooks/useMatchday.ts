@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
@@ -404,6 +404,46 @@ export function useSeasonFixtures(
   competitionId: string | undefined,
 ): UseQueryResult<ScheduledMatchday[]> {
   return useMatchdaysQuery(competitionId, selectSeasonFixtures)
+}
+
+/**
+ * **The fixtures of the first matchday that has not kicked off** — every
+ * player's *next* opponent, whatever the competition currently calls its
+ * current matchday.
+ *
+ * This is the one every list of players should annotate its rows from, and it
+ * is deliberately **not** {@link useCurrentMatchday}. A matchday stays current
+ * until its last final whistle, so from Friday evening to Sunday night that
+ * hook names a matchday that is already being played: a row saying *gegen FCB*
+ * on Saturday at 18:00 is naming a match that kicked off at 15:30 without the
+ * reader being able to do anything about it. What every such row is read for is
+ * the next one he can still plan for, which is what this answers — the same
+ * rule the [market](../../pages/MarketPage.tsx) applies to a listing's expiry,
+ * with the moment being simply *now*.
+ *
+ * It is the current matchday for most of the week, and differs from it exactly
+ * between the first kick-off and the last whistle. Past the end of the season
+ * there is no such matchday and this is `undefined`, which every consumer
+ * already draws as "no match".
+ *
+ * **The clock is read when the query's data changes, not on a timer.** React
+ * Query hands the same array back until the payload does change, so the pick
+ * cannot recompute on its own — and it does not need to: the matchday list
+ * polls from ten minutes before a kick-off until the last match is over
+ * ({@link isMatchdayLive}), which is precisely the window in which the answer
+ * moves. Outside it nothing is crossing a kick-off.
+ */
+export function useUpcomingMatchday(
+  competitionId: string | undefined,
+): CurrentMatchday | undefined {
+  const { data } = useSeasonFixtures(competitionId)
+
+  return useMemo(() => {
+    const now = nowMs()
+    const matchday = data?.find((entry) => entry.startAt > now)
+    if (matchday === undefined) return undefined
+    return { day: matchday.day, fixtureByTeamId: matchday.fixtureByTeamId }
+  }, [data])
 }
 
 /**

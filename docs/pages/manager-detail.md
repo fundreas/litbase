@@ -297,6 +297,13 @@ entry** this page already reads for its matchday picker, so the tab pays no
 request for it. It is always the *current* matchday, never the one the picker
 is showing: the Kader is today's squad, and a guess is about the next match.
 
+The **opponent** on each row comes from the same payload but a different
+reading of it — [`useUpcomingMatchday`](../../src/api/hooks/useMatchday.ts),
+the first matchday that has not kicked off, which from Friday evening to Sunday
+night is the one after the one being played. Every list of players in the app
+names its opponents by that rule; see
+[the squad page](squad.md#the-opponent-is-the-next-one-not-the-current-matchdays).
+
 ## Verlauf
 
 The league's [event feed](events.md), narrowed to this manager — their

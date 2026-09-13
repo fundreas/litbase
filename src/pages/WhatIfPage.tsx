@@ -4,7 +4,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 
 import { useLeagueDetails, useLeagueManager } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
-import { useCurrentMatchday } from '@/api/hooks/useMatchday'
+import {
+  useCurrentMatchday,
+  useUpcomingMatchday,
+} from '@/api/hooks/useMatchday'
 import { usePlaceOffer, useWithdrawOffer } from '@/api/hooks/useMarketOffers'
 import { usePlayerDetail } from '@/api/hooks/usePlayer'
 import { useSquad } from '@/api/hooks/useSquad'
@@ -332,8 +335,11 @@ function WhatIfScenario({
    */
   const editor = useLineupEditor({ squad: remaining, leagueId, persist: false })
   const matchday = useCurrentMatchday(competitionId)
-  const fixtureByTeamId = matchday.data?.fixtureByTeamId
   const day = matchday.data?.day
+  /* The **next** opponent, as everywhere else a player is listed — see
+     [`useUpcomingMatchday`](../api/hooks/useMatchday.ts). Same cache entry as
+     the line above, so no second request. */
+  const fixtureByTeamId = useUpcomingMatchday(competitionId)?.fixtureByTeamId
   // Held here, not per tab, so the list and the pitch share one set of
   // requests. `full` rather than `remaining`: a player marked for sale is
   // still drawn on the Kader, marked.

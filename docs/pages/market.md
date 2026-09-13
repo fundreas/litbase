@@ -116,7 +116,11 @@ readable in the rows themselves rather than only in their order.
 
 A manager's listing has no clock, so it is measured against **now**: he settles
 it when he chooses, and the best that can be said is "the matchday a deal
-struck today would deliver into".
+struck today would deliver into". That is the same rule every other list of
+players in the app now applies to its own fixture badges — see
+[the squad page](squad.md#the-opponent-is-the-next-one-not-the-current-matchdays) —
+so a player met here and the same player met in a Kader cannot name two
+different opponents.
 
 Nothing on the crest can show *which* matchday at a glance — it is a crest —
 so the badge's label and tooltip name it (`Auswärtsspiel gegen FCB (4.

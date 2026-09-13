@@ -12,7 +12,11 @@ import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router'
 
 import { useLeagueManager } from '@/api/hooks/useLeague'
-import { useCurrentMatchday, useSeasonSchedule } from '@/api/hooks/useMatchday'
+import {
+  useCurrentMatchday,
+  useSeasonSchedule,
+  useUpcomingMatchday,
+} from '@/api/hooks/useMatchday'
 import { useSquad } from '@/api/hooks/useSquad'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { useStatusReasons } from '@/api/hooks/useStatusReasons'
@@ -547,8 +551,13 @@ function SquadViews({
 }) {
   const editor = useLineupEditor({ squad, leagueId })
   const matchday = useCurrentMatchday(competitionId)
-  const fixtureByTeamId = matchday.data?.fixtureByTeamId
   const day = matchday.data?.day
+  /* The opponent every row and every pitch plate shows is the **next** one —
+     the first matchday that has not kicked off, not the one the competition
+     still calls current while it is being played. See
+     [`useUpcomingMatchday`](../api/hooks/useMatchday.ts); it reads the same
+     cache entry as the line above, so it costs no request. */
+  const fixtureByTeamId = useUpcomingMatchday(competitionId)?.fixtureByTeamId
   /**
    * The expected-points sheet — `#expected:<playerId>`, the same one a
    * rival's Kader and a club's roster open. It lives here, above both views,

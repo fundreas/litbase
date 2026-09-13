@@ -152,6 +152,8 @@ is what makes them safe to call before context has resolved.
 | `useJoinableLeagues(f)` | `/leagues/list` | 2 min |
 | `useCompetitions()` | `/competitions` | 1 hour |
 | `useCurrentMatchday(cid)` | `/competitions/{cid}/matchdays` | 1 hour |
+| `useUpcomingMatchday(cid)` | `/competitions/{cid}/matchdays` | 1 hour — same entry; the first matchday **not yet kicked off**, which is what every player row's opponent comes from |
+| `useSeasonFixtures(cid)` | `/competitions/{cid}/matchdays` | 1 hour — same entry; every matchday's fixtures **and** when each one starts |
 | `useMatchdayMatches(cid, day)` | `/competitions/{cid}/matchdays` | 1 hour — same entry |
 | `useSeasonMatch(cid, mi)` | `/competitions/{cid}/matchdays` | 1 hour — same entry |
 | `useMatchdaySquad(…)` | `/leagues/{id}/users/{uid}/teamcenter?dayNumber=` | 5 min |
