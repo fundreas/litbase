@@ -78,6 +78,7 @@ export function MarketRow({
   listing,
   leagueId,
   fixture,
+  fixtureDay,
   team,
   marketValueChange,
   startProbability,
@@ -87,8 +88,19 @@ export function MarketRow({
 }: {
   listing: MarketListing
   leagueId: string
-  /** The player's club's next fixture, if the matchday is known. */
+  /**
+   * The player's club's fixture on the matchday **this listing is bought
+   * for** — the first one that has not kicked off by the time the listing
+   * settles, not necessarily the competition's current matchday. See the
+   * panel below, and [`fixtureAfter`](../../api/models.ts).
+   */
   fixture: TeamFixture | undefined
+  /**
+   * Which matchday that is, for the badge's label. `undefined` while the
+   * schedule is loading, and past the end of the season, where there is no
+   * matchday left to buy into.
+   */
+  fixtureDay: number | undefined
   /**
    * His own club, for the crest at the end of the name's line.
    *
@@ -284,9 +296,18 @@ export function MarketRow({
             that is about neither the player nor the price but the fixture he
             is being bought for. The crest carries its own home-or-away chip,
             which is what keeps it from being read as the club crest on the
-            name's line. */}
+            name's line.
+
+            **The fixture is the listing's, not the page's.** A row that
+            settles on Saturday evening is a player who arrives after this
+            weekend has kicked off, so the match he is being bought for is the
+            *next* matchday's — and two rows of one list can therefore be
+            about two different matchdays. Nothing on the row can show that at
+            a glance, which is why the badge is given its matchday for the
+            label; the list's own **Anpfiff** rule is where the split is
+            visible. */}
         <span className={FIXTURE_PANEL}>
-          <FixtureBadge fixture={fixture} size="md" />
+          <FixtureBadge fixture={fixture} size="md" day={fixtureDay} />
         </span>
 
         {/* The last panel answers the question the listing's kind leaves

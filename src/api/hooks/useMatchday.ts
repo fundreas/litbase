@@ -7,6 +7,7 @@ import {
   teamRecord,
   type MatchdayFixture,
   type MatchdayMatch,
+  type ScheduledMatchday,
   type SeasonMatchday,
   type SeasonSchedule,
   type TeamFixture,
@@ -181,6 +182,59 @@ function selectSeasonSchedule(data: MatchdaysResponse): SeasonSchedule {
 }
 
 /**
+ * **The whole season as matchdays**: when each one starts, and who each club
+ * plays in it.
+ *
+ * {@link selectCurrentMatchday} answers "who does this club play *now*", which
+ * is the right question everywhere a page is about the present. The market is
+ * not: a listing settles at an instant of its own, and what the buyer gets is
+ * the first matchday that has not started by then — so it needs every
+ * matchday's fixtures *and* every matchday's first kick-off, and has to pick
+ * between them per listing. See [`fixtureAfter`](../models.ts).
+ *
+ * One pass over a payload that moves once a week, memoised by `select`, on the
+ * same cache entry every other hook in this file reads.
+ */
+function selectSeasonFixtures(data: MatchdaysResponse): ScheduledMatchday[] {
+  const matchdays: ScheduledMatchday[] = []
+
+  for (const entry of data.it ?? []) {
+    const fixtureByTeamId = new Map<string, TeamFixture>()
+    let startAt = Number.POSITIVE_INFINITY
+
+    for (const fixture of entry.it ?? []) {
+      const kickoff = Date.parse(fixture.dt)
+      if (!Number.isNaN(kickoff)) startAt = Math.min(startAt, kickoff)
+      fixtureByTeamId.set(fixture.t1, {
+        matchId: fixture.mi,
+        kickoff: fixture.dt,
+        isHome: true,
+        opponentId: fixture.t2,
+        opponentSymbol: fixture.t2sy ?? fixture.t2,
+        opponentImage: fixture.t2im,
+      })
+      fixtureByTeamId.set(fixture.t2, {
+        matchId: fixture.mi,
+        kickoff: fixture.dt,
+        isHome: false,
+        opponentId: fixture.t1,
+        opponentSymbol: fixture.t1sy ?? fixture.t1,
+        opponentImage: fixture.t1im,
+      })
+    }
+
+    // A matchday with no parsable kick-off has no moment to be measured
+    // against, and a matchday that begins at `Infinity` would swallow every
+    // lookup that reached it. Dropped, the way `selectSeasonSchedule` drops
+    // the same case.
+    if (startAt === Number.POSITIVE_INFINITY) continue
+    matchdays.push({ day: entry.day, startAt, fixtureByTeamId })
+  }
+
+  return matchdays.sort((a, b) => a.startAt - b.startAt)
+}
+
+/**
  * Every club's season record, keyed by club id.
  *
  * **The goals a league table needs and the API's table does not have.**
@@ -329,6 +383,27 @@ export function useSeasonSchedule(
   competitionId: string | undefined,
 ): UseQueryResult<SeasonSchedule> {
   return useMatchdaysQuery(competitionId, selectSeasonSchedule)
+}
+
+/**
+ * **Every matchday's fixtures, with the moment each matchday begins** — the
+ * season in the shape a question about a *future* matchday needs.
+ *
+ * The market's rows are what this exists for: a listing settling on Saturday
+ * evening is a player bought for the matchday *after* the one being played, so
+ * the row's opponent cannot come from the current matchday's lookup. Hand the
+ * result to [`fixtureAfter`](../models.ts) with the instant the deal closes.
+ *
+ * Ordered by kick-off, so the first matchday that starts after a given instant
+ * is the first match in the list — see {@link selectSeasonFixtures}.
+ *
+ * Reads the cache entry every other hook in this file reads: no request of its
+ * own, whichever page got there first.
+ */
+export function useSeasonFixtures(
+  competitionId: string | undefined,
+): UseQueryResult<ScheduledMatchday[]> {
+  return useMatchdaysQuery(competitionId, selectSeasonFixtures)
 }
 
 /**

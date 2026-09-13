@@ -43,6 +43,7 @@ export function FixtureBadge({
   className,
   tone = 'default',
   size = 'sm',
+  day,
 }: {
   fixture: TeamFixture | undefined
   className?: string
@@ -50,8 +51,19 @@ export function FixtureBadge({
   tone?: 'default' | 'onPitch'
   /** A preset, or an explicit crest size in px for continuous scaling. */
   size?: Size | number
+  /**
+   * Which matchday the fixture is, when that is worth naming.
+   *
+   * Everywhere the badge stands for "the coming matchday" it is left out —
+   * the page has already said which one that is. The
+   * [market](../market/MarketRow.tsx) is the exception: each listing settles
+   * at its own instant, so two rows of one list can be about two different
+   * matchdays, and the label is the only place that can say which.
+   */
+  day?: number
 }) {
   const crest = typeof size === 'number' ? size : SIZES[size]
+  const on = day === undefined ? '' : ` (${String(day)}. Spieltag)`
 
   if (fixture === undefined) {
     // No fixture this matchday — a bye, or the club is out of the competition.
@@ -59,8 +71,8 @@ export function FixtureBadge({
     return (
       <span
         role="img"
-        aria-label="Kein Spiel an diesem Spieltag"
-        title="Kein Spiel an diesem Spieltag"
+        aria-label={`Kein Spiel${on === '' ? ' an diesem Spieltag' : on}`}
+        title={`Kein Spiel${on === '' ? ' an diesem Spieltag' : on}`}
         style={{ width: crest, height: crest }}
         className={cn(
           'flex shrink-0 items-center justify-center text-[0.6875rem]',
@@ -74,7 +86,7 @@ export function FixtureBadge({
   }
 
   const Icon = fixture.isHome ? House : PlaneTakeoff
-  const label = `${fixture.isHome ? 'Heimspiel' : 'Auswärtsspiel'} gegen ${fixture.opponentSymbol}`
+  const label = `${fixture.isHome ? 'Heimspiel' : 'Auswärtsspiel'} gegen ${fixture.opponentSymbol}${on}`
   const chip = chipSize(crest)
 
   return (

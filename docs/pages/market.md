@@ -97,6 +97,37 @@ cached ten minutes, and the same cache entry the league table, the club pages
 and the Spieltag already read. A club the current table does not hold has no
 crest, which is how every consumer of that directory treats it.
 
+### The opponent is the listing's, not the page's
+
+The crest in the panel is **the match the listing is bought for** — the first
+matchday that has not kicked off when the listing expires, not the matchday the
+competition currently calls its own.
+
+The two part company every weekend. A matchday stays "current" until its last
+final whistle, so from Friday evening onwards the transfer market is selling
+into a matchday that is already being played: a bid won on Saturday at 18:00
+hands you a player whose match kicked off at 15:30 without him. Showing that
+match as *who he plays* is showing a fixture the buyer cannot have. The rule
+is therefore the listing's own clock — **the match on matchday X, where X
+begins after the listing expires** — which on a matchday afternoon means the
+rows below the *Anpfiff* hairline name a different opponent from the rows
+above it. That is exactly the split the hairline is drawn for, and it is now
+readable in the rows themselves rather than only in their order.
+
+A manager's listing has no clock, so it is measured against **now**: he settles
+it when he chooses, and the best that can be said is "the matchday a deal
+struck today would deliver into".
+
+Nothing on the crest can show *which* matchday at a glance — it is a crest —
+so the badge's label and tooltip name it (`Auswärtsspiel gegen FCB (4.
+Spieltag)`), which is also what a screen reader reads. The whole lookup comes
+out of the season fixture list that is already cached for the hour
+([`useSeasonFixtures`](../../src/api/hooks/useMatchday.ts), the same entry the
+Kader and the Spieltag page read), so the correction costs no request.
+
+Past the end of the season, and for a club with no fixture on that matchday,
+the panel shows its "no match" dash.
+
 ### The height it cost, and where it went
 
 Three lines and two new marks are pure addition to a row that was already

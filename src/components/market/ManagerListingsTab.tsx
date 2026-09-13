@@ -1,9 +1,15 @@
 import { Users } from 'lucide-react'
 
 import type { TeamSummary } from '@/api/hooks/useCompetition'
-import type { MarketListing, StartProbability, TeamFixture } from '@/api/models'
+import {
+  fixtureAfter,
+  type MarketListing,
+  type ScheduledMatchday,
+  type StartProbability,
+} from '@/api/models'
 import { MarketRow } from '@/components/market/MarketRow'
 import { EmptyState } from '@/components/ui/States'
+import { nowMs } from '@/lib/clock'
 import type { ExpectedPointsView } from '@/lib/expectedPoints'
 
 /**
@@ -47,7 +53,7 @@ import type { ExpectedPointsView } from '@/lib/expectedPoints'
 export function ManagerListingsTab({
   listings,
   leagueId,
-  fixtureByTeamId,
+  matchdays,
   teams,
   startProbabilities,
   expected,
@@ -56,7 +62,14 @@ export function ManagerListingsTab({
   /** Other managers' listings, in any order — this view imposes its own. */
   listings: MarketListing[]
   leagueId: string
-  fixtureByTeamId: Map<string, TeamFixture> | undefined
+  /**
+   * The season's matchdays, for the fixture each row is bought for. A
+   * manager's listing has no expiry — he settles it when he chooses — so the
+   * instant it is measured against is **now**: the matchday a deal struck
+   * today would deliver into, which from Friday's kick-off is the next one.
+   * See [`fixtureAfter`](../../api/models.ts).
+   */
+  matchdays: ScheduledMatchday[] | undefined
   /** The season's clubs, for the crest on each row's name line. */
   teams: Map<string, TeamSummary> | undefined
   /** Lineup-probability tiers, filled once for the whole payload. */
@@ -75,26 +88,36 @@ export function ManagerListingsTab({
     )
   }
 
+  /* One instant for the whole list, read once per render rather than per row:
+     every listing here settles whenever its owner says so, so they all ask the
+     same question of the schedule and must all get the same answer. */
+  const now = nowMs()
+
   return (
     <ul className="flex flex-col gap-2">
-      {byPremium(listings).map((listing) => (
-        <MarketRow
-          key={listing.id}
-          listing={listing}
-          leagueId={leagueId}
-          fixture={fixtureByTeamId?.get(listing.teamId)}
-          team={teams?.get(listing.teamId)}
-          startProbability={startProbabilities.get(listing.id)}
-          expectedPoints={expected.entry(listing.id)}
-          // No 24-hour move and no countdown: on a manager's listing the row
-          // prints the premium under the price and his face at the end, so
-          // neither the overnight figure nor the clock is ever read.
-          now={0}
-          onOffer={() => {
-            onOffer(listing.id)
-          }}
-        />
-      ))}
+      {byPremium(listings).map((listing) => {
+        const upcoming = fixtureAfter(matchdays, listing.teamId, now)
+
+        return (
+          <MarketRow
+            key={listing.id}
+            listing={listing}
+            leagueId={leagueId}
+            fixture={upcoming?.fixture}
+            fixtureDay={upcoming?.matchday.day}
+            team={teams?.get(listing.teamId)}
+            startProbability={startProbabilities.get(listing.id)}
+            expectedPoints={expected.entry(listing.id)}
+            // No 24-hour move and no countdown: on a manager's listing the row
+            // prints the premium under the price and his face at the end, so
+            // neither the overnight figure nor the clock is ever read.
+            now={0}
+            onOffer={() => {
+              onOffer(listing.id)
+            }}
+          />
+        )
+      })}
     </ul>
   )
 }

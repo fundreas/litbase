@@ -13,13 +13,16 @@ import { useTeamDirectory } from '@/api/hooks/useCompetition'
 import { useLeagueDetails } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
 import { useMarketValueChanges } from '@/api/hooks/useMarketValueChanges'
-import { useCurrentMatchday } from '@/api/hooks/useMatchday'
+import { useCurrentMatchday, useSeasonFixtures } from '@/api/hooks/useMatchday'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import {
+  fixtureAfter,
   offersReceived,
   ownListingsOf,
   type Market,
   type MarketListing,
+  type ScheduledMatchday,
+  type TeamFixture,
 } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
@@ -150,6 +153,12 @@ export function MarketPage() {
       : VIEWS.market
   const { data, isPending, isError, error, refetch } = useMarket(leagueId)
   const matchday = useCurrentMatchday(competitionId)
+  /* The season's fixtures, keyed by matchday — **not** just the current one.
+     Every listing settles at an instant of its own, and the match a buyer
+     actually gets is the first one that has not kicked off by then, so each
+     row resolves its own opponent against this. Same cache entry as the
+     current matchday above: no second request. See {@link fixtureFor}. */
+  const seasonFixtures = useSeasonFixtures(competitionId)
   // For `upe` — whether this league lets a bid fall below the market value.
   // Cached ten minutes and already fetched by the events page, so arriving from
   // there costs nothing.
@@ -367,7 +376,7 @@ export function MarketPage() {
       <ManagerListingsTab
         listings={managerListings}
         leagueId={leagueId}
-        fixtureByTeamId={matchday.data?.fixtureByTeamId}
+        matchdays={seasonFixtures.data}
         teams={teams.data}
         startProbabilities={startProbabilities}
         expected={expected}
@@ -392,7 +401,7 @@ export function MarketPage() {
               key={entry.listing.id}
               listing={entry.listing}
               leagueId={leagueId}
-              fixture={matchday.data?.fixtureByTeamId.get(entry.listing.teamId)}
+              {...fixtureFor(seasonFixtures.data, entry.listing, now)}
               team={teams.data?.get(entry.listing.teamId)}
               marketValueChange={marketValueChanges.get(entry.listing.id)}
               startProbability={startProbabilities.get(entry.listing.id)}
@@ -438,6 +447,37 @@ export function MarketPage() {
       {bar}
     </div>
   )
+}
+
+/**
+ * **The fixture a listing is bought for**, and which matchday that is.
+ *
+ * Not the current matchday: a listing settles at its own instant, and from the
+ * matchday's first kick-off onwards a transfer no longer delivers into it — a
+ * bid won on Saturday evening hands you a player whose match this weekend has
+ * already been played without him. So the opponent a row shows is the first
+ * matchday's that has **not** started when the listing expires, which on a
+ * matchday afternoon means the rows below the *Anpfiff* rule name a different
+ * club from the rows above it. That split is the point, and the rule is where
+ * it becomes visible.
+ *
+ * A listing with no expiry on the wire is measured against the clock instead —
+ * the same reading a manager's listing gets, since "whenever it settles" is
+ * the best that can be said of it.
+ *
+ * Spread straight into the row, which is why the keys are its prop names.
+ */
+function fixtureFor(
+  matchdays: ScheduledMatchday[] | undefined,
+  listing: MarketListing,
+  now: number,
+): { fixture: TeamFixture | undefined; fixtureDay: number | undefined } {
+  const upcoming = fixtureAfter(
+    matchdays,
+    listing.teamId,
+    listing.expiresAt ?? now,
+  )
+  return { fixture: upcoming?.fixture, fixtureDay: upcoming?.matchday.day }
 }
 
 /** A moment the list is cut at, and what happens then. */

@@ -184,6 +184,55 @@ export function liveMatchday(
 }
 
 /**
+ * One matchday's fixtures indexed by team, plus **when the matchday begins**.
+ *
+ * {@link SeasonMatchday} says when a matchday runs and {@link TeamFixture} says
+ * who a club plays; this pairs the two, because there is one question that
+ * needs both at once: *which* matchday is a player being bought for. See
+ * {@link fixtureAfter}.
+ */
+export interface ScheduledMatchday {
+  day: number
+  /** Earliest kick-off of the matchday, epoch millis. */
+  startAt: number
+  /** Team id → that team's fixture on this matchday. */
+  fixtureByTeamId: Map<string, TeamFixture>
+}
+
+/**
+ * **The fixture a player bought at `at` would actually be bought for**: his
+ * club's match on the first matchday that has not started by then.
+ *
+ * The competition's "current" matchday stays current until its last final
+ * whistle, so from the Friday kick-off onwards it is a matchday you can no
+ * longer buy into — a transfer settling on Saturday evening delivers a player
+ * whose match this weekend has been played, or is being played, without him.
+ * The matchday that transfer is *for* is the next one, and this is the rule
+ * that says so: the first matchday whose earliest kick-off is still ahead of
+ * the moment the deal closes.
+ *
+ * A club with no fixture on that matchday — a bye, a postponement — yields
+ * `undefined`, the same as a lookup before the schedule has loaded; every
+ * consumer draws the badge's "no match" dash for both.
+ *
+ * `matchdays` is expected ascending by day, which is how
+ * [`useSeasonFixtures`](./hooks/useMatchday.ts) builds it: the first match is
+ * the answer, so the scan stops there.
+ */
+export function fixtureAfter(
+  matchdays: ScheduledMatchday[] | undefined,
+  teamId: string,
+  /** When the deal closes, epoch millis. */
+  at: number,
+):
+  | { matchday: ScheduledMatchday; fixture: TeamFixture | undefined }
+  | undefined {
+  const matchday = matchdays?.find((entry) => entry.startAt > at)
+  if (matchday === undefined) return undefined
+  return { matchday, fixture: matchday.fixtureByTeamId.get(teamId) }
+}
+
+/**
  * A team's fixture on a specific matchday, with enough state to say whether it
  * is over. {@link TeamFixture} plus the result, for views that care about a
  * past or running matchday rather than the next one.
