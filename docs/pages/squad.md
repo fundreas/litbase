@@ -265,7 +265,7 @@ the [what-if scenario](#was-wäre-wenn--the-sale-scenario)'s flask beside it.
   Mannschaft                    [51,0 Mio. €] [i]
   20 Spieler · 194,4 Mio. € Gesamtwert
 
-                         [⚗ Szenario] [≡] [▦]
+  [⚗ Szenario]                       [≡] [▦]
   TW · 2                     ┌─────┬─────┬─────┐
   ┌────────────────────────┐ │ ✚[] │  [] │  []★│
   │▮[img] Nübel  10,5 Mio.€│ │ img │ img │ img │
@@ -292,7 +292,7 @@ learned once.
 
 ### Was wäre wenn — the sale scenario
 
-**⚗ Szenario**, to the left of the toggle and on the same line, opening
+**⚗ Szenario**, at the left end of the toggle's own line, opening
 `/leagues/:leagueId/squad/whatif`: the squad and the pitch as they would be
 after a round of sales, none of which happen. It is the
 [what-if page](whatif.md) with the purchase taken out of it — two tabs rather
@@ -311,11 +311,17 @@ calculator bar are already the arithmetic on this page, and a third one beside
 them would say "one of these does sums" and nothing more. This one is an
 experiment — nothing inside it is real.
 
-It is **named**, unlike the pair toggle beside it. A destination has to be
+It is **named**, unlike the pair toggle across the row. A destination has to be
 guessed at from a lone glyph; the toggle changes the page you are already on
 and shows you both of its states, so it can afford to stay mute. Everything
 else about the two is the same — height, border, rounding — so they read as one
-toolbar.
+toolbar held apart at its two ends: where the squad can be *taken* on the left,
+how it is *laid out* on the right.
+
+The link pushes itself left with `mr-auto` rather than the row being
+`justify-between`. The toggle's place is the right edge and it has to keep it
+on the what-if page's own Kader tab, where there is no link beside it to be
+spread away from.
 
 The flask is **hidden while the sale calculator is on**. In that mode a tap on
 a row already means "sell him"; a second, quieter door to a *hypothetical*

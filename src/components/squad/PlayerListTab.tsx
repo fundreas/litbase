@@ -162,10 +162,15 @@ export function PlayerListTab({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* The list's own toolbar: what the squad is *for* on the left of the
-          pair toggle, how it is *laid out* on the right. Both are icon-only
-          and both sit at the end of the line — they arrange the page, they are
-          not what the page is about. */}
+      {/* The list's own toolbar, read from the two ends: where the squad can
+          be *taken* on the left, how it is *laid out* on the right. The two
+          are different kinds of thing — one leaves the page, one rearranges
+          it — and a gap between them says so better than a gap-2 would.
+
+          The toggle keeps the right edge whether or not the link is there: it
+          is the row's `justify-end` that holds it, and the link pushes itself
+          to the other side with `mr-auto` rather than the row switching to
+          `justify-between`, which would drag a lone toggle left with it. */}
       <div className="flex items-center justify-end gap-2">
         {scenarioTo !== undefined && <ScenarioLink to={scenarioTo} />}
         <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
@@ -285,12 +290,17 @@ export function PlayerListTab({
  * them would say "one of these three does sums" and nothing more. This one is
  * an experiment — nothing inside it is real.
  *
- * **Named, unlike the toggle beside it.** *Szenario* is a destination, and a
- * lone glyph that takes you somewhere has to be guessed at; the pair toggle
- * next to it changes the page you are already on and shows you both of its
- * states, so it can afford to stay mute. Otherwise it is the same control —
- * same height, same border, same rounding — so the line reads as one toolbar
- * rather than two things that happened to land beside each other.
+ * **Named, unlike the toggle across the row.** *Szenario* is a destination,
+ * and a lone glyph that takes you somewhere has to be guessed at; the pair
+ * toggle changes the page you are already on and shows you both of its states,
+ * so it can afford to stay mute. Otherwise it is the same control — same
+ * height, same border, same rounding — so the two read as one toolbar rather
+ * than as two unrelated things.
+ *
+ * It takes the **left** end of that row, by `mr-auto` rather than by the row
+ * being `justify-between`: the toggle's place is the right edge, and it has to
+ * keep it on the [what-if page](../../pages/WhatIfPage.tsx)'s own Kader tab,
+ * where there is no link to push away from.
  */
 function ScenarioLink({ to }: { to: string }) {
   return (
@@ -298,7 +308,7 @@ function ScenarioLink({ to }: { to: string }) {
       to={to}
       title="Was wäre wenn: Verkäufe durchrechnen"
       className={cn(
-        'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2',
+        'mr-auto flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2',
         'text-xs font-semibold text-muted transition-colors',
         'hover:border-accent/40 hover:bg-surface-2 hover:text-accent',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
