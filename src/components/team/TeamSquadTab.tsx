@@ -160,7 +160,14 @@ export function TeamSquadTab({
 
               <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
                 {group.players.map((player) => (
-                  <li key={player.id} className="flex items-stretch">
+                  <li
+                    key={player.id}
+                    /* `min-h-14` — the height the portrait beside it needs to
+                       be a face rather than a stripe, and the same floor the
+                       [Kader's](../squad/PlayerListTab.tsx) two-line row
+                       settles at anyway. */
+                    className="flex min-h-14 items-stretch"
+                  >
                     <PlayerRow
                       player={player}
                       leagueId={leagueId}
@@ -228,87 +235,102 @@ function PlayerRow({
     <>
       <Link
         to={`/leagues/${leagueId}/players/${player.id}`}
-        className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 transition-colors hover:bg-surface-2/60"
+        className="flex min-w-0 flex-1 items-stretch transition-colors hover:bg-surface-2/60"
       >
+        {/* **Flush portrait**, the one the [market](../market/MarketRow.tsx)
+            and the [Kader](../squad/PlayerListTab.tsx) draw: full-bleed
+            against the row's edge, a wash under it because the Kickbase
+            cutouts are transparent PNGs, and the inner edge masked so the
+            figure dissolves into the row instead of ending on a line.
+
+            It replaces a 36px square with padding around it. The sources are
+            1100×800 landscape and this box cover-crops them, so every pixel of
+            both dimensions is a pixel of face — which is the whole point of a
+            list read to recognise players at a club you do not follow. */}
         <Avatar
           src={player.image}
           name={player.name}
-          size={36}
-          square
-          className="shrink-0 bg-surface-2"
+          fill
+          className={cn(
+            'w-14 shrink-0 self-stretch bg-transparent',
+            'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+            '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+          )}
         />
 
-        <div className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="min-w-0 truncate text-sm font-medium text-ink">
-              {player.name}
-            </span>
-            {/* No `stxt` on this payload, so no Kickbase-worded reason — the
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-3">
+          <div className="min-w-0 flex-1">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="min-w-0 truncate text-sm font-medium text-ink">
+                {player.name}
+              </span>
+              {/* No `stxt` on this payload, so no Kickbase-worded reason — the
               badge falls back to its code's own label, which is what that
               parameter is optional for. */}
-            <PlayerStatusBadge status={player.availability} size={13} />
-          </span>
+              <PlayerStatusBadge status={player.availability} size={13} />
+            </span>
 
-          {/* The position is gone from the row — the section heading above
+            {/* The position is gone from the row — the section heading above
               says it once for the whole group — and what stands in its place
               is the pair that decides a purchase: **will he play, and what
               will he bring**. Both are about the coming matchday, both are
               estimates, and neither means much without the other. */}
-          {(player.startProbability !== undefined ||
-            expectedPoints !== undefined) && (
-            <span className="mt-0.5 flex items-center gap-1.5">
-              {player.startProbability !== undefined && (
-                <StartProbabilityBadge
-                  tier={player.startProbability}
-                  size={13}
-                />
-              )}
-              {expectedPoints !== undefined && (
-                <ExpectedPointsBadge
-                  value={expectedPoints.value}
-                  isForecast={!expectedPoints.isOwn}
-                />
-              )}
-            </span>
+            {(player.startProbability !== undefined ||
+              expectedPoints !== undefined) && (
+              <span className="mt-0.5 flex items-center gap-1.5">
+                {player.startProbability !== undefined && (
+                  <StartProbabilityBadge
+                    tier={player.startProbability}
+                    size={13}
+                  />
+                )}
+                {expectedPoints !== undefined && (
+                  <ExpectedPointsBadge
+                    value={expectedPoints.value}
+                    isForecast={!expectedPoints.isOwn}
+                  />
+                )}
+              </span>
+            )}
+          </div>
+
+          {player.owner !== undefined && (
+            <OwnerBadge owner={player.owner} size={22} />
           )}
-        </div>
 
-        {player.owner !== undefined && (
-          <OwnerBadge owner={player.owner} size={22} />
-        )}
+          <div className="w-24 shrink-0 text-right">
+            <span className="nums block text-sm font-semibold text-ink">
+              {money(player.marketValue)}
+            </span>
 
-        <div className="w-24 shrink-0 text-right">
-          <span className="nums block text-sm font-semibold text-ink">
-            {money(player.marketValue)}
-          </span>
-
-          {/* The **last seven days** — `sdmvt`, which is what this payload
+            {/* The **last seven days** — `sdmvt`, which is what this payload
             serves; `tfhmvt`'s 24 hours would cost one request per player. The
             arrow is drawn as the squad list draws it: the same signal as the
             amount, its direction, so the two cannot contradict each other, and
             omitted on a flat week rather than pointing nowhere. */}
-          <span
-            title={
-              change === undefined
-                ? 'Vor einer Woche noch ohne Marktwert — keine Veränderung berechenbar'
-                : 'Marktwertänderung in den letzten 7 Tagen'
-            }
-            className={cn(
-              'nums flex items-center justify-end gap-0.5 text-xs',
-              change !== undefined && change > 0 && 'text-positive',
-              change !== undefined && change < 0 && 'text-negative',
-              (change === undefined || change === 0) && 'text-faint',
-            )}
-          >
-            {change !== undefined && change !== 0 && (
-              <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
-            )}
-            {/* A dash for a player Kickbase only started pricing this week: his
+            <span
+              title={
+                change === undefined
+                  ? 'Vor einer Woche noch ohne Marktwert — keine Veränderung berechenbar'
+                  : 'Marktwertänderung in den letzten 7 Tagen'
+              }
+              className={cn(
+                'nums flex items-center justify-end gap-0.5 text-xs',
+                change !== undefined && change > 0 && 'text-positive',
+                change !== undefined && change < 0 && 'text-negative',
+                (change === undefined || change === 0) && 'text-faint',
+              )}
+            >
+              {change !== undefined && change !== 0 && (
+                <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
+              )}
+              {/* A dash for a player Kickbase only started pricing this week: his
               `sdmvt` is his whole value, and printing it would read as the
               biggest riser at the club. */}
-            {change === undefined ? '–' : moneyDelta(change)}
-            <span className="sr-only"> in den letzten 7 Tagen</span>
-          </span>
+              {change === undefined ? '–' : moneyDelta(change)}
+              <span className="sr-only"> in den letzten 7 Tagen</span>
+            </span>
+          </div>
         </div>
       </Link>
     </>

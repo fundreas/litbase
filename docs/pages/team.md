@@ -211,6 +211,18 @@ once what thirty rows were repeating.
 Each row is a link to the [player's own page](player-detail.md), where the
 season history, the market-value chart and the ownership detail live.
 
+**The portrait is flush**, as on the [market](market.md) and one's own
+[Kader](squad.md#a-card-per-position-rows-flush-inside-it): full-bleed against
+the row's left edge, a wash under it because the Kickbase cutouts are
+transparent PNGs, and the inner edge masked so the figure dissolves into the
+row rather than ending on a line. It replaces a 36px square with padding round
+it, and it costs the row nothing — the width was already there. The sources are
+1100×800 landscape and the box cover-crops them, so every pixel of both
+dimensions is a pixel of face, which is what a list read to recognise players
+at a club you do not follow needs most. The row takes a `min-h-14` floor so the
+portrait is a face rather than a stripe — the height its two lines settle at
+anyway.
+
 Everything on a row comes off one response:
 
 | On the row | Wire field |
