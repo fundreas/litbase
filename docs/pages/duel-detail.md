@@ -59,15 +59,22 @@ right* instead — the first manager on the left, which is where the header's
 scoreline already has them. Same eight bands, drawn as columns; see
 [Landscape from `lg` up](squad.md#landscape-from-lg-up).
 
-**Portraits carry a picture and one figure, nothing else.** With 22 players on
-a 360px screen a name under each is unreadable and a fixture badge is noise.
-That figure is the points, what he is **expected** to score while his match is
-still to come, or the kick-off time when nothing expects anything of him — see
-[the one figure a player gets](#the-one-figure-a-player-gets) — and it is
-tinted accent while that player's match is running. The plate is sized
-for one line
-(`plate: 'points'`), which is also what lets the avatar floor drop to 26px on a
-phone.
+**Portraits carry a picture, a name and one figure.** The figure is the points,
+what he is **expected** to score while his match is still to come, or the
+kick-off time when nothing expects anything of him — see [the one figure a
+player gets](#the-one-figure-a-player-gets) — and it is tinted accent while
+that player's match is running.
+
+The name went on because a pitch exists to be **read across**, and 22 faces at
+the size eight bands leave are 22 strangers without one: the figure answers
+*how many* and never *who*. It costs the card a second line of text, which is
+why the plate is sized `plate: 'named'` and the avatar floor is 30px rather
+than the 26px a bare figure allowed — and why the pitch's own floor grew from
+30rem to `min-h-[34rem]`, which is exactly eight floor-sized cards plus the
+grid's padding. On the narrowest phone that leaves about four characters of
+surname, which is enough to tell two portraits apart; the whole name is in the
+card's tooltip, as it always was. A fixture badge would still be noise here and
+is still not drawn.
 
 **Each corner chip also carries where that eleven is heading** — `⌖ 1.240`,
 `SUM(coalesce(real points, the reader's guess, the model's prediction))` over

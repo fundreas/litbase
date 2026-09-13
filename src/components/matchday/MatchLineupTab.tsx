@@ -287,7 +287,7 @@ export function MatchLineupTab({
     ]
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length * 2,
-      plate: 'points',
+      plate: 'named',
       orientation,
     })
   }, [box, home.starters, away.starters, orientation])
@@ -303,14 +303,16 @@ export function MatchLineupTab({
    * copies — see the duel pitch, which does the same thing for the same
    * reason: a second one would size its cards from a box nobody is looking at.
    *
-   * `min-h-[30rem]` is the floor that keeps eight bands legible on a phone
-   * inline. Full screen there is nothing under the pitch to leave room for, so
+   * `min-h-[34rem]` is the floor that keeps eight bands legible on a phone
+   * inline — 544px, which is exactly eight floor-sized named cards plus the
+   * grid's padding, and 4rem more than the plates needed before they carried
+   * names. Full screen there is nothing under the pitch to leave room for, so
    * it comes off and the pitch takes the viewport exactly.
    */
   const pitch = (
     <Pitch
       orientation={orientation}
-      className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}
+      className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[34rem] flex-1'}
     >
       <SideLabel lineup={home} side="home" orientation={orientation} />
 
@@ -536,7 +538,7 @@ function PitchBand({
 }
 
 /**
- * A portrait, its points plate, and the badge saying who owns him.
+ * A portrait, its name-and-points plate, and the badge saying who owns him.
  *
  * The owner badge takes the **top-left** corner, which is where the squad
  * page's pitch puts its availability mark — the corner that reads most easily
@@ -612,6 +614,16 @@ function PitchPlayer({
         )}
       </span>
 
+      {/* Two lines: **who he is**, then what he scored.
+
+          The name is the half the plate was missing. Twenty-two portraits at
+          the size eight bands leave are twenty-two strangers — the owner badge
+          says whether he is *somebody's*, and the number says how many, but
+          neither says which player you are looking at, on the one screen where
+          half the faces belong to the club you do not follow.
+
+          `px-0.5` rather than `px-1`: on a phone this plate is about 42px, and
+          those four pixels are two characters of surname. */}
       <span
         aria-hidden="true"
         style={{
@@ -619,12 +631,19 @@ function PitchPlayer({
           marginTop: -metrics.plateOverlap,
           fontSize: metrics.nameFontSize,
         }}
-        className={cn(
-          'nums relative truncate rounded bg-black/70 px-1 text-center font-bold',
-          isScore(figure) ? 'text-white' : 'text-white/55',
-        )}
+        className="relative flex flex-col items-center rounded bg-black/70 px-0.5 py-0.5 leading-tight"
       >
-        {figureLabel(figure)}
+        <span className="max-w-full truncate font-semibold text-white">
+          {player.name}
+        </span>
+        <span
+          className={cn(
+            'nums max-w-full truncate font-bold',
+            isScore(figure) ? 'text-white' : 'text-white/55',
+          )}
+        >
+          {figureLabel(figure)}
+        </span>
       </span>
     </button>
   )

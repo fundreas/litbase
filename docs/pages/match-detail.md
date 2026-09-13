@@ -257,8 +257,14 @@ benches' underneath. See
 
 Each portrait carries three things and no more:
 
-- the **points** on the plate — `–` rather than `0` while they are unknown,
-  because a match that has not kicked off is not a blank performance;
+- the **name and the points** on the plate — the points `–` rather than `0`
+  while they are unknown, because a match that has not kicked off is not a
+  blank performance. The name is what makes the pitch readable across: half
+  these faces belong to the club you do not follow, and neither the owner badge
+  nor the number says *which player* you are looking at. It is what the pitch's
+  floor grew to `min-h-[34rem]` for — eight bands of two-line plates — and on
+  the narrowest phone it is about four characters of surname, with the whole
+  name in the tooltip;
 - the **owning manager**, top-left;
 - a **swap arrow**, top-right, when the event feed says he was substituted —
   green or red, and which one it can be depends on the arrangement below.

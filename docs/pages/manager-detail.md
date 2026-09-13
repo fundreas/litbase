@@ -148,9 +148,10 @@ pitch, with everyone they left out under it.
 ```
 
 **The same cards as the duel's**, from the shared
-[roster pieces](../../src/components/roster/RosterPitch.tsx): a portrait, one
-points figure, a team-sheet corner while the sheet is news, and a tap that opens
-the [breakdown](player-detail.md#the-match-breakdown) behind the number. For a
+[roster pieces](../../src/components/roster/RosterPitch.tsx): a portrait, a
+name, one points figure, a team-sheet corner while the sheet is news, and a tap
+that opens the [breakdown](player-detail.md#the-match-breakdown) behind the
+number. For a
 match that has not kicked off that one figure is what he is
 **[expected](squad.md#erwartete-punkte)** to score — the target glyph and the
 figure, orange for the model's prediction and accent green for a guess the

@@ -336,7 +336,7 @@ function SidePitch({
           1,
           ...ROW_ORDER.map((position) => countAt(lineup.starters, position)),
         ),
-        { plate: 'points', orientation },
+        { plate: 'named', orientation },
       ),
     [box, lineup.starters, orientation],
   )

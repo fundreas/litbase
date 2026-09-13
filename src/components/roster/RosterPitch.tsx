@@ -71,8 +71,8 @@ function expectedFor(
  * wearing one coat.
  *
  * These are read-only. The squad's own [editor](../squad/LineupTab.tsx) has its
- * own card: it carries a name plate, a fixture badge and a remove control, and
- * its portraits are drag handles.
+ * own card: the same name plate, but a fixture badge on its second line and a
+ * remove control over the face, and its portraits are drag handles.
  */
 
 /**
@@ -132,9 +132,9 @@ export function RosterBand({
 }
 
 /**
- * A portrait and its one figure: the points, what he is **expected** to score
- * while his match is still to come, or the kick-off time when nothing expects
- * anything of him — see [`playerFigure()`](../../api/models.ts).
+ * A portrait, **his name**, and one figure: the points, what he is **expected**
+ * to score while his match is still to come, or the kick-off time when nothing
+ * expects anything of him — see [`playerFigure()`](../../api/models.ts).
  *
  * **The expected figure outranks the kick-off time**, because the plate holds
  * exactly one number and the two are answers to different questions: *when*
@@ -171,9 +171,8 @@ export function RosterBand({
  * outside it. That is the one time a pitch of unstarted elevens has anything to
  * separate its identical `Sa` plates.
  *
- * A portrait is a **button, not a link**: these plates carry nothing but a
- * number, and the number is the one thing on the page that cannot be explained
- * by looking at it. A tap opens the
+ * A portrait is a **button, not a link**: the number on the plate is the one
+ * thing on the page that cannot be explained by looking at it. A tap opens the
  * [breakdown](../player/PlayerMatchEventsDialog.tsx) — the actions behind that
  * figure — and the player's own page is a tap further on, from the dialog's
  * header. There is nothing to open without a fixture: a player whose club has
@@ -240,34 +239,53 @@ export function RosterPortrait({
           />
         )}
       </span>
+      {/* Two lines: **who he is**, then his one figure.
+
+          The name went on for the reason a pitch of portraits exists at all —
+          to be read across, not tapped one by one. Twenty-two faces at 30px
+          are twenty-two strangers otherwise, and the figure alone answers
+          *how many* without ever answering *who*. It is the same plate the
+          squad's own pitches have always drawn, so one vocabulary covers
+          every pitch in the app.
+
+          `px-0.5` rather than `px-1`: on a phone's eight-band pitch the plate
+          is about 42px, and those four pixels of padding are two characters
+          of surname. */}
       <span
         style={{
           width: metrics.plateWidth,
           marginTop: -metrics.plateOverlap,
           fontSize: metrics.nameFontSize,
         }}
-        className={cn(
-          /* A flex row rather than one truncating line, because the expected
-             figure is two things — the target and the number — and the number
-             is the half that may be clipped. */
-          'nums relative flex items-center justify-center gap-0.5 rounded bg-black/70 px-1 font-bold',
-          isRunning
-            ? 'text-accent'
-            : entry !== undefined
-              ? expectedTextClass(entry)
-              : isScore(figure)
-                ? 'text-white'
-                : 'text-white/55',
-        )}
+        className="relative flex flex-col items-center rounded bg-black/70 px-0.5 py-0.5 leading-tight"
       >
-        {entry === undefined ? (
-          <span className="min-w-0 truncate">{figureLabel(figure)}</span>
-        ) : (
-          <ExpectedPointsFigure
-            value={entry.value}
-            fontSize={metrics.nameFontSize}
-          />
-        )}
+        <span className="max-w-full truncate font-semibold text-white">
+          {player.name}
+        </span>
+        <span
+          className={cn(
+            /* A flex row rather than one truncating line, because the expected
+               figure is two things — the target and the number — and the number
+               is the half that may be clipped. */
+            'nums flex max-w-full items-center justify-center gap-0.5 font-bold',
+            isRunning
+              ? 'text-accent'
+              : entry !== undefined
+                ? expectedTextClass(entry)
+                : isScore(figure)
+                  ? 'text-white'
+                  : 'text-white/55',
+          )}
+        >
+          {entry === undefined ? (
+            <span className="min-w-0 truncate">{figureLabel(figure)}</span>
+          ) : (
+            <ExpectedPointsFigure
+              value={entry.value}
+              fontSize={metrics.nameFontSize}
+            />
+          )}
+        </span>
       </span>
     </Shell>
   )

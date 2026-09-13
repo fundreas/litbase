@@ -176,7 +176,7 @@ export function DuelLineupTab({
     ]
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length * 2,
-      plate: 'points',
+      plate: 'named',
       orientation,
     })
   }, [box, top.lineup, bottom.lineup, orientation])
@@ -188,15 +188,18 @@ export function DuelLineupTab({
    * from it, and the whole point of the full-screen view is that the measuring
    * follows the space the pitch actually has.
    *
-   * `min-h-[30rem]` is the floor that keeps eight bands legible on a phone
+   * `min-h-[34rem]` is the floor that keeps eight bands legible on a phone
    * inline — below it the page scrolls instead of the cards shrinking further.
+   * It grew from 30rem when the plates took their second line: 544px is
+   * exactly eight floor-sized named cards plus the grid's own padding, so the
+   * tightest phone gets a full pitch rather than a clipped one.
    * Full screen there is no page to scroll and nothing under the pitch to make
    * room for, so the floor comes off and the pitch takes the viewport exactly.
    */
   const pitch = (
     <Pitch
       orientation={orientation}
-      className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[30rem] flex-1'}
+      className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[34rem] flex-1'}
     >
       {/* Name plates in the corners rather than a legend: the header pairs
           the managers left and right, the pitch stacks them top and bottom,

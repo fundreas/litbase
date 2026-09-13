@@ -128,7 +128,7 @@ export function ManagerLineupTab({
     )
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length,
-      plate: 'points',
+      plate: 'named',
       orientation,
     })
   }, [box, roster.lineup, orientation])

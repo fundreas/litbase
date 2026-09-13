@@ -223,6 +223,17 @@ const AVATAR_MAX = 96
  */
 const AVATAR_MIN_COMPACT = 26
 /**
+ * Floor for a **named** card — a name over one figure, no fixture badge.
+ *
+ * Between the other two, because that is exactly where the card sits: it has a
+ * name to keep legible, so it cannot use the compact floor, but it is drawn on
+ * the eight-band pitches, where the full floor would clip the lot. At 30px the
+ * plate is 42px wide and the name 10px, which is four or five characters —
+ * enough to tell two portraits apart, which is what a name on a pitch is for.
+ * The whole name is in the card's tooltip either way.
+ */
+const AVATAR_MIN_NAMED = 30
+/**
  * How much wider than its avatar a player button is.
  *
  * It is also **exactly how much wider than the portrait the plate is** — see
@@ -253,7 +264,14 @@ export function cornerBadgeSize(avatar: number): number {
 
 /** The smallest portrait each plate is allowed to shrink to. */
 function avatarFloor(plate: PlateContent): number {
-  return plate === 'points' ? AVATAR_MIN_COMPACT : AVATAR_MIN
+  switch (plate) {
+    case 'points':
+      return AVATAR_MIN_COMPACT
+    case 'named':
+      return AVATAR_MIN_NAMED
+    case 'full':
+      return AVATAR_MIN
+  }
 }
 
 /**
@@ -295,11 +313,18 @@ export type PlayerMetrics = ReturnType<typeof playerMetrics>
  *    The [expected points](./ExpectedPointsBadge.tsx) share that second line
  *    with the badge rather than taking a third, which is what keeps this plate
  *    — and so the portrait above it — the size it has always been.
- *  - `points` — one line, a points figure and nothing else. The head-to-head
- *    duel pitch, where 22 portraits have to fit and a name under each would be
- *    unreadable at that size anyway.
+ *  - `named` — a name over one figure, no badge. What the read-only pitches
+ *    draw: a matchday roster, a club's eleven, and both halves of a duel or a
+ *    real match. Two lines of text are shorter than a line of text and a
+ *    crest, so these cards stay smaller than a `full` one while still saying
+ *    who each portrait is — which on a pitch of twenty-two strangers is the
+ *    first thing a reader needs.
+ *  - `points` — one line, a points figure and nothing else. Nothing draws this
+ *    today; it is what the eight-band pitches were before they carried names,
+ *    and the sizing keeps it because a pitch tight enough to want it is a
+ *    change of one word.
  */
-export type PlateContent = 'full' | 'points'
+export type PlateContent = 'full' | 'named' | 'points'
 
 /**
  * Total height a card occupies.
@@ -312,14 +337,17 @@ export type PlateContent = 'full' | 'points'
  * second line can hold: the live view's points figure and the editor's
  * expected figure are both text, and text at this font is shorter than the
  * crest at every size — so both fit inside a budget solved for a badge rather
- * than needing one of their own.
+ * than needing one of their own. A `named` plate is the same two lines with
+ * the badge's place taken by text, which is why it is the cheaper of the two.
  */
 function playerHeight(metrics: PlayerMetrics, plate: PlateContent): number {
   const textLine = Math.round(metrics.nameFontSize * 1.25)
   const plateHeight =
     plate === 'points'
       ? textLine + PLATE_CHROME_HEIGHT
-      : textLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
+      : plate === 'named'
+        ? 2 * textLine + PLATE_CHROME_HEIGHT
+        : textLine + metrics.badgeCrest + PLATE_CHROME_HEIGHT
   return (
     PLAYER_CHROME_HEIGHT + metrics.avatar - metrics.plateOverlap + plateHeight
   )

@@ -498,9 +498,9 @@ Not a fact any football app can state. Three rules keep the arithmetic honest:
 **Four bands, not eight** — the difference from the match page's pitch, and the
 reason this view is worth having alongside it. One eleven on a phone gets
 portraits at roughly twice the size two elevens do, which turns the owner badge
-from a 12px suggestion into something identifiable without hovering. There is
-room for a name under each, too, where the match page's plate carries only the
-number.
+from a 12px suggestion into something identifiable without hovering, and gives
+the name under each portrait room to be a whole surname rather than the four
+characters an eight-band pitch can spare.
 
 The arrangement itself is
 [`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts)'s, unchanged: the
