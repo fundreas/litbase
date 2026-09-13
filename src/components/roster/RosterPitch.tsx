@@ -296,8 +296,9 @@ export function RosterPortrait({
  *
  * A bench player scored what they scored and it did not count — which is
  * exactly why they are shown: a bench outscoring the eleven is the most
- * interesting thing a matchday can tell you. A name fits in a row where it
- * would not fit under a portrait, so unlike the pitch these carry one.
+ * interesting thing a matchday can tell you. A row has the width to spell the
+ * name out where a plate on the grass truncates it, and to put the expected
+ * figure *beside* the points rather than in their place.
  *
  * Dimmed as a set by whoever lists them rather than tagged one by one — the
  * heading above says what they are, and repeating "Bank" down every row is
@@ -320,10 +321,12 @@ export function RosterBenchRow({
   /**
    * Opens the player's breakdown, where the row has one to open.
    *
-   * Optional: the duel's benches are two columns of names beside each other and
-   * deliberately inert — the pitch is what that page's taps are for. The
-   * manager page's single bench is wide enough to be a list of controls, and a
-   * benched player's points are exactly as unexplained as a fielded one's.
+   * Both pages that draw these rows now pass it: a benched player's points are
+   * exactly as unexplained as a fielded one's, and *why did he score nothing*
+   * is the question a bench is on screen to raise. Still optional, for a
+   * caller with no matchday behind the row to open — a row with no fixture
+   * stays inert either way, since a player whose club did not play has no
+   * actions to break down.
    */
   onOpen?: (player: DuelPlayer) => void
   /** This matchday's expected points, for the matches still to come. */

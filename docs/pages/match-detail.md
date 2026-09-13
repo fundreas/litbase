@@ -287,6 +287,15 @@ The dialog opens for **any** player on the pitch, owned or not, because
 `/playercenter/{pid}` answers for any player — which is what made this possible
 here at all.
 
+**The bench rows open it too**, and for the same reason they stopped being links
+to the player's page. A substitute's figure is exactly as unexplained as a
+starter's, and on this screen it is often the more interesting of the two: a
+number against a man who came on in the 70th minute is the whole story of his
+afternoon, and a blank against one who never left the bench is the answer to
+"why nothing". A bench row that answered neither when tapped — and answered a
+third question instead — was the one card on the page behaving differently from
+every other. The player's page is still one tap on, from the dialog's header.
+
 ### The pitch follows the substitutions — while the match is running
 
 A player who is taken off drops to the bottom of his club's bench; the man who
@@ -350,7 +359,8 @@ never came on, and under them the ones taken off; otherwise the club's own bench
 with the arrivals lifted to the top. Worth the space three times over — a
 manager's own player among them answers "why did he score nothing", a row with
 an arrow carries a figure that means something other than a full match, and each
-row shows its **owning manager** as its own inline avatar.
+row shows its **owning manager** as its own inline avatar. A row is a button
+like a portrait, opening the same [breakdown](#the-action-breakdown).
 
 Inline, not as a corner badge — that is the one place the pitch's treatment does
 not transfer. A 26px badge on a 60px portrait is legible; the same badge on a

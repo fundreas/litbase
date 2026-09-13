@@ -129,6 +129,13 @@ Portraits were not tappable at all before this, so nothing was taken away. A
 player whose club has no match that matchday has no actions to show and stays
 inert.
 
+**The bench rows open the same dialog.** They were deliberately inert at first —
+the argument being that a tap on this page belongs to the pitch — and that was
+wrong for the reason the bench is drawn at all: a bench outscoring the eleven is
+the most interesting thing a duel can tell you, and *why did he score nothing*
+is the question these rows exist to raise. A substitute's number was the one
+figure on the page that could not be opened.
+
 ### This replaced two stacked lists
 
 The lineup view used to be two `RosterCard`s: a header per manager over eleven

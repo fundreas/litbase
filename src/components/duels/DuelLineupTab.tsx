@@ -154,13 +154,18 @@ export function DuelLineupTab({
   const orientation = usePitchOrientation({ isFullscreen: fullscreen.isOpen })
 
   /*
-   * The tapped portrait, found back among the 22 on the pitch. The benches
-   * carry no breakdown — they are rows of names — so a hash naming one of
-   * those, or a player since substituted out of the payload, opens nothing.
+   * The tapped player, found back among the 44 on the page — **the benches
+   * included**. A bench player's number is exactly as unexplained as a fielded
+   * one's, and "why did he score nothing" is the question a bench is on screen
+   * to raise, so a row opens the same breakdown a portrait does. A hash naming
+   * somebody since substituted out of the payload still opens nothing.
    */
-  const openPlayer = [...top.lineup, ...bottom.lineup].find(
-    (player) => player.id === breakdown.id,
-  )
+  const openPlayer = [
+    ...top.lineup,
+    ...top.bench,
+    ...bottom.lineup,
+    ...bottom.bench,
+  ].find((player) => player.id === breakdown.id)
   const openBreakdown = (player: DuelPlayer) => {
     breakdown.open(player.id)
   }
@@ -321,7 +326,13 @@ export function DuelLineupTab({
              underneath to scroll to — so the two benches, which are half of
              what decides a duel, come along rather than being left behind. */
           <div className="flex min-h-0 flex-1 items-stretch gap-2">
-            <BenchColumn roster={top} side="top" expected={expected} isBeside />
+            <BenchColumn
+              roster={top}
+              side="top"
+              expected={expected}
+              onOpen={openBreakdown}
+              isBeside
+            />
             {/* The pitch's own `flex-1` grows it *down* the column, so it needs
                 a column of its own inside this row. `min-w-0` lets it give way
                 to the two fixed benches rather than overflowing the window. */}
@@ -330,6 +341,7 @@ export function DuelLineupTab({
               roster={bottom}
               side="bottom"
               expected={expected}
+              onOpen={openBreakdown}
               isBeside
             />
           </div>
@@ -356,8 +368,18 @@ export function DuelLineupTab({
           left/right arrangement the scoreline established and the corner labels
           bridge the two. Full screen they move beside the grass; see above. */}
       <div className="grid grid-cols-2 gap-2">
-        <BenchColumn roster={top} side="top" expected={expected} />
-        <BenchColumn roster={bottom} side="bottom" expected={expected} />
+        <BenchColumn
+          roster={top}
+          side="top"
+          expected={expected}
+          onOpen={openBreakdown}
+        />
+        <BenchColumn
+          roster={bottom}
+          side="bottom"
+          expected={expected}
+          onOpen={openBreakdown}
+        />
       </div>
 
       {breakdownDialog}
@@ -454,8 +476,10 @@ function SideLabel({
  * Stacked rather than a sideways-scrolling strip, because two benches side by
  * side are meant to be *compared*: rows at matching heights read against each
  * other, and nothing is hidden off the edge waiting to be swiped into view.
- * A name fits in a row where it would not fit under a portrait, so unlike the
- * pitch these carry one.
+ * A row spells the name out where a plate on the grass truncates it.
+ *
+ * **A row opens the same breakdown a portrait does.** See {@link BenchColumn}'s
+ * `onOpen`.
  *
  * Dimmed as a set rather than tagged one by one — the heading says what they
  * are, and repeating "Bank" down every row is noise.
@@ -464,12 +488,18 @@ function BenchColumn({
   roster,
   side,
   expected,
+  onOpen,
   isBeside = false,
 }: {
   roster: DuelRoster
   side: Side
   /** This matchday's expected points, for the matches still to come. */
   expected: ExpectedPointsView
+  /**
+   * Opens a row's [breakdown](../player/PlayerMatchEventsDialog.tsx) — the same
+   * dialog a portrait on the grass opens, from the same hash.
+   */
+  onOpen: (player: DuelPlayer) => void
   /**
    * Drawn as a touchline beside the [full-screen](../ui/FullscreenPane.tsx)
    * landscape pitch rather than as a block under the page's own.
@@ -509,8 +539,10 @@ function BenchColumn({
       ) : (
         /* Dimmed as a set, on the list rather than per row: the heading says
            what these are. The rows are the shared
-           [bench row](../roster/RosterPitch.tsx), and inert here — a tap on
-           this page belongs to the pitch. */
+           [bench row](../roster/RosterPitch.tsx), and they open the **same
+           breakdown** a portrait does: a substitute's figure is exactly as
+           unexplained as a starter's, and a bench row that answered nothing
+           when tapped was the one card on this page that did not. */
         <ul
           className={cn(
             'flex flex-col gap-1 opacity-75',
@@ -522,6 +554,7 @@ function BenchColumn({
               key={player.id}
               player={player}
               ring={RING[side]}
+              onOpen={onOpen}
               expected={expected}
             />
           ))}

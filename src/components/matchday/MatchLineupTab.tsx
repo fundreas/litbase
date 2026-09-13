@@ -1,5 +1,4 @@
 import { useMemo, type ReactNode } from 'react'
-import { Link } from 'react-router'
 
 import { breakdownFixtureFrom } from '@/api/hooks/usePlayerMatchEvents'
 import {
@@ -265,13 +264,19 @@ export function MatchLineupTab({
   })
 
   /*
-   * The tapped portrait, found back among the 22 on the pitch. The benches
-   * open nothing — they are rows of names — so a hash naming one of those
-   * opens nothing either.
+   * The tapped player, found back among everyone this screen draws — **the
+   * benches included**. A substitute's figure is exactly as unexplained as a
+   * starter's, and on this page it is often the more interesting of the two:
+   * a number against a man who came on in the 70th minute is the whole story
+   * of his afternoon. So a bench row opens the same breakdown a portrait does,
+   * from the same `#player:<id>` hash.
    */
-  const openPlayer = [...home.starters, ...away.starters].find(
-    (player) => player.id === breakdown.id,
-  )
+  const openPlayer = [
+    ...home.starters,
+    ...home.substitutes,
+    ...away.starters,
+    ...away.substitutes,
+  ].find((player) => player.id === breakdown.id)
   const openBreakdown = (player: MatchPlayer) => {
     breakdown.open(player.id)
   }
@@ -439,7 +444,7 @@ export function MatchLineupTab({
             <BenchColumn
               lineup={home}
               side="home"
-              leagueId={leagueId}
+              onOpen={openBreakdown}
               isBeside
             />
             {/* The pitch's own `flex-1` grows it *down* the column, so it needs
@@ -449,7 +454,7 @@ export function MatchLineupTab({
             <BenchColumn
               lineup={away}
               side="away"
-              leagueId={leagueId}
+              onOpen={openBreakdown}
               isBeside
             />
           </div>
@@ -490,8 +495,8 @@ export function MatchLineupTab({
           face each other, and the corner labels bridge the two. Full screen
           they move beside the grass instead; see below. */}
       <div className="grid grid-cols-2 gap-2">
-        <BenchColumn lineup={home} side="home" leagueId={leagueId} />
-        <BenchColumn lineup={away} side="away" leagueId={leagueId} />
+        <BenchColumn lineup={home} side="home" onOpen={openBreakdown} />
+        <BenchColumn lineup={away} side="away" onOpen={openBreakdown} />
       </div>
 
       {breakdownDialog}
@@ -750,12 +755,16 @@ function SideLabel({
 function BenchColumn({
   lineup,
   side,
-  leagueId,
+  onOpen,
   isBeside = false,
 }: {
   lineup: MatchLineup
   side: Side
-  leagueId: string
+  /**
+   * Opens a row's [breakdown](../player/PlayerMatchEventsDialog.tsx) — the same
+   * dialog a portrait on the grass opens, from the same hash.
+   */
+  onOpen: (player: MatchPlayer) => void
   /**
    * Drawn as a touchline beside the [full-screen](../ui/FullscreenPane.tsx)
    * landscape pitch rather than as a block under the page's own.
@@ -802,7 +811,7 @@ function BenchColumn({
               key={player.id}
               player={player}
               side={side}
-              leagueId={leagueId}
+              onOpen={onOpen}
             />
           ))}
         </ul>
@@ -811,25 +820,41 @@ function BenchColumn({
   )
 }
 
+/**
+ * One substitute, as a row — and **a button, like the portraits on the grass**.
+ *
+ * It used to be a link to the player's page, which is the one question this
+ * screen has *not* been opened to answer. A tap now opens the
+ * [breakdown](../player/PlayerMatchEventsDialog.tsx) behind the figure at the
+ * end of the row: for a man who came on that is the story of his twenty
+ * minutes, and for one who never left the bench it is the answer to "why
+ * nothing". The player's page is still one tap on, from the dialog's header —
+ * the same trade the pitch's portraits made, and the reason the two now behave
+ * alike.
+ */
 function BenchRow({
   player,
   side,
-  leagueId,
+  onOpen,
 }: {
   player: MatchPlayer
   side: Side
-  leagueId: string
+  onOpen: (player: MatchPlayer) => void
 }) {
   const figure = matchPlayerFigure(player)
 
   return (
     <li>
-      <Link
-        to={`/leagues/${leagueId}/players/${player.id}`}
+      <button
+        type="button"
+        onClick={() => {
+          onOpen(player)
+        }}
         title={playerLabel(player, figure)}
         className={cn(
-          'flex items-center gap-1.5 rounded-lg border border-line bg-surface px-1.5 py-1',
+          'flex w-full items-center gap-1.5 rounded-lg border border-line bg-surface px-1.5 py-1 text-left',
           'transition-colors hover:bg-surface-2',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
           // Dimmed as a set: the heading says what they are, and a player who
           // actually came on has an arrow that should not be dimmed with them.
           player.role === undefined && 'opacity-75',
@@ -865,7 +890,7 @@ function BenchRow({
         >
           {figureLabel(figure)}
         </span>
-      </Link>
+      </button>
     </li>
   )
 }
