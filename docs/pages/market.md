@@ -166,15 +166,37 @@ absence of a manager *is* the fact. The position takes the line instead, and
 shares it when there is a manager to name.
 
 **The list is cut where the clock matters.** Because it is ordered by expiry it
-is also a timeline, so two hairlines are drawn into it: the nightly
-**market-value recalculation** and the matchday's **first kick-off**. A row's
-position against them is the point — a listing settling after the
-recalculation is settled against a value nobody knows yet, and one settling
-after kick-off is a player who may already have played the matchday you were
-buying him for. Both instants come off the market response itself (`mvud` and
-`dt`, the latter verified against the fixture list), so neither costs a
-request. A milestone already past is dropped rather than drawn at the top,
-where it would be a line about nothing.
+is also a timeline, so two moments are drawn into it as **bands across the
+list**: the nightly **market-value recalculation** and the matchday's **first
+kick-off**. A row's position against them is the point — a listing settling
+after the recalculation is settled against a value nobody knows yet, and one
+settling after kick-off is a player who may already have played the matchday
+you were buying him for. Both instants come off the market response itself
+(`mvud` and `dt`, the latter verified against the fixture list), so neither
+costs a request. A milestone already past is dropped rather than drawn at the
+top, where it would be a line about nothing.
+
+### One card, rows flush inside it
+
+The listings sit **directly one after another**, divided by hairlines, in a
+single card — the shape the [activity feed](events.md) has, and the one this
+list wanted from the moment it was grouped. Twenty separate cards with 8px of
+page between them made every gap a small question about whether the next row
+belonged to the same group; closed up, the **only** thing that ever separates
+two rows is a band naming what happens at that moment, so the grouping is the
+first thing the eye picks up rather than something to be inferred from spacing.
+
+Two consequences for the row itself. It carries **no border and no rounding of
+its own** — the card is `overflow-hidden`, which clips the first and last rows
+to its corners and is what lets a row bleed a portrait to its own edge. And a
+**standing bid** is marked by a tinted ground plus a 2px accent edge down the
+left rather than by an outline around the card it no longer has; the edge is
+drawn transparent on every other row, so a marked listing does not shift its
+contents against its neighbours.
+
+The *Manager* tab is the same card and the same rows, with nothing to group by:
+a manager's listing has no clock, so the whole list is one group ordered by the
+premium.
 
 The recalculation is **drawn every night it happens**, not just the next one:
 `mvud` names only the following run, but listings reach two and a half days out

@@ -181,14 +181,24 @@ export function MarketRow({
         // that jitters is harder to scan than one that is slightly taller. The
         // floor is what the three-line name block needs anyway, so nothing is
         // padding.
-        'flex min-h-19 items-stretch overflow-hidden rounded-card border bg-surface',
-        // A standing bid marks the **whole row**, the same outline the squad
-        // page uses for a player marked for sale. A label under the price said
-        // the same thing in a place you had to look for it; an outline is seen
-        // while scanning the list, which is when it matters.
+        //
+        // **No card of its own.** The row sits flush in a divided list inside
+        // one card — the [feed's](../events/ActivityFeed.tsx) shape, and the
+        // one the market wanted once its listings were grouped: twenty cards
+        // with 8px between them made every gap a small decision about whether
+        // the next row was part of the same group, and the hairline answers it
+        // for free.
+        'flex min-h-19 items-stretch overflow-hidden bg-surface',
+        // A standing bid marks the **whole row** — the same idea as the
+        // outline the squad page uses for a player marked for sale, in the
+        // notation a flush list allows: a tinted ground and an accent edge
+        // down the left. The edge is **2px on every row**, transparent where
+        // there is no bid, so a marked row does not shift its contents against
+        // its neighbours.
+        'border-l-2',
         ownOffer === undefined
-          ? 'border-line'
-          : 'border-accent bg-accent/5 ring-1 ring-accent',
+          ? 'border-l-transparent'
+          : 'border-l-accent bg-accent/5',
       )}
     >
       {portrait}

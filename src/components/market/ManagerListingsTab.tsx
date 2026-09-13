@@ -8,6 +8,7 @@ import {
   type StartProbability,
 } from '@/api/models'
 import { MarketRow } from '@/components/market/MarketRow'
+import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/States'
 import { nowMs } from '@/lib/clock'
 import type { ExpectedPointsView } from '@/lib/expectedPoints'
@@ -94,31 +95,37 @@ export function ManagerListingsTab({
   const now = nowMs()
 
   return (
-    <ul className="flex flex-col gap-2">
-      {byPremium(listings).map((listing) => {
-        const upcoming = fixtureAfter(matchdays, listing.teamId, now)
+    /* One card, rows flush inside it — the same shape the *Markt* list and the
+       [activity feed](../events/ActivityFeed.tsx) have. There are no
+       milestones to group by here: a manager's listing has no clock, so the
+       whole list is one group ordered by the premium. */
+    <Card className="overflow-hidden">
+      <ul className="divide-y divide-line">
+        {byPremium(listings).map((listing) => {
+          const upcoming = fixtureAfter(matchdays, listing.teamId, now)
 
-        return (
-          <MarketRow
-            key={listing.id}
-            listing={listing}
-            leagueId={leagueId}
-            fixture={upcoming?.fixture}
-            fixtureDay={upcoming?.matchday.day}
-            team={teams?.get(listing.teamId)}
-            startProbability={startProbabilities.get(listing.id)}
-            expectedPoints={expected.entry(listing.id)}
-            // No 24-hour move and no countdown: on a manager's listing the row
-            // prints the premium under the price and his face at the end, so
-            // neither the overnight figure nor the clock is ever read.
-            now={0}
-            onOffer={() => {
-              onOffer(listing.id)
-            }}
-          />
-        )
-      })}
-    </ul>
+          return (
+            <MarketRow
+              key={listing.id}
+              listing={listing}
+              leagueId={leagueId}
+              fixture={upcoming?.fixture}
+              fixtureDay={upcoming?.matchday.day}
+              team={teams?.get(listing.teamId)}
+              startProbability={startProbabilities.get(listing.id)}
+              expectedPoints={expected.entry(listing.id)}
+              // No 24-hour move and no countdown: on a manager's listing the
+              // row prints the premium under the price and his face at the
+              // end, so neither the overnight figure nor the clock is read.
+              now={0}
+              onOffer={() => {
+                onOffer(listing.id)
+              }}
+            />
+          )
+        })}
+      </ul>
+    </Card>
   )
 }
 

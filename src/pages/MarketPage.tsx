@@ -32,6 +32,7 @@ import { OfferDialog } from '@/components/market/OfferDialog'
 import { OwnListingsTab } from '@/components/market/OwnListingsTab'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
+import { Card } from '@/components/ui/Card'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
@@ -332,7 +333,13 @@ export function MarketPage() {
     return (
       <div className="flex flex-col gap-4">
         {heading}
-        <SkeletonList rows={8} />
+        {/* Inside the card the rows will land in, the way the
+            [feed](../components/events/ActivityFeed.tsx) waits: the shape on
+            screen does not change when the listings arrive, only its
+            contents. */}
+        <Card className="p-3">
+          <SkeletonList rows={8} />
+        </Card>
         {bar}
       </div>
     )
@@ -389,31 +396,44 @@ export function MarketPage() {
         description="Kickbase stellt laufend neue Spieler ein — schau später wieder vorbei."
       />
     ) : (
-      <ul className="flex flex-col gap-2">
-        {withMilestones(data, houseListings, now).map((entry) =>
-          entry.kind === 'milestone' ? (
-            <Milestone
-              key={`${entry.label}-${String(entry.at)}`}
-              milestone={entry}
-            />
-          ) : (
-            <MarketRow
-              key={entry.listing.id}
-              listing={entry.listing}
-              leagueId={leagueId}
-              {...fixtureFor(seasonFixtures.data, entry.listing, now)}
-              team={teams.data?.get(entry.listing.teamId)}
-              marketValueChange={marketValueChanges.get(entry.listing.id)}
-              startProbability={startProbabilities.get(entry.listing.id)}
-              expectedPoints={expected.entry(entry.listing.id)}
-              now={now}
-              onOffer={() => {
-                offer.open(entry.listing.id)
-              }}
-            />
-          ),
-        )}
-      </ul>
+      /* **One card, rows flush inside it** — the shape the
+         [activity feed](../components/events/ActivityFeed.tsx) has: a hairline
+         between neighbours instead of 8px of page showing through. The gaps
+         were doing the milestones' job badly, since a gap between two rows and
+         a gap before a rule looked the same; with the rows closed up, the only
+         thing that ever separates them is a **band naming what happens at that
+         moment**, and the grouping reads at a glance.
+
+         `overflow-hidden` on the card, not the rows: the first and last rows
+         are clipped to its corners, which is what lets a row carry a
+         full-bleed portrait and no rounding of its own. */
+      <Card className="overflow-hidden">
+        <ul className="divide-y divide-line">
+          {withMilestones(data, houseListings, now).map((entry) =>
+            entry.kind === 'milestone' ? (
+              <Milestone
+                key={`${entry.label}-${String(entry.at)}`}
+                milestone={entry}
+              />
+            ) : (
+              <MarketRow
+                key={entry.listing.id}
+                listing={entry.listing}
+                leagueId={leagueId}
+                {...fixtureFor(seasonFixtures.data, entry.listing, now)}
+                team={teams.data?.get(entry.listing.teamId)}
+                marketValueChange={marketValueChanges.get(entry.listing.id)}
+                startProbability={startProbabilities.get(entry.listing.id)}
+                expectedPoints={expected.entry(entry.listing.id)}
+                now={now}
+                onOffer={() => {
+                  offer.open(entry.listing.id)
+                }}
+              />
+            ),
+          )}
+        </ul>
+      </Card>
     )
 
   return (
@@ -606,21 +626,28 @@ function marketValueMilestones(
       ]
 }
 
-/** The rule itself: a hairline, with the moment named in the gap. */
+/**
+ * The cut itself: a **band across the list**, naming the moment and when it is.
+ *
+ * It used to be a rule with the label in the gap, which is the right drawing
+ * for rows that float apart and the wrong one for rows that touch: between two
+ * flush rows a hairline already means "next listing", so a second hairline
+ * meaning "next group" said the same thing twice. A tinted band says it once,
+ * and it is the only thing in the list that is not a listing.
+ *
+ * Label left, moment right — the reading order of every other two-ended line
+ * in the app, and it puts the time in the column the countdowns are already in.
+ */
 function Milestone({ milestone }: { milestone: Milestone }) {
   const Icon = milestone.icon
 
   return (
-    <li className="flex items-center gap-2 px-1 pt-2 pb-1">
-      <span className="h-px flex-1 bg-line" />
-      <span className="flex items-center gap-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted uppercase">
-        <Icon size={12} aria-hidden="true" className="shrink-0" />
-        {milestone.label}
-        <span className="nums font-normal text-faint">
-          {kickoff(new Date(milestone.at).toISOString())}
-        </span>
+    <li className="flex items-center gap-1.5 bg-canvas/60 px-3 py-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted uppercase">
+      <Icon size={12} aria-hidden="true" className="shrink-0" />
+      <span className="min-w-0 truncate">{milestone.label}</span>
+      <span className="nums ml-auto shrink-0 font-normal text-faint">
+        {kickoff(new Date(milestone.at).toISOString())}
       </span>
-      <span className="h-px flex-1 bg-line" />
     </li>
   )
 }
