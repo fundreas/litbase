@@ -13,7 +13,7 @@ The path picks which:
 | Route | Question | Tabs | Reached from |
 | ----- | -------- | ---- | ------------ |
 | `/whatif/:playerId` | *What if I bought him?* | Gebot · Kader · Aufstellung | the [bid dialog](market.md#the-bid-dialog)'s *Durchrechnen* |
-| `/squad/whatif` | *What if I sold them?* | Kader · Aufstellung | the flask on the [Kader toolbar](squad.md#was-wäre-wenn--the-sale-scenario) |
+| `/squad/whatif` | *What if I sold them?* | Kader · Aufstellung | **⚗ Szenario** on the [Kader toolbar](squad.md#was-wäre-wenn--the-sale-scenario) |
 
 **The second is the first minus its target.** One component, one set of state,
 one subtraction: no player on the bench who is not yet yours, no *Gebot* tab,
@@ -42,6 +42,16 @@ changes the XI. The figure that ties them together sits **above the tabs** —
 the budget as it would stand once the transfer went through — on every view
 except the pitch, which wants the height and changes nothing about the money.
 
+**It pins.** A squad of twenty is a page you scroll, and the answer has to stay
+legible while you are marking the eleventh player at the bottom of it; a total
+you have to scroll back up to read is one you stop consulting. It sticks at
+`--header-total`, the same offset as the squad page's
+[sale calculator](squad.md#sale-calculator) bar and for the same reason. The
+block bleeds `-mx-3` to the column's edges and carries a canvas band of its own
+so that nothing shows through the card's rounded corners as rows pass behind
+it; the band's `pb-4` is cancelled by `-mb-4`, so it takes up exactly the
+height it did before it pinned.
+
 The header carries the **player's portrait**, flush on the left over its full
 height with the wash and the fading inner edge every list in the app draws a
 player with: a page about buying one man should show which one, and a name in a
@@ -60,6 +70,55 @@ value and nothing more — the field takes it at mount and the query is never
 written again, because a URL that tracked every keystroke would put a history
 entry behind each one. Absent or not a number, the amount falls back to the
 listing's baseline exactly as the dialog's does.
+
+## The bids already standing
+
+A manager with three live bids does not have the budget the app prints for him.
+He has that budget minus three purchases that could all land tonight — so the
+scenario counts them, and says so on a switch in the header:
+
+```
+┌──────┬──────────────────────────────────┐
+│      │ Was wäre wenn                [✕] │
+│ img  │ Kevin Behrens                    │
+├──────┴──────────────────────────────────┤
+│ ⚖  3 offene Gebote angenommen  −12,4 Mio│ ●───
+└─────────────────────────────────────────┘
+```
+
+**On by default**, because that is the honest reading of *what if*; switchable,
+because the opposite reading is honest too — bids are lost far more often than
+they are won, and a scenario that insisted on counting them would be a
+different kind of wrong. The row is absent entirely when no bid is standing,
+which is most of the time.
+
+It moves **two things**:
+
+- the **projection**, which loses `Σ ownOffer` and says so in its working:
+  *3 offene Gebote −12,4 Mio.*, a separate term from the *Gebot* being typed on
+  the offer tab;
+- the **squad**, because the players would arrive. They go to the
+  [Aufstellung](#aufstellung) tab's bench — benched, like the target, since a
+  bid that has not been accepted has not picked itself — and **not** to the
+  [Kader](#kader) list, whose every row is a player you could sell and none of
+  these is yours yet.
+
+They are built from the **market listing** rather than a detail request each. A
+market row already carries the name, the portrait, the club, the availability
+mark and the lineup probability, which is everything the pitch draws; what it
+cannot say is points, and the pitch never asks.
+
+**It does not move the rules.** `committedElsewhere` — what the offer tab's
+ceiling is measured against — stays the full sum whatever the switch says,
+because Kickbase counts every live bid against the 33 % ceiling whether or not
+this page is imagining them accepted. A rule that moved with a checkbox would
+be a rule about the checkbox. Same principle as
+[the rules are the real ones](#nothing-happens-here-except-the-bid) below.
+
+The switch lives in the **header** rather than in the budget block it is
+mostly arithmetic for, because it is the only control every tab is subject to —
+and the budget block is not drawn on the pitch, which is where its players
+appear.
 
 ## Nothing happens here, except the bid
 
@@ -186,10 +245,14 @@ What differs from the purchase, and nothing else does:
 - **The projection loses its bid.** The label is *Budget nach den Verkäufen*,
   the working is the budget and the proceeds, and the overdraft lines are gone
   with the bid — selling only ever moves a budget upwards, so there is no floor
-  to warn about and no ceiling to measure a bid against. Before anything is
-  marked the working says *Spieler zum Verkaufen antippen*, the same nudge the
-  sale calculator puts under its own total, so a figure that equals the budget
-  does not read as a page that failed to load.
+  to warn about. Before anything is marked the working says *Spieler zum
+  Verkaufen antippen*, the same nudge the sale calculator puts under its own
+  total, so a figure that equals the budget does not read as a page that failed
+  to load.
+- **Unless bids are standing**, which is the one thing that spends money here.
+  With the [offers switch](#the-bids-already-standing) on, the label becomes
+  *Budget nach den Transfers* and the overdraft allowance comes back — the
+  *Gebot höchstens* half of that line does not, since there is no bid to bound.
 - **The market is not waited for.** The listing and the team value are the
   purchase's business; this scenario needs the squad and the budget, which it
   already has, so it renders as soon as they land.

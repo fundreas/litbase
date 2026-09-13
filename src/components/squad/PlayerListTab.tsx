@@ -285,26 +285,27 @@ export function PlayerListTab({
  * them would say "one of these three does sums" and nothing more. This one is
  * an experiment — nothing inside it is real.
  *
- * Shaped like the [pair toggle](../ui/PairToggle.tsx) it stands next to, so the
- * line reads as one toolbar rather than two controls that happened to land
- * beside each other.
+ * **Named, unlike the toggle beside it.** *Szenario* is a destination, and a
+ * lone glyph that takes you somewhere has to be guessed at; the pair toggle
+ * next to it changes the page you are already on and shows you both of its
+ * states, so it can afford to stay mute. Otherwise it is the same control —
+ * same height, same border, same rounding — so the line reads as one toolbar
+ * rather than two things that happened to land beside each other.
  */
 function ScenarioLink({ to }: { to: string }) {
-  const label = 'Was wäre wenn: Verkäufe durchrechnen'
-
   return (
     <Link
       to={to}
-      title={label}
-      aria-label={label}
+      title="Was wäre wenn: Verkäufe durchrechnen"
       className={cn(
-        'flex h-8 shrink-0 items-center justify-center rounded-lg border border-line bg-surface px-2',
-        'text-faint transition-colors',
+        'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2',
+        'text-xs font-semibold text-muted transition-colors',
         'hover:border-accent/40 hover:bg-surface-2 hover:text-accent',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
       )}
     >
-      <FlaskConical size={15} aria-hidden="true" />
+      <FlaskConical size={15} aria-hidden="true" className="shrink-0" />
+      Szenario
     </Link>
   )
 }

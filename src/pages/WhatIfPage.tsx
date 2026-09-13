@@ -1,4 +1,4 @@
-import { Calculator, X } from 'lucide-react'
+import { Calculator, Gavel, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -63,6 +63,21 @@ type Tab = (typeof TABS)[keyof typeof TABS]
  * Everything below is written about the purchase, because it is the fuller of
  * the two; the sale scenario is it minus the target.
  *
+ * ## The bids already standing
+ *
+ * A manager with three live bids does not have the budget the app shows him;
+ * he has that budget minus three purchases that may all land tonight. So the
+ * scenario counts them — **on by default**, and switched off from the header:
+ * their money leaves the projection and their players arrive on the bench,
+ * because "what if they were all accepted" is a question about the eleven as
+ * much as about the money.
+ *
+ * The switch moves the **projection and the squad only**. What the bid on the
+ * offer tab is checked against does not move with it: `committedElsewhere` is
+ * always the full sum, because Kickbase counts every standing bid against the
+ * ceiling whether or not this page is imagining them accepted. Same rule as
+ * the sales — see *the rules are the real ones* below.
+ *
  * A bid is three questions that the [bid dialog](../components/market/OfferDialog.tsx)
  * could only ask the first of. *What will I pay* is arithmetic against a
  * budget; *can I afford it* is a question about who you would sell to fund it;
@@ -119,6 +134,14 @@ export function WhatIfPage() {
   const isPurchase = playerId !== undefined
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  /**
+   * Whether the scenario imagines every standing bid accepted. **On.**
+   *
+   * Held here rather than in the scenario below because the header that
+   * switches it is rendered by this component — the loading and error branches
+   * need it before there is a scenario to hold anything.
+   */
+  const [countsOffers, setCountsOffers] = useState(true)
 
   const market = useMarket(leagueId)
   const squad = useSquad(leagueId)
@@ -139,12 +162,37 @@ export function WhatIfPage() {
 
   const listing = market.data?.listings.find((entry) => entry.id === playerId)
 
+  /**
+   * **Every other bid this account has standing**, as the listings they are on.
+   *
+   * The target's own is excluded, and not only for tidiness: re-bidding on the
+   * same player *replaces* the standing offer rather than adding to it, so
+   * counting it would spend his money twice. It is the same exclusion
+   * {@link checkOffer}'s ceiling makes, which is why the sum below is what
+   * feeds it.
+   */
+  const offers = useMemo(
+    () =>
+      (market.data?.listings ?? []).filter(
+        (entry) => entry.ownOffer !== undefined && entry.id !== playerId,
+      ),
+    [market.data, playerId],
+  )
+  const offersTotal = offers.reduce(
+    (total, entry) => total + (entry.ownOffer ?? 0),
+    0,
+  )
+
   const heading = (
     <ScenarioHeading
       listing={listing}
       subtitle={
         isPurchase ? 'Ein Kauf, durchgerechnet' : 'Verkäufe, durchgerechnet'
       }
+      offerCount={offers.length}
+      offersTotal={offersTotal}
+      countsOffers={countsOffers}
+      onCountOffers={setCountsOffers}
       onLeave={() => {
         void navigate(-1)
       }}
@@ -236,16 +284,8 @@ export function WhatIfPage() {
         budget={manager.data?.budget ?? league.budget}
         teamValue={market.data?.teamValue}
         allowsUnderpay={details.data?.allowsUnderpay}
-        /* Every other bid this account has standing. Kickbase counts them all
-           against one ceiling, and this listing's own is **not** committed:
-           re-bidding on the same player replaces the standing offer. */
-        committedElsewhere={
-          market.data?.listings.reduce(
-            (total, entry) =>
-              entry.id === listing?.id ? total : total + (entry.ownOffer ?? 0),
-            0,
-          ) ?? 0
-        }
+        offers={offers}
+        countsOffers={countsOffers}
         onLeave={() => {
           void navigate(-1)
         }}
@@ -286,7 +326,8 @@ function WhatIfScenario({
   budget,
   teamValue,
   allowsUnderpay,
-  committedElsewhere,
+  offers,
+  countsOffers,
   onLeave,
 }: {
   /** The player being bought, or `undefined` for a scenario that only sells. */
@@ -301,7 +342,10 @@ function WhatIfScenario({
   budget: number
   teamValue: number | undefined
   allowsUnderpay: boolean | undefined
-  committedElsewhere: number
+  /** The listings this account has a standing bid on, the target's aside. */
+  offers: MarketListing[]
+  /** Whether those bids are imagined accepted — the header's switch. */
+  countsOffers: boolean
   /** Back to wherever the bid dialog was — every conclusion uses it. */
   onLeave: () => void
 }) {
@@ -327,38 +371,15 @@ function WhatIfScenario({
 
   /**
    * The target as a squad member, so the list and the pitch can draw him with
-   * everybody else.
+   * everybody else — see {@link asMember}, which the players the standing bids
+   * would bring in go through as well.
    *
-   * `profitLoss` is `0` because there is nothing to be up or down on: he has
-   * not been bought. It is the one figure on his row that is a placeholder
-   * rather than a fact, and the honest alternative — widening `SquadMember` to
-   * make it optional — would put a branch in every row in the app for one
-   * hypothetical player on one page.
+   * He is the only one of them with a {@link PlayerDetail} behind him: the page
+   * fetches one for the player it is about, and would not fetch a dozen more
+   * for a bench.
    */
   const target = useMemo<SquadMember | undefined>(
-    () =>
-      listing === undefined
-        ? undefined
-        : {
-            id: listing.id,
-            firstName: listing.firstName,
-            lastName: listing.lastName,
-            teamId: listing.teamId,
-            position: listing.position,
-            marketValue: listing.marketValue,
-            marketValueTrend: listing.marketValueTrend,
-            profitLoss: 0,
-            marketValueChangeDay: player?.marketValueChangeDay,
-            totalPoints: player?.totalPoints ?? 0,
-            averagePoints: player?.averagePoints ?? 0,
-            status: player?.status ?? 0,
-            startProbability: player?.startProbability,
-            image: listing.image,
-            offerCount: listing.offerCount,
-            /* Benched to begin with. Fielding him is the question the third
-               tab asks. */
-            lineupOrder: undefined,
-          },
+    () => (listing === undefined ? undefined : asMember(listing, player)),
     [listing, player],
   )
 
@@ -375,10 +396,35 @@ function WhatIfScenario({
     () => squad.filter((member) => member.id !== target?.id),
     [squad, target?.id],
   )
-  /** Those and him — the squad the scenario is arranged from. */
+  /**
+   * **The players the standing bids would bring in**, while the header's
+   * switch is on — benched, like the target, because a purchase that has not
+   * been accepted has not picked itself.
+   *
+   * Built out of the **listing** rather than a detail request each: the pitch
+   * draws a name, a portrait, a club, an availability mark and a lineup
+   * probability, and a market row already carries every one of them. What the
+   * listing cannot say is points, and the pitch never asks.
+   *
+   * Filtered against the squad as well as against the target. You cannot bid
+   * on a player you own, so the guard should never fire; it is what keeps a
+   * duplicate id from giving two React children the same key and putting one
+   * man on the pitch twice.
+   */
+  const arrivals = useMemo(() => {
+    if (!countsOffers) return []
+    const owned = new Set(own.map((member) => member.id))
+    return offers
+      .filter((entry) => entry.id !== target?.id && !owned.has(entry.id))
+      .map((entry) => asMember(entry))
+  }, [countsOffers, offers, own, target?.id])
+  /** Those, him, and them — the squad the scenario is arranged from. */
   const full = useMemo(
-    () => (target === undefined ? own : [...own, target]),
-    [own, target],
+    () =>
+      target === undefined
+        ? [...own, ...arrivals]
+        : [...own, target, ...arrivals],
+    [own, target, arrivals],
   )
   /** …and what is left of it once the marked players are sold. */
   const remaining = useMemo(
@@ -413,6 +459,20 @@ function WhatIfScenario({
   const statusReasons = useStatusReasons(leagueId, full)
 
   const bid = listing === undefined ? 0 : Number(amount)
+  /**
+   * What the standing bids have already claimed.
+   *
+   * **Not** the switch's business: Kickbase counts every live bid against the
+   * 33 % ceiling whether or not this page is imagining them accepted, and a
+   * rule that moved with a checkbox would be a rule about the checkbox. The
+   * switch moves {@link pendingSpend} below, which is the projection.
+   */
+  const committedElsewhere = offers.reduce(
+    (total, entry) => total + (entry.ownOffer ?? 0),
+    0,
+  )
+  /** …and what the *scenario* has them spending, which is nothing while off. */
+  const pendingSpend = countsOffers ? committedElsewhere : 0
   const rules = { allowsUnderpay, budget, teamValue, committedElsewhere }
   const verdict =
     listing === undefined
@@ -449,6 +509,11 @@ function WhatIfScenario({
           }
           proceeds={proceeds}
           soldCount={sold.size}
+          pendingSpend={pendingSpend}
+          /* The **bids**, not the arrivals: the two differ only if a bid
+             somehow stands on a player already owned, and this line is the
+             money, which that bid still spends. */
+          pendingCount={countsOffers ? offers.length : 0}
           allowance={debtAllowance(teamValue)}
           maximumBid={maximumOffer(rules)}
         />
@@ -623,6 +688,43 @@ function WhatIfScenario({
 }
 
 /**
+ * A **listing as a squad member**, so the list and the pitch can draw a player
+ * the manager does not own yet with everybody else.
+ *
+ * Used for the target and for each player a standing bid would bring in. The
+ * fuller {@link PlayerDetail} is passed where there is one — only the target
+ * has it, and only once its request lands — and everything it would have said
+ * falls back to what the market row already carries.
+ *
+ * `profitLoss` is `0` because there is nothing to be up or down on: he has not
+ * been bought. It is the one figure here that is a placeholder rather than a
+ * fact, and the honest alternative — widening `SquadMember` to make it
+ * optional — would put a branch in every row in the app for the hypothetical
+ * players on one page.
+ */
+function asMember(listing: MarketListing, detail?: PlayerDetail): SquadMember {
+  return {
+    id: listing.id,
+    firstName: listing.firstName,
+    lastName: listing.lastName,
+    teamId: listing.teamId,
+    position: listing.position,
+    marketValue: listing.marketValue,
+    marketValueTrend: listing.marketValueTrend,
+    profitLoss: 0,
+    marketValueChangeDay: detail?.marketValueChangeDay,
+    totalPoints: detail?.totalPoints ?? 0,
+    averagePoints: detail?.averagePoints ?? 0,
+    status: detail?.status ?? listing.status,
+    startProbability: detail?.startProbability ?? listing.startProbability,
+    image: listing.image,
+    offerCount: listing.offerCount,
+    // Benched to begin with. Fielding him is what the lineup tab is for.
+    lineupOrder: undefined,
+  }
+}
+
+/**
  * The page's own heading, with **the player in it**.
  *
  * A scenario about one purchase should show who is being bought, and a name in
@@ -643,10 +745,20 @@ function WhatIfScenario({
  *
  * The ✗ is the fourth way out, for the two tabs that have no buttons of their
  * own — a scenario you cannot leave from the pitch would be a trap.
+ *
+ * **The offers switch lives here**, on a row of its own under the title,
+ * because it is the only control on the page that every tab is subject to: it
+ * moves the money on two of them and the bench on the third, and the budget
+ * block it would otherwise belong in is not drawn on the pitch. The row is
+ * absent entirely when there is no bid standing, which is most of the time.
  */
 function ScenarioHeading({
   listing,
   subtitle,
+  offerCount,
+  offersTotal,
+  countsOffers,
+  onCountOffers,
   onLeave,
 }: {
   /**
@@ -656,55 +768,164 @@ function ScenarioHeading({
   listing: MarketListing | undefined
   /** What the scenario is, until the player it is about has landed. */
   subtitle: string
+  /** How many bids this account has standing, the target's aside. */
+  offerCount: number
+  /** What they add up to. */
+  offersTotal: number
+  countsOffers: boolean
+  onCountOffers: (counts: boolean) => void
   onLeave: () => void
 }) {
   return (
-    <div className="flex shrink-0 items-stretch overflow-hidden rounded-card border border-line bg-surface">
-      {listing !== undefined && (
-        <Avatar
-          src={listing.image}
-          name={listing.lastName}
-          fill
-          className={cn(
-            'w-20 shrink-0 self-stretch bg-transparent',
-            'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
-            '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
-          )}
-        />
-      )}
-
-      <div
-        className={cn(
-          'flex min-w-0 flex-1 items-center gap-2 py-3 pr-2',
-          listing === undefined ? 'pl-4' : 'pl-1',
+    <div className="flex shrink-0 flex-col overflow-hidden rounded-card border border-line bg-surface">
+      <div className="flex items-stretch">
+        {listing !== undefined && (
+          <Avatar
+            src={listing.image}
+            name={listing.lastName}
+            fill
+            className={cn(
+              'w-20 shrink-0 self-stretch bg-transparent',
+              'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+              '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+            )}
+          />
         )}
-      >
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-xl font-bold tracking-tight text-ink">
-            Was wäre wenn
-          </h1>
-          <p className="mt-0.5 truncate text-xs text-muted">
-            {listing === undefined
-              ? subtitle
-              : `${listing.firstName ?? ''} ${listing.lastName}`.trim()}
-          </p>
-        </div>
 
-        <button
-          type="button"
-          onClick={onLeave}
-          title="Rechner schließen"
-          aria-label="Rechner schließen"
+        <div
           className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-            'text-muted transition-colors hover:bg-surface-2 hover:text-ink',
-            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+            'flex min-w-0 flex-1 items-center gap-2 py-3 pr-2',
+            listing === undefined ? 'pl-4' : 'pl-1',
           )}
         >
-          <X size={18} aria-hidden="true" />
-        </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xl font-bold tracking-tight text-ink">
+              Was wäre wenn
+            </h1>
+            <p className="mt-0.5 truncate text-xs text-muted">
+              {listing === undefined
+                ? subtitle
+                : `${listing.firstName ?? ''} ${listing.lastName}`.trim()}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onLeave}
+            title="Rechner schließen"
+            aria-label="Rechner schließen"
+            className={cn(
+              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+              'text-muted transition-colors hover:bg-surface-2 hover:text-ink',
+              'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+            )}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
       </div>
+
+      {offerCount > 0 && (
+        <OffersSwitch
+          count={offerCount}
+          total={offersTotal}
+          isOn={countsOffers}
+          onChange={onCountOffers}
+        />
+      )}
     </div>
+  )
+}
+
+/**
+ * **"…and if every bid I have out were accepted?"** — the scenario's one
+ * global switch, on by default.
+ *
+ * A manager with three live bids does not really have the budget the app
+ * prints for him; he has that minus three purchases that could all land
+ * tonight. Defaulting to *on* is therefore the honest reading of "what if" —
+ * and it is switchable because the opposite reading is honest too: bids are
+ * lost far more often than they are won, and a scenario that insisted on
+ * counting them would be a different kind of wrong.
+ *
+ * **It moves the squad as well as the money.** The bids' players arrive on the
+ * bench of the lineup tab, which is the whole reason the switch is not simply
+ * a line of arithmetic in the budget block — and the reason it sits in the
+ * header, which is the one thing on the page the pitch does not hide.
+ *
+ * The whole row is the target: a `role="switch"` button with the label inside
+ * it, rather than a checkbox with the label beside it. The pill on the right
+ * is drawn, not real — it has no state of its own to disagree with the
+ * button's `aria-checked`.
+ */
+function OffersSwitch({
+  count,
+  total,
+  isOn,
+  onChange,
+}: {
+  count: number
+  total: number
+  isOn: boolean
+  onChange: (isOn: boolean) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isOn}
+      onClick={() => {
+        onChange(!isOn)
+      }}
+      title="Offene Gebote als angenommen rechnen"
+      className={cn(
+        'flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left',
+        'transition-colors hover:bg-surface-2',
+        /* `ring-inset`: the heading card clips its overflow to keep its
+           corners, so a ring drawn outside this row would be cut off. */
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+      )}
+    >
+      <Gavel
+        size={14}
+        aria-hidden="true"
+        className={cn('shrink-0', isOn ? 'text-accent' : 'text-faint')}
+      />
+
+      <span className="min-w-0 flex-1 truncate text-xs text-muted">
+        <span className="nums font-semibold text-ink">
+          {count} offene{count === 1 ? 's' : ''} Gebot{count === 1 ? '' : 'e'}
+        </span>{' '}
+        angenommen
+      </span>
+
+      {/* What saying yes costs, so the switch is not a leap of faith. Faint
+          while it is off: the figure is still true, it is simply not in the
+          total above the tabs. */}
+      <span
+        className={cn(
+          'nums shrink-0 text-xs font-semibold',
+          isOn ? 'text-negative' : 'text-faint',
+        )}
+      >
+        −{money(total)}
+      </span>
+
+      <span
+        aria-hidden="true"
+        className={cn(
+          'relative h-4 w-7 shrink-0 rounded-full transition-colors',
+          isOn ? 'bg-accent' : 'bg-line',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 h-3 w-3 rounded-full transition-all',
+            isOn ? 'left-3.5 bg-accent-ink' : 'left-0.5 bg-faint',
+          )}
+        />
+      </span>
+    </button>
   )
 }
 
@@ -723,9 +944,18 @@ function digitsOrUndefined(raw: string | null): string | undefined {
  * money in, and what is left is the question the page exists to answer.
  *
  * **Without a bid it is a sale calculator with a pitch behind it.** The term
- * drops out of the working, the overdraft lines go with it — selling only ever
- * moves the budget upwards, so there is no floor to warn about — and the label
- * says *Verkäufe* rather than *Transfer*.
+ * drops out of the working, and with nothing else spending either the overdraft
+ * lines go too — selling only ever moves the budget upwards, so there is no
+ * floor to warn about — and the label says *Verkäufe* rather than *Transfer*.
+ *
+ * **It pins.** A squad of twenty is a page you scroll, and the answer has to
+ * stay legible while you are marking the eleventh player at the bottom of it —
+ * the same reasoning, and the same `--header-total` offset, as the squad
+ * page's [sale calculator](./SquadPage.tsx) bar. It bleeds `-mx-3` to the
+ * column's edges and carries its own canvas band so that nothing shows through
+ * the card's rounded corners as rows scroll behind it; the band's `pb-4` is
+ * cancelled by `-mb-4`, so the block occupies exactly the height it did
+ * before. It is `z-20`, under the header's `z-30`.
  *
  * **Negative is not the same as too far.** Kickbase lends against team value
  * and charges interest on the overdraft, so an overdrawn budget is a normal
@@ -753,6 +983,8 @@ function ProjectedBudget({
   bid,
   proceeds,
   soldCount,
+  pendingSpend,
+  pendingCount,
   allowance,
   maximumBid,
 }: {
@@ -761,99 +993,128 @@ function ProjectedBudget({
   bid: number | undefined
   proceeds: number
   soldCount: number
+  /** What the standing bids would take, or `0` while the switch is off. */
+  pendingSpend: number
+  /** How many of them there are — `0` whenever the spend is. */
+  pendingCount: number
   /** How far below zero this league lets the budget go. `undefined` = unknown. */
   allowance: number | undefined
   /** The most this listing could be bid, ceiling and other bids included. */
   maximumBid: number | undefined
 }) {
-  const projected = budget + proceeds - (bid ?? 0)
+  const projected = budget + proceeds - (bid ?? 0) - pendingSpend
   const isOverdrawn = projected < 0
+  /* Anything at all is being bought — this bid, or the ones already out. The
+     overdraft only exists where money leaves. */
+  const isBuying = bid !== undefined || pendingSpend > 0
   // Past the floor, or — with no allowance to compare against — simply in the
   // red, which is the most that can honestly be said without team value.
   const isPastFloor =
     allowance === undefined ? isOverdrawn : projected < -allowance
 
   return (
-    <div className="shrink-0 rounded-card border border-line bg-surface px-3 py-2.5">
-      <p className="text-[0.6875rem] tracking-wide text-faint uppercase">
-        {bid === undefined
-          ? 'Budget nach den Verkäufen'
-          : 'Budget nach dem Transfer'}
-      </p>
-      {/* `aria-live` so a screen reader hears the total change as players are
+    <div
+      className={cn(
+        'sticky top-(--header-total) z-20 -mx-3 -mb-4 shrink-0 px-3 pb-4',
+        'bg-canvas',
+      )}
+    >
+      <div className="rounded-card border border-line bg-surface px-3 py-2.5">
+        <p className="text-[0.6875rem] tracking-wide text-faint uppercase">
+          {bid !== undefined
+            ? 'Budget nach dem Transfer'
+            : pendingSpend > 0
+              ? 'Budget nach den Transfers'
+              : 'Budget nach den Verkäufen'}
+        </p>
+        {/* `aria-live` so a screen reader hears the total change as players are
           marked and the bid is typed — it updates somewhere other than where
           the tap happened. */}
-      <p
-        aria-live="polite"
-        className={cn(
-          'nums mt-0.5 text-lg leading-tight font-bold',
-          isPastFloor
-            ? 'text-negative'
-            : isOverdrawn
-              ? 'text-warning'
-              : 'text-positive',
-        )}
-      >
-        {moneyExact(projected)}
-      </p>
-      <p className="nums mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
-        <span>Budget {money(budget)}</span>
-        {/* A sale scenario with nothing marked yet has no working to show, and
+        <p
+          aria-live="polite"
+          className={cn(
+            'nums mt-0.5 text-lg leading-tight font-bold',
+            isPastFloor
+              ? 'text-negative'
+              : isOverdrawn
+                ? 'text-warning'
+                : 'text-positive',
+          )}
+        >
+          {moneyExact(projected)}
+        </p>
+        <p className="nums mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
+          <span>Budget {money(budget)}</span>
+          {/* A sale scenario with nothing marked yet has no working to show, and
             a lone budget under a figure equal to it reads as a page that has
             not loaded. It says what to do instead — the same nudge the
             [sale calculator](./SquadPage.tsx) puts under its own total. */}
-        {bid === undefined && soldCount === 0 && (
-          <>
-            <span aria-hidden="true" className="text-faint">
-              ·
-            </span>
-            <span>Spieler zum Verkaufen antippen</span>
-          </>
-        )}
-        {bid !== undefined && (
-          <>
-            <span aria-hidden="true" className="text-faint">
-              ·
-            </span>
-            <span>Gebot −{money(bid)}</span>
-          </>
-        )}
-        {soldCount > 0 && (
-          <>
-            <span aria-hidden="true" className="text-faint">
-              ·
-            </span>
-            <span className="text-positive">
-              {soldCount} verkauft +{money(proceeds)}
-            </span>
-          </>
-        )}
-      </p>
-
-      {/* The allowance, and what it leaves for *this* player. Only with team
-          value in hand, and only where there is an overdraft to speak of. */}
-      {bid !== undefined && allowance !== undefined && allowance > 0 && (
-        <p className="nums mt-1 flex flex-wrap gap-x-2 border-t border-line pt-1.5 text-xs text-faint">
-          <span>
-            Minus möglich bis{' '}
-            <span className="font-semibold text-warning">
-              −{money(allowance)}
-            </span>{' '}
-            (33 % vom Teamwert)
-          </span>
-          {maximumBid !== undefined && (
+          {!isBuying && soldCount === 0 && (
             <>
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true" className="text-faint">
+                ·
+              </span>
+              <span>Spieler zum Verkaufen antippen</span>
+            </>
+          )}
+          {/* The bids already out, while the header's switch counts them. Named
+            separately from `Gebot` above, which is the one being typed. */}
+          {pendingCount > 0 && (
+            <>
+              <span aria-hidden="true" className="text-faint">
+                ·
+              </span>
               <span>
-                Gebot höchstens{' '}
-                <span className="font-semibold text-ink">
-                  {money(maximumBid)}
-                </span>
+                {pendingCount} offene{pendingCount === 1 ? 's' : ''} Gebot
+                {pendingCount === 1 ? '' : 'e'} −{money(pendingSpend)}
+              </span>
+            </>
+          )}
+          {bid !== undefined && (
+            <>
+              <span aria-hidden="true" className="text-faint">
+                ·
+              </span>
+              <span>Gebot −{money(bid)}</span>
+            </>
+          )}
+          {soldCount > 0 && (
+            <>
+              <span aria-hidden="true" className="text-faint">
+                ·
+              </span>
+              <span className="text-positive">
+                {soldCount} verkauft +{money(proceeds)}
               </span>
             </>
           )}
         </p>
-      )}
+
+        {/* The allowance, and what it leaves for *this* player. Only with team
+          value in hand, and only where there is an overdraft to speak of. */}
+        {isBuying && allowance !== undefined && allowance > 0 && (
+          <p className="nums mt-1 flex flex-wrap gap-x-2 border-t border-line pt-1.5 text-xs text-faint">
+            <span>
+              Minus möglich bis{' '}
+              <span className="font-semibold text-warning">
+                −{money(allowance)}
+              </span>{' '}
+              (33 % vom Teamwert)
+            </span>
+            {bid !== undefined && maximumBid !== undefined && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>
+                  Gebot höchstens{' '}
+                  <span className="font-semibold text-ink">
+                    {money(maximumBid)}
+                  </span>
+                </span>
+              </>
+            )}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
