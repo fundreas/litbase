@@ -9,6 +9,7 @@ import {
   type StartProbability,
   type TeamFixture,
 } from '@/api/models'
+import { useTeamDirectory, type TeamSummary } from '@/api/hooks/useCompetition'
 import {
   useCurrentMatchday,
   useUpcomingMatchday,
@@ -18,6 +19,7 @@ import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
+import { ClubWatermark } from '@/components/player/ClubWatermark'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
@@ -94,6 +96,11 @@ export function ManagerSquadTab({
      being played. See [`useUpcomingMatchday`](../../api/hooks/useMatchday.ts):
      same cache entry, no request of its own. */
   const upcoming = useUpcomingMatchday(competitionId)
+  /* His club's crest, for the watermark behind each row — out of the season's
+     table, which is one request cached ten minutes and the same entry the
+     league table, the club pages and the Spieltag already read. A club the
+     current table does not hold simply has no watermark. */
+  const teams = useTeamDirectory(competitionId)
   const expectedPoints = useExpectedPointsView(day)
   const expected = useExpectedPointsSheet({
     matchday: day,
@@ -193,6 +200,7 @@ export function ManagerSquadTab({
               <PlayerRow
                 key={player.id}
                 player={player}
+                team={teams.data?.get(player.teamId)}
                 startProbability={startProbabilities.get(player.id)}
                 fixture={upcoming?.fixtureByTeamId.get(player.teamId)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
@@ -226,6 +234,7 @@ export function ManagerSquadTab({
  */
 function PlayerRow({
   player,
+  team,
   startProbability,
   fixture,
   to,
@@ -243,6 +252,8 @@ function PlayerRow({
    */
   expectedPoints: ExpectedPointsEntry | undefined
   onEditExpected: (playerId: string) => void
+  /** His club, for the watermark behind the row. */
+  team?: TeamSummary
 }) {
   const changeDay = player.marketValueChangeDay
   const ChangeIcon =
@@ -307,7 +318,12 @@ function PlayerRow({
           )}
         />
 
-        <span className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
+        {/* `relative isolate overflow-hidden` is what the club watermark
+            needs of its host — see
+            [`ClubWatermark`](../player/ClubWatermark.tsx). */}
+        <span className="relative isolate flex min-w-0 flex-1 items-center gap-3 overflow-hidden px-3 py-2.5">
+          <ClubWatermark team={team} />
+
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
               <span className="truncate text-sm font-semibold text-ink">

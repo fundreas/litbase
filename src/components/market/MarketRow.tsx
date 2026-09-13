@@ -8,6 +8,7 @@ import {
   type StartProbability,
   type TeamFixture,
 } from '@/api/models'
+import { ClubWatermark } from '@/components/player/ClubWatermark'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
@@ -35,16 +36,18 @@ import {
  *
  * ```
  * ┌──────┬──────────────────────────┬─────┬───────┐
- * │      │ Guerreiro           [BVB]│     │       │
- * │  👤  │ ABW           7,8 Mio. € │ FCB │ 9 Std.│
- * │      │ ✓ ⌖231     ↘ −390 Tsd. € │ 🏠  │ 22:48 │
+ * │      │╭────╮                    │     │       │
+ * │  👤  ││ABW │     7,846 M €     │ FCB │ 9 Std.│
+ * │      │╰────╯31    ↘ −390.000 € │ 🏠  │ 22:48 │
  * └──────┴──────────────────────────┴─────┴───────┘
  *   who      him / what he costs     gegen   when
+ *         ╰─ his club, behind the name
  * ```
  *
  * Left of each line is **him**, right of it is **what he costs**, and the two
  * columns stay in their lanes all the way down: name over position over the
- * two marks about the coming matchday; club crest over price over the move.
+ * two marks about the coming matchday; price over the move, on his club's
+ * crest.
  * The panels beyond carry *who he plays*, and *when this settles* — or, on a
  * manager's listing, whose it is.
  *
@@ -56,10 +59,13 @@ import {
  * a player met on the market and the same player met in the squad must not
  * need two vocabularies.
  *
- * **The crest on the name's line is his own club**, not the fixture — the
- * fixture is the panel's, with its home-or-away chip to say so. Small, and at
- * the end of the line, because it qualifies the name rather than competing
- * with it: on a market list nothing says *which* Müller faster.
+ * **His own club is the watermark behind the lane** — the crest at full row
+ * height and a little past it, at the left of the lane and dissolving towards
+ * the money. It
+ * costs the row no width, and it is finally large enough to be recognised; see
+ * {@link ClubWatermark}. The crest in the **panel** is the fixture, which the
+ * home-or-away chip on it says out loud — two crests that mean different
+ * things, told apart now by size and place rather than by a chip alone.
  *
  * ## What the height bought
  *
@@ -206,7 +212,7 @@ export function MarketRow({
       <button
         type="button"
         onClick={onOffer}
-        aria-label={`Für ${listing.lastName} bieten`}
+        aria-label={`Für ${listing.lastName}${team === undefined ? '' : ` (${team.name})`} bieten`}
         className="flex min-w-0 flex-1 items-stretch text-left transition-colors hover:bg-surface-2"
       >
         {/* **Two lanes, three lines.** Left of every line is him, right of it
@@ -215,28 +221,22 @@ export function MarketRow({
             figure that moved. The lines are ordered by how a buying decision
             is actually made — who, then what he costs, then what he is likely
             to do with the matchday. */}
-        <span className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-2.5 py-2">
+        <span
+          title={team?.name}
+          className={cn(
+            'relative flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-2.5 py-2',
+            // `isolate` so the crest's negative z-index stays inside this lane
+            // and lands above the row's own ground rather than behind it;
+            // `overflow-hidden` is what crops it at the lane's edges.
+            'isolate overflow-hidden',
+          )}
+        >
+          <ClubWatermark team={team} />
+
           <span className="flex items-center gap-1.5">
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
               {listing.lastName}
             </span>
-            {/* His club, small and at the end of the line it qualifies —
-                *which* Müller, answered by the thing a reader recognises
-                fastest. Not a link, though the club has a page: this sits
-                inside the bid button, and an anchor nested in a button is
-                neither valid nor reliably clickable. The name rides along for
-                a screen reader and on hover. */}
-            {team !== undefined && (
-              <span title={team.name} className="flex shrink-0">
-                <Avatar
-                  src={team.image}
-                  name={team.name}
-                  size={16}
-                  square
-                  className="bg-transparent"
-                />
-              </span>
-            )}
           </span>
 
           <span className="flex items-baseline justify-between gap-2">
@@ -368,7 +368,7 @@ function Change({ value }: { value: number | undefined }) {
       className={cn(
         // 11px, the size the countdown panel gives its own second line: this
         // is a subtitle under the figure it qualifies, and at `text-xs` the
-        // widest of them (`↘ −390 Tsd. €`) was the thing squeezing the name
+        // widest of them (`↘ −390.000 €`) was the thing squeezing the name
         // column on a narrow phone.
         'nums flex items-center justify-end gap-0.5 text-[0.6875rem] whitespace-nowrap',
         value !== undefined && value > 0 && 'text-positive',

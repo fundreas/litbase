@@ -103,7 +103,7 @@ leave a gap under the last row.
 | Element | Source | Notes |
 | ------- | ------ | ----- |
 | Title | — | *Mannschaft* |
-| Subtitle | `useSquad` | `20 Spieler · 194,4 Mio. € Gesamtwert` |
+| Subtitle | `useSquad` | `20 Spieler · 194,400 M € Gesamtwert` |
 | Budget chip | `useLeagueManager` | **Green at or above zero, red below** |
 | Legend button | — | Opens `SquadLegendDialog` |
 
@@ -369,6 +369,7 @@ duplicated here.
 | Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name — beside the expected-points chip |
 | Market value | `marketValue` | Compact euros, tabular figures |
 | 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
+| Club | `useTeamDirectory` | The crest **watermarked behind the row**, 13 %, cropped and faded — the same badge the [market](market.md#two-crests-and-they-mean-different-things) draws, from [`ClubWatermark`](../../src/components/player/ClubWatermark.tsx). It costs the row no width, which is why a Kader row can carry the club at all |
 | Fixture panel | `useUpcomingMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays) — opens the [expected-points sheet](#erwartete-punkte) |
 | Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The crest panel enters it; it does not display it |
 

@@ -148,6 +148,44 @@ The pieces are not abstracted into a `<List>` component. Each list's rows differ
 what they hold, what they link to and which of them is marked, and the shared
 part is four class names that say what they are where they are used.
 
+## Money: abbreviated at the millions, exact below them
+
+One formatter, [`money()`](../src/lib/format.ts), and one rule: **three
+decimals from a million up, every euro below it** — `12,346 M €`, `987.654 €`,
+`750 €`.
+
+The three decimals are the point. One decimal on a compact million is a
+resolution of a hundred thousand euros, and this app is read to compare market
+values: a player who moved 45.000 € overnight read as not having moved, two
+listings 80.000 € apart read as the same price, and a bid raised by half a
+million changed the figure by nothing at all. Three decimals is the thousand,
+which is the unit the game itself quotes in. Both bounds are set, so a column
+keeps its shape — `5,000 M €` rather than a bare `5 M €` next to `12,346 M €`.
+
+**Nothing under a million is abbreviated.** `988 K €` saves two characters over
+`987.654 €` and throws away the 654 € it took to say it. The millions are the
+only magnitude where an abbreviation buys anything, because there the
+alternative is `12.345.678 €` — eleven characters on a line that has a name to
+fit as well. `M` rather than the German `Mio.` for the same reason, one
+character against four.
+
+The bid keypad follows: [`AmountSteps`](../src/components/ui/AmountSteps.tsx)
+reads `+100.000` and `↥ 1 M`, and drops to `text-xs` when a label runs long,
+because a button that said `+100K` was describing a field exact to the euro in
+a unit that field does not use.
+
+The unit is **assembled by hand** rather than left to `notation: 'compact'`,
+which cannot express the rule: it abbreviates by magnitude, where what is
+wanted is an abbreviation at one magnitude only. That notation also carries a
+trap worth knowing — `maximumFractionDigits: 1` on a *currency* silently clamps
+the minimum to 1 as well, since currency defaults to two, which is where the
+app's old stray `390.000,0 €` came from.
+
+`moneyDelta()` shares the rule, so a figure and its change are quoted in the
+same unit. `moneyExact()` and `moneyDeltaExact()` are unchanged and spell every
+euro out at any magnitude, for the two places that need it: the bid keypad's
+own bounds and the market's rules.
+
 ## Two palettes
 
 Light mode is **the same token names with different values**. Every

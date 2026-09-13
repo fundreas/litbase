@@ -4,12 +4,50 @@ import { nowMs } from '@/lib/clock'
 
 const LOCALE = 'de-DE'
 
-const compactEuro = new Intl.NumberFormat(LOCALE, {
-  style: 'currency',
-  currency: 'EUR',
-  notation: 'compact',
-  maximumFractionDigits: 1,
+/**
+ * **Three decimals at the millions, every euro below them** — `12,346 M €`,
+ * `987.654 €`, `750 €`.
+ *
+ * `M` rather than the German `Mio.`: one character against four, on a row where
+ * the money column is the widest thing competing with the name, and nobody who
+ * plays this game has to be taught what it means.
+ *
+ * **Nothing under a million is abbreviated.** `988 K €` costs two characters
+ * against `987.654 €` and throws away the 654 € it took to say it; a figure
+ * that fits is better spelled out. The millions are the only place an
+ * abbreviation buys anything, because there the alternative is `12.345.678 €`
+ * — eleven characters on a line that has a name to fit as well.
+ *
+ * One decimal on a compact million is a resolution of a hundred thousand
+ * euros: a player who moved 45.000 € overnight reads as not having moved, two
+ * listings 80.000 € apart read as the same price, and a bid raised by half a
+ * million changes the figure by nothing at all. Three decimals is the
+ * **thousand**, which is the unit market values are quoted and compared in —
+ * and below a million every euro is printed, so no figure in the app is ever
+ * rounded past the place the game itself uses.
+ *
+ * Both bounds are set on the millions, so a column keeps its shape: `5,000 M €`
+ * rather than a bare `5 M €` beside `12,346 M €`.
+ *
+ * **Composed by hand rather than by `notation: 'compact'`.** That notation
+ * cannot express this rule: it abbreviates by magnitude, and what is wanted is
+ * an abbreviation at one magnitude only. It also has a trap — a
+ * `maximumFractionDigits: 1` on a *currency* silently clamps the minimum to 1
+ * as well, since currency defaults to two, which is where the app's old stray
+ * `390.000,0 €` came from.
+ */
+const MILLION = 1_000_000
+
+const millions = new Intl.NumberFormat(LOCALE, {
+  minimumFractionDigits: 3,
+  maximumFractionDigits: 3,
 })
+
+function compact(value: number): string {
+  if (Math.abs(value) >= MILLION)
+    return `${millions.format(value / MILLION)} M €`
+  return fullEuro.format(value)
+}
 
 const fullEuro = new Intl.NumberFormat(LOCALE, {
   style: 'currency',
@@ -24,10 +62,13 @@ const signedDecimal = new Intl.NumberFormat(LOCALE, {
   signDisplay: 'exceptZero',
 })
 
-/** `12,4 Mio. €` — the default for money on a phone-width screen. */
+/**
+ * `12,346 M €`, `987.654 €` — the default for money on a phone-width screen:
+ * abbreviated at the millions, exact below them. See {@link compact}.
+ */
 export function money(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '–'
-  return compactEuro.format(value)
+  return compact(value)
 }
 
 /** `12.350.000 €` — for detail views where the exact figure matters. */
@@ -36,10 +77,14 @@ export function moneyExact(value: number | null | undefined): string {
   return fullEuro.format(value)
 }
 
-/** Compact money with an explicit sign, for gains and losses. */
+/**
+ * Compact money with an explicit sign, for gains and losses — and the same
+ * precision {@link money} has, so a figure and its change are quoted in the
+ * same unit.
+ */
 export function moneyDelta(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '–'
-  const formatted = compactEuro.format(Math.abs(value))
+  const formatted = compact(Math.abs(value))
   if (value === 0) return formatted
   return `${value > 0 ? '+' : '−'}${formatted}`
 }

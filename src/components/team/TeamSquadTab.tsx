@@ -258,7 +258,11 @@ function PlayerRow({
           )}
         />
 
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-3">
+        {/* `pl-2` against the portrait. The picture bleeds to the row's edge
+            and its inner edge is a *fade*, not a line, so text starting flush
+            against it sits on the tail of the player rather than beside him —
+            a couple of pixels of air is what separates the two. */}
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-3 pl-2">
           <div className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="min-w-0 truncate text-sm font-medium text-ink">

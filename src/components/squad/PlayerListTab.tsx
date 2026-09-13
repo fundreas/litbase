@@ -13,6 +13,8 @@ import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
+import type { TeamSummary } from '@/api/hooks/useCompetition'
+import { ClubWatermark } from '@/components/player/ClubWatermark'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
@@ -75,6 +77,7 @@ export function PlayerListTab({
   editor,
   leagueId,
   fixtureByTeamId,
+  teams,
   matchday,
   startProbabilities,
   statusReasons,
@@ -87,6 +90,8 @@ export function PlayerListTab({
   /** For linking each row to the player's detail page. */
   leagueId: string
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  /** The season's clubs, for the watermark behind each row. */
+  teams: Map<string, TeamSummary> | undefined
   /** The matchday the fixtures belong to, and the guesses are filed under. */
   matchday: number | undefined
   startProbabilities: Map<string, StartProbability>
@@ -190,6 +195,7 @@ export function PlayerListTab({
                   <PlayerRow
                     key={player.id}
                     player={player}
+                    team={teams?.get(player.teamId)}
                     isFielded={editor.isFielded(player.id)}
                     fixture={fixtureByTeamId?.get(player.teamId)}
                     startProbability={startProbabilities.get(player.id)}
@@ -381,6 +387,7 @@ function PlayerTile({
 
 function PlayerRow({
   player,
+  team,
   isFielded,
   fixture,
   startProbability,
@@ -393,6 +400,8 @@ function PlayerRow({
   onEditExpected,
 }: {
   player: SquadMember
+  /** His club, for the watermark behind the row. */
+  team: TeamSummary | undefined
   isFielded: boolean
   fixture: TeamFixture | undefined
   /** Absent until it loads, and absent for good without Membership. */
@@ -467,7 +476,10 @@ function PlayerRow({
     />
   )
 
-  const bodyClass = 'flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5'
+  /* `relative isolate overflow-hidden` is what the club watermark needs of its
+     host — see [`ClubWatermark`](../player/ClubWatermark.tsx). */
+  const bodyClass =
+    'relative isolate flex min-w-0 flex-1 items-center gap-3 overflow-hidden px-3 py-2.5'
 
   const changeDay = player.marketValueChangeDay
   const ChangeIcon =
@@ -475,6 +487,8 @@ function PlayerRow({
 
   const details = (
     <>
+      <ClubWatermark team={team} />
+
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           <span className="truncate text-sm font-semibold text-ink">

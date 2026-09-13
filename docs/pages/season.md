@@ -223,11 +223,11 @@ at, and on a phone a tap target the width of a club name is a target you miss.
   ( Alle )  ( TW )  ( ABW )  ( MF )  ( ANG )
 
   1  [img] Kimmich                 557
-        MF · Bayern
+        MF                          ← the crest is behind the row
   2  [img] Upamecano       (ᴍ)     489
-        ABW · Bayern
+        ABW
   3  [img] Matanović               487
-        ANG · Freiburg
+        ANG
 
   Kickbase liefert die besten 25 je Kategorie.
 ```

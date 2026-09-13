@@ -15,6 +15,7 @@ import type {
 } from '@/api/models'
 import { POSITION_LABEL, POSITION_NAME } from '@/api/models'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
+import { ClubWatermark } from '@/components/player/ClubWatermark'
 import { Avatar } from '@/components/ui/Avatar'
 import { CHIP_ROW, FilterChip } from '@/components/ui/FilterChip'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -224,6 +225,14 @@ export function PlayerRankingTab({
           <li key={player.id}>
             <Link
               to={`/leagues/${leagueId}/players/${player.id}`}
+              /* The club, in words, for the one reader the crest does not
+                 reach: the row no longer prints it, and a badge is not a name
+                 to somebody who does not know the badge. */
+              title={
+                team === undefined
+                  ? player.lastName
+                  : `${player.lastName} · ${team.name}`
+              }
               className="flex items-stretch transition-colors hover:bg-surface-2/60"
             >
               {/* The rank is a rail, the same flush left-hand column the squad
@@ -263,14 +272,24 @@ export function PlayerRankingTab({
                 />
               </span>
 
-              <span className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pr-3 pl-1">
+              {/* `relative isolate overflow-hidden` is what the club
+                  watermark needs of its host — see
+                  [`ClubWatermark`](../player/ClubWatermark.tsx). */}
+              <span className="relative isolate flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden py-2.5 pr-3 pl-1">
+                <ClubWatermark team={team} />
+
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-ink">
                     {player.lastName}
                   </span>
+                  {/* The position, and **not** the club: the crest behind the
+                      row says which club, at a size a name in 11px grey never
+                      competed with. Spelling it out as well was the badge and
+                      the caption for the same picture — and on a phone it was
+                      the half of this line that truncated. It stays in the
+                      row's tooltip. */}
                   <span className="block truncate text-[0.6875rem] text-faint">
                     {POSITION_LABEL[player.position]}
-                    {team !== undefined && ` · ${team.name}`}
                   </span>
                 </span>
 

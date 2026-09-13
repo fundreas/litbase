@@ -297,6 +297,12 @@ entry** this page already reads for its matchday picker, so the tab pays no
 request for it. It is always the *current* matchday, never the one the picker
 is showing: the Kader is today's squad, and a guess is about the next match.
 
+Each row carries its player's **club as a watermark** — the crest behind the
+text at 13 %, cropped by the row and faded out before the figures, from
+[`ClubWatermark`](../../src/components/player/ClubWatermark.tsx). A rival's
+eleven is the place it earns most: these are players you do not own and may not
+recognise, and the badge costs the row no width at all.
+
 The **opponent** on each row comes from the same payload but a different
 reading of it — [`useUpcomingMatchday`](../../src/api/hooks/useMatchday.ts),
 the first matchday that has not kicked off, which from Friday evening to Sunday

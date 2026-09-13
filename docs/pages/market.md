@@ -35,16 +35,18 @@ three lines in two lanes:
 
 ```
 ┌──────┬──────────────────────────┬─────┬────────┐
-│      │ Guerreiro           [BVB]│     │        │
-│  👤  │ ABW           7,8 Mio. € │ FCB │ 9 Std. │
-│      │ ✓ ⌖231     ↘ −390 Tsd. € │ 🏠  │ 22:48  │
+│      │╭────╮                    │     │        │
+│  👤  ││ABW │     7,846 M €     │ FCB │ 9 Std. │
+│      │╰────╯31    ↘ −390.000 € │ 🏠  │ 22:48  │
 └──────┴──────────────────────────┴─────┴────────┘
    who      him · what he costs    gegen    when
+          ╰─ his club, behind the name
 ```
 
 Left of every line is **him** — name, position, and the two marks about the
-coming matchday. Right of it is **what he costs** — his club crest, the one
-money figure, and the one thing about that figure the figure does not say. The
+coming matchday. Right of it is **what he costs** — the one money figure, and
+the one thing about that figure the figure does not say. His club's crest is
+watermarked **behind it**, down the left of the lane. The
 two lanes never cross, so the eye reads straight down one of them instead of
 hunting a number that moved. Beyond them: **who he plays**, home or away, and
 **when this settles** — or, on a manager's listing, whose it is.
@@ -84,18 +86,67 @@ competition and matchday, the same one the Kader reads.
 
 ### Two crests, and they mean different things
 
-The small crest at the end of the **name's line is his own club** — *which*
-Müller, answered by the thing a reader recognises fastest, and the one fact
-about a market listing that was nowhere on the row. The crest in the **panel
-is the opponent**, and it wears the home-or-away chip that keeps the two from
-being confused.
+**His own club is the watermark behind the row's text**; the crest in the
+**panel is the opponent**, at crest size and wearing the home-or-away chip. They used to
+be the same object at two sizes — a 16px badge at the end of the name's line
+and a 30px one in the panel — which is a distinction a reader should not have
+to make by measuring.
+
+```
+┌──────┬──────────────────────────┬─────┬───────┐
+│      │╭────╮                    │     │       │
+│  👤  ││ABW │     7,846 M €     │ FCB │ 9 Std.│
+│      │╰────╯31    ↘ −390.000 € │ 🏠  │ 22:48 │
+└──────┴──────────────────────────┴─────┴───────┘
+        ╰─ his club, behind the name
+```
+
+It lives in [`ClubWatermark`](../../src/components/player/ClubWatermark.tsx)
+and every list of players that knows its players' clubs now draws it — one's
+own [Kader](squad.md), a [rival's](manager-detail.md#kader), and the
+[matchday](matchday.md#rangliste) and season rankings — so a player met on the
+market and the same player met anywhere else is placed the same way.
+
+The 16px crest answered *which Müller* in principle and not in practice: a
+Bundesliga badge at that size is a coloured speck, and it was taking width from
+the one line that must not truncate. In the background it costs the row
+**nothing** and is about 84px tall instead of 16.
+
+**Behind the text, not behind the player.** It was tried behind the portrait as
+well, and for a while both were drawn at once so they could be judged against
+each other on a real market. The Kickbase cutouts are transparent PNGs, so a
+badge there fills the space *around* the figure — which is how every football
+card ever printed has arranged exactly these two things, and it did look like
+one. It lost anyway: that column is already a picture, and a second one under
+it costs the player his legibility to state a fact the row states elsewhere.
+Behind the lane the badge has ground of its own.
+
+Three things keep it from becoming noise:
+
+- **Cropped, not shrunk.** 111 % of the row's height, centred, so 90 % of the
+  badge is on screen and about 5 % goes past each end. Air around a watermark
+  is the thing the eye finds first, and an overshoot that is symmetric makes
+  the crop a frame rather than an event — earlier versions anchored to one
+  edge, and the cut was all you saw.
+- **It sits at the left of the lane and fades towards the right**, by a mask
+  rather than a second element, so it never ends on an edge of its own: it
+  picks up where the portrait's own fade leaves off, the money column keeps
+  clean ground, and it stays well clear of the fixture panel's crest at the far
+  end of the row — beside which it read as a second copy of the same thing.
+- **13 % opacity**: enough to read the shape and the club's colours at a
+  glance, not enough to compete with the text over it.
+
+It is decorative and `aria-hidden`. The club's **name** rides on the bid
+button's own label (*Für Guerreiro (Borussia Dortmund) bieten*) and on the
+lane's tooltip, so nothing is lost to a screen reader, or to a reader who does
+not know the badge.
 
 His club is the one thing here the market payload names (`tid`) and does not
 picture, so it comes from the season's table through
 [`useTeamDirectory`](../../src/api/hooks/useCompetition.ts): one request,
 cached ten minutes, and the same cache entry the league table, the club pages
 and the Spieltag already read. A club the current table does not hold has no
-crest, which is how every consumer of that directory treats it.
+watermark, which is how every consumer of that directory treats it.
 
 ### The opponent is the listing's, not the page's
 
@@ -584,8 +635,8 @@ their countdown:
 
 ```
 ┌────┬─────────────────────────────┬────┬────────┐
-│ 👤 │ Kohr          8,40 Mio. €   │ 🏠 │  +8 %  │
-│    │ ABW · Marvin  ↘ −390 Tsd. € │ FCB│ über MW│
+│ 👤 │ Kohr           8,400 M €    │ 🏠 │  +8 %  │
+│    │ ABW · Marvin  ↘ −390.000 €  │ FCB│ über MW│
 └────┴─────────────────────────────┴────┴────────┘
 ```
 

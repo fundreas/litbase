@@ -2,6 +2,7 @@ import { Calculator, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 
+import { useTeamDirectory } from '@/api/hooks/useCompetition'
 import { useLeagueDetails, useLeagueManager } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
 import {
@@ -340,6 +341,11 @@ function WhatIfScenario({
      [`useUpcomingMatchday`](../api/hooks/useMatchday.ts). Same cache entry as
      the line above, so no second request. */
   const fixtureByTeamId = useUpcomingMatchday(competitionId)?.fixtureByTeamId
+  /* Each club's crest, for the watermark behind a Kader row — out of the
+     season's table, which is one request cached ten minutes and the same entry
+     the league table, the club pages and the Spieltag already read. A club the
+     current table does not hold simply has no watermark. */
+  const teams = useTeamDirectory(competitionId)
   // Held here, not per tab, so the list and the pitch share one set of
   // requests. `full` rather than `remaining`: a player marked for sale is
   // still drawn on the Kader, marked.
@@ -494,6 +500,7 @@ function WhatIfScenario({
             editor={editor}
             leagueId={leagueId}
             fixtureByTeamId={fixtureByTeamId}
+            teams={teams.data}
             matchday={day}
             startProbabilities={startProbabilities}
             statusReasons={statusReasons}

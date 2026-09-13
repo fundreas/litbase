@@ -169,17 +169,29 @@ is what lets a fixture *list* drive it as naturally as a player's fixtures do.
   ( Alle )  ( TW )  ( ABW )  ( MF )  ( ANG )
 
   1  [img] Maza                    319
-        MF · Leverkusen
+        MF                          ← the crest is behind the row
   2  [img] Vagnoman        (ᴍ)     290
-        ABW · Stuttgart
+        ABW
   3  [img] Grüll                   290
-        MF · Bremen
+        MF
 
   Kickbase liefert die besten 25 je Kategorie.
 ```
 
 The competition's **best players**, points descending, each row a link to that
-player. Rank, portrait, name over position and club, score on the right —
+player, with the player's **club watermarked behind the text** — the crest at
+13 %, cropped by the row and faded out before the score, from
+[`ClubWatermark`](../../src/components/player/ClubWatermark.tsx), the same
+badge the [market](market.md#two-crests-and-they-mean-different-things) row
+carries.
+
+**The club is no longer spelled out** under the name. The crest says which club
+at a size an 11px grey name never competed with, and printing both was the
+badge and the caption for one picture — on a phone it was also the half of that
+line that truncated. The name stays in the row's tooltip, for the reader a
+badge does not reach.
+
+Rank, portrait, name over position, score on the right —
 deliberately the club page's *Punktesammler* row, because the same question in
 a different scope should not look like a different kind of list. The second
 line differs: there it is position and market value, here it is position and

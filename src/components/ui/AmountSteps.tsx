@@ -34,11 +34,20 @@ const SCALES: Record<StepScale, readonly number[]> = {
   points: POINT_STEPS,
 }
 
-/** `+100k`, `−10k`, `+1k`, `+1` — compact enough for an eight-button grid. */
+const grouped = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 })
+
+/**
+ * `+100.000`, `−10.000`, `+1.000`, `+1` — the step, spelled out.
+ *
+ * It read `+100K` for a while, which is shorter and is the one thing this
+ * control must not be: the figure in the field beside it is exact to the euro,
+ * and a button that says `100K` is describing that field in a different unit
+ * from the one it edits. Nothing in the app abbreviates below a million now —
+ * see [`money()`](../../lib/format.ts) — and a step is a sum of money like any
+ * other.
+ */
 function stepLabel(amount: number, sign: 1 | -1): string {
-  const prefix = sign > 0 ? '+' : '−'
-  if (amount >= 1_000) return `${prefix}${String(amount / 1_000)}k`
-  return `${prefix}${String(amount)}`
+  return `${sign > 0 ? '+' : '−'}${grouped.format(amount)}`
 }
 
 /** How long a button must be held before it starts repeating, and how fast. */
@@ -118,6 +127,7 @@ function AmountStepButton({
   const handlers = useHoldRepeat(() => {
     onStep(sign * amount)
   })
+  const label = stepLabel(amount, sign)
 
   return (
     <button
@@ -130,8 +140,13 @@ function AmountStepButton({
          apart at a glance. */
       className={cn(
         // `flex-1 min-w-0` so the four share their row evenly and a long
-        // label (`+100k`) shrinks rather than pushing its neighbours out.
-        'nums h-10 min-w-0 flex-1 rounded-xl border text-sm font-semibold select-none',
+        // label (`+100.000`) shrinks rather than pushing its neighbours out.
+        'nums h-10 min-w-0 flex-1 rounded-xl border font-semibold select-none',
+        // Eight characters of money do not fit four across a 320px dialog at
+        // `text-sm`; two or three characters of points look starved at
+        // `text-xs`. So the size follows the label rather than the scale,
+        // which is the same thing said without a prop.
+        label.length > 5 ? 'text-xs' : 'text-sm',
         'bg-surface transition-colors',
         // Holding is a gesture, and a text cursor mid-hold looks like a bug.
         'touch-none',
@@ -140,7 +155,7 @@ function AmountStepButton({
           : 'border-negative/40 text-negative hover:border-negative hover:bg-negative/10',
       )}
     >
-      {stepLabel(amount, sign)}
+      {label}
     </button>
   )
 }
@@ -155,8 +170,8 @@ function AmountStepButton({
  * it.
  *
  * **One row per direction**: every `+` together, every `−` under it, the steps
- * in the same order both times — so a finger that has learnt where `+1k` is
- * finds `−1k` directly beneath.
+ * in the same order both times — so a finger that has learnt where `+1.000` is
+ * finds `−1.000` directly beneath.
  *
  * Two flex rows rather than one grid of eight. A grid gets the same picture out
  * of `grid-cols-4`, and did until the fourth step was added, but it makes the
@@ -213,10 +228,10 @@ export function AmountSteps({
  */
 const ROUND_UNITS = [1_000_000, 100_000] as const
 
-/** `1 Mio.`, `100k` — the unit, in the notation the market uses for it. */
+/** `1 M`, `100.000` — the unit, in the notation every figure in the app uses. */
 function unitLabel(unit: number): string {
-  if (unit >= 1_000_000) return `${String(unit / 1_000_000)} Mio.`
-  return `${String(unit / 1_000)}k`
+  if (unit >= 1_000_000) return `${String(unit / 1_000_000)} M`
+  return grouped.format(unit)
 }
 
 /**
@@ -232,7 +247,7 @@ function unitLabel(unit: number): string {
  * because the tap means "make this round" and it already is.
  *
  * The arrow-to-line mark is what says *up to*, and it carries the meaning on
- * its own — the label beside it is the unit, so the button reads `↥ 1 Mio.`
+ * its own — the label beside it is the unit, so the button reads `↥ 1 M`
  * even before the row's own label is read.
  *
  * No hold-to-repeat here, unlike the steps: a second tap on a rounded figure

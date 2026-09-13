@@ -11,6 +11,7 @@ import {
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router'
 
+import { useTeamDirectory } from '@/api/hooks/useCompetition'
 import { useLeagueManager } from '@/api/hooks/useLeague'
 import {
   useCurrentMatchday,
@@ -558,6 +559,11 @@ function SquadViews({
      [`useUpcomingMatchday`](../api/hooks/useMatchday.ts); it reads the same
      cache entry as the line above, so it costs no request. */
   const fixtureByTeamId = useUpcomingMatchday(competitionId)?.fixtureByTeamId
+  /* Each club's crest, for the watermark behind a Kader row — out of the
+     season's table, which is one request cached ten minutes and the same entry
+     the league table, the club pages and the Spieltag already read. A club the
+     current table does not hold simply has no watermark. */
+  const teams = useTeamDirectory(competitionId)
   /**
    * The expected-points sheet — `#expected:<playerId>`, the same one a
    * rival's Kader and a club's roster open. It lives here, above both views,
@@ -596,6 +602,7 @@ function SquadViews({
           editor={editor}
           leagueId={leagueId}
           fixtureByTeamId={fixtureByTeamId}
+          teams={teams.data}
           matchday={day}
           startProbabilities={startProbabilities}
           statusReasons={statusReasons}
