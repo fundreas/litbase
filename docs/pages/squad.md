@@ -312,6 +312,28 @@ and a third-of-a-screen tile cannot hold a market value, its change *and* a shir
 rail without becoming a worse version of the row. Tapping opens the player; the
 list is where the lineup gets edited.
 
+### A card per position, rows flush inside it
+
+The list's rows sit **directly one after another**, divided by hairlines, in one
+card per position — the shape the [market](market.md#a-card-per-group-rows-flush-inside-it)
+and the [activity feed](events.md) have. Twenty separate cards with 8px of page
+between them made every gap a small question about whether the next row still
+belonged to the position above; closed up, nothing separates two rows inside a
+group at all, and the card's **rounded ends** are what make a position read as a
+set — it opens, and under the last player it closes.
+
+The heading stays outside the card, on the page, so each position is an
+independent block rather than a section of one endless list.
+
+Two consequences for the row itself. It carries **no border and no rounding of
+its own** — the card is `overflow-hidden`, which clips the first and last rows
+to its corners and is what lets a row bleed its portrait to its own edge. And a
+player marked for sale in the [calculator](#sale-calculator) is marked by a
+tinted ground plus a 2px accent edge down the left rather than by a ring around
+the card he no longer has; the edge is drawn transparent on every other row, so
+a marked row does not shift its contents against its neighbours. The **tiles**
+keep the ring, since a tile is still a card.
+
 ### Grouping differs between the two
 
 The **list keeps its position headings**; the **grid is one flat run**. Once a

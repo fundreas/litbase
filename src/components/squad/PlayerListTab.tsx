@@ -16,6 +16,7 @@ import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
+import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { cn } from '@/lib/cn'
@@ -31,15 +32,26 @@ type SquadView = 'list' | 'grid'
 const VIEW_STORAGE_KEY = 'litbase.squad.view'
 
 /**
- * How a player marked for sale is drawn.
+ * How a player marked for sale is drawn **on a tile**.
  *
- * Border and a ring, not a fill or a tick. The row and the tile are already
- * dense — a portrait, marks, money — and tinting the whole surface would fight
- * every one of them; a checkbox would add a second target to a card that is
- * itself the target. An accent outline says "this one" and changes nothing
- * else, which is what a reversible, consequence-free selection deserves.
+ * Border and a ring, not a fill or a tick. The tile is already dense — a
+ * portrait, marks, money — and tinting the whole surface would fight every one
+ * of them; a checkbox would add a second target to a card that is itself the
+ * target. An accent outline says "this one" and changes nothing else, which is
+ * what a reversible, consequence-free selection deserves.
  */
 const SELECTED_CLASS = 'border-accent ring-1 ring-accent bg-accent/5'
+
+/**
+ * The same thing **on a row**, which has no card of its own to outline.
+ *
+ * Rows sit flush inside one card per position, so the mark is a tinted ground
+ * and an accent edge down the left — the notation the
+ * [market's rows](../market/MarketRow.tsx) use for a standing bid. The edge is
+ * 2px on **every** row, transparent where nothing is marked, so a marked row
+ * does not shift its contents against its neighbours.
+ */
+const SELECTED_ROW_CLASS = 'border-l-accent bg-accent/5'
 
 /**
  * The full squad as a grouped list, and a second place to edit the lineup.
@@ -158,29 +170,40 @@ export function PlayerListTab({
         </ul>
       ) : (
         byPosition.map(({ position, players }) => (
+          /* **A card per position, rows flush inside it.** The heading stays
+             outside it, on the page, so each position is an independent block
+             with its own opened *and closed* edges rather than a section of
+             one endless list — the same shape the
+             [market](../../pages/MarketPage.tsx) groups its listings in.
+
+             `overflow-hidden` on the card, not the rows: the first and last
+             rows are clipped to its corners, which is what lets a row bleed
+             its portrait to its own edge and carry no rounding. */
           <section key={position} className="flex flex-col gap-2">
             <h2 className="px-1 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
               {POSITION_LABEL[position]} · {players.length}
             </h2>
 
-            <ul className="flex flex-col gap-2">
-              {players.map((player) => (
-                <PlayerRow
-                  key={player.id}
-                  player={player}
-                  isFielded={editor.isFielded(player.id)}
-                  fixture={fixtureByTeamId?.get(player.teamId)}
-                  startProbability={startProbabilities.get(player.id)}
-                  statusReason={statusReasons.get(player.id)}
-                  to={`/leagues/${leagueId}/players/${player.id}`}
-                  isForSale={forSale?.has(player.id)}
-                  onToggleForSale={onToggleForSale}
-                  onToggle={handleToggle}
-                  expectedPoints={expected.entry(player.id)}
-                  onEditExpected={onEditExpected}
-                />
-              ))}
-            </ul>
+            <Card className="overflow-hidden">
+              <ul className="divide-y divide-line">
+                {players.map((player) => (
+                  <PlayerRow
+                    key={player.id}
+                    player={player}
+                    isFielded={editor.isFielded(player.id)}
+                    fixture={fixtureByTeamId?.get(player.teamId)}
+                    startProbability={startProbabilities.get(player.id)}
+                    statusReason={statusReasons.get(player.id)}
+                    to={`/leagues/${leagueId}/players/${player.id}`}
+                    isForSale={forSale?.has(player.id)}
+                    onToggleForSale={onToggleForSale}
+                    onToggle={handleToggle}
+                    expectedPoints={expected.entry(player.id)}
+                    onEditExpected={onEditExpected}
+                  />
+                ))}
+              </ul>
+            </Card>
           </section>
         ))
       )}
@@ -555,8 +578,14 @@ function PlayerRow({
   const fixturePanel = <span className={panelClass}>{panelBody}</span>
 
   const shell = cn(
-    'flex items-stretch overflow-hidden rounded-card border bg-surface',
-    isForSale === true ? SELECTED_CLASS : 'border-line',
+    // **No card of its own.** The rows sit flush in a divided list inside one
+    // card per position — the shape the [market](../market/MarketRow.tsx) and
+    // the [feed](../events/ActivityFeed.tsx) have: a hairline between
+    // neighbours rather than 8px of page, and the card's rounded ends are what
+    // make a position read as a set.
+    'flex items-stretch overflow-hidden bg-surface',
+    'border-l-2',
+    isForSale === true ? SELECTED_ROW_CLASS : 'border-l-transparent',
   )
 
   /* Calculator mode: **one target over the whole row**, rail and fixture panel
