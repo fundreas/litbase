@@ -6,7 +6,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 
 import { useTeamDirectory } from '@/api/hooks/useCompetition'
@@ -396,44 +396,60 @@ export function MarketPage() {
         description="Kickbase stellt laufend neue Spieler ein — schau später wieder vorbei."
       />
     ) : (
-      /* **One card, rows flush inside it** — the shape the
-         [activity feed](../components/events/ActivityFeed.tsx) has: a hairline
-         between neighbours instead of 8px of page showing through. The gaps
-         were doing the milestones' job badly, since a gap between two rows and
-         a gap before a rule looked the same; with the rows closed up, the only
-         thing that ever separates them is a **band naming what happens at that
-         moment**, and the grouping reads at a glance.
+      /* **A card per group, rows flush inside it** — the shape the
+         [activity feed](../components/events/ActivityFeed.tsx) has, cut where
+         the clock cuts the market. Inside a card a hairline between neighbours
+         replaces the 8px of page that used to show through; between two cards
+         the moment that divides them is named on a rule of its own, outside
+         either of them.
+
+         **The card is what makes a group a group.** It opens *and closes* — a
+         rounded bottom edge under the last listing before the kick-off — so a
+         set is seen as a set rather than inferred from a band drawn across a
+         list that never ends. A separator that ran wall to wall inside one
+         card read as a table's section row, which is a different thing
+         entirely: these are independent blocks with a line between them.
 
          `overflow-hidden` on the card, not the rows: the first and last rows
          are clipped to its corners, which is what lets a row carry a
          full-bleed portrait and no rounding of its own. */
-      <Card className="overflow-hidden">
-        <ul className="divide-y divide-line">
-          {withMilestones(data, houseListings, now).map((entry) =>
-            entry.kind === 'milestone' ? (
-              <Milestone
-                key={`${entry.label}-${String(entry.at)}`}
-                milestone={entry}
-              />
-            ) : (
-              <MarketRow
-                key={entry.listing.id}
-                listing={entry.listing}
-                leagueId={leagueId}
-                {...fixtureFor(seasonFixtures.data, entry.listing, now)}
-                team={teams.data?.get(entry.listing.teamId)}
-                marketValueChange={marketValueChanges.get(entry.listing.id)}
-                startProbability={startProbabilities.get(entry.listing.id)}
-                expectedPoints={expected.entry(entry.listing.id)}
-                now={now}
-                onOffer={() => {
-                  offer.open(entry.listing.id)
-                }}
-              />
-            ),
-          )}
-        </ul>
-      </Card>
+      <div className="flex flex-col gap-2">
+        {groupByMilestone(data, houseListings, now).map((group) => (
+          <Fragment
+            key={
+              group.milestone === undefined
+                ? 'open'
+                : `${group.milestone.label}-${String(group.milestone.at)}`
+            }
+          >
+            {group.milestone !== undefined && (
+              <Milestone milestone={group.milestone} />
+            )}
+            {group.listings.length > 0 && (
+              <Card className="overflow-hidden">
+                <ul className="divide-y divide-line">
+                  {group.listings.map((listing) => (
+                    <MarketRow
+                      key={listing.id}
+                      listing={listing}
+                      leagueId={leagueId}
+                      {...fixtureFor(seasonFixtures.data, listing, now)}
+                      team={teams.data?.get(listing.teamId)}
+                      marketValueChange={marketValueChanges.get(listing.id)}
+                      startProbability={startProbabilities.get(listing.id)}
+                      expectedPoints={expected.entry(listing.id)}
+                      now={now}
+                      onOffer={() => {
+                        offer.open(listing.id)
+                      }}
+                    />
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </Fragment>
+        ))}
+      </div>
     )
 
   return (
@@ -508,17 +524,35 @@ interface Milestone {
   icon: LucideIcon
 }
 
-type Entry = Milestone | { kind: 'listing'; listing: MarketListing }
+/**
+ * One group of listings: everything that settles before the next thing to
+ * happen, and the moment that opened the group.
+ *
+ * `milestone` is `undefined` on the **first** group only — the listings
+ * settling before anything at all changes. A group with a milestone and no
+ * listings is a moment that falls after every listing on the page, and draws
+ * as a separator with nothing under it.
+ */
+interface ListingGroup {
+  /** What happened just before these listings. `undefined` for the first. */
+  milestone?: Milestone
+  listings: MarketListing[]
+}
 
 /**
  * Cut the list where the two things that change a listing's worth happen.
  *
  * The list is ordered by expiry, which makes it a timeline — so the nightly
- * market-value recalculation and the matchday's first kick-off can be drawn
- * *into* it, and every row's position says whether it settles before or after
- * them. Both matter to a bid: a listing closing after the recalculation is
- * settled against a value nobody knows yet, and one closing after kick-off is
- * a player who may already have played the matchday you were buying him for.
+ * market-value recalculation and the matchday's first kick-off cut it into
+ * groups, and every row's group says whether it settles before or after them.
+ * Both matter to a bid: a listing closing after the recalculation is settled
+ * against a value nobody knows yet, and one closing after kick-off is a player
+ * who may already have played the matchday you were buying him for.
+ *
+ * **Groups rather than one list with rules in it.** Each group is drawn as its
+ * own card, so it opens and *closes* — the last listing before a kick-off has
+ * a rounded bottom edge, which is what makes the set read as a set. See
+ * {@link Milestone} for the separator between two of them.
  *
  * A milestone already past is dropped rather than drawn at the top, where it
  * would be a line about nothing. Only the *Markt* view's listings are cut this
@@ -526,12 +560,12 @@ type Entry = Milestone | { kind: 'listing'; listing: MarketListing }
  * the wire sending a listing without one, which lands it below every rule —
  * correct, since nothing is known to settle it.
  */
-function withMilestones(
+function groupByMilestone(
   market: Market,
   /** The listings to cut — the *Markt* view's, not the whole payload. */
   listings: MarketListing[],
   now: number,
-): Entry[] {
+): ListingGroup[] {
   // How far out the rules are worth drawing: the last listing that has an
   // expiry at all. Beyond it there is nothing left to divide.
   const horizon = listings.reduce(
@@ -557,24 +591,35 @@ function withMilestones(
     .filter((milestone) => milestone.at > now)
     .sort((a, b) => a.at - b.at)
 
-  const entries: Entry[] = []
+  const groups: ListingGroup[] = []
+  // The listings before anything happens. Dropped at the end if the first
+  // milestone is already due — which is the market at five to eight in the
+  // evening, every listing on the page settling after tonight's recalculation.
+  let current: ListingGroup = { listings: [] }
   let next = pending.shift()
 
   for (const listing of listings) {
     const expiry = listing.expiresAt ?? Number.POSITIVE_INFINITY
     while (next !== undefined && next.at <= expiry) {
-      entries.push(next)
+      groups.push(current)
+      current = { milestone: next, listings: [] }
       next = pending.shift()
     }
-    entries.push({ kind: 'listing', listing })
+    current.listings.push(listing)
   }
+  groups.push(current)
 
-  // Anything left falls after every listing on the page.
+  // Anything left falls after every listing on the page: a separator, and
+  // nothing under it. Worth drawing — "nothing here survives tonight" is a
+  // thing to know before bidding.
   while (next !== undefined) {
-    entries.push(next)
+    groups.push({ milestone: next, listings: [] })
     next = pending.shift()
   }
-  return entries
+
+  return groups.filter(
+    (group) => group.milestone !== undefined || group.listings.length > 0,
+  )
 }
 
 /** The recalculation runs **nightly**; the response names only the next one. */
@@ -627,27 +672,35 @@ function marketValueMilestones(
 }
 
 /**
- * The cut itself: a **band across the list**, naming the moment and when it is.
+ * The cut itself: a **rule between two cards**, with the moment named in its
+ * gap.
  *
- * It used to be a rule with the label in the gap, which is the right drawing
- * for rows that float apart and the wrong one for rows that touch: between two
- * flush rows a hairline already means "next listing", so a second hairline
- * meaning "next group" said the same thing twice. A tinted band says it once,
- * and it is the only thing in the list that is not a listing.
+ * It sits *outside* the groups, on the page rather than in a card, and that is
+ * the whole of the reasoning. Drawn inside one long card it became a band
+ * running from one border to the other — a table's section heading, which says
+ * "the list continues, in a new section". What happens here is stronger than
+ * that: the listings above it settle under one set of facts and the ones below
+ * under another, so they are separate blocks, and the line between them belongs
+ * to neither.
  *
- * Label left, moment right — the reading order of every other two-ended line
- * in the app, and it puts the time in the column the countdowns are already in.
+ * The time rides in the label, not at the right edge: there is no card here to
+ * give it a column, and a figure floated to the far side of an empty rule reads
+ * as unrelated to the words at the middle of it.
  */
 function Milestone({ milestone }: { milestone: Milestone }) {
   const Icon = milestone.icon
 
   return (
-    <li className="flex items-center gap-1.5 bg-canvas/60 px-3 py-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted uppercase">
-      <Icon size={12} aria-hidden="true" className="shrink-0" />
-      <span className="min-w-0 truncate">{milestone.label}</span>
-      <span className="nums ml-auto shrink-0 font-normal text-faint">
-        {kickoff(new Date(milestone.at).toISOString())}
+    <div className="flex items-center gap-2 px-1 py-1">
+      <span className="h-px flex-1 bg-line" />
+      <span className="flex items-center gap-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted uppercase">
+        <Icon size={12} aria-hidden="true" className="shrink-0" />
+        {milestone.label}
+        <span className="nums font-normal text-faint">
+          {kickoff(new Date(milestone.at).toISOString())}
+        </span>
       </span>
-    </li>
+      <span className="h-px flex-1 bg-line" />
+    </div>
   )
 }

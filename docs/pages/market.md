@@ -166,9 +166,8 @@ absence of a manager *is* the fact. The position takes the line instead, and
 shares it when there is a manager to name.
 
 **The list is cut where the clock matters.** Because it is ordered by expiry it
-is also a timeline, so two moments are drawn into it as **bands across the
-list**: the nightly **market-value recalculation** and the matchday's **first
-kick-off**. A row's position against them is the point — a listing settling
+is also a timeline, so two moments cut it into **groups**: the nightly
+**market-value recalculation** and the matchday's **first kick-off**. A row's position against them is the point — a listing settling
 after the recalculation is settled against a value nobody knows yet, and one
 settling after kick-off is a player who may already have played the matchday
 you were buying him for. Both instants come off the market response itself
@@ -176,15 +175,26 @@ you were buying him for. Both instants come off the market response itself
 costs a request. A milestone already past is dropped rather than drawn at the
 top, where it would be a line about nothing.
 
-### One card, rows flush inside it
+### A card per group, rows flush inside it
 
-The listings sit **directly one after another**, divided by hairlines, in a
-single card — the shape the [activity feed](events.md) has, and the one this
-list wanted from the moment it was grouped. Twenty separate cards with 8px of
-page between them made every gap a small question about whether the next row
-belonged to the same group; closed up, the **only** thing that ever separates
-two rows is a band naming what happens at that moment, so the grouping is the
-first thing the eye picks up rather than something to be inferred from spacing.
+Within a group the listings sit **directly one after another**, divided by
+hairlines — the shape the [activity feed](events.md) has. Twenty separate cards
+with 8px of page between them made every gap a small question about whether the
+next row belonged to the same set; closed up, nothing separates two rows inside
+a group at all.
+
+**Each group is its own card**, which is what makes a group look like one: it
+opens and it *closes*, so the last listing before the kick-off has a rounded
+bottom edge under it and the set is seen rather than inferred. The moment that
+divides two groups is named on a **rule between the cards** — a horizontal line
+with the label and the time in its gap, belonging to neither side.
+
+That rule was briefly drawn *inside* one long card instead, as a tinted band
+running border to border. It read as a table's section heading, which says
+something weaker than the truth: the listings above settle under one set of
+facts and the ones below under another, so they are separate blocks, not
+sections of one list. A separator with the card's own vertical borders at each
+end is a table; a line between two blocks is a break.
 
 Two consequences for the row itself. It carries **no border and no rounding of
 its own** — the card is `overflow-hidden`, which clips the first and last rows
@@ -194,8 +204,8 @@ left rather than by an outline around the card it no longer has; the edge is
 drawn transparent on every other row, so a marked listing does not shift its
 contents against its neighbours.
 
-The *Manager* tab is the same card and the same rows, with nothing to group by:
-a manager's listing has no clock, so the whole list is one group ordered by the
+The *Manager* tab is one card and the same rows, with nothing to group by: a
+manager's listing has no clock, so the whole list is one group ordered by the
 premium.
 
 The recalculation is **drawn every night it happens**, not just the next one:
