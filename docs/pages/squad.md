@@ -258,13 +258,14 @@ to show the total in.
 
 ## Kader — two layouts
 
-A **list** or a **grid**, chosen by a single icon-only toggle above them.
+A **list** or a **grid**, chosen by a single icon-only toggle above them, with
+the [what-if scenario](#was-wäre-wenn--the-sale-scenario)'s flask beside it.
 
 ```
   Mannschaft                    [51,0 Mio. €] [i]
   20 Spieler · 194,4 Mio. € Gesamtwert
 
-                                      [≡] [▦]
+                                  [⚗] [≡] [▦]
   TW · 2                     ┌─────┬─────┬─────┐
   ┌────────────────────────┐ │ ✚[] │  [] │  []★│
   │▮[img] Nübel  10,5 Mio.€│ │ img │ img │ img │
@@ -288,6 +289,32 @@ It lives in [`PairToggle`](../../src/components/ui/PairToggle.tsx), shared with
 the [match ranking](match-detail.md#ranking--who-actually-scored)'s
 combined/per-club switch — one notation for "two views of the same thing",
 learned once.
+
+### Was wäre wenn — the sale scenario
+
+A **flask** to the left of the toggle, on the same line, opening
+`/leagues/:leagueId/squad/whatif`: the squad and the pitch as they would be
+after a round of sales, none of which happen. It is the
+[what-if page](whatif.md) with the purchase taken out of it — two tabs rather
+than three — and it is documented there.
+
+It is **a link, not a mode**, and that is the difference from the
+[sale calculator](#sale-calculator) one control to its left on the header. The
+calculator answers *how much would I have*, in place, without leaving the page,
+which is the right shape for a question about one number. *Who would I be
+fielding afterwards* needs the pitch, a squad the sales have been taken out of
+and a lineup editor that writes nothing back — that is a page, so the flask
+goes to one and a back press is the way out.
+
+A flask rather than a third calculator glyph: the wallet chip and the
+calculator bar are already the arithmetic on this page, and a third one beside
+them would say "one of these does sums" and nothing more. This one is an
+experiment — nothing inside it is real.
+
+The flask is **hidden while the sale calculator is on**. In that mode a tap on
+a row already means "sell him"; a second, quieter door to a *hypothetical*
+version of the same word would be the same verb with two meanings on one
+screen.
 
 ### Tiles
 

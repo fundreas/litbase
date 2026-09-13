@@ -54,6 +54,8 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *                                          battles
  *   /leagues/:leagueId/squad/lineup        the pitch, under the squad
  *   /leagues/:leagueId/squad/live          the running matchday, while it runs
+ *   /leagues/:leagueId/squad/whatif        the squad after a round of sales,
+ *                                          lineup included
  *   /leagues/:leagueId/market              the transfer market, to buy from
  *   /leagues/:leagueId/market/managers     what the rest of the league is
  *                                          selling
@@ -148,6 +150,14 @@ export const router = createBrowserRouter(
                 { path: 'squad', element: <SquadPage /> },
                 { path: 'squad/lineup', element: <SquadPage /> },
                 { path: 'squad/live', element: <SquadPage /> },
+                // "What if I sold them?" — the same scenario page as
+                // `whatif/:playerId` below with the purchase taken out of it,
+                // so it has two tabs rather than three. It lives **under**
+                // `/squad` because that is what it is about and where it is
+                // reached from: the Kader's own toolbar, beside the list/grid
+                // toggle. Nesting it there also keeps the drawer's prefix
+                // match lighting *Mannschaft* without a special case.
+                { path: 'squad/whatif', element: <WhatIfPage /> },
                 // `/lineup` was the pitch's own route until it moved under
                 // `/squad`. Kept as a redirect so an old bookmark lands on the
                 // page rather than on the 404.

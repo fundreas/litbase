@@ -1,10 +1,27 @@
-# Was wäre wenn — the purchase calculator
+# Was wäre wenn — the transfer calculator
 
-[← Back to index](../README.md) · Route
-`/leagues/:leagueId/whatif/:playerId` ·
+[← Back to index](../README.md) · Routes
+`/leagues/:leagueId/whatif/:playerId` and `/leagues/:leagueId/squad/whatif` ·
 [`src/pages/WhatIfPage.tsx`](../../src/pages/WhatIfPage.tsx)
 
 **Status: implemented.**
+
+## Two scenarios, one page
+
+The path picks which:
+
+| Route | Question | Tabs | Reached from |
+| ----- | -------- | ---- | ------------ |
+| `/whatif/:playerId` | *What if I bought him?* | Gebot · Kader · Aufstellung | the [bid dialog](market.md#the-bid-dialog)'s *Durchrechnen* |
+| `/squad/whatif` | *What if I sold them?* | Kader · Aufstellung | the flask on the [Kader toolbar](squad.md#was-wäre-wenn--the-sale-scenario) |
+
+**The second is the first minus its target.** One component, one set of state,
+one subtraction: no player on the bench who is not yet yours, no *Gebot* tab,
+no bid term in the projection. Everything else — marking players as sold, the
+sandbox pitch the sales empty, the swap dialog, the legend, the ✗ — is the same
+code with one fewer thing in it. The sale scenario is written up at the
+[end of this page](#the-sale-scenario); everything between here and there
+describes the purchase, which is the fuller of the two.
 
 ## What it does
 
@@ -148,6 +165,38 @@ squad page's, unchanged. The one thing missing is the *Speichern …* line, and
 that is the sandbox: there is nothing to save. The projected-budget block is
 gone from this tab as well — the pitch sizes itself down to the window, and
 those were four lines of height taken from the view that has least of it.
+
+## The sale scenario
+
+`/leagues/:leagueId/squad/whatif`. **Nothing is being bought, so nothing on the
+page is real** — which makes it the one version of this page with no `POST` on
+it anywhere. The only conclusions are the ✗ and the back gesture.
+
+It exists because the [sale calculator](squad.md#sale-calculator) on the squad
+page answers half the question. *What would I have* is arithmetic it can do in
+its own header bar. *Who would I be fielding* needs the pitch, a bench the sold
+players have left, and a lineup editor that saves nothing — and that is a page
+rather than a mode, which is why the flask is a link.
+
+What differs from the purchase, and nothing else does:
+
+- **No *Gebot* tab**, and the scenario opens on the Kader rather than on it.
+- **The header carries no portrait.** A sale scenario is about the squad, and
+  the squad has no one face; the subtitle reads *Verkäufe, durchgerechnet*.
+- **The projection loses its bid.** The label is *Budget nach den Verkäufen*,
+  the working is the budget and the proceeds, and the overdraft lines are gone
+  with the bid — selling only ever moves a budget upwards, so there is no floor
+  to warn about and no ceiling to measure a bid against. Before anything is
+  marked the working says *Spieler zum Verkaufen antippen*, the same nudge the
+  sale calculator puts under its own total, so a figure that equals the budget
+  does not read as a page that failed to load.
+- **The market is not waited for.** The listing and the team value are the
+  purchase's business; this scenario needs the squad and the budget, which it
+  already has, so it renders as soon as they land.
+
+The Kader tab is the same permanently-on calculator, the Aufstellung tab the
+same sandbox pitch, and a player marked on the one leaves the other the moment
+he is marked. That last sentence is the whole feature.
 
 ## Not built
 

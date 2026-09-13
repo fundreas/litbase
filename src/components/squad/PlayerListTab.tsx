@@ -1,4 +1,11 @@
-import { LayoutGrid, List, Shirt, TrendingDown, TrendingUp } from 'lucide-react'
+import {
+  FlaskConical,
+  LayoutGrid,
+  List,
+  Shirt,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -84,6 +91,7 @@ export function PlayerListTab({
   forSale,
   onToggleForSale,
   onEditExpected,
+  scenarioTo,
 }: {
   squad: SquadMember[]
   editor: LineupEditor
@@ -121,6 +129,14 @@ export function PlayerListTab({
    * a scenario.
    */
   onEditExpected?: (player: SquadMember) => void
+  /**
+   * Where the [what-if scenario](../../pages/WhatIfPage.tsx) lives, if this
+   * list offers a way into one.
+   *
+   * Absent on the scenario's own Kader tab: that page *is* the mode, and a
+   * button back into it would be a door in the room it opens onto.
+   */
+  scenarioTo?: string
 }) {
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
@@ -146,7 +162,14 @@ export function PlayerListTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
+      {/* The list's own toolbar: what the squad is *for* on the left of the
+          pair toggle, how it is *laid out* on the right. Both are icon-only
+          and both sit at the end of the line — they arrange the page, they are
+          not what the page is about. */}
+      <div className="flex items-center justify-end gap-2">
+        {scenarioTo !== undefined && <ScenarioLink to={scenarioTo} />}
+        <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
+      </div>
 
       {/* The grid is **one flat run**, not four grouped ones. Position
           headings buy little once each tile names its own position, and four
@@ -242,6 +265,47 @@ export function PlayerListTab({
         }}
       />
     </div>
+  )
+}
+
+/**
+ * The way into **"Was wäre wenn"** — the squad as it would be after a round of
+ * sales, pitch included.
+ *
+ * A link, not a mode. The [sale calculator](../../pages/SquadPage.tsx) on the
+ * budget chip already answers *how much would I have*, in place and without
+ * leaving the page, which is the right shape for a question about one number.
+ * *What would I be fielding afterwards* is a different size of question — it
+ * needs the pitch, a squad the sales have been taken out of, and a lineup
+ * editor that writes nothing back. That is a page, so this is a link to one,
+ * and a back press is the way out.
+ *
+ * A **flask**, not another calculator: the wallet chip and the calculator bar
+ * are already the arithmetic on this page, and a third calculator glyph beside
+ * them would say "one of these three does sums" and nothing more. This one is
+ * an experiment — nothing inside it is real.
+ *
+ * Shaped like the [pair toggle](../ui/PairToggle.tsx) it stands next to, so the
+ * line reads as one toolbar rather than two controls that happened to land
+ * beside each other.
+ */
+function ScenarioLink({ to }: { to: string }) {
+  const label = 'Was wäre wenn: Verkäufe durchrechnen'
+
+  return (
+    <Link
+      to={to}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'flex h-8 shrink-0 items-center justify-center rounded-lg border border-line bg-surface px-2',
+        'text-faint transition-colors',
+        'hover:border-accent/40 hover:bg-surface-2 hover:text-accent',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+      )}
+    >
+      <FlaskConical size={15} aria-hidden="true" />
+    </Link>
   )
 }
 

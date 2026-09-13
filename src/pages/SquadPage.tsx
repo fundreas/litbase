@@ -53,6 +53,12 @@ type ViewValue = (typeof VIEWS)[keyof typeof VIEWS]
  *  - `/leagues/:leagueId/squad/live` — the running matchday, scoring live.
  *    **Only while a matchday is actually being played** — see below.
  *
+ * A fourth route sits beside them and is **not** this component:
+ * `/leagues/:leagueId/squad/whatif`, the sale scenario — the squad and the
+ * pitch as they would be after a round of sales, none of which happen. It is
+ * the [what-if page](./WhatIfPage.tsx) without a purchase in it, and it is
+ * reached from the Kader list's own toolbar.
+ *
  * The active view is derived from the URL rather than held in local state, so
  * each is linkable, survives a refresh, and can be opened directly from
  * navigation. All three routes render this same component.
@@ -608,6 +614,15 @@ function SquadViews({
           statusReasons={statusReasons}
           forSale={forSale}
           onToggleForSale={onToggleForSale}
+          /* Only while the sale calculator is off: in calculator mode a tap on
+             a row already means "sell him", and a second, quieter door to a
+             *hypothetical* version of that would be the same word twice with
+             two different meanings. */
+          scenarioTo={
+            forSale === null
+              ? `/leagues/${leagueId}/${VIEWS.squad}/whatif`
+              : undefined
+          }
           onEditExpected={(player) => {
             expected.open(player.id)
           }}

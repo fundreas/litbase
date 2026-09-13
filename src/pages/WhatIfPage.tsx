@@ -44,8 +44,24 @@ const TABS = { offer: 'offer', squad: 'squad', lineup: 'lineup' } as const
 type Tab = (typeof TABS)[keyof typeof TABS]
 
 /**
- * **"What if I bought him?"** — one player, and the squad rearranged around
- * the purchase.
+ * **"What if?"** — the squad rearranged around a transfer that has not
+ * happened.
+ *
+ * ## Two scenarios, one page
+ *
+ * The target is in the path and the path is what picks the scenario:
+ *
+ *  - `/whatif/:playerId` — **"what if I bought him?"**. Three tabs: the bid,
+ *    the sales that would fund it, the eleven it would change.
+ *  - `/squad/whatif` — **"what if I sold them?"**. The same page with the
+ *    target and its offer tab taken out, reached from the Kader's own toolbar.
+ *    Nothing is being bought, so there is no bid to type and nothing on the
+ *    page is real; it is the sale calculator with a pitch attached, which is
+ *    the question the [sale calculator](./SquadPage.tsx) could not answer —
+ *    *who would I be fielding afterwards?*
+ *
+ * Everything below is written about the purchase, because it is the fuller of
+ * the two; the sale scenario is it minus the target.
  *
  * A bid is three questions that the [bid dialog](../components/market/OfferDialog.tsx)
  * could only ask the first of. *What will I pay* is arithmetic against a
@@ -98,7 +114,9 @@ type Tab = (typeof TABS)[keyof typeof TABS]
  */
 export function WhatIfPage() {
   const { league, leagueId, competitionId } = useActiveLeague()
+  /** Absent on `/squad/whatif` — the scenario that sells and buys nobody. */
   const { playerId } = useParams()
+  const isPurchase = playerId !== undefined
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -124,13 +142,19 @@ export function WhatIfPage() {
   const heading = (
     <ScenarioHeading
       listing={listing}
+      subtitle={
+        isPurchase ? 'Ein Kauf, durchgerechnet' : 'Verkäufe, durchgerechnet'
+      }
       onLeave={() => {
         void navigate(-1)
       }}
     />
   )
 
-  if (market.isPending || squad.isPending) {
+  /* The market is only consulted for the target — his listing, and the team
+     value the bid's ceiling is measured against. A sale scenario waits for
+     neither: it is the squad and the budget, both of which it already has. */
+  if (squad.isPending || (isPurchase && market.isPending)) {
     return (
       <div className="flex flex-col gap-4">
         {heading}
@@ -139,7 +163,21 @@ export function WhatIfPage() {
     )
   }
 
-  if (market.isError) {
+  if (squad.isError) {
+    return (
+      <div className="flex flex-col gap-4">
+        {heading}
+        <ErrorState
+          error={squad.error}
+          onRetry={() => {
+            void squad.refetch()
+          }}
+        />
+      </div>
+    )
+  }
+
+  if (isPurchase && market.isError) {
     return (
       <div className="flex flex-col gap-4">
         {heading}
@@ -157,7 +195,7 @@ export function WhatIfPage() {
      that cannot be bid on any more — expired, withdrawn, already sold — leaves
      nothing to calculate. The squad tabs would still work and would be a
      calculator answering a question nobody asked. */
-  if (listing === undefined) {
+  if (isPurchase && listing === undefined) {
     return (
       <div className="flex flex-col gap-4">
         {heading}
@@ -183,6 +221,8 @@ export function WhatIfPage() {
       {heading}
 
       <WhatIfScenario
+        /* `undefined` is the sale scenario — the page without a purchase in
+           it, and therefore without the tab the purchase is decided on. */
         listing={listing}
         /* Digits only, and only ever the starting figure. Anything else in
            `?bid=` — a word, a decimal, a hand-edited URL — falls through to
@@ -194,16 +234,18 @@ export function WhatIfPage() {
         leagueId={leagueId}
         competitionId={competitionId}
         budget={manager.data?.budget ?? league.budget}
-        teamValue={market.data.teamValue}
+        teamValue={market.data?.teamValue}
         allowsUnderpay={details.data?.allowsUnderpay}
         /* Every other bid this account has standing. Kickbase counts them all
            against one ceiling, and this listing's own is **not** committed:
            re-bidding on the same player replaces the standing offer. */
-        committedElsewhere={market.data.listings.reduce(
-          (total, entry) =>
-            entry.id === listing.id ? total : total + (entry.ownOffer ?? 0),
-          0,
-        )}
+        committedElsewhere={
+          market.data?.listings.reduce(
+            (total, entry) =>
+              entry.id === listing?.id ? total : total + (entry.ownOffer ?? 0),
+            0,
+          ) ?? 0
+        }
         onLeave={() => {
           void navigate(-1)
         }}
@@ -227,6 +269,12 @@ export function WhatIfPage() {
  *
  * Radix unmounts the tab that is not showing, which is exactly why none of it
  * can live in the tabs.
+ *
+ * **Without a `listing` this is the sale scenario**, and the difference is one
+ * subtraction rather than a second implementation: no target on the bench, no
+ * *Gebot* tab, no bid in the projection. Every other line below — the sales,
+ * the sandbox pitch, the swap dialog, the legend — is the same code answering
+ * the same question with one fewer term in it.
  */
 function WhatIfScenario({
   listing,
@@ -241,7 +289,8 @@ function WhatIfScenario({
   committedElsewhere,
   onLeave,
 }: {
-  listing: MarketListing
+  /** The player being bought, or `undefined` for a scenario that only sells. */
+  listing: MarketListing | undefined
   /** What the bid dialog already had in its field, if anything. */
   initialBid: string | undefined
   /** The target's fuller self, once it lands. */
@@ -256,9 +305,13 @@ function WhatIfScenario({
   /** Back to wherever the bid dialog was — every conclusion uses it. */
   onLeave: () => void
 }) {
-  const [tab, setTab] = useState<Tab>(TABS.offer)
-  const [amount, setAmount] = useState(
-    () => initialBid ?? String(offerBaseline(listing)),
+  /* The bid is the purchase scenario's first question; with nobody to buy
+     there is no such tab, and the Kader is where the scenario starts. */
+  const [tab, setTab] = useState<Tab>(
+    listing === undefined ? TABS.squad : TABS.offer,
+  )
+  const [amount, setAmount] = useState(() =>
+    listing === undefined ? '' : (initialBid ?? String(offerBaseline(listing))),
   )
   /** Who would be sold to pay for him. Ids, as the sale calculator holds them. */
   const [sold, setSold] = useState<ReadonlySet<string>>(() => new Set())
@@ -282,26 +335,30 @@ function WhatIfScenario({
    * make it optional — would put a branch in every row in the app for one
    * hypothetical player on one page.
    */
-  const target = useMemo<SquadMember>(
-    () => ({
-      id: listing.id,
-      firstName: listing.firstName,
-      lastName: listing.lastName,
-      teamId: listing.teamId,
-      position: listing.position,
-      marketValue: listing.marketValue,
-      marketValueTrend: listing.marketValueTrend,
-      profitLoss: 0,
-      marketValueChangeDay: player?.marketValueChangeDay,
-      totalPoints: player?.totalPoints ?? 0,
-      averagePoints: player?.averagePoints ?? 0,
-      status: player?.status ?? 0,
-      startProbability: player?.startProbability,
-      image: listing.image,
-      offerCount: listing.offerCount,
-      // Benched to begin with. Fielding him is the question the third tab asks.
-      lineupOrder: undefined,
-    }),
+  const target = useMemo<SquadMember | undefined>(
+    () =>
+      listing === undefined
+        ? undefined
+        : {
+            id: listing.id,
+            firstName: listing.firstName,
+            lastName: listing.lastName,
+            teamId: listing.teamId,
+            position: listing.position,
+            marketValue: listing.marketValue,
+            marketValueTrend: listing.marketValueTrend,
+            profitLoss: 0,
+            marketValueChangeDay: player?.marketValueChangeDay,
+            totalPoints: player?.totalPoints ?? 0,
+            averagePoints: player?.averagePoints ?? 0,
+            status: player?.status ?? 0,
+            startProbability: player?.startProbability,
+            image: listing.image,
+            offerCount: listing.offerCount,
+            /* Benched to begin with. Fielding him is the question the third
+               tab asks. */
+            lineupOrder: undefined,
+          },
     [listing, player],
   )
 
@@ -315,11 +372,14 @@ function WhatIfScenario({
    * pitch twice.
    */
   const own = useMemo(
-    () => squad.filter((member) => member.id !== target.id),
-    [squad, target.id],
+    () => squad.filter((member) => member.id !== target?.id),
+    [squad, target?.id],
   )
   /** Those and him — the squad the scenario is arranged from. */
-  const full = useMemo(() => [...own, target], [own, target])
+  const full = useMemo(
+    () => (target === undefined ? own : [...own, target]),
+    [own, target],
+  )
   /** …and what is left of it once the marked players are sold. */
   const remaining = useMemo(
     () => full.filter((member) => !sold.has(member.id)),
@@ -352,15 +412,19 @@ function WhatIfScenario({
   const startProbabilities = useStartProbabilities(leagueId, full)
   const statusReasons = useStatusReasons(leagueId, full)
 
-  const bid = Number(amount)
+  const bid = listing === undefined ? 0 : Number(amount)
   const rules = { allowsUnderpay, budget, teamValue, committedElsewhere }
-  const verdict = checkOffer(bid, listing.marketValue, rules)
+  const verdict =
+    listing === undefined
+      ? undefined
+      : checkOffer(bid, listing.marketValue, rules)
   const proceeds = squad
     .filter((member) => sold.has(member.id))
     .reduce((sum, member) => sum + member.marketValue, 0)
   const isBusy = placeOffer.isPending || withdrawOffer.isPending
   const error = placeOffer.error ?? withdrawOffer.error
-  const { ownOffer, ownOfferId } = listing
+  const ownOffer = listing?.ownOffer
+  const ownOfferId = listing?.ownOfferId
 
   const toggleSold = (playerId: string) => {
     setSold((current) => {
@@ -378,7 +442,11 @@ function WhatIfScenario({
       {tab !== TABS.lineup && (
         <ProjectedBudget
           budget={budget}
-          bid={Number.isFinite(bid) ? bid : 0}
+          /* `undefined`, not `0`: there is no bid in a sale scenario, and a
+             line reading "Gebot −0 €" would be inventing one. */
+          bid={
+            listing === undefined ? undefined : Number.isFinite(bid) ? bid : 0
+          }
           proceeds={proceeds}
           soldCount={sold.size}
           allowance={debtAllowance(teamValue)}
@@ -394,7 +462,9 @@ function WhatIfScenario({
         className="flex min-h-0 flex-1 flex-col"
       >
         <TabsList className="shrink-0">
-          <TabsTrigger value={TABS.offer}>Gebot</TabsTrigger>
+          {listing !== undefined && (
+            <TabsTrigger value={TABS.offer}>Gebot</TabsTrigger>
+          )}
           <TabsTrigger value={TABS.squad}>
             Kader
             {/* What the scenario has already sold, where the tab that did it
@@ -408,82 +478,85 @@ function WhatIfScenario({
           <TabsTrigger value={TABS.lineup}>Aufstellung</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={TABS.offer}>
-          <div className="flex flex-col gap-3">
-            <div className="rounded-card border border-line bg-surface px-3 py-2.5 text-sm leading-snug text-muted">
-              <OfferListingFacts
+        {listing !== undefined && verdict !== undefined && (
+          <TabsContent value={TABS.offer}>
+            <div className="flex flex-col gap-3">
+              <div className="rounded-card border border-line bg-surface px-3 py-2.5 text-sm leading-snug text-muted">
+                <OfferListingFacts
+                  listing={listing}
+                  marketValueChange={player?.marketValueChangeDay}
+                />
+              </div>
+
+              <OfferAmountField
                 listing={listing}
-                marketValueChange={player?.marketValueChangeDay}
+                rules={rules}
+                amount={amount}
+                setAmount={setAmount}
+                verdict={verdict}
+                isBusy={isBusy}
               />
+
+              {error !== null && (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative"
+                >
+                  {error.message}
+                </p>
+              )}
+
+              {/* The two conclusions, in the app's usual order: leave on the
+                  left, act on the right. Both leave the page — this is the one
+                  tab where anything is decided. */}
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  disabled={isBusy}
+                  onClick={onLeave}
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  fullWidth
+                  isLoading={placeOffer.isPending}
+                  disabled={!verdict.isAllowed || isBusy}
+                  onClick={() => {
+                    if (!verdict.isAllowed) return
+                    placeOffer.mutate(
+                      { playerId: listing.id, price: bid },
+                      { onSuccess: onLeave },
+                    )
+                  }}
+                >
+                  {ownOffer === undefined ? 'Bieten' : 'Gebot ändern'}
+                </Button>
+              </div>
+
+              {/* Withdrawing is a third thing and only exists while there is
+                  a bid to take back. It is a labelled button here rather than
+                  the dialog's ✗ on the field: a page has the room to say
+                  it. */}
+              {ownOfferId !== undefined && (
+                <Button
+                  variant="danger"
+                  fullWidth
+                  isLoading={withdrawOffer.isPending}
+                  disabled={isBusy}
+                  onClick={() => {
+                    withdrawOffer.mutate(
+                      { playerId: listing.id, offerId: ownOfferId },
+                      { onSuccess: onLeave },
+                    )
+                  }}
+                >
+                  Gebot zurückziehen
+                </Button>
+              )}
             </div>
-
-            <OfferAmountField
-              listing={listing}
-              rules={rules}
-              amount={amount}
-              setAmount={setAmount}
-              verdict={verdict}
-              isBusy={isBusy}
-            />
-
-            {error !== null && (
-              <p
-                role="alert"
-                className="rounded-xl border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative"
-              >
-                {error.message}
-              </p>
-            )}
-
-            {/* The two conclusions, in the app's usual order: leave on the
-                left, act on the right. Both leave the page — this is the one
-                tab where anything is decided. */}
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                fullWidth
-                disabled={isBusy}
-                onClick={onLeave}
-              >
-                Abbrechen
-              </Button>
-              <Button
-                fullWidth
-                isLoading={placeOffer.isPending}
-                disabled={!verdict.isAllowed || isBusy}
-                onClick={() => {
-                  if (!verdict.isAllowed) return
-                  placeOffer.mutate(
-                    { playerId: listing.id, price: bid },
-                    { onSuccess: onLeave },
-                  )
-                }}
-              >
-                {ownOffer === undefined ? 'Bieten' : 'Gebot ändern'}
-              </Button>
-            </div>
-
-            {/* Withdrawing is a third thing and only exists while there is a
-                bid to take back. It is a labelled button here rather than the
-                dialog's ✗ on the field: a page has the room to say it. */}
-            {ownOfferId !== undefined && (
-              <Button
-                variant="danger"
-                fullWidth
-                isLoading={withdrawOffer.isPending}
-                disabled={isBusy}
-                onClick={() => {
-                  withdrawOffer.mutate(
-                    { playerId: listing.id, offerId: ownOfferId },
-                    { onSuccess: onLeave },
-                  )
-                }}
-              >
-                Gebot zurückziehen
-              </Button>
-            )}
-          </div>
-        </TabsContent>
+          </TabsContent>
+        )}
 
         <TabsContent value={TABS.squad}>
           {/* Calculator mode, permanently: on this page a tap on a row means
@@ -494,7 +567,8 @@ function WhatIfScenario({
               `own`, not `full`: the target has no business in a list whose
               every row is a player you could sell. He is what the scenario is
               buying, and he appears where that means something — on the bench
-              of the third tab, waiting to be brought on. */}
+              of the third tab, waiting to be brought on. With no target the
+              two lists are the same squad anyway. */}
           <PlayerListTab
             squad={own}
             editor={editor}
@@ -564,15 +638,24 @@ function WhatIfScenario({
  * a portrait bled to an edge needs an edge to bleed to, and something has to
  * clip it.
  *
+ * With no listing there is no portrait and the block is a plain header — a
+ * sale scenario is about the squad, which has no one face to show.
+ *
  * The ✗ is the fourth way out, for the two tabs that have no buttons of their
  * own — a scenario you cannot leave from the pitch would be a trap.
  */
 function ScenarioHeading({
   listing,
+  subtitle,
   onLeave,
 }: {
-  /** `undefined` while the market is loading, or if it has no such listing. */
+  /**
+   * `undefined` while the market is loading, if it has no such listing, or —
+   * on `/squad/whatif` — because the scenario buys nobody.
+   */
   listing: MarketListing | undefined
+  /** What the scenario is, until the player it is about has landed. */
+  subtitle: string
   onLeave: () => void
 }) {
   return (
@@ -602,7 +685,7 @@ function ScenarioHeading({
           </h1>
           <p className="mt-0.5 truncate text-xs text-muted">
             {listing === undefined
-              ? 'Ein Kauf, durchgerechnet'
+              ? subtitle
               : `${listing.firstName ?? ''} ${listing.lastName}`.trim()}
           </p>
         </div>
@@ -639,6 +722,11 @@ function digitsOrUndefined(raw: string | null): string | undefined {
  * One figure, and the working under it. The bid is money out and the sales are
  * money in, and what is left is the question the page exists to answer.
  *
+ * **Without a bid it is a sale calculator with a pitch behind it.** The term
+ * drops out of the working, the overdraft lines go with it — selling only ever
+ * moves the budget upwards, so there is no floor to warn about — and the label
+ * says *Verkäufe* rather than *Transfer*.
+ *
  * **Negative is not the same as too far.** Kickbase lends against team value
  * and charges interest on the overdraft, so an overdrawn budget is a normal
  * state and it takes three colours to say which one you are in — the same
@@ -669,7 +757,8 @@ function ProjectedBudget({
   maximumBid,
 }: {
   budget: number
-  bid: number
+  /** What would be spent, or `undefined` when nothing is being bought. */
+  bid: number | undefined
   proceeds: number
   soldCount: number
   /** How far below zero this league lets the budget go. `undefined` = unknown. */
@@ -677,7 +766,7 @@ function ProjectedBudget({
   /** The most this listing could be bid, ceiling and other bids included. */
   maximumBid: number | undefined
 }) {
-  const projected = budget + proceeds - bid
+  const projected = budget + proceeds - (bid ?? 0)
   const isOverdrawn = projected < 0
   // Past the floor, or — with no allowance to compare against — simply in the
   // red, which is the most that can honestly be said without team value.
@@ -687,7 +776,9 @@ function ProjectedBudget({
   return (
     <div className="shrink-0 rounded-card border border-line bg-surface px-3 py-2.5">
       <p className="text-[0.6875rem] tracking-wide text-faint uppercase">
-        Budget nach dem Transfer
+        {bid === undefined
+          ? 'Budget nach den Verkäufen'
+          : 'Budget nach dem Transfer'}
       </p>
       {/* `aria-live` so a screen reader hears the total change as players are
           marked and the bid is typed — it updates somewhere other than where
@@ -707,10 +798,26 @@ function ProjectedBudget({
       </p>
       <p className="nums mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
         <span>Budget {money(budget)}</span>
-        <span aria-hidden="true" className="text-faint">
-          ·
-        </span>
-        <span>Gebot −{money(bid)}</span>
+        {/* A sale scenario with nothing marked yet has no working to show, and
+            a lone budget under a figure equal to it reads as a page that has
+            not loaded. It says what to do instead — the same nudge the
+            [sale calculator](./SquadPage.tsx) puts under its own total. */}
+        {bid === undefined && soldCount === 0 && (
+          <>
+            <span aria-hidden="true" className="text-faint">
+              ·
+            </span>
+            <span>Spieler zum Verkaufen antippen</span>
+          </>
+        )}
+        {bid !== undefined && (
+          <>
+            <span aria-hidden="true" className="text-faint">
+              ·
+            </span>
+            <span>Gebot −{money(bid)}</span>
+          </>
+        )}
         {soldCount > 0 && (
           <>
             <span aria-hidden="true" className="text-faint">
@@ -725,7 +832,7 @@ function ProjectedBudget({
 
       {/* The allowance, and what it leaves for *this* player. Only with team
           value in hand, and only where there is an overdraft to speak of. */}
-      {allowance !== undefined && allowance > 0 && (
+      {bid !== undefined && allowance !== undefined && allowance > 0 && (
         <p className="nums mt-1 flex flex-wrap gap-x-2 border-t border-line pt-1.5 text-xs text-faint">
           <span>
             Minus möglich bis{' '}

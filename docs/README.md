@@ -30,6 +30,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/squad` | [Squad](pages/squad.md) | Implemented |
 | `/leagues/:leagueId/squad/lineup` | [Squad — lineup tab](pages/squad.md#lineup-tab) | Implemented |
 | `/leagues/:leagueId/squad/live` | [Squad — live tab](pages/squad.md#live-tab) | Implemented — only while a matchday runs |
+| `/leagues/:leagueId/squad/whatif` | [Was wäre wenn — the sale scenario](pages/whatif.md#the-sale-scenario) | Implemented |
 | `/leagues/:leagueId/ranking` | [Ranking](pages/ranking.md) | Implemented |
 | `/leagues/:leagueId/ranking/battles` | [Ranking — Battles](pages/ranking.md#battles) | Implemented |
 | `/leagues/:leagueId/duels` | [Duels](pages/duels.md) | Implemented — duel leagues only |
@@ -41,7 +42,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/market` | [Market](pages/market.md) | Implemented |
 | `/leagues/:leagueId/market/managers` | [Market — Manager](pages/market.md#what-the-league-is-selling--manager) | Implemented — only while the league is selling |
 | `/leagues/:leagueId/market/offers` | [Market — Gebote](pages/market.md#the-selling-side-when-there-is-one--gebote) | Implemented — only with a listing of your own |
-| `/leagues/:leagueId/whatif/:playerId` | [Was wäre wenn](pages/whatif.md) | Implemented |
+| `/leagues/:leagueId/whatif/:playerId` | [Was wäre wenn — a purchase](pages/whatif.md) | Implemented |
 | `/leagues/:leagueId/managers/:managerId` | [Manager](pages/manager-detail.md) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/squad` | [Manager — Kader](pages/manager-detail.md#kader) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/events` | [Manager — Verlauf](pages/manager-detail.md#verlauf) | Implemented |
@@ -89,6 +90,11 @@ everything about the reader rather than about the league lives.
 *Transfermarkt* the same way. It is reached from the **Durchrechnen** button in
 a bid dialog, is about one purchase rather than a page's worth of them, and
 every way out of it is a back press.
+
+Its sale-only twin at `/squad/whatif` is unlisted for the same reason and
+lights *Mannschaft* instead — not by a special case but because it lives
+**under** `/squad`, which is what it is about and where the flask that opens it
+sits.
 
 ## Conventions used throughout
 
