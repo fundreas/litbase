@@ -59,11 +59,16 @@ export function MatchCard({
         to={to}
         aria-label={label}
         className={cn(
-          'flex items-center gap-2 rounded-card border bg-surface px-3 py-2.5 transition-colors',
-          'hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
-          // A running match gets a tinted edge, so a matchday half-played reads
-          // as "these three are on" at a glance rather than one dot at a time.
-          isRunning ? 'border-accent/40' : 'border-line',
+          // No card of its own: the fixtures sit flush in one card per day,
+          // divided by hairlines — the app's
+          // [list idiom](../market/MarketRow.tsx).
+          'flex items-center gap-2 border-l-2 bg-surface px-3 py-2.5 transition-colors',
+          'hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+          // A running match gets the accent edge down its left, so a matchday
+          // half-played reads as "these three are on" at a glance rather than
+          // one dot at a time. Every other row reserves the same 2px,
+          // transparent, so nothing shifts sideways when a match kicks off.
+          isRunning ? 'border-l-accent bg-accent/5' : 'border-l-transparent',
         )}
       >
         <TeamSide team={match.home} align="left" />

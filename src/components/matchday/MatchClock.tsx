@@ -45,12 +45,18 @@ export function MatchClock({
       ? minuteLabel(live.minute)
       : undefined
 
+  /* The kick-off is named in **every** state, not only before one.
+     The fixture list is grouped by day now, so the heading above a row says
+     *Sa, 5. Sep.* and no longer carries the time — which a played match would
+     otherwise have nowhere left to say. Visible text still shows the state,
+     since that is what a finished row is read for; the hour is a tooltip
+     away. */
   const label =
     state === 'upcoming'
       ? `Anpfiff ${kickoffLabel(match.kickoff)}`
       : state === 'running'
-        ? `Läuft${minute === undefined ? '' : ` (${minute})`}`
-        : 'Beendet'
+        ? `Läuft${minute === undefined ? '' : ` (${minute})`} · Anpfiff ${kickoffLabel(match.kickoff)}`
+        : `Beendet · Anpfiff ${kickoffLabel(match.kickoff)}`
 
   const text =
     state === 'upcoming'

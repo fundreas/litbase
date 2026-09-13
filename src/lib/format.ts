@@ -210,6 +210,25 @@ function isSameDay(a: number, b: number): boolean {
 }
 
 /**
+ * A key for the **calendar day** an instant falls on, in the reader's own
+ * timezone — `2026-9-5`.
+ *
+ * Only ever used to group by, never shown, which is why it is not zero-padded
+ * and not a date format anybody would recognise. The timezone is the point: the
+ * API dates kick-offs in UTC, so a Saturday 20:30 in Germany is `18:30Z` and a
+ * naive `slice(0, 10)` of the ISO string would put it on the right day only by
+ * luck, and on the wrong one from November.
+ *
+ * An unparsable date gets its own bucket rather than joining a real day.
+ */
+export function dayKey(iso: string | null | undefined): string {
+  const parsed = Date.parse(iso ?? '')
+  if (Number.isNaN(parsed)) return 'unknown'
+  const date = new Date(parsed)
+  return `${String(date.getFullYear())}-${String(date.getMonth() + 1)}-${String(date.getDate())}`
+}
+
+/**
  * `67'`, `90+'` — the minute a match is at.
  *
  * The API keeps counting into stoppage time: `95` was observed on a finished

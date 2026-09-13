@@ -16,11 +16,12 @@ import { MatchCard } from '@/components/matchday/MatchCard'
 import { PlayerRankingTab } from '@/components/ranking/PlayerRankingTab'
 import { MatchdayPicker } from '@/components/MatchdayPicker'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
+import { Card } from '@/components/ui/Card'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useAuth } from '@/auth/useAuth'
 import { useActiveLeague } from '@/league/useActiveLeague'
-import { kickoff as kickoffLabel } from '@/lib/format'
+import { dayKey, weekdayDate } from '@/lib/format'
 
 /** The page's two views, and the URL segment each one is reached by. */
 const VIEWS = { matches: 'matchday', ranking: 'ranking' } as const
@@ -185,18 +186,30 @@ export function MatchdayPage() {
   const teams = useTeamDirectory(rankingId)
 
   /*
-   * One group per distinct kick-off. The list arrives sorted by kick-off, so
-   * insertion order is already the order to render — no second sort, and the
-   * groups cannot disagree with the rows about the sequence.
+   * One group per **calendar day**, not per kick-off.
+   *
+   * A Bundesliga Saturday is 15:30 and 18:30 and that is one afternoon to
+   * anybody looking at it — three separate headings said the afternoon was
+   * three things, and on a normal matchday it turned nine fixtures into five
+   * groups of one or two. The day is what a reader plans around; the exact
+   * time is on the row, where it belongs to the fixture rather than to the
+   * heading.
+   *
+   * Grouped in the reader's own timezone — see
+   * [`dayKey`](../lib/format.ts). The list arrives sorted by kick-off, so
+   * insertion order is already the order to render, within a day and between
+   * days: no second sort, and the groups cannot disagree with the rows about
+   * the sequence.
    */
-  const slots = useMemo(() => {
-    const byKickoff = new Map<string, MatchdayMatch[]>()
+  const days = useMemo(() => {
+    const byDay = new Map<string, MatchdayMatch[]>()
     for (const match of matches.data ?? []) {
-      const group = byKickoff.get(match.kickoff) ?? []
+      const key = dayKey(match.kickoff)
+      const group = byDay.get(key) ?? []
       group.push(match)
-      byKickoff.set(match.kickoff, group)
+      byDay.set(key, group)
     }
-    return [...byKickoff]
+    return [...byDay]
   }, [matches.data])
 
   if (schedule.isPending) {
@@ -341,8 +354,11 @@ export function MatchdayPage() {
             />
           )
         ) : matches.isPending ? (
-          <SkeletonList rows={9} />
-        ) : slots.length === 0 ? (
+          // Inside a card, the shape the fixtures will land in.
+          <Card className="p-3">
+            <SkeletonList rows={9} />
+          </Card>
+        ) : days.length === 0 ? (
           <EmptyState
             icon={<CalendarDays size={22} />}
             title="Keine Spiele"
@@ -350,21 +366,28 @@ export function MatchdayPage() {
           />
         ) : (
           <div className="flex flex-col gap-4">
-            {slots.map(([kickoff, group]) => (
-              <section key={kickoff} className="flex flex-col gap-2">
+            {days.map(([key, group]) => (
+              /* A card per day, fixtures flush inside it — the
+                 [list idiom](../../docs/infrastructure.md#the-list-idiom). The
+                 heading names the day and sits outside the card, so a day is
+                 an independent block that opens and closes rather than a
+                 section of one long list. */
+              <section key={key} className="flex flex-col gap-2">
                 <h2 className="nums px-0.5 text-xs font-medium tracking-wide text-faint uppercase">
-                  {kickoffLabel(kickoff)}
+                  {weekdayDate(group[0]?.kickoff)}
                 </h2>
-                <ul className="flex flex-col gap-2">
-                  {group.map((match) => (
-                    <MatchCard
-                      key={match.matchId}
-                      match={match}
-                      live={liveByMatchId.get(match.matchId)}
-                      to={`/leagues/${leagueId}/matchday/${match.matchId}`}
-                    />
-                  ))}
-                </ul>
+                <Card className="overflow-hidden">
+                  <ul className="divide-y divide-line">
+                    {group.map((match) => (
+                      <MatchCard
+                        key={match.matchId}
+                        match={match}
+                        live={liveByMatchId.get(match.matchId)}
+                        to={`/leagues/${leagueId}/matchday/${match.matchId}`}
+                      />
+                    ))}
+                  </ul>
+                </Card>
               </section>
             ))}
           </div>

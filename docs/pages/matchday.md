@@ -20,12 +20,12 @@ match-detail pages dock:
 
 | Tab | What |
 | --- | ---- |
-| **Spiele** | The fixtures, grouped by kick-off — everything below |
+| **Spiele** | The fixtures, grouped by day — everything below |
 | **Rangliste** | The [best players](#rangliste) of the selected matchday |
 
 Two questions, not one page scrolled twice. *Spiele* answers "how did the games
 go"; *Rangliste* answers "who actually scored", which is a competition-wide
-ranking with no relationship to the grouping-by-kick-off the fixtures are built
+ranking with no relationship to the grouping-by-day the fixtures are built
 around. Stacking them would have meant one heading sitting above two lists that
 disagree about what they are ordered by.
 
@@ -51,29 +51,55 @@ than selecting nothing and rendering as an empty page.
 > The picker moved out of `components/duels/` when this page was built. It was
 > never duel-specific; it just had one caller.
 
-## Grouped by kick-off
+## Grouped by day
 
 ```
-SA, 5. SEP. · 15:30
-  [crest] FC Bayern     2:1   Dortmund [crest]
-                        ● 67'
-  [crest] Leverkusen    0:0   Union    [crest]
-                        ● 67'
+SA, 5. SEP.
+┌────────────────────────────────────────────┐
+│ [crest] FC Bayern     2:1   Dortmund [crest]│
+│                       ● 67'                 │
+├────────────────────────────────────────────┤
+│ [crest] Leverkusen    0:0   Union    [crest]│
+│                       ● 67'                 │
+├────────────────────────────────────────────┤
+│ [crest] Leipzig      –:–    Freiburg [crest]│
+│                      18:30                  │
+└────────────────────────────────────────────┘
 
-SA, 5. SEP. · 18:30
-  [crest] Leipzig      –:–    Freiburg [crest]
-                       18:30
+SO, 6. SEP.
+┌────────────────────────────────────────────┐
+│ …                                           │
+└────────────────────────────────────────────┘
 ```
 
-A Bundesliga matchday is not nine matches, it is a Friday evening, five o'clock
-on Saturday, the late one, and two on Sunday — so the list is grouped by
-distinct kick-off with the date and time as the heading. A flat list sorted by
-time says the same thing while making the reader work out where the breaks are,
-and the heading means no row has to repeat the date.
+A Bundesliga matchday is not nine matches, it is a Friday evening, a Saturday
+and a Sunday — so the fixtures are grouped by **calendar day**, one card per
+day, with the date as the heading. A flat list sorted by time says the same
+thing while making the reader work out where the breaks are.
 
-The groups come out of a `Map` keyed by kick-off, filled in list order. The list
-is already sorted by kick-off, so insertion order *is* render order — no second
-sort, and the groups cannot disagree with the rows about the sequence.
+It was grouped by **distinct kick-off** first, which is a finer cut than
+anybody thinks in: a normal Saturday is 15:30 and 18:30 and that is one
+afternoon, not two afternoons, and the finer grouping turned nine fixtures into
+five headings over one or two rows each. The day is what a reader plans around.
+The time did not go anywhere — it is on the row, in the
+[clock](#a-row-is-two-crests-a-score-and-a-clock), where it belongs to the
+fixture rather than to a heading; for a match already played, where the clock
+reads *Beendet*, the kick-off is named in the row's tooltip.
+
+The grouping is done in the **reader's own timezone**
+([`dayKey`](../../src/lib/format.ts)). The API dates kick-offs in UTC, so a
+Saturday 20:30 in Germany is `18:30Z`, and slicing the ISO string would land it
+on the right day only by luck — and on the wrong one from November.
+
+The groups come out of a `Map` keyed by that day, filled in list order. The list
+is already sorted by kick-off, so insertion order *is* render order both within
+a day and between days — no second sort, and the groups cannot disagree with
+the rows about the sequence.
+
+Each day's fixtures sit **flush in one card**, divided by hairlines, with the
+heading outside it: the [list idiom](../infrastructure.md#the-list-idiom) the
+whole app uses. A **running** match takes the accent edge down its left, where
+it used to take a tinted border around a card of its own.
 
 ## A row is two crests, a score and a clock
 
