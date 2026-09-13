@@ -290,6 +290,10 @@ selected matchday** (`mdp`). The counterpart of the matchday page's
 [`PlayerRankingTab`](matchday.md#rangliste): that one ranks the competition's
 *players* for a matchday, this one ranks the league's *managers* for it.
 
+**One card, rows flush inside it**, divided by hairlines — the
+[list idiom](../infrastructure.md#the-list-idiom), with the viewer's own row
+marked by a tinted ground and a 2px accent edge down the left.
+
 **Not the same table as [Rangliste](ranking.md).** That page is the league as
 it stands — cumulative, duel-table-ordered, unaffected by which matchday you
 were looking at. This is one matchday in isolation, which is the reading this

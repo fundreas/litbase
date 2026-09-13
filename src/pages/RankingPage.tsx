@@ -16,6 +16,7 @@ import { BattleRankingTab } from '@/components/ranking/BattleRankingTab'
 import { DuelOutcomeLine } from '@/components/ranking/DuelOutcomeLine'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
+import { Card } from '@/components/ui/Card'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/States'
@@ -166,7 +167,11 @@ export function RankingPage() {
         titlesById={titlesById}
       />
     ) : isPending ? (
-      <SkeletonList rows={8} />
+      // Inside the card the rows will land in, so the page's shape does not
+      // change when the standings arrive — only its contents.
+      <Card className="p-3">
+        <SkeletonList rows={8} />
+      </Card>
     ) : isError ? (
       <ErrorState
         error={error}
@@ -175,25 +180,33 @@ export function RankingPage() {
         }}
       />
     ) : (
-      <ul className="flex flex-col gap-2">
-        {managers.map((manager) => (
-          <ManagerRow
-            key={manager.id}
-            manager={manager}
-            leagueId={leagueId}
-            isMe={manager.id === user?.id}
-            isDuelView={isDuelView}
-            duelResult={
-              data.isDuelMode ? duelResultOf(manager, byId) : undefined
-            }
-            duelOpponentName={
-              manager.duelOpponentId === undefined
-                ? undefined
-                : byId.get(manager.duelOpponentId)?.name
-            }
-          />
-        ))}
-      </ul>
+      /* One card, rows flush inside it — the shape the
+         [market](./MarketPage.tsx), the Kader and the
+         [feed](../components/events/ActivityFeed.tsx) have, and the one a
+         standings table wants most: these rows are a single ranked sequence,
+         and 8px of page between two placements said they were separate
+         things. */
+      <Card className="overflow-hidden">
+        <ul className="divide-y divide-line">
+          {managers.map((manager) => (
+            <ManagerRow
+              key={manager.id}
+              manager={manager}
+              leagueId={leagueId}
+              isMe={manager.id === user?.id}
+              isDuelView={isDuelView}
+              duelResult={
+                data.isDuelMode ? duelResultOf(manager, byId) : undefined
+              }
+              duelOpponentName={
+                manager.duelOpponentId === undefined
+                  ? undefined
+                  : byId.get(manager.duelOpponentId)?.name
+              }
+            />
+          ))}
+        </ul>
+      </Card>
     )
 
   return (
@@ -286,9 +299,14 @@ function ManagerRow({
       <Link
         to={`/leagues/${leagueId}/managers/${manager.id}`}
         className={cn(
-          'flex items-center gap-3 rounded-card border bg-surface px-3 py-2.5',
-          'transition-colors hover:border-accent/40 hover:bg-surface-2',
-          isMe ? 'border-accent/50' : 'border-line',
+          // No card of its own — the rows are flush in one, divided by
+          // hairlines. The viewer's own row takes the mark every list in the
+          // app now uses: a tinted ground and a 2px accent edge down the left,
+          // transparent on every other row so nothing shifts sideways. See
+          // [`MarketRow`](../components/market/MarketRow.tsx).
+          'flex items-center gap-3 border-l-2 bg-surface px-3 py-2.5',
+          'transition-colors hover:bg-surface-2',
+          isMe ? 'border-l-accent bg-accent/5' : 'border-l-transparent',
         )}
       >
         {/* Placement and avatar are one group with a tight gap of their own, so

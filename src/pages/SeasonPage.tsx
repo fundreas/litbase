@@ -19,6 +19,7 @@ import { PageHeading } from '@/components/PageHeading'
 import { PlayerRankingTab } from '@/components/ranking/PlayerRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
+import { Card } from '@/components/ui/Card'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -227,13 +228,25 @@ export function SeasonPage() {
         <div className="flex flex-col gap-1">
           <ColumnHeader mode={mode} />
 
-          <ul className="flex flex-col gap-1">
-            {standings.map((club) => (
-              <li key={club.teamId}>
-                <ClubRow club={club} mode={mode} leagueId={leagueId} />
-              </li>
-            ))}
-          </ul>
+          {/* One card, rows flush inside it — the shape every list in the app
+              has now, and the one a table wanted from the start: eighteen
+              clubs are a single ranked sequence, and 4px of page between two
+              placements said they were eighteen separate things. The column
+              header stays outside it, over the columns it names.
+
+              The rows carry **no left edge of their own**, unlike the ranked
+              lists of managers: nothing in a league table is ever marked as
+              yours, so there is no 2px rail to reserve — and reserving one
+              would push every row out of line with the header above. */}
+          <Card className="overflow-hidden">
+            <ul className="divide-y divide-line">
+              {standings.map((club) => (
+                <li key={club.teamId}>
+                  <ClubRow club={club} mode={mode} leagueId={leagueId} />
+                </li>
+              ))}
+            </ul>
+          </Card>
         </div>
       )}
 
@@ -338,9 +351,9 @@ function ClubRow({
       to={`/leagues/${leagueId}/teams/${club.teamId}`}
       className={cn(
         GRID[mode],
-        'rounded-card border border-line bg-surface px-3 py-2 transition-colors',
-        'hover:border-accent/40 hover:bg-surface-2',
-        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+        // No card of its own: flush in one, divided by hairlines.
+        'bg-surface px-3 py-2 transition-colors hover:bg-surface-2',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
       )}
     >
       {/* Rank, and how far it moved. In Kickbase mode there is no movement to

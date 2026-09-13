@@ -11,6 +11,7 @@ import {
 } from '@/api/models'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { DuelOutcomeLine } from '@/components/ranking/DuelOutcomeLine'
+import { Card } from '@/components/ui/Card'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
@@ -75,7 +76,14 @@ export function ManagerRankingTab({
     [standings],
   )
 
-  if (isPending) return <SkeletonList rows={10} />
+  if (isPending)
+    return (
+      // Inside the card the rows will land in, so the shape on screen does not
+      // change when the standings arrive — only its contents.
+      <Card className="p-3">
+        <SkeletonList rows={10} />
+      </Card>
+    )
 
   const managers = standings?.managers ?? []
 
@@ -90,32 +98,39 @@ export function ManagerRankingTab({
   }
 
   return (
-    <ul className="flex flex-col gap-2">
-      {managers.map((manager, index) => (
-        <ManagerRow
-          key={manager.id}
-          manager={manager}
-          rank={
-            manager.matchdayPlacement > 0
-              ? manager.matchdayPlacement
-              : index + 1
-          }
-          isMe={manager.id === viewerId}
-          duelResult={
-            standings?.isDuelMode === true && isFinished
-              ? duelResultOf(manager, byId)
-              : undefined
-          }
-          opponent={
-            manager.duelOpponentId === undefined
-              ? undefined
-              : byId.get(manager.duelOpponentId)
-          }
-          leagueId={leagueId}
-          day={standings?.day}
-        />
-      ))}
-    </ul>
+    /* One card, rows flush inside it — the shape the
+       [market](../../pages/MarketPage.tsx), the Kader and the
+       [feed](../events/ActivityFeed.tsx) have. A standings table is the place
+       it argues for itself hardest: the rows are one ranked sequence, and 8px
+       of page between two placements said they were separate things. */
+    <Card className="overflow-hidden">
+      <ul className="divide-y divide-line">
+        {managers.map((manager, index) => (
+          <ManagerRow
+            key={manager.id}
+            manager={manager}
+            rank={
+              manager.matchdayPlacement > 0
+                ? manager.matchdayPlacement
+                : index + 1
+            }
+            isMe={manager.id === viewerId}
+            duelResult={
+              standings?.isDuelMode === true && isFinished
+                ? duelResultOf(manager, byId)
+                : undefined
+            }
+            opponent={
+              manager.duelOpponentId === undefined
+                ? undefined
+                : byId.get(manager.duelOpponentId)
+            }
+            leagueId={leagueId}
+            day={standings?.day}
+          />
+        ))}
+      </ul>
+    </Card>
   )
 }
 
@@ -183,14 +198,19 @@ function ManagerRow({
   return (
     <li
       className={cn(
-        'flex items-stretch gap-1 rounded-card border bg-surface',
-        isMe ? 'border-accent/50' : 'border-line',
+        // No card of its own: the rows sit flush in one card, divided by
+        // hairlines. The viewer's own row is marked the way a marked row is
+        // marked everywhere else now — a tinted ground and a 2px accent edge
+        // down the left, drawn transparent on every other row so nothing
+        // shifts sideways. See [`MarketRow`](../market/MarketRow.tsx).
+        'flex items-stretch gap-1 border-l-2 bg-surface',
+        isMe ? 'border-l-accent bg-accent/5' : 'border-l-transparent',
       )}
     >
       <Link
         to={managerTo}
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-3 rounded-l-card px-3 py-2.5',
+          'flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5',
           'transition-colors hover:bg-surface-2',
         )}
       >
@@ -224,7 +244,7 @@ function ManagerRow({
           to={duelTo}
           title={`Duell gegen ${opponent?.name ?? ''} ansehen`}
           className={cn(
-            'flex shrink-0 flex-col items-end justify-center rounded-r-card px-3 py-2.5',
+            'flex shrink-0 flex-col items-end justify-center px-3 py-2.5',
             'border-l border-line/70 transition-colors hover:bg-surface-2',
           )}
         >

@@ -43,6 +43,14 @@ drawn in the battles view.
   └────────────────────────────────────────────┘
 ```
 
+**One card, rows flush inside it**, divided by hairlines — the
+[list idiom](../infrastructure.md#the-list-idiom) every list in the app now
+uses, and the shape a standings table wants most: these rows are a single
+ranked sequence, and 8px of page between two placements said they were separate
+things. The viewer's own row is a tinted ground and a 2px accent edge down the
+left, where it used to be a ring around the card it no longer has. The
+**Battles** tab is drawn the same way.
+
 The row is a name over **two subtitles**: what the manager actually scored this
 matchday, then how the duel that fed into went. Team value used to sit here but
 was displaced — it is a standing figure that says nothing about the current

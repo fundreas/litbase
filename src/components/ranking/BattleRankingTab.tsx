@@ -11,6 +11,7 @@ import {
 } from '@/api/models'
 import { BATTLE_FALLBACK_ICON, BATTLE_ICON } from '@/components/league/battles'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
+import { Card } from '@/components/ui/Card'
 import { CHIP_ROW, FilterChip } from '@/components/ui/FilterChip'
 import { Skeleton, SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
@@ -139,7 +140,9 @@ export function BattleRankingTab({
     return (
       <div className="flex flex-col gap-3">
         <ChipSkeleton />
-        <SkeletonList rows={6} />
+        <Card className="p-3">
+          <SkeletonList rows={6} />
+        </Card>
       </div>
     )
   }
@@ -195,7 +198,9 @@ export function BattleRankingTab({
       )}
 
       {ranking.isPending ? (
-        <SkeletonList rows={6} />
+        <Card className="p-3">
+          <SkeletonList rows={6} />
+        </Card>
       ) : ranking.isError ? (
         <ErrorState
           error={ranking.error}
@@ -215,18 +220,22 @@ export function BattleRankingTab({
           description={`Für ${selected.title} liefert Kickbase keine Rangliste.`}
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {ranking.data.managers.map((manager) => (
-            <ManagerRow
-              key={manager.id}
-              manager={manager}
-              titles={titlesById.get(manager.id) ?? 0}
-              unit={unit}
-              leagueId={leagueId}
-              isMe={manager.id === viewerId}
-            />
-          ))}
-        </ul>
+        /* One card, rows flush inside it — the shape every ranked list in the
+           app now has. See [`ManagerRankingTab`](./ManagerRankingTab.tsx). */
+        <Card className="overflow-hidden">
+          <ul className="divide-y divide-line">
+            {ranking.data.managers.map((manager) => (
+              <ManagerRow
+                key={manager.id}
+                manager={manager}
+                titles={titlesById.get(manager.id) ?? 0}
+                unit={unit}
+                leagueId={leagueId}
+                isMe={manager.id === viewerId}
+              />
+            ))}
+          </ul>
+        </Card>
       )}
     </div>
   )
@@ -274,9 +283,13 @@ function ManagerRow({
       <Link
         to={`/leagues/${leagueId}/managers/${manager.id}`}
         className={cn(
-          'flex items-center gap-3 rounded-card border bg-surface px-3 py-2.5',
-          'transition-colors hover:border-accent/40 hover:bg-surface-2',
-          isMe ? 'border-accent/50' : 'border-line',
+          // Flush in one card, and the viewer's own row marked by a tinted
+          // ground plus a 2px accent edge down the left — the notation every
+          // list in the app uses now. See
+          // [`MarketRow`](../market/MarketRow.tsx).
+          'flex items-center gap-3 border-l-2 bg-surface px-3 py-2.5',
+          'transition-colors hover:bg-surface-2',
+          isMe ? 'border-l-accent bg-accent/5' : 'border-l-transparent',
         )}
       >
         <span className="flex shrink-0 items-center gap-1.5">

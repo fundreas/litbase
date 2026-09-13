@@ -188,6 +188,14 @@ arrow on every relegation. Same component and same convention as
 A real tabular layout, not cards — this is the one screen where readers scan
 columns, and eighteen rows of card need a lot of scrolling.
 
+The rows sit **flush in one card**, divided by hairlines: the
+[list idiom](../infrastructure.md#the-list-idiom) the whole app uses, and here
+it does the table's own job — eighteen clubs are one ranked sequence, and the
+4px of page that used to show between two placements said they were eighteen
+separate things. Unlike the ranked lists of managers these rows reserve **no
+2px rail** on the left: nothing in a league table is ever marked as yours, and
+reserving one would push every row out of line with the column header above.
+
 Header and rows share **one grid template per mode**, declared together in
 `GRID`, so the columns cannot drift apart. One string per mode rather than a
 shared prefix plus extras: the point is that the header and the rows are laid

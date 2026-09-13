@@ -109,6 +109,45 @@ Custom utilities: `nums` (tabular figures for money and points),
 `no-scrollbar`, `pt-safe` and `pb-safe` (notch insets, paired with
 `viewport-fit=cover` in [`index.html`](../index.html)).
 
+## The list idiom
+
+Every list of comparable things in the app is drawn the same way, and it is
+worth stating once rather than in eight page docs:
+
+**One card per group, rows flush inside it.** The card is
+[`Card`](../src/components/ui/Card.tsx) with `overflow-hidden`; the rows are an
+`<ul className="divide-y divide-line">`. Nothing separates two rows inside a
+group but a hairline, and the card's rounded ends are what make a group look
+like one — it opens, and under its last row it closes.
+
+**A group's label lives outside the card**, on the page: a position heading on
+the [Kader](pages/squad.md), the column header over the
+[league table](pages/season.md), a rule with the moment named in its gap
+between two groups of [market](pages/market.md) listings. Drawn *inside* one
+long card such a label becomes a band running border to border, which reads as
+a table's section heading — a weaker statement than the truth, that these are
+separate blocks.
+
+**A row carries no border and no rounding of its own.** The card clips the
+first and last of them to its corners, which is also what lets a row bleed a
+portrait to its own edge.
+
+**A marked row is a tinted ground and a 2px accent edge down its left** —
+`border-l-2 border-l-accent bg-accent/5`, with `border-l-transparent` on every
+other row of that list so nothing shifts sideways. It replaced the ring around
+a card that no longer exists, and it now means the same thing everywhere: your
+standing bid on the market, a player marked for sale in the Kader, your own row
+in a ranking. A list where nothing is ever marked — the league table — reserves
+no such rail, so its rows stay in line with the column header above them.
+
+**A card, not a `<table>`.** These are ranked sequences of rows that are
+themselves links and buttons, and the one thing they borrow from a table is the
+shared grid that keeps their columns aligned.
+
+The pieces are not abstracted into a `<List>` component. Each list's rows differ in
+what they hold, what they link to and which of them is marked, and the shared
+part is four class names that say what they are where they are used.
+
 ## Two palettes
 
 Light mode is **the same token names with different values**. Every
