@@ -1523,8 +1523,11 @@ duel with the opponent left out: same statuses, same points rule, same bench.
 The only field with no meaning here is `managerId` — there is one manager — so
 that field became optional rather than a near-identical second model being
 written. The rows carry the expected-points chip for the matches still to
-come, in front of the figure column, exactly as they do on the duel page. Tapping a row, or a portrait on the pitch, opens the player's own
-page; there is nothing on this view to edit.
+come, in front of the figure column, exactly as they do on the duel page — and
+with them the shared row's **flush portrait** and the placement drawn as `1.`
+on the left in the type every ranking in the app gives it. Tapping a row, or a
+portrait on the pitch, opens the player's own page; there is nothing on this
+view to edit.
 
 ### The header
 

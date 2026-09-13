@@ -64,7 +64,7 @@ import {
   type ExpectedPointsEntry,
   type ExpectedPointsView,
 } from '@/lib/expectedPoints'
-import { points } from '@/lib/format'
+import { placement, points } from '@/lib/format'
 import { emptySlotPenalty, LINEUP_SIZE } from '@/lib/lineup'
 import { readString, writeString } from '@/lib/storage'
 import { useHashModal } from '@/lib/useHashModal'
@@ -816,13 +816,17 @@ function LiveRanking({
   return (
     <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
       {players.map((player, index) => (
-        <li key={player.id} className="flex items-center">
-          <span className="nums w-8 shrink-0 pl-3 text-right text-xs font-semibold text-faint">
-            {index + 1}
+        /* `items-stretch` and a floor on the height, so the portrait beside
+           the placement fills the row rather than sitting in it. */
+        <li key={player.id} className="flex min-h-14 items-stretch">
+          {/* The placement as every other ranked list in the app draws it:
+              `1.` on the left, bold and quiet. */}
+          <span className="nums flex w-8 shrink-0 items-center justify-center text-base font-bold text-faint">
+            {placement(index + 1)}
           </span>
           <Link
             to={`/leagues/${leagueId}/players/${player.id}`}
-            className="min-w-0 flex-1 transition-colors hover:bg-surface-2/60"
+            className="flex min-w-0 flex-1 items-stretch transition-colors hover:bg-surface-2/60"
           >
             <DuelPlayerRow player={player} expected={expected} />
           </Link>

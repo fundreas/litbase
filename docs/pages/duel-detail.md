@@ -790,6 +790,15 @@ offers, for the same reasons, and now the same control.
 | ***Gemeinsam*** (default) | The two squads **interleaved**. Whose players occupy the top of a combined table says more about how a duel is going than two separate lists can — it is the one arrangement that makes the comparison itself visible. Each row carries the owning manager's avatar next to the score, the only thing telling otherwise identical rows apart |
 | ***Nach Manager*** | Split, first manager above second, **each numbered from 1**. The reading for "who carried my team today" — a question the combined list buries as soon as the other side has run away with the matchday |
 
+**The row is the app's ranked-list row.** The placement sits on the left in the
+type every other ranking in the app gives it — `1.`, bold and quiet, rather
+than the bare 11px `1` it was, which set the one thing the list is ordered by
+in the smallest text on the row. Beside it the **portrait is flush**: full
+height of the row, bleeding to its edge and masked so it dissolves into it, the
+same picture the [market](market.md), the [Kader](squad.md) and a club's roster
+draw. A ranked list of twenty-six players is read to recognise them, and a 34px
+circle with padding round it was the smallest face in the app.
+
 **The restarting numbers are the point of the split.** A player carrying `14`
 because thirteen of the *opponent's* outscored him answers a different question
 from the one this reading is opened for. It is the same reasoning the match

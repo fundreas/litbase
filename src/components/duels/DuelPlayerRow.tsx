@@ -20,6 +20,10 @@ import type { ExpectedPointsView } from '@/lib/expectedPoints'
  * One player in a duel: who they are, what their match is doing, what they
  * scored.
  *
+ * The row is drawn to sit **flush in a divided card** — no padding on its left,
+ * because what is there is either the portrait bleeding to the edge or, in a
+ * ranked list, the placement column in front of it.
+ *
  * The second line **used to read `MF @ ELF`** — a position abbreviation, a
  * `vs`/`@` and the opponent's three-letter symbol, plus a status word. It now
  * carries the opponent's **crest** with a house or aeroplane beside it
@@ -85,8 +89,27 @@ export function DuelPlayerRow({
   const showStatusWord = showStatus && figure.kind !== 'bench'
 
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2">
-      <Avatar src={player.image} name={player.name} size={34} />
+    <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-3">
+      {/* **Flush portrait**, the one the [market](../market/MarketRow.tsx), the
+          [Kader](../squad/PlayerListTab.tsx) and a club's roster draw:
+          full-bleed against the row's edge, a wash under it because the
+          Kickbase cutouts are transparent PNGs, and the inner edge masked so
+          the figure dissolves into the row rather than ending on a line.
+
+          It replaces a 34px circle with padding around it. The sources are
+          1100×800 landscape and this box cover-crops them, so every pixel of
+          both dimensions is a pixel of face — which is what a ranked list of
+          twenty-six players is read for: recognising them. */}
+      <Avatar
+        src={player.image}
+        name={player.name}
+        fill
+        className={cn(
+          'w-14 shrink-0 self-stretch bg-transparent',
+          'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+          '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+        )}
+      />
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{player.name}</p>

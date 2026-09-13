@@ -13,7 +13,7 @@ import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { PairToggle } from '@/components/ui/PairToggle'
 import type { ExpectedPointsView } from '@/lib/expectedPoints'
-import { points } from '@/lib/format'
+import { placement, points } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
 /** One list across both squads, or one list per manager. */
@@ -251,11 +251,18 @@ function RankedList({
   return (
     <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
       {players.map((player, index) => (
-        <li key={player.id} className="flex items-center">
-          <span className="nums w-8 shrink-0 pl-3 text-right text-xs font-semibold text-faint">
-            {index + 1}
+        /* `items-stretch` and a floor on the height, so the portrait beside
+           the placement is a face rather than a stripe — it fills the row. */
+        <li key={player.id} className="flex min-h-14 items-stretch">
+          {/* The placement, drawn the way every other ranked list in the app
+              draws it: `1.` on the left, bold, quiet — see the
+              [Rangliste](../../pages/RankingPage.tsx). It used to be a bare
+              `1` at 11px, which is the one thing a ranking is ordered by set
+              in the smallest type on the row. */}
+          <span className="nums flex w-8 shrink-0 items-center justify-center text-base font-bold text-faint">
+            {placement(index + 1)}
           </span>
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-stretch">
             <DuelPlayerRow
               player={player}
               // The lineup tab already says what every player's match is
