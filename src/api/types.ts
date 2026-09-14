@@ -2359,3 +2359,35 @@ export interface UserSettingsResponse {
     uim?: string
   }
 }
+
+/**
+ * `GET /v4/bonus/collect` — the daily login bonus, **collected by asking**.
+ *
+ * One entry in `it` per league the user is in, followed by seven fields that
+ * are a house ad and have nothing to do with the bonus (`fb`, `lf`, `url`,
+ * `btt`, `dtc`, `bstc`, `btc`) — none of them typed here, because nothing in
+ * the app renders that ad.
+ *
+ * What an **already-collected** day answers — an empty `it`, a `4xx`, or the
+ * same payload again — is unknown; it cannot be established without spending a
+ * day's bonus to find out. Callers must treat a missing `it` as "nothing was
+ * paid". See [docs/api/user.md](../../docs/api/user.md#get-v4bonuscollect).
+ */
+export interface BonusCollectResponse {
+  it?: BonusCollectItem[]
+}
+
+export interface BonusCollectItem {
+  /** League id. */
+  li: string
+  /** League name. */
+  lnm: string
+  /** What was just paid, in €. `10000` on day 1. */
+  v: number
+  /** The streak day, counting from 1. Resets when a day is missed. */
+  day: number
+  /** Budget **after** the credit, in € — the same figure `/leagues/{id}/me` answers with `b`. */
+  b: number
+  /** League avatar, relative to the CDN root. */
+  lim?: string
+}

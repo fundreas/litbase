@@ -33,7 +33,7 @@ the two marked *none*.
 | `POST` | `/v4/user/register` *(auth: none)* | ✔ | [Authentication](authentication.md#post-v4userregister) |
 | `GET` | `/v4/user/me` | | [User](user.md#get-v4userme) |
 | `GET` | `/v4/user/settings` | | [User](user.md#get-v4usersettings) |
-| `GET` | `/v4/bonus/collect` | | [User](user.md#get-v4bonuscollect) |
+| `GET` | `/v4/bonus/collect` | ✔ | [User](user.md#get-v4bonuscollect) |
 | `GET` | `/v4/leagues/selection` | ✔ | [Leagues](leagues.md#get-v4leaguesselection) |
 | `GET` | `/v4/leagues/recommended` | ✔ | [Leagues](leagues.md#get-v4leaguesrecommended) |
 | `GET` | `/v4/leagues/list` | ✔ | [Leagues](leagues.md#get-v4leagueslist) |
@@ -208,7 +208,7 @@ Money is in **euros as an integer**. Dates are **ISO 8601 with a `Z`**, except
 ## What the app does not use
 
 The published spec lists **149 paths**. This reference documents **42** — the
-29 the app actually calls, plus thirteen neighbours that are declared, adjacent
+30 the app actually calls, plus twelve neighbours that are declared, adjacent
 or too useful to leave undescribed (each is marked *Used: no* on its page). The
 rest are whole
 product areas the app does not implement — `/v4/challenges/*` (Kickbase's

@@ -14,6 +14,21 @@ export const endpoints = {
     settings: '/v4/user/settings',
     me: '/v4/user/me',
   },
+  bonus: {
+    /**
+     * The **daily login bonus** (*Auflaufprämie*) — money for opening the app,
+     * paid into every league at once.
+     *
+     * **A write dressed as a `GET`.** Calling it *is* collecting: there is no
+     * companion endpoint that reads the pending state, so the app cannot ask
+     * whether anything is waiting without taking it. That is why it is called
+     * exactly twice a day at most — see
+     * [`useDailyBonus`](./hooks/useDailyBonus.ts) — and never from a query.
+     *
+     * See [docs/api/user.md](../../docs/api/user.md#get-v4bonuscollect).
+     */
+    collect: '/v4/bonus/collect',
+  },
   leagues: {
     /** Leagues the signed-in user belongs to, with budget/placement. */
     selection: '/v4/leagues/selection',

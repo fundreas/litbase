@@ -2,19 +2,19 @@
 
 [← API index](README.md)
 
-The signed-in account, outside any league. None of these is called: the app
-takes everything it needs about the user from the login response and keeps it
-in the session. The first two are **declared in
+The signed-in account, outside any league. The first two are not called: the
+app takes everything it needs about the user from the login response and keeps
+it in the session. Both are **declared in
 [`endpoints.ts`](../../src/api/endpoints.ts)** and documented because they are
 the only way to re-read the account without logging in again, which is what a
-profile screen would need. The third is the **daily login bonus**, which the
-app does not implement at all.
+profile screen would need. The third is the **daily login bonus**, and the app
+does call it — on boot and at every midnight it is open for.
 
 | Method | Path | Auth | Used |
 | ------ | ---- | ---- | ---- |
 | `GET` | [`/v4/user/me`](#get-v4userme) | Bearer | no |
 | `GET` | [`/v4/user/settings`](#get-v4usersettings) | Bearer | no |
-| `GET` | [`/v4/bonus/collect`](#get-v4bonuscollect) | Bearer | no |
+| `GET` | [`/v4/bonus/collect`](#get-v4bonuscollect) | Bearer | ✔ |
 
 ---
 
@@ -125,5 +125,27 @@ type `22` is still marked unobserved.
 
 ### Used by
 
-Nothing. The [events page](../pages/events.md#the-rows) renders a *Login bonus*
-row from the spec's shape alone, and has never had one to draw.
+[`useDailyBonus`](../../src/api/hooks/useDailyBonus.ts), mounted at the
+authenticated root in [`RequireAuth`](../../src/auth/RequireAuth.tsx) — the one
+place in the app that is neither a page nor a league, which is what an
+account-wide credit needs.
+
+It calls the endpoint **twice a day at most**: once when the app boots with a
+session, and once per midnight after that, for the tab left open overnight.
+There is nothing to decide, because there is nothing to read — the only way to
+find out whether a bonus is owed is to take it, so the app takes it, exactly as
+the Kickbase app does when it opens. A module-level day guard keeps a remount
+(StrictMode's double effect, a sign-out and back in) from asking twice in one
+day; a page reload deliberately gets past it, because that *is* the app opening
+again.
+
+Nothing is rendered from the response. The money shows up where it always did —
+in the budget, and in the feed — so the hook's whole job after the call is to
+invalidate `leagues/selection`, each credited league's `/me`, and its feed.
+Failure is swallowed with a `console.warn`: a `4xx` for an already-collected day
+is a perfectly plausible shape for an endpoint nobody has seen refuse, and it
+must not reach the reader as an error.
+
+The [events page](../pages/events.md#the-rows) still renders its *Login bonus*
+row from the spec's shape alone — the test account has never collected one, so
+the type-`22` entry this now produces remains unobserved until it does.

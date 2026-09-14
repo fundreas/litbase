@@ -311,6 +311,20 @@ The market is the shortest because prices and expiry countdowns are the most
 time-sensitive data in the app. The competition player list is the longest
 because it is a large payload that barely changes within a matchday.
 
+### Neither a query nor a mutation: the daily bonus
+
+[`useDailyBonus`](../src/api/hooks/useDailyBonus.ts) is the one caller that is
+neither. `GET /v4/bonus/collect` is **a write dressed as a `GET`** — asking for
+it *is* collecting the daily login bonus, and nothing reads the pending state —
+so it can be neither cached (a refetch would be a second collect) nor triggered
+by a user action (there is no button; the money is simply owed). It is a timed
+effect instead: one call when the app boots with a session, one more at each
+midnight the tab survives, guarded by a module-level day key so a remount asks
+once. It runs from [`RequireAuth`](../src/auth/RequireAuth.tsx), because the
+credit is per account, not per league. It invalidates `qk.leagues.selection()`
+plus each credited league's `qk.leagueMe` and `qk.activities`, and swallows its
+own failures. See [User](api/user.md#get-v4bonuscollect).
+
 ## Query keys
 
 [`queryKeys.ts`](../src/api/queryKeys.ts) builds hierarchical keys so
@@ -430,7 +444,8 @@ Components should never see `mvt` or `spl`.
 ## Endpoints probed but unused
 
 - `/v4/user/settings` and `/v4/user/me` — both 200, redundant with the login
-  response for now.
+  response for now. `/v4/bonus/collect`, their neighbour, **is** called — see
+  the daily bonus above.
 - `/v4/leagues/{id}/settings` — the league's own configuration, and
   **admin-only**: a member who is not an admin gets 500 `NotFound`, so nothing
   in the app may depend on it. The one league rule the market page needs
