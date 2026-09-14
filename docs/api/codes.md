@@ -168,7 +168,7 @@ done; declared as `ACTIVITY_TYPE` in `types.ts`.
 | `15` | A transfer completed | player, `t` direction, `trp` fee, `byr` or `slr` | Matches the market page's observed sale to the second |
 | `16` | **✗** | `{}` | One per league, same second as the viewer's first achievement |
 | `17` | A matchday was scored | `{ day, mdln, i, pl }` — **the viewer's** placement | Timestamped the Monday after the matchday; `{}` where the viewer sat it out |
-| `22` | **?** Daily login bonus (*Auflaufprämie*) | `{ bn, day }` | **Spec example only**; never observed |
+| `22` | **?** Daily login bonus (*Auflaufprämie*) — see [`/v4/bonus/collect`](user.md#get-v4bonuscollect) | `{ bn, day }` | **Spec example only**; never observed, because the test account has never collected one |
 | `26` | **The viewer** earned an achievement | `{ t, n, d }` | The set equals the account's earned achievements exactly |
 | `28` | The league was founded | `{ lnm }` | The oldest entry of every feed |
 | `34` | **?** | — | As a `filter` value it returns the `17` entries; never seen as a `t` |

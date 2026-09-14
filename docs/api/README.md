@@ -13,7 +13,7 @@ instance, the query hooks, the domain models — is
 | Resource | Endpoints | Covers |
 | -------- | --------- | ------ |
 | [Authentication](authentication.md) | 2 | Sign in, register, the bearer token |
-| [User](user.md) | 2 | The signed-in account |
+| [User](user.md) | 3 | The signed-in account, and the daily login bonus |
 | [Leagues](leagues.md) | 9 | Membership, metadata, standings, joining, the activity feed |
 | [Squad and lineup](squad-and-lineup.md) | 9 | Who you own, who you field, historical snapshots |
 | [Transfer market](market.md) | 6 | Listings, bids, selling — both sides of a deal |
@@ -33,6 +33,7 @@ the two marked *none*.
 | `POST` | `/v4/user/register` *(auth: none)* | ✔ | [Authentication](authentication.md#post-v4userregister) |
 | `GET` | `/v4/user/me` | | [User](user.md#get-v4userme) |
 | `GET` | `/v4/user/settings` | | [User](user.md#get-v4usersettings) |
+| `GET` | `/v4/bonus/collect` | | [User](user.md#get-v4bonuscollect) |
 | `GET` | `/v4/leagues/selection` | ✔ | [Leagues](leagues.md#get-v4leaguesselection) |
 | `GET` | `/v4/leagues/recommended` | ✔ | [Leagues](leagues.md#get-v4leaguesrecommended) |
 | `GET` | `/v4/leagues/list` | ✔ | [Leagues](leagues.md#get-v4leagueslist) |
@@ -206,9 +207,9 @@ Money is in **euros as an integer**. Dates are **ISO 8601 with a `Z`**, except
 
 ## What the app does not use
 
-The published spec lists **149 paths**. This reference documents **41** — the
-29 the app actually calls, plus twelve neighbours that are declared, adjacent or
-too useful to leave undescribed (each is marked *Used: no* on its page). The
+The published spec lists **149 paths**. This reference documents **42** — the
+29 the app actually calls, plus thirteen neighbours that are declared, adjacent
+or too useful to leave undescribed (each is marked *Used: no* on its page). The
 rest are whole
 product areas the app does not implement — `/v4/challenges/*` (Kickbase's
 solo/ladder mode, ~40 paths), `/v4/onboarding/*`, `/v4/products/*` and
@@ -227,7 +228,6 @@ simply unbuilt:
 | `GET /v4/leagues/{id}/me/budget` | Budget on its own, without the rest of `/me` |
 | `GET /v4/leagues/{id}/user/achievements` | The viewer's 46 achievements with earned flags — the list behind the `/{type}` detail the events page reads. Type codes in [Codes](codes.md#achievement-type). Type `2001` *Meister* makes its `ac` the viewer's **league-title count**, the one figure `/managers/{id}/performance` can only be decoded into |
 | `GET /v4/leagues/{id}/managers/{id}/transfer` | A manager's completed deals, `tty` 1 bought / 2 sold. Not their bids — see [Leagues](leagues.md#where-a-bid-of-your-own-can-be-read-back) |
-| `GET /v4/bonus/collect` | Claims the daily login bonus (*Auflaufprämie*) for every league at once — a **write dressed as a `GET`**, so it was read from the spec and never called |
 | `GET /v4/competitions/{id}/teams/{teamId}/teamcenter` | **A whole club's players in one request**, each with `p` for the matchday and a `k[]` of goals-and-cards codes — the only bulk-ish per-player live source in the spec. It would make a club-shaped live view cost one request instead of eleven; what it does **not** carry is the fine `eti` actions, which stay one request per player. Spec-only, never called — see [Matches](matches.md#there-is-no-live-player-event-endpoint) |
 | `GET /v4/config` | Client configuration. Probed once — it names no game modes, which is why [`GAME_PLAY_MODE`](codes.md#game-modes-gpm) had to be inferred |
 
