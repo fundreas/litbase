@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { ChevronRight, House, PlaneTakeoff, X } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import {
@@ -12,11 +13,35 @@ import { Scoreline } from '@/components/player/PlayerMatchRow'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { usePointcastPrediction } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
+import { FilterChip } from '@/components/ui/FilterChip'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { useExpectedPoints } from '@/lib/expectedPoints'
 import { delta, points as formatPoints } from '@/lib/format'
+
+/**
+ * What counts as a **big** action, in points either way.
+ *
+ * Ten is where Kickbase's own scale changes character. Below it is the texture
+ * of a football match — the passes, duels, interceptions and fouls that a
+ * midfielder accrues sixty of and that mean nothing one at a time. At ten and
+ * above the entries are *events*: the goal, the assist, the penalty, the card,
+ * the goal conceded. A hundred-row list is almost entirely the first kind, and
+ * the question that opens this dialog — **why did that number move** — is
+ * almost always answered by the second.
+ *
+ * Compared on the **absolute** value, so a −18 is as big as a +18. A reader
+ * filtering for what mattered is not asking to be shown only good news, and
+ * the worst thing that happened to a player is the single row most likely to
+ * explain his afternoon.
+ */
+const BIG_EVENT_POINTS = 10
+
+/** Is this one of the actions that actually moved the figure? */
+function isBigEvent(event: PlayerMatchEvent): boolean {
+  return Math.abs(event.points) >= BIG_EVENT_POINTS
+}
 
 /**
  * **Why a player scored what he scored in one match**, action by action.
@@ -130,6 +155,25 @@ export function PlayerMatchEventsDialog({
   const expectedDay = seasonId === undefined ? match.day : undefined
   const ownExpected = useExpectedPoints(expectedDay)[playerId]
   const { prediction } = usePointcastPrediction(expectedDay, playerId)
+
+  /*
+   * **On by default**, which is the unusual half of this and the deliberate
+   * half. A filter that starts off is a feature; a filter that starts on is an
+   * opinion about what the list is for — and this list is opened off a number
+   * that needs explaining, not to be read end to end. The full record is one
+   * tap away and stays exactly as complete as it was.
+   */
+  const [onlyBig, setOnlyBig] = useState(true)
+
+  /*
+   * Derived rather than held: the breakdown is already memoised by the query
+   * cache, the lists are short, and a second copy in state is a second thing
+   * that can disagree with the first.
+   */
+  const allEvents = breakdown.data?.events ?? []
+  const bigEvents = allEvents.filter(isBigEvent)
+  const shownEvents = onlyBig ? bigEvents : allEvents
+  const hiddenCount = allEvents.length - bigEvents.length
 
   const opponent = match.opponentName ?? '–'
   const outcome = matchOutcome(match.goalsFor, match.goalsAgainst)
@@ -330,6 +374,29 @@ export function PlayerMatchEventsDialog({
             </Dialog.Close>
           </div>
 
+          {/* **The filter sits outside the scroll area**, between the header
+              and the list. Inside it, the one control that can explain an
+              empty list would scroll away from the emptiness it caused — and
+              on a hundred rows it would be off screen within a flick, which is
+              the whole of its job gone. */}
+          {hiddenCount > 0 && (
+            <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
+              <FilterChip
+                isActive={onlyBig}
+                onClick={() => {
+                  setOnlyBig(!onlyBig)
+                }}
+              >
+                {`Nur große Aktionen (ab ${String(BIG_EVENT_POINTS)})`}
+              </FilterChip>
+              <span className="nums min-w-0 truncate text-[0.6875rem] text-faint">
+                {onlyBig
+                  ? `${String(hiddenCount)} ausgeblendet`
+                  : `${String(allEvents.length)} Aktionen`}
+              </span>
+            </div>
+          )}
+
           {/* `overscroll-contain` so reaching the end of a hundred rows does
               not start scrolling the page behind the dialog. */}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
@@ -344,7 +411,7 @@ export function PlayerMatchEventsDialog({
               <p className="py-6 text-center text-sm text-muted">
                 Für dieses Spiel liefert Kickbase keine Einzelaktionen.
               </p>
-            ) : breakdown.data.events.length === 0 ? (
+            ) : allEvents.length === 0 ? (
               /* Two different nothings, and saying which is the whole value of
                  the message: a match that has not begun has nothing *yet*, and
                  a substitute who came on without touching the score has a
@@ -355,8 +422,17 @@ export function PlayerMatchEventsDialog({
                   ? 'Keine punktewirksamen Aktionen in diesem Spiel.'
                   : 'Das Spiel hat noch nicht begonnen.'}
               </p>
+            ) : shownEvents.length === 0 ? (
+              /* A **third** nothing, and the only one that is the app's doing
+                 rather than the match's: he played, he scored, and every
+                 action of it was below the bar. Saying "no actions" here would
+                 be a lie the reader has no way to catch — so it names the
+                 filter, and the chip that undoes it is directly above. */
+              <p className="py-6 text-center text-sm text-muted">
+                {`Keine Aktion ab ${String(BIG_EVENT_POINTS)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
+              </p>
             ) : (
-              <EventList events={breakdown.data.events} />
+              <EventList events={shownEvents} />
             )}
           </div>
 

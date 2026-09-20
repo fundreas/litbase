@@ -346,6 +346,38 @@ minute reads as a single moment rather than five rows restating `45′`. That is
 what makes a hundred rows scannable: the gutter becomes a timeline instead of a
 repeated number.
 
+#### Only the big ones, by default
+
+A chip between the header and the list hides everything under **10 points
+either way**, and it starts **on**.
+
+Ten is where Kickbase's own scale changes character. Below it is the texture of
+a football match — the passes, duels, interceptions and fouls a midfielder
+accrues sixty of, each meaningless alone. At ten and above the entries are
+*events*: the goal, the assist, the penalty, the card, the goal conceded. A
+hundred-row list is almost entirely the first kind, and the question that opens
+this dialog — *why did that number move* — is almost always answered by the
+second.
+
+It compares the **absolute** value, so a −18 is as big as a +18. Filtering for
+what mattered is not a request to be shown only good news, and the worst thing
+that happened to a player is the row most likely to explain his afternoon.
+
+Three details keep it honest:
+
+- **Default on is an opinion, and the deliberate one.** A filter that starts off
+  is a feature; a filter that starts on says what the list is for. This one is
+  opened off a number that needs explaining, not to be read end to end. One tap
+  restores the complete record, which is unchanged underneath.
+- **The chip is outside the scroll area.** Inside it, the one control that can
+  explain an empty list would scroll away from the emptiness it caused — and on
+  a hundred rows it would be gone within a flick.
+- **It is not drawn when it would do nothing.** No small actions, no chip. And
+  when the filter empties an otherwise non-empty list — a player whose whole
+  afternoon was below the bar — the list says *that*, naming the filter and the
+  count, rather than repeating the "no scoring actions" message, which would be
+  a lie the reader has no way to catch.
+
 **The header is the player.** His face, his name, his total — because that is
 whose sheet this is. It used to lead with the opponent's crest and name, which
 read as a dialog about the *match*: opened from a pitch of twenty-two portraits,
