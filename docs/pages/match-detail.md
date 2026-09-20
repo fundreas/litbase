@@ -566,10 +566,40 @@ the one line that differs by state**: the full kick-off before, a pulsing *Live
 [the header](#the-header) above the pitch — the state from the fixture list, the
 score and the minute from the match payload — so the two cannot disagree.
 
-The ✗ is the only control, and Escape and the back gesture do the same thing. It
-is a dialog rather than a route on purpose: full screen is a way of *looking* at
-what is already on the page, so closing it has to land you exactly where you
-were, mid-tab and mid-scroll, without spending an entry in the history stack.
+The ✗ closes it, and so do Escape and the back gesture. It is a dialog rather
+than a route on purpose: full screen is a way of *looking* at what is already on
+the page, so closing it has to land you exactly where you were, mid-tab and
+mid-scroll, without spending an entry in the history stack.
+
+**A second control takes the browser's own full screen.** The pane is
+`fixed inset-0`, which fills the *viewport* — on a phone, the screen minus the
+URL bar and the system chrome. The Fullscreen API claims the rest, and a tap is
+what asks for it.
+
+It is a tap and not something the pane does on opening, which was tried first
+and does not work: **full screen requires transient user activation**, and an
+effect running after the dialog has mounted is a gesture the browser has
+stopped counting. The promise rejects, and rejects *silently* — so it appeared
+to work on the one lenient browser and did nothing on the others. A click
+handler is a gesture by definition.
+
+Three things follow from making it a control, and they are worth more than the
+tap:
+
+- it is **reversible** — drop back to the page's chrome without closing the
+  pitch, where before, leaving full screen and leaving the match were one act;
+- it **says which state it is in**, which an implicit request that may or may
+  not have been granted cannot;
+- **Escape means one thing again.** In full screen the browser eats the first
+  Escape to leave it; when entering was automatic that keypress left the reader
+  looking at the pane, having pressed the key that closes it. Two levels, two
+  presses, no special case.
+
+The **document** goes full screen, not the dialog: a fullscreen element is the
+only subtree painted, and everything Radix portals — the player breakdown the
+big pitch opens — is a sibling of the pane rather than a child, so it would
+render where nobody is looking. Where the API is absent, which is every iPhone,
+the control is not drawn at all.
 
 **On its side, the benches come along** — home's column, the grass, away's
 column, left to right in the order the bar above names them, which is where a
