@@ -346,7 +346,75 @@ minute reads as a single moment rather than five rows restating `45′`. That is
 what makes a hundred rows scannable: the gutter becomes a timeline instead of a
 repeated number.
 
-#### The event filter — three settings, one glyph
+#### The event filter, and the two thresholds
+
+A toggle in the dialog's header, left of the ✗. The icon is the state:
+
+| Icon | Shows | |
+| --- | --- | --- |
+| `Astroid` | **≥ 5 points** either way | his afternoon, ~20 rows |
+| `Circle` | everything | the complete record, ~100 rows |
+
+It starts **filtered**.
+
+**Two numbers, two jobs.** Five decides what is on the page; ten decides what
+the page points at.
+
+- **Five is the filter.** Below it is the texture of a football match — the
+  passes, duels, interceptions and fouls a midfielder accrues sixty of, each
+  meaningless alone and collectively most of a hundred-row list. Five and up is
+  his afternoon in about twenty rows: the duels won, the chances created, the
+  ball lost in his own half.
+- **Ten is the emphasis.** Ten is where Kickbase's own scale changes character —
+  at ten and above the entries are *events* rather than texture: the goal, the
+  assist, the penalty, the card, the goal conceded. Those rows are set in heavy
+  type, the name bold and the figure extra-bold, **at both settings of the
+  filter**, so the goal is findable whether or not the passes are on screen.
+
+Both compare the **absolute** value, so a −18 is as big as a +18. Filtering for
+what mattered is not a request to be shown only good news, and the worst thing
+that happened to a player is the row most likely to explain his afternoon.
+
+Ten was the filter's own threshold first, and briefly the top of a three-way
+cycle (everything · five · ten). It did not earn a setting: a bar that high
+leaves four rows and sometimes none at all — a midfielder can have a good
+afternoon with nothing in it above ten — and hiding at ten threw away the
+context that makes the ten mean anything. Emphasis keeps the context and still
+lets the eye land, and it costs no setting.
+
+Four details keep it honest:
+
+- **Default on is an opinion, and the deliberate one.** A filter that starts off
+  is a feature; a filter that starts on says what the list is for. This one is
+  opened off a number that needs explaining, not to be read end to end. One tap
+  restores the whole record, unchanged underneath.
+- **It is outside the scroll area**, which is the half of its placement that is
+  not taste. It is the one control that can explain an empty list, and inside
+  the list it would scroll away from the emptiness it caused — gone within a
+  flick of a hundred rows. It was a labelled chip in a band of its own between
+  the header and the list until 2026-09-20; the band cost a row and a half of a
+  sheet that is mostly list, on the screen size that can least spare it.
+- **An icon owes back the words it dropped.** `title` and `aria-label` carry the
+  setting's name *and* the count it is hiding — *Ab 5 Punkten · 71
+  ausgeblendet*. `aria-pressed` carries the state, which colour alone cannot;
+  it came off while the control was a three-way cycle, where a
+  pressed/not-pressed state would have said nothing true about a middle setting,
+  and went back on with the second state. The glyph is lit in the accent
+  whenever anything is held back, because a list that is not showing everything
+  should say so without being asked.
+- **It is not drawn when it would do nothing.** A match whose every action
+  clears five gets no toggle. And when the filter empties a list that had rows —
+  a player whose whole afternoon was below the bar — the list says *that*,
+  naming the threshold and the count, rather than repeating the "no scoring
+  actions" message, which would be a lie the reader has no way to catch. That is
+  the one moment the figure is load-bearing, and it is on screen rather than in
+  a tooltip.
+
+The minute gutter stays quiet throughout — a timeline with some of its minutes
+shouted is a worse timeline — and the figures are tabular (`nums`), so a row
+going heavy does not shift the column.
+
+### The event filter — three settings, one glyph
 
 A toggle in the dialog's header, left of the ✗, cycled by tapping. The icon is
 the state:

@@ -5,7 +5,6 @@ import {
   Circle,
   House,
   PlaneTakeoff,
-  Sparkles,
   X,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -28,75 +27,49 @@ import { useExpectedPoints } from '@/lib/expectedPoints'
 import { delta, points as formatPoints } from '@/lib/format'
 
 /**
- * What counts as a **big** action, in points either way.
+ * What the filter keeps: an action worth **five points either way**.
  *
- * Ten is where Kickbase's own scale changes character. Below it is the texture
- * of a football match — the passes, duels, interceptions and fouls that a
- * midfielder accrues sixty of and that mean nothing one at a time. At ten and
- * above the entries are *events*: the goal, the assist, the penalty, the card,
- * the goal conceded. A hundred-row list is almost entirely the first kind, and
- * the question that opens this dialog — **why did that number move** — is
- * almost always answered by the second.
+ * Below five is the texture of a football match — the passes, duels,
+ * interceptions and fouls a midfielder accrues sixty of, each meaningless on
+ * its own and collectively most of a hundred-row list. Five and up is his
+ * afternoon in about twenty rows: the duels won, the chances created, the ball
+ * lost in his own half.
  *
- * It is the top of {@link EVENT_TIERS} and it is also the **emphasis**
- * threshold, which is why it keeps a name of its own: whatever the filter is
- * set to, these are the rows drawn in heavy type.
+ * **Not ten**, which is where this started and which turned out to be a bar so
+ * high the list was four rows and sometimes none at all — a midfielder can have
+ * a good afternoon with nothing in it above ten. Ten survives as
+ * {@link SUPER_EVENT_POINTS}, where it does the job it is actually good at.
  */
-const BIG_EVENT_POINTS = 10
+const NOTABLE_EVENT_POINTS = 5
 
-/** Is this one of the actions that actually moved the figure? */
-function isBigEvent(event: PlayerMatchEvent): boolean {
-  return Math.abs(event.points) >= BIG_EVENT_POINTS
+/**
+ * What gets **heavy type**: an action worth ten points either way.
+ *
+ * Ten is where Kickbase's own scale changes character. At ten and above the
+ * entries are *events* rather than texture — the goal, the assist, the penalty,
+ * the card, the goal conceded — and the question that opens this dialog, *why
+ * did that number move*, is almost always answered by one of them.
+ *
+ * **A separate threshold from the filter's on purpose.** Hiding at ten threw
+ * away the context that makes the ten mean anything; drawing at ten keeps the
+ * context and still lets the eye land on the goal. So the two numbers do two
+ * jobs: five decides what is on the page, ten decides what the page points at.
+ */
+const SUPER_EVENT_POINTS = 10
+
+/**
+ * Both tests, on the **absolute** value.
+ *
+ * A −18 is as big as a +18. A reader filtering for what mattered is not asking
+ * to be shown only good news, and the worst thing that happened to a player is
+ * the single row most likely to explain his afternoon.
+ */
+function isNotableEvent(event: PlayerMatchEvent): boolean {
+  return Math.abs(event.points) >= NOTABLE_EVENT_POINTS
 }
 
-/**
- * **The three settings of the event filter**, in the order a tap moves through
- * them.
- *
- * A cycle rather than the on/off it was until 2026-09-20, because the two
- * settings it had were the two ends and the useful answer is usually between
- * them. *Everything* is a hundred rows of passes; *ten and up* is four rows
- * and sometimes none at all, for a midfielder who had a good afternoon without
- * a goal in it. Five is where his afternoon actually shows up — the duels won,
- * the chances created, the ball lost in his own half.
- *
- * Every tier compares the **absolute** value, so a −18 is as big as a +18. A
- * reader filtering for what mattered is not asking to be shown only good news,
- * and the worst thing that happened to a player is the single row most likely
- * to explain his afternoon.
- *
- * The order is *loosest first*, so a tap always reveals more until it wraps.
- * The list starts at the strict end — see {@link DEFAULT_TIER} — so the first
- * tap is the one a reader of a filtered list most often wants, which is to see
- * the whole thing.
- */
-const EVENT_TIERS = [
-  { minPoints: 0, icon: Circle, label: 'Alle Aktionen' },
-  { minPoints: 5, icon: Astroid, label: 'Ab 5 Punkten' },
-  { minPoints: BIG_EVENT_POINTS, icon: Sparkles, label: 'Nur große Aktionen' },
-] as const
-
-/**
- * **The strict end**, which is the unusual default and the deliberate one.
- *
- * A filter that starts off is a feature; a filter that starts on is an opinion
- * about what the list is for — and this list is opened off a number that needs
- * explaining, not to be read end to end. One tap restores the whole record,
- * which is unchanged underneath.
- */
-const DEFAULT_TIER = EVENT_TIERS.length - 1
-
-/**
- * The tier at `index`, and always *a* tier.
- *
- * The index is state that only ever moves by `% EVENT_TIERS.length`, so it
- * cannot leave the array — but it is a `number`, and a `number` index into a
- * tuple is `T | undefined` under `noUncheckedIndexedAccess`. Rather than two
- * call sites each inventing their own fallback, the wrap lives here and the
- * whole file gets a tier back.
- */
-function eventTier(index: number): (typeof EVENT_TIERS)[number] {
-  return EVENT_TIERS[index] ?? EVENT_TIERS[0]
+function isSuperEvent(event: PlayerMatchEvent): boolean {
+  return Math.abs(event.points) >= SUPER_EVENT_POINTS
 }
 
 /**
@@ -212,8 +185,14 @@ export function PlayerMatchEventsDialog({
   const ownExpected = useExpectedPoints(expectedDay)[playerId]
   const { prediction } = usePointcastPrediction(expectedDay, playerId)
 
-  const [tierIndex, setTierIndex] = useState(DEFAULT_TIER)
-  const tier = eventTier(tierIndex)
+  /**
+   * **On by default**, which is the unusual half of this and the deliberate
+   * half. A filter that starts off is a feature; a filter that starts on is an
+   * opinion about what the list is for — and this list is opened off a number
+   * that needs explaining, not to be read end to end. One tap restores the
+   * whole record, which is unchanged underneath.
+   */
+  const [onlyNotable, setOnlyNotable] = useState(true)
 
   /*
    * Derived rather than held: the breakdown is already memoised by the query
@@ -221,17 +200,14 @@ export function PlayerMatchEventsDialog({
    * that can disagree with the first.
    */
   const allEvents = breakdown.data?.events ?? []
-  const shownEvents = allEvents.filter(
-    (event) => Math.abs(event.points) >= tier.minPoints,
-  )
+  const shownEvents = onlyNotable ? allEvents.filter(isNotableEvent) : allEvents
   const hiddenCount = allEvents.length - shownEvents.length
   /*
-   * **Is the control worth drawing at all?** Only if the three tiers would not
-   * all produce the same list — which is settled by the strictest one: if it
-   * hides nothing, neither does anything looser, and a cycle through three
-   * identical lists is a control that visibly does nothing when tapped.
+   * **Is the control worth drawing at all?** Only if it would change the list.
+   * A match whose every action clears five gets no toggle, rather than one that
+   * visibly does nothing when tapped.
    */
-  const canFilter = allEvents.some((event) => !isBigEvent(event))
+  const canFilter = allEvents.some((event) => !isNotableEvent(event))
 
   const opponent = match.opponentName ?? '–'
   const outcome = matchOutcome(match.goalsFor, match.goalsAgainst)
@@ -428,11 +404,11 @@ export function PlayerMatchEventsDialog({
                 flick of a hundred rows. Left of the ✗, so close keeps the
                 corner it has in every sheet in the app. */}
             {canFilter && (
-              <EventTierToggle
-                tierIndex={tierIndex}
+              <EventFilterToggle
+                isActive={onlyNotable}
                 hiddenCount={hiddenCount}
-                onCycle={() => {
-                  setTierIndex((current) => (current + 1) % EVENT_TIERS.length)
+                onToggle={() => {
+                  setOnlyNotable(!onlyNotable)
                 }}
               />
             )}
@@ -480,13 +456,10 @@ export function PlayerMatchEventsDialog({
                  be a lie the reader has no way to catch — so it names the
                  filter, and the chip that undoes it is directly above. */
               <p className="py-6 text-center text-sm text-muted">
-                {`Keine Aktion ab ${String(tier.minPoints)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
+                {`Keine Aktion ab ${String(NOTABLE_EVENT_POINTS)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
               </p>
             ) : (
-              <EventList
-                events={shownEvents}
-                emphasiseBig={tier.minPoints < BIG_EVENT_POINTS}
-              />
+              <EventList events={shownEvents} />
             )}
           </div>
 
@@ -517,58 +490,57 @@ export function PlayerMatchEventsDialog({
  * beside the ✗ and the sheet did not have room for the strip, so the strip
  * went.
  *
- * ## Three settings, one target
+ * ## Two settings, after briefly being three
  *
- * {@link EVENT_TIERS} — everything, five and up, ten and up — cycled by tapping
- * rather than chosen from a menu. Three is few enough that a cycle costs at
- * most two taps to reach any of them, and a menu on a 36px target in a sheet
- * header is a popover over a popover for a choice with three outcomes.
+ * It ran as a three-way cycle — everything, five and up, ten and up — for part
+ * of the same day, and the top setting did not earn its place. Ten is a bar so
+ * high that the list is four rows and sometimes empty, and the two useful
+ * answers turned out to be *the whole thing* and *five and up*. What ten was
+ * genuinely good at is **emphasis**, which costs no setting at all: it is
+ * {@link SUPER_EVENT_POINTS}, applied to both settings, so the goal is findable
+ * whether or not the passes are on screen.
  *
- * The icon is the **state**, not the action: a filled ring for the whole list,
- * then the two marks that stand for the two thresholds. A tap changes it, so
- * the glyph is also the feedback — which is what makes a cycle legible without
- * a label beside it.
+ * Back to two, therefore, and `aria-pressed` with it — honest for a control
+ * with two states and false for one with a middle setting, which is why it came
+ * off for the cycle and goes back on now.
+ *
+ * The icon is the **state**: a plain ring for the whole list, the mark for the
+ * filtered one. A tap changes it, so the glyph is also the feedback.
  *
  * ## What an icon owes back
  *
  * It dropped words, and they go where words go: `title` and `aria-label` carry
- * the **tier's name and the count it is hiding** — *Nur große Aktionen · 84
+ * the setting's name **and the count it is hiding** — *Ab 5 Punkten · 71
  * ausgeblendet* — which is more than the old chip's label said, and one hover
  * or one screen-reader stop away rather than always on screen.
- *
- * **No `aria-pressed`.** It was there while this was a two-state toggle and it
- * is wrong for three: a pressed/not-pressed state on a control with a middle
- * setting tells a screen reader something false about it. The accessible
- * *name* carries the state instead, and it changes on every tap, which is the
- * shape a cycle actually has.
  *
  * The second half of the count survives on screen regardless: when the filter
  * empties a list that had rows in it, the list itself names the threshold and
  * the number hidden. That is the one moment the figure is load-bearing.
  */
-function EventTierToggle({
-  tierIndex,
+function EventFilterToggle({
+  isActive,
   hiddenCount,
-  onCycle,
+  onToggle,
 }: {
-  tierIndex: number
-  /** How many rows this tier is keeping out, for the label. */
+  isActive: boolean
+  /** How many rows the filter is keeping out, for the label. */
   hiddenCount: number
-  onCycle: () => void
+  onToggle: () => void
 }) {
-  const tier = eventTier(tierIndex)
-  const Icon = tier.icon
+  const name = isActive
+    ? `Ab ${String(NOTABLE_EVENT_POINTS)} Punkten`
+    : 'Alle Aktionen'
   const label =
-    hiddenCount === 0
-      ? tier.label
-      : `${tier.label} · ${String(hiddenCount)} ausgeblendet`
+    hiddenCount === 0 ? name : `${name} · ${String(hiddenCount)} ausgeblendet`
 
   return (
     <button
       type="button"
-      onClick={onCycle}
+      onClick={onToggle}
       title={label}
       aria-label={label}
+      aria-pressed={isActive}
       className={cn(
         'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
         'hover:bg-surface-2',
@@ -576,12 +548,16 @@ function EventTierToggle({
         // the state worth noticing: a list that is *not* showing everything
         // should say so without being asked. Showing all, it sits at the
         // weight of the ✗ beside it — available, not advertised.
-        tier.minPoints > 0
+        isActive
           ? 'text-accent hover:text-accent'
           : 'text-muted hover:text-ink',
       )}
     >
-      <Icon size={18} aria-hidden="true" />
+      {isActive ? (
+        <Astroid size={18} aria-hidden="true" />
+      ) : (
+        <Circle size={18} aria-hidden="true" />
+      )}
     </button>
   )
 }
@@ -603,37 +579,26 @@ function EventTierToggle({
  * row *above*, which is positional and so survived the list being turned
  * around: a minute is still printed on the first row of its group either way.
  *
- * **Shown whole, the big actions are set in heavy type** — see
- * {@link emphasiseBig}. The filter and the weight are two answers to the same
- * question and the reader picks one: hide the texture, or keep it and let the
- * goal carry itself out of it.
+ * **The super events are set in heavy type** — the name bold, the figure
+ * extra-bold, at {@link SUPER_EVENT_POINTS} and in either direction. Always,
+ * at both settings of the filter, because the two numbers do two jobs: five
+ * decides what is on the page, ten decides what the page points at. Filtered
+ * or whole, the goal and the card are where the eye lands first.
+ *
+ * It was conditional while the filter's own top setting was also ten — bolding
+ * every row of a list that is all big actions is bolding none of them. With
+ * that setting gone there is always something lighter to stand against, and
+ * the flag that carried the condition went with it.
+ *
+ * The gutter stays quiet throughout: it is a timeline, and a timeline with
+ * some of its minutes shouted is a worse one.
  */
-function EventList({
-  events,
-  emphasiseBig,
-}: {
-  events: PlayerMatchEvent[]
-  /**
-   * Set the big actions in heavy type — **only while the tier admits smaller
-   * ones**, which is the *Alle* and *ab 5* settings.
-   *
-   * At the top tier every row present is already a big one, and bolding all of
-   * them is bolding none of them: weight only says anything against something
-   * lighter. So the emphasis is how the two looser settings keep the property
-   * the strictest one provides — the eye finds the goal and the card among
-   * ninety passes without the passes having to go.
-   *
-   * Which makes the middle tier the one that carries both at once, and the
-   * reason there is a middle tier at all: five and up is a midfielder's
-   * afternoon in twenty rows, with the four that decided it in bold.
-   */
-  emphasiseBig: boolean
-}) {
+function EventList({ events }: { events: PlayerMatchEvent[] }) {
   return (
     <ol className="flex flex-col">
       {events.map((event, index) => {
         const isSameMinute = events[index - 1]?.minute === event.minute
-        const isBig = emphasiseBig && isBigEvent(event)
+        const isSuper = isSuperEvent(event)
 
         return (
           <li
@@ -653,7 +618,7 @@ function EventList({
             <span
               className={cn(
                 'min-w-0 flex-1 text-sm text-ink',
-                isBig && 'font-bold',
+                isSuper && 'font-bold',
               )}
             >
               {event.name}
@@ -664,7 +629,7 @@ function EventList({
             <span
               className={cn(
                 'nums shrink-0 text-sm',
-                isBig ? 'font-extrabold' : 'font-semibold',
+                isSuper ? 'font-extrabold' : 'font-semibold',
                 event.points > 0 ? 'text-positive' : 'text-negative',
               )}
             >
