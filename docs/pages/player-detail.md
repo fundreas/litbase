@@ -346,7 +346,88 @@ minute reads as a single moment rather than five rows restating `45′`. That is
 what makes a hundred rows scannable: the gutter becomes a timeline instead of a
 repeated number.
 
-#### Only the big ones, by default
+#### The event filter — three settings, one glyph
+
+A toggle in the dialog's header, left of the ✗, cycled by tapping. The icon is
+the state:
+
+| Icon | Shows | |
+| --- | --- | --- |
+| `Circle` | everything | the complete record, ~100 rows |
+| `Astroid` | **≥ 5 points** either way | his afternoon, ~20 rows |
+| `Sparkles` | **≥ 10 points** either way | what decided it, ~4 rows |
+
+It starts at **`Sparkles`**, the strict end.
+
+Ten is where Kickbase's own scale changes character. Below it is the texture of
+a football match — the passes, duels, interceptions and fouls a midfielder
+accrues sixty of, each meaningless alone. At ten and above the entries are
+*events*: the goal, the assist, the penalty, the card, the goal conceded. The
+question that opens this dialog — *why did that number move* — is almost always
+answered by the second kind.
+
+Five exists because the two ends were the only settings until 2026-09-20 and the
+useful answer is usually between them: ten-and-up is four rows and sometimes
+none at all, for a midfielder who had a good afternoon without a goal in it.
+Five is where that afternoon shows up — the duels won, the chances created, the
+ball lost in his own half.
+
+Every tier compares the **absolute** value, so a −18 is as big as a +18.
+Filtering for what mattered is not a request to be shown only good news, and the
+worst thing that happened to a player is the row most likely to explain his
+afternoon.
+
+Five details keep it honest:
+
+- **Default at the strict end is an opinion, and the deliberate one.** A filter
+  that starts off is a feature; a filter that starts on says what the list is
+  for. This one is opened off a number that needs explaining, not to be read end
+  to end. The cycle runs *loosest first*, so the first tap from the default is
+  the whole record — which is what a reader of a filtered list most often wants.
+- **A cycle, not a menu.** Three settings is few enough that any of them is at
+  most two taps away, and a menu on a 36px target in a sheet header is a popover
+  over a popover for a choice with three outcomes.
+- **It is outside the scroll area**, which is the half of its placement that is
+  not taste. It is the one control that can explain an empty list, and inside
+  the list it would scroll away from the emptiness it caused — gone within a
+  flick of a hundred rows. It was a labelled chip in a band of its own between
+  the header and the list until 2026-09-20; the band cost a row and a half of a
+  sheet that is mostly list, on the screen size that can least spare it.
+- **An icon owes back the words it dropped.** `title` and `aria-label` carry the
+  tier's name *and* the count it is hiding — *Nur große Aktionen · 84
+  ausgeblendet*. There is deliberately **no `aria-pressed`**: it was right for
+  the two-state toggle this replaced and is false for three, since a
+  pressed/not-pressed state says nothing true about a control with a middle
+  setting. The accessible *name* carries the state and changes on every tap,
+  which is the shape a cycle actually has. The glyph is lit in the accent
+  whenever anything is held back, because a list that is not showing everything
+  should say so without being asked.
+- **It is not drawn when it would do nothing.** If nothing is under 10 points,
+  all three tiers produce the same list, and a cycle through three identical
+  lists is a control that visibly does nothing when tapped. And when a tier
+  empties a list that had rows — a player whose whole afternoon was below the
+  bar — the list says *that*, naming the threshold and the count, rather than
+  repeating the "no scoring actions" message, which would be a lie the reader
+  has no way to catch. That is the one moment the figure is load-bearing, and it
+  is on screen rather than in a tooltip.
+
+##### Weight does the filter's job at the looser settings
+
+At `Circle` and `Astroid` the big actions — the same ≥ 10 threshold — are set in
+heavy type, the name bold and the figure extra-bold, so the goal and the card
+are findable among ninety passes without the passes having to go.
+
+It applies *only* while the tier admits smaller rows. At `Sparkles` every row
+present is already big, and weight says nothing except against something
+lighter. Which makes `Astroid` the setting that carries both at once, and the
+reason there is a middle tier at all: five and up is his afternoon in twenty
+rows, with the four that decided it in bold.
+
+The minute gutter stays quiet throughout — a timeline with some of its minutes
+shouted is a worse timeline — and the figures were already tabular (`nums`), so
+a row going heavy does not shift the column.
+
+### Only the big ones, by default
 
 A toggle in the dialog's header — the `Astroid` glyph, left of the ✗ — hides
 everything under **10 points either way**, and it starts **on**.

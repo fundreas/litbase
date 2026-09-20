@@ -1,5 +1,13 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { Astroid, ChevronRight, House, PlaneTakeoff, X } from 'lucide-react'
+import {
+  Astroid,
+  ChevronRight,
+  Circle,
+  House,
+  PlaneTakeoff,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -30,16 +38,65 @@ import { delta, points as formatPoints } from '@/lib/format'
  * the question that opens this dialog — **why did that number move** — is
  * almost always answered by the second.
  *
- * Compared on the **absolute** value, so a −18 is as big as a +18. A reader
- * filtering for what mattered is not asking to be shown only good news, and
- * the worst thing that happened to a player is the single row most likely to
- * explain his afternoon.
+ * It is the top of {@link EVENT_TIERS} and it is also the **emphasis**
+ * threshold, which is why it keeps a name of its own: whatever the filter is
+ * set to, these are the rows drawn in heavy type.
  */
 const BIG_EVENT_POINTS = 10
 
 /** Is this one of the actions that actually moved the figure? */
 function isBigEvent(event: PlayerMatchEvent): boolean {
   return Math.abs(event.points) >= BIG_EVENT_POINTS
+}
+
+/**
+ * **The three settings of the event filter**, in the order a tap moves through
+ * them.
+ *
+ * A cycle rather than the on/off it was until 2026-09-20, because the two
+ * settings it had were the two ends and the useful answer is usually between
+ * them. *Everything* is a hundred rows of passes; *ten and up* is four rows
+ * and sometimes none at all, for a midfielder who had a good afternoon without
+ * a goal in it. Five is where his afternoon actually shows up — the duels won,
+ * the chances created, the ball lost in his own half.
+ *
+ * Every tier compares the **absolute** value, so a −18 is as big as a +18. A
+ * reader filtering for what mattered is not asking to be shown only good news,
+ * and the worst thing that happened to a player is the single row most likely
+ * to explain his afternoon.
+ *
+ * The order is *loosest first*, so a tap always reveals more until it wraps.
+ * The list starts at the strict end — see {@link DEFAULT_TIER} — so the first
+ * tap is the one a reader of a filtered list most often wants, which is to see
+ * the whole thing.
+ */
+const EVENT_TIERS = [
+  { minPoints: 0, icon: Circle, label: 'Alle Aktionen' },
+  { minPoints: 5, icon: Astroid, label: 'Ab 5 Punkten' },
+  { minPoints: BIG_EVENT_POINTS, icon: Sparkles, label: 'Nur große Aktionen' },
+] as const
+
+/**
+ * **The strict end**, which is the unusual default and the deliberate one.
+ *
+ * A filter that starts off is a feature; a filter that starts on is an opinion
+ * about what the list is for — and this list is opened off a number that needs
+ * explaining, not to be read end to end. One tap restores the whole record,
+ * which is unchanged underneath.
+ */
+const DEFAULT_TIER = EVENT_TIERS.length - 1
+
+/**
+ * The tier at `index`, and always *a* tier.
+ *
+ * The index is state that only ever moves by `% EVENT_TIERS.length`, so it
+ * cannot leave the array — but it is a `number`, and a `number` index into a
+ * tuple is `T | undefined` under `noUncheckedIndexedAccess`. Rather than two
+ * call sites each inventing their own fallback, the wrap lives here and the
+ * whole file gets a tier back.
+ */
+function eventTier(index: number): (typeof EVENT_TIERS)[number] {
+  return EVENT_TIERS[index] ?? EVENT_TIERS[0]
 }
 
 /**
@@ -155,14 +212,8 @@ export function PlayerMatchEventsDialog({
   const ownExpected = useExpectedPoints(expectedDay)[playerId]
   const { prediction } = usePointcastPrediction(expectedDay, playerId)
 
-  /*
-   * **On by default**, which is the unusual half of this and the deliberate
-   * half. A filter that starts off is a feature; a filter that starts on is an
-   * opinion about what the list is for — and this list is opened off a number
-   * that needs explaining, not to be read end to end. The full record is one
-   * tap away and stays exactly as complete as it was.
-   */
-  const [onlyBig, setOnlyBig] = useState(true)
+  const [tierIndex, setTierIndex] = useState(DEFAULT_TIER)
+  const tier = eventTier(tierIndex)
 
   /*
    * Derived rather than held: the breakdown is already memoised by the query
@@ -170,9 +221,17 @@ export function PlayerMatchEventsDialog({
    * that can disagree with the first.
    */
   const allEvents = breakdown.data?.events ?? []
-  const bigEvents = allEvents.filter(isBigEvent)
-  const shownEvents = onlyBig ? bigEvents : allEvents
-  const hiddenCount = allEvents.length - bigEvents.length
+  const shownEvents = allEvents.filter(
+    (event) => Math.abs(event.points) >= tier.minPoints,
+  )
+  const hiddenCount = allEvents.length - shownEvents.length
+  /*
+   * **Is the control worth drawing at all?** Only if the three tiers would not
+   * all produce the same list — which is settled by the strictest one: if it
+   * hides nothing, neither does anything looser, and a cycle through three
+   * identical lists is a control that visibly does nothing when tapped.
+   */
+  const canFilter = allEvents.some((event) => !isBigEvent(event))
 
   const opponent = match.opponentName ?? '–'
   const outcome = matchOutcome(match.goalsFor, match.goalsAgainst)
@@ -368,12 +427,12 @@ export function PlayerMatchEventsDialog({
                 would scroll away from the emptiness it caused, gone within a
                 flick of a hundred rows. Left of the ✗, so close keeps the
                 corner it has in every sheet in the app. */}
-            {hiddenCount > 0 && (
-              <BigEventsToggle
-                isActive={onlyBig}
+            {canFilter && (
+              <EventTierToggle
+                tierIndex={tierIndex}
                 hiddenCount={hiddenCount}
-                onToggle={() => {
-                  setOnlyBig(!onlyBig)
+                onCycle={() => {
+                  setTierIndex((current) => (current + 1) % EVENT_TIERS.length)
                 }}
               />
             )}
@@ -421,10 +480,13 @@ export function PlayerMatchEventsDialog({
                  be a lie the reader has no way to catch — so it names the
                  filter, and the chip that undoes it is directly above. */
               <p className="py-6 text-center text-sm text-muted">
-                {`Keine Aktion ab ${String(BIG_EVENT_POINTS)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
+                {`Keine Aktion ab ${String(tier.minPoints)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
               </p>
             ) : (
-              <EventList events={shownEvents} emphasiseBig={!onlyBig} />
+              <EventList
+                events={shownEvents}
+                emphasiseBig={tier.minPoints < BIG_EVENT_POINTS}
+              />
             )}
           </div>
 
@@ -446,7 +508,7 @@ export function PlayerMatchEventsDialog({
 }
 
 /**
- * **The big-actions filter, as one glyph in the header.**
+ * **The event filter, as one glyph in the header.**
  *
  * A chip reading *Nur große Aktionen (ab 10)* sat between the header and the
  * list until 2026-09-20 and said its piece well; it also spent a whole band of
@@ -455,51 +517,71 @@ export function PlayerMatchEventsDialog({
  * beside the ✗ and the sheet did not have room for the strip, so the strip
  * went.
  *
- * An icon-only control owes the reader the words it dropped, and they go where
- * words go: `title` and `aria-label` carry the threshold **and the count** —
- * *Nur große Aktionen (ab 10) · 84 ausgeblendet* — which is more than the chip
- * said and is one hover or one screen reader away rather than always on
- * screen. `aria-pressed` carries the state, which colour alone cannot.
+ * ## Three settings, one target
+ *
+ * {@link EVENT_TIERS} — everything, five and up, ten and up — cycled by tapping
+ * rather than chosen from a menu. Three is few enough that a cycle costs at
+ * most two taps to reach any of them, and a menu on a 36px target in a sheet
+ * header is a popover over a popover for a choice with three outcomes.
+ *
+ * The icon is the **state**, not the action: a filled ring for the whole list,
+ * then the two marks that stand for the two thresholds. A tap changes it, so
+ * the glyph is also the feedback — which is what makes a cycle legible without
+ * a label beside it.
+ *
+ * ## What an icon owes back
+ *
+ * It dropped words, and they go where words go: `title` and `aria-label` carry
+ * the **tier's name and the count it is hiding** — *Nur große Aktionen · 84
+ * ausgeblendet* — which is more than the old chip's label said, and one hover
+ * or one screen-reader stop away rather than always on screen.
+ *
+ * **No `aria-pressed`.** It was there while this was a two-state toggle and it
+ * is wrong for three: a pressed/not-pressed state on a control with a middle
+ * setting tells a screen reader something false about it. The accessible
+ * *name* carries the state instead, and it changes on every tap, which is the
+ * shape a cycle actually has.
  *
  * The second half of the count survives on screen regardless: when the filter
  * empties a list that had rows in it, the list itself names the threshold and
  * the number hidden. That is the one moment the figure is load-bearing.
- *
- * **Not drawn when it would do nothing.** A match with no small actions in it
- * gets no toggle, rather than one that visibly does nothing when tapped.
  */
-function BigEventsToggle({
-  isActive,
+function EventTierToggle({
+  tierIndex,
   hiddenCount,
-  onToggle,
+  onCycle,
 }: {
-  isActive: boolean
-  /** How many rows the filter is keeping out, for the label. */
+  tierIndex: number
+  /** How many rows this tier is keeping out, for the label. */
   hiddenCount: number
-  onToggle: () => void
+  onCycle: () => void
 }) {
-  const label = `Nur große Aktionen (ab ${String(BIG_EVENT_POINTS)}) · ${String(hiddenCount)} ausgeblendet`
+  const tier = eventTier(tierIndex)
+  const Icon = tier.icon
+  const label =
+    hiddenCount === 0
+      ? tier.label
+      : `${tier.label} · ${String(hiddenCount)} ausgeblendet`
 
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={onCycle}
       title={label}
       aria-label={label}
-      aria-pressed={isActive}
       className={cn(
         'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
         'hover:bg-surface-2',
-        // Lit in the accent while it is filtering, because that is the state
-        // worth noticing: a list that is *not* showing everything should say
-        // so without being asked. Off, it sits at the weight of the ✗ beside
-        // it — available, not advertised.
-        isActive
+        // Lit in the accent while anything is being held back, because that is
+        // the state worth noticing: a list that is *not* showing everything
+        // should say so without being asked. Showing all, it sits at the
+        // weight of the ✗ beside it — available, not advertised.
+        tier.minPoints > 0
           ? 'text-accent hover:text-accent'
           : 'text-muted hover:text-ink',
       )}
     >
-      <Astroid size={18} aria-hidden="true" />
+      <Icon size={18} aria-hidden="true" />
     </button>
   )
 }
@@ -532,14 +614,18 @@ function EventList({
 }: {
   events: PlayerMatchEvent[]
   /**
-   * Set the big actions in heavy type — **only when the list is the whole
-   * list**.
+   * Set the big actions in heavy type — **only while the tier admits smaller
+   * ones**, which is the *Alle* and *ab 5* settings.
    *
-   * With the filter on, every row present is already a big one, and bolding
-   * all of them is bolding none of them: weight only says anything against
-   * something lighter. So the emphasis is the *unfiltered* list's way of
-   * keeping the property the filter provides — the eye finds the goal and the
-   * card among ninety passes without the passes having to go.
+   * At the top tier every row present is already a big one, and bolding all of
+   * them is bolding none of them: weight only says anything against something
+   * lighter. So the emphasis is how the two looser settings keep the property
+   * the strictest one provides — the eye finds the goal and the card among
+   * ninety passes without the passes having to go.
+   *
+   * Which makes the middle tier the one that carries both at once, and the
+   * reason there is a middle tier at all: five and up is a midfielder's
+   * afternoon in twenty rows, with the four that decided it in bold.
    */
   emphasiseBig: boolean
 }) {
