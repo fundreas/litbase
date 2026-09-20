@@ -156,7 +156,7 @@ export interface PlayerMatchBreakdown {
    * did not touch the score, which is a real case and reads as an empty list.
    */
   total?: number
-  /** Scoring actions, **earliest first**. */
+  /** Scoring actions, **latest first** — see {@link toPlayerMatchBreakdown}. */
   events: PlayerMatchEvent[]
   /**
    * How many reversals were netted out of the list — see the mapper. Drawn as
@@ -287,10 +287,18 @@ export function usePlayerMatchEvents(
  *     own structure — kick-off, the halves, added time, full time, and whether
  *     he started or sat on the bench. They are worth nothing to a score
  *     breakdown, and the row that opened this dialog already says how he played.
- *  3. **Earliest first.** The payload is ordered by `ei` descending, which is
- *     neither chronological nor anything else useful: minutes ran 1, 1, 1, 70,
- *     96 in the first five entries. A finished match read after the fact is a
- *     report, so it runs forwards; ties break on `ei` so the order is stable.
+ *  3. **Latest first.** The payload's own order is by `ei` descending, which
+ *     is neither chronological nor anything else useful: minutes ran 1, 1, 1,
+ *     70, 96 in the first five entries. So it is sorted — **newest at the
+ *     top**, ties broken on `ei` so the order is stable.
+ *
+ *     It ran forwards until 2026-09-20, on the reasoning that a finished match
+ *     read after the fact is a report and a report runs chronologically. That
+ *     is true of the match and false of the *question*: this dialog is opened
+ *     off a number that just moved, and the action that moved it was the last
+ *     one — at the bottom of a list a hundred rows long, behind a scroll. The
+ *     reader who wants the afternoon in order can read up; the reader who
+ *     wants the last thing that happened should not have to travel for it.
  *
  * A name that will not resolve falls back to the code rather than to
  * "unknown" — every one of the 121 scoring events in the probed match resolved,
@@ -332,7 +340,7 @@ export function toPlayerMatchBreakdown(
           ? 'Unbekannte Aktion'
           : (names?.get(event.eti) ?? `Aktion ${String(event.eti)}`),
     }))
-    .sort((a, b) => a.minute - b.minute || Number(a.id) - Number(b.id) || 0)
+    .sort((a, b) => b.minute - a.minute || Number(b.id) - Number(a.id) || 0)
 
   return {
     matchId: data.mi === undefined ? undefined : String(data.mi),

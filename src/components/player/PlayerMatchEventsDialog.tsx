@@ -378,7 +378,9 @@ export function PlayerMatchEventsDialog({
 }
 
 /**
- * The actions, earliest first.
+ * The actions, **latest first** — the ordering
+ * [`toPlayerMatchBreakdown`](../../api/hooks/usePlayerMatchEvents.ts) hands
+ * over, and the reason is there rather than here.
  *
  * A minute gutter, the name, and what it was worth — three columns, because
  * that is the whole content and anything more would be decoration on a list a
@@ -388,7 +390,9 @@ export function PlayerMatchEventsDialog({
  * The **minute is only printed when it changes**, so a burst of actions in the
  * same minute reads as one moment rather than as five rows each restating
  * `45'`. That is what makes a long list scannable: the gutter becomes a
- * timeline of the match instead of a repeated number.
+ * timeline of the match instead of a repeated number. It compares against the
+ * row *above*, which is positional and so survived the list being turned
+ * around: a minute is still printed on the first row of its group either way.
  */
 function EventList({ events }: { events: PlayerMatchEvent[] }) {
   return (

@@ -329,10 +329,17 @@ than a selection of highlights. Getting there takes three rules, all in
    own structure — kick-off, the halves, added time, full time, and whether he
    started or sat on the bench. The row that opened the dialog already says how
    he played.
-3. **Earliest first.** The payload is ordered by `ei` descending, which is
+3. **Latest first.** The payload's own order is by `ei` descending, which is
    neither chronological nor anything else useful — minutes ran 1, 1, 1, 70, 96
-   in the first five entries. A finished match read afterwards is a report, so
-   it runs forwards.
+   in the first five entries. So it is sorted, newest at the top, ties broken on
+   `ei` for stability.
+
+   It ran forwards until 2026-09-20, on the reasoning that a match read
+   afterwards is a report and a report runs chronologically. True of the match,
+   false of the *question*: the dialog is opened off a number that just moved,
+   and the action that moved it was the last one — at the bottom of a hundred
+   rows, behind a scroll. Reading up recovers the afternoon in order; nothing
+   recovers a cheap glance at the most recent action.
 
 **The minute is printed only when it changes**, so a burst of actions in one
 minute reads as a single moment rather than five rows restating `45′`. That is
