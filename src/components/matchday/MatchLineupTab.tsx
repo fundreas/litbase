@@ -19,6 +19,11 @@ import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { matchPlayerFigure } from '@/components/matchday/matchPlayerFigure'
 import { ownerLabel } from '@/components/matchday/ownerLabel'
 import { teamPoints } from '@/components/matchday/teamPoints'
+import {
+  countMsFor,
+  TREND_CLASS,
+  useCountUp,
+} from '@/components/matchday/useCountUp'
 import { useLiveEventTicker } from '@/components/matchday/useLiveEventTicker'
 import {
   figureDescription,
@@ -175,12 +180,23 @@ function playerLabel(player: MatchPlayer, figure: PlayerFigure): string {
  *
  * **Full screen, a running match gets an [event stream](./LiveEventTicker.tsx)**
  * under the bar: one action at a time — the pass, the shot, the foul, the
- * assist, the goal — for two seconds each, out of the player-centre payloads
- * this tab is already polling for the numbers on the portraits, so it costs no
- * request. The bell in the bar switches it off and the choice is remembered.
- * Only full screen, and only while the match runs: inline, the strip would be
- * taking height from a pitch that is already sharing the page, and a match that
- * is over has nothing to announce.
+ * assist, the goal — out of the player-centre payloads this tab is already
+ * polling for the numbers on the portraits, so it costs no request. The bell in
+ * the bar switches it off and the choice is remembered. Only full screen, and
+ * only while the match runs: inline, the strip would be taking height from a
+ * pitch that is already sharing the page, and a match that is over has nothing
+ * to announce.
+ *
+ * **And the numbers move with it.** A portrait's figure, and the club total in
+ * the corner, land **at the moment the action that caused them is named** —
+ * counting green or red, never jumping ahead of the sentence that explains
+ * them. That is what {@link replayed} is for, and the reason this tab overlays
+ * its own figures rather than drawing the ones
+ * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts) hands it: the trailing
+ * number belongs to *this view while the stream is on*, and the
+ * [ranking tab](./MatchRankingTab.tsx) sharing that hook must go on showing the
+ * plain truth. The bell off, the match settled, or the pitch inline, and so
+ * does this one.
  *
  * **Full screen and on its side, the benches come with it** — home's column,
  * the grass, away's column, in the order the scoreline names them. There is
@@ -256,12 +272,40 @@ export function MatchLineupTab({
    */
   const { preferences, setPreference } = usePreferences()
   const isStreaming = isLive && fullscreen.isOpen
-  const liveEvent = useLiveEventTicker({
+  const isReplaying = isStreaming && preferences.liveEventStream
+  const {
+    event: liveEvent,
+    pointsBehind,
+    slotMs,
+  } = useLiveEventTicker({
     home,
     away,
     events: liveEvents,
-    enabled: isStreaming && preferences.liveEventStream,
+    enabled: isReplaying,
   })
+
+  /*
+   * **The two sheets as the replay is telling them**, which is not always the
+   * two sheets as the poll last left them — see
+   * [`pointsBehind`](./useLiveEventTicker.ts).
+   *
+   * Applied *here* and not in
+   * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts), which is where
+   * `points` is attached to a `MatchPlayer` and would be the obvious place.
+   * That hook is shared with the [ranking tab](./MatchRankingTab.tsx) and with
+   * this tab's own inline pitch, neither of which is replaying anything: a
+   * trailing figure there would have the two tabs quoting different numbers
+   * for the same player in the same match, and the ranking animating rows
+   * nobody had been told about. The trailing figure is a property of *this
+   * view while the stream is on*, so it is overlaid at the point of drawing.
+   *
+   * `replayed` returns the sheet unchanged when nothing is held back, which is
+   * every render of a quiet window and every render outside the replay — so
+   * the portraits keep their identity and React re-reconciles nothing.
+   */
+  const homeShown = replayed(home, pointsBehind)
+  const awayShown = replayed(away, pointsBehind)
+  const countMs = countMsFor(slotMs)
 
   /*
    * The tapped player, found back among everyone this screen draws — **the
@@ -319,7 +363,13 @@ export function MatchLineupTab({
       orientation={orientation}
       className={fullscreen.isOpen ? 'min-h-0 flex-1' : 'min-h-[34rem] flex-1'}
     >
-      <SideLabel lineup={home} side="home" orientation={orientation} />
+      <SideLabel
+        lineup={homeShown}
+        side="home"
+        orientation={orientation}
+        animate={isReplaying}
+        countMs={countMs}
+      />
 
       {/* The corner the two side labels leave free. Gone once full screen:
           there is nothing further to expand into, and the bar's ✗ is the way
@@ -345,21 +395,29 @@ export function MatchLineupTab({
             {ROW_ORDER_MIRRORED.map((position) => (
               <PitchBand
                 key={`home-${position}`}
-                players={home.starters.filter((p) => p.position === position)}
+                players={homeShown.starters.filter(
+                  (p) => p.position === position,
+                )}
                 metrics={metrics}
                 side="home"
                 onOpen={openBreakdown}
                 orientation={orientation}
+                animate={isReplaying}
+                countMs={countMs}
               />
             ))}
             {ROW_ORDER.map((position) => (
               <PitchBand
                 key={`away-${position}`}
-                players={away.starters.filter((p) => p.position === position)}
+                players={awayShown.starters.filter(
+                  (p) => p.position === position,
+                )}
                 metrics={metrics}
                 side="away"
                 onOpen={openBreakdown}
                 orientation={orientation}
+                animate={isReplaying}
+                countMs={countMs}
               />
             ))}
           </>
@@ -378,7 +436,13 @@ export function MatchLineupTab({
         )}
       </div>
 
-      <SideLabel lineup={away} side="away" orientation={orientation} />
+      <SideLabel
+        lineup={awayShown}
+        side="away"
+        orientation={orientation}
+        animate={isReplaying}
+        countMs={countMs}
+      />
     </Pitch>
   )
 
@@ -443,9 +507,11 @@ export function MatchLineupTab({
              on one screen. */
           <div className="flex min-h-0 flex-1 items-stretch gap-2">
             <BenchColumn
-              lineup={home}
+              lineup={homeShown}
               side="home"
               onOpen={openBreakdown}
+              animate={isReplaying}
+              countMs={countMs}
               isBeside
             />
             {/* The pitch's own `flex-1` grows it *down* the column, so it needs
@@ -453,9 +519,11 @@ export function MatchLineupTab({
                 to the two fixed benches rather than overflowing the window. */}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">{pitch}</div>
             <BenchColumn
-              lineup={away}
+              lineup={awayShown}
               side="away"
               onOpen={openBreakdown}
+              animate={isReplaying}
+              countMs={countMs}
               isBeside
             />
           </div>
@@ -496,8 +564,8 @@ export function MatchLineupTab({
           face each other, and the corner labels bridge the two. Full screen
           they move beside the grass instead; see below. */}
       <div className="grid grid-cols-2 gap-2">
-        <BenchColumn lineup={home} side="home" onOpen={openBreakdown} />
-        <BenchColumn lineup={away} side="away" onOpen={openBreakdown} />
+        <BenchColumn lineup={homeShown} side="home" onOpen={openBreakdown} />
+        <BenchColumn lineup={awayShown} side="away" onOpen={openBreakdown} />
       </div>
 
       {breakdownDialog}
@@ -509,6 +577,40 @@ function countAt(players: MatchPlayer[], position: PositionKey): number {
   return players.filter((player) => player.position === position).length
 }
 
+/**
+ * One team sheet with every figure wound back to **what the strip has actually
+ * announced** — the authoritative points minus whatever is still queued.
+ *
+ * Returned **unchanged** when nothing is held back, which matters more than it
+ * looks: that is every render outside the replay and every render of a quiet
+ * window, and a fresh array of fresh objects on each of them would give the
+ * pitch twenty-two new portraits to reconcile ten times a minute, for nothing.
+ * Players with no points behind them keep their identity for the same reason.
+ *
+ * A player whose points are `undefined` is left alone rather than being given a
+ * figure: he has not scored *not yet*, and `undefined − 0` is not `0` here — it
+ * is the dash that says the number is unknown. See
+ * [`matchPlayerFigure`](./matchPlayerFigure.ts).
+ */
+function replayed(
+  lineup: MatchLineup,
+  pointsBehind: Map<string, number>,
+): MatchLineup {
+  if (pointsBehind.size === 0) return lineup
+
+  const wind = (player: MatchPlayer): MatchPlayer => {
+    const held = pointsBehind.get(player.id)
+    if (held === undefined || player.points === undefined) return player
+    return { ...player, points: player.points - held }
+  }
+
+  return {
+    ...lineup,
+    starters: lineup.starters.map(wind),
+    substitutes: lineup.substitutes.map(wind),
+  }
+}
+
 /** One position's players, side by side — or stacked, on a landscape pitch. */
 function PitchBand({
   players,
@@ -516,6 +618,8 @@ function PitchBand({
   side,
   onOpen,
   orientation,
+  animate,
+  countMs,
 }: {
   players: MatchPlayer[]
   metrics: PlayerMetrics
@@ -523,6 +627,10 @@ function PitchBand({
   onOpen: (player: MatchPlayer) => void
   /** Which way the band runs — see {@link PitchOrientation}. */
   orientation: PitchOrientation
+  /** Count the figures rather than cutting to them — see {@link useCountUp}. */
+  animate: boolean
+  /** How long a count may take, from the replay's slot. */
+  countMs: number
 }) {
   return (
     /* `flex-nowrap` + `overflow-hidden` for the reason the squad's pitch
@@ -537,6 +645,8 @@ function PitchBand({
           metrics={metrics}
           side={side}
           onOpen={onOpen}
+          animate={animate}
+          countMs={countMs}
         />
       ))}
     </div>
@@ -562,16 +672,37 @@ function PitchPlayer({
   metrics,
   side,
   onOpen,
+  animate,
+  countMs,
 }: {
   player: MatchPlayer
   metrics: PlayerMetrics
   side: Side
   onOpen: (player: MatchPlayer) => void
+  animate: boolean
+  countMs: number
 }) {
   const figure = matchPlayerFigure(player)
   const owned = player.owner
   const label = playerLabel(player, figure)
   const swap = pitchSwap(player)
+
+  /*
+   * The plate's number, mid-count. Only the figure moves: the plate keeps its
+   * `plateWidth`, its padding and its font size throughout, because the pitch
+   * measures its own box with a `ResizeObserver` and re-runs the whole sizing
+   * search whenever it changes ([`usePitchBox`](../squad/pitchMetrics.ts)). An
+   * animation that grew a plate by a pixel would resize twenty-two portraits
+   * on every action of the afternoon. Colour and digits, nothing else.
+   *
+   * The accessible name deliberately keeps the **settled** figure: a screen
+   * reader should be told what the player has scored, not be handed four
+   * intermediate values on the way to it.
+   */
+  const { shown, trend } = useCountUp(player.points, {
+    animate,
+    durationMs: countMs,
+  })
 
   return (
     <button
@@ -644,11 +775,17 @@ function PitchPlayer({
         </span>
         <span
           className={cn(
-            'nums max-w-full truncate font-bold',
+            // `nums` — tabular figures, so a count through 9 → 10 changes the
+            // digit and not the width of everything beside it.
+            'nums max-w-full truncate font-bold transition-colors',
             isScore(figure) ? 'text-white' : 'text-white/55',
+            // Transient: green while it climbs, red while it falls, and the
+            // plate's own white a beat later. A permanently green plate would
+            // be describing the player rather than the moment.
+            trend !== undefined && TREND_CLASS[trend],
           )}
         >
-          {figureLabel(figure)}
+          {shown === undefined ? figureLabel(figure) : points(shown)}
         </span>
       </span>
     </button>
@@ -680,13 +817,26 @@ function SideLabel({
   lineup,
   side,
   orientation,
+  animate,
+  countMs,
 }: {
   lineup: MatchLineup
   side: Side
   /** Which way the pitch is drawn, which decides the corner. */
   orientation: PitchOrientation
+  /** Count the total rather than cutting to it — see {@link useCountUp}. */
+  animate: boolean
+  /** How long a count may take, from the replay's slot. */
+  countMs: number
 }) {
+  /*
+   * **The total moves with the same action the portrait does**, and it does so
+   * without being told anything: it is the sum over a sheet whose figures have
+   * already been wound back by {@link replayed}, so one player's points landing
+   * *is* the club's total climbing by the same delta. Two counters, one cause.
+   */
   const total = teamPoints(lineup)
+  const { shown, trend } = useCountUp(total, { animate, durationMs: countMs })
   const name = lineup.team.name ?? lineup.team.symbol
   const label =
     total === undefined
@@ -717,11 +867,12 @@ function SideLabel({
       <span
         aria-hidden="true"
         className={cn(
-          'nums shrink-0 text-[0.6875rem] font-bold',
+          'nums shrink-0 text-[0.6875rem] font-bold transition-colors',
           total === undefined ? 'text-white/55' : 'text-white',
+          trend !== undefined && TREND_CLASS[trend],
         )}
       >
-        {points(total)}
+        {points(shown)}
       </span>
       <span className="sr-only">{label}</span>
     </span>
@@ -757,6 +908,8 @@ function BenchColumn({
   lineup,
   side,
   onOpen,
+  animate = false,
+  countMs = 0,
   isBeside = false,
 }: {
   lineup: MatchLineup
@@ -766,6 +919,17 @@ function BenchColumn({
    * dialog a portrait on the grass opens, from the same hash.
    */
   onOpen: (player: MatchPlayer) => void
+  /**
+   * Count a row's figure rather than cutting to it — see {@link useCountUp}.
+   *
+   * Defaulted off, because the bench is drawn in two places and only one of
+   * them replays: beside the landscape full-screen pitch, where a substitute
+   * who came on and is scoring is one of the more interesting things on the
+   * screen, and under the inline pitch, which is not streaming anything.
+   */
+  animate?: boolean
+  /** How long a count may take, from the replay's slot. */
+  countMs?: number
   /**
    * Drawn as a touchline beside the [full-screen](../ui/FullscreenPane.tsx)
    * landscape pitch rather than as a block under the page's own.
@@ -813,6 +977,8 @@ function BenchColumn({
               player={player}
               side={side}
               onOpen={onOpen}
+              animate={animate}
+              countMs={countMs}
             />
           ))}
         </ul>
@@ -837,12 +1003,20 @@ function BenchRow({
   player,
   side,
   onOpen,
+  animate,
+  countMs,
 }: {
   player: MatchPlayer
   side: Side
   onOpen: (player: MatchPlayer) => void
+  animate: boolean
+  countMs: number
 }) {
   const figure = matchPlayerFigure(player)
+  const { shown, trend } = useCountUp(player.points, {
+    animate,
+    durationMs: countMs,
+  })
 
   return (
     <li>
@@ -885,11 +1059,12 @@ function BenchRow({
 
         <span
           className={cn(
-            'nums shrink-0 text-[0.6875rem] font-semibold',
+            'nums shrink-0 text-[0.6875rem] font-semibold transition-colors',
             isScore(figure) ? 'text-ink' : 'text-faint',
+            trend !== undefined && TREND_CLASS[trend],
           )}
         >
-          {figureLabel(figure)}
+          {shown === undefined ? figureLabel(figure) : points(shown)}
         </span>
       </button>
     </li>

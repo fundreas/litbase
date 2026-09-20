@@ -588,7 +588,7 @@ page again.
 ### The event stream
 
 Full screen, while the match is **running**, a strip under the bar announces
-what just happened — one action at a time, two seconds each:
+what just happened — one action at a time:
 
 ```
 67′  (◯)  Grimaldo   Erfolgreicher Pass            +1
@@ -615,22 +615,130 @@ There is **no other source**. The match's own feed (`/matches/{mi}/details` →
 duels, fouls, shots and interceptions exist **only** per player, on the player
 centre.
 
-Four rules decide what a reader actually sees:
+#### The points land with the notification
 
-- **The poll rate is the resolution.** An action appears within ten seconds of
-  Kickbase scoring it, in a batch with everything else on that tick — not the
-  instant it happens on the grass.
+The strip is only half of it. **The figure on the portrait moves at the moment
+its action is named**, counting up in green or down in red, and the club total
+in the pitch's corner moves with it.
+
+That is a change from how this worked until 2026-09-20, and the old behaviour
+is worth naming because it is the obvious one: the poll landed, all
+twenty-two portraits took their new totals *at once*, and the strip then spent
+the next twenty seconds working through the actions that had caused them. The
+number changed, and then — several actions later, or never, if the queue
+overflowed — something explained it. Two halves of one event, told out of
+order, which is the one thing a live screen must not do.
+
+So the batch is **replayed** instead. The figures are wound back by everything
+still queued and released one action at a time.
+
+##### Displayed points are not authoritative points
+
+Two numbers now exist per player and the distinction is the whole design:
+
+| | Where it comes from | When it moves |
+| --- | --- | --- |
+| **Authoritative** | `p` on the player centre, via [`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts) | in a lump, every 10s |
+| **Displayed** | authoritative **minus** what is still queued | one action at a time |
+
+The trailing layer lives **beside the ticker**, and
+[`MatchLineupTab`](../../src/components/matchday/MatchLineupTab.tsx) overlays it
+on the sheets it hands the pitch — deliberately *not* in `useMatchLineup`, where
+`points` is attached to a player and which would be the obvious place. That hook
+is shared with the [ranking tab](#ranking--who-actually-scored) and with this
+tab's own inline pitch, neither of which is replaying anything: a trailing
+figure there would have two tabs quoting different numbers for the same player
+in the same match, and the ranking animating rows nobody had been told about.
+
+##### The invariant: drained means equal
+
+> **When the replay queue drains, displayed points are exactly authoritative
+> points.**
+
+It has to hold because the replay is allowed to be lossy in *notifications* and
+must never be lossy in *points*. Three things make notifications go missing:
+
+- **reversals** (`cei`) change a total and are deliberately never announced, so
+  a player can gain or lose points with no announceable event at all;
+- **over-budget windows drop notifications** (below);
+- any arithmetic disagreement between the summed `p` of the actions and the
+  total Kickbase states for the player.
+
+The invariant is held **by construction rather than by a reconciliation step**.
+Nothing accumulates a displayed figure: `pointsBehind` is the sum of the `p` of
+every event still queued *behind* the one on the bar, and the pitch draws
+`authoritative − pointsBehind`. An empty queue is an empty map. So a reversal is
+in no queue and lands the moment the poll brings it; a dropped event leaves the
+queue and its points land that instant; and drift cannot exist, because the
+authoritative figure is the *base* of every sum rather than a value being
+chased.
+
+#### The replay schedule
+
+The batch has to drain before the next poll lands, so each action gets
+`10s ÷ (actions in the batch)`, clamped:
+
+| | | Why |
+| --- | --- | --- |
+| **Max** | 3000ms | Up from a flat 2000ms. Two seconds is right for a queue that is usually behind; once the points landed *with* the notification, most windows turned out to be quiet ones. |
+| **Min** | 400ms | About one comfortable fixation — the name and the sign of the number. Below it the strip stops being readable and starts strobing, and the count on the plate never settles. |
+
+The budget is fixed **when the batch arrives**, not recomputed as the queue
+drains: five events at 2000ms becoming four at 2500ms becoming three at 3000ms
+is a twelve-second window inside a ten-second poll.
+
+**Over budget — more than 25 announceable actions in one tick — notifications
+are dropped, never points.** The overflow goes from the middle, oldest first, so
+the queue stays a window on the newest; and because a plate's figure is
+*authoritative minus what is still queued*, a dropped event has its points land
+that instant. The reader loses the sentence, not the number.
+
+The alternative was **coalescing** — merging a player's consecutive actions into
+one row with the summed delta. It keeps every point attached to a notification
+and invents a notification that never happened: *Erfolgreicher Pass +4* for four
+separate passes, or one row naming whichever of a pass, a foul and an assist
+happened to be last. The strip's contract is that a row is *an action*, and a
+match busy enough to overflow is exactly when a reader is least able to notice
+it has quietly stopped being one. The complete record is the
+[timeline](#events--the-timeline) and each player's own
+[breakdown](#the-action-breakdown), both unchanged.
+
+**Order within a window** is by minute, then by `<playerId>:<ei>` for stability.
+`mt` is the only clock on a player-centre event — there is no timestamp field —
+so the replay spreads a batch back over ten seconds but cannot recover where
+inside them each action really fell.
+
+#### The animation
+
+Colour and digits only. **The plate's box never changes**: the pitch sizes its
+portraits to the box it is given and re-runs that whole search whenever it
+changes ([`usePitchBox`](../../src/components/squad/pitchMetrics.ts)), so an
+animation that grew a plate by a pixel would resize twenty-two portraits on
+every action of the afternoon. The figures are set in tabular numerals (`nums`)
+for the same class of reason — a counter ticking 9 → 10 must not shift what is
+beside it.
+
+The count takes 60% of its slot, capped at 360ms: 240ms at the 400ms floor,
+360ms from 600ms up. It has to be settled well before the next action is
+announced, or the reader is watching two things at once. The tint —
+`text-positive` / `text-negative`, the same pair the strip puts on the action's
+own points badge — fades a beat after the count lands, because a plate that
+stays green has stopped describing a moment and started describing a player.
+
+**`prefers-reduced-motion` snaps, it does not skip.** The app's
+[global rule](../../src/index.css) collapses CSS animations to nothing and a
+`requestAnimationFrame` loop sails straight through it, so the query is read in
+[`useCountUp`](../../src/components/matchday/useCountUp.ts): the figure goes to
+its new value immediately and completely. The **colour stays**, deliberately —
+green-for-up is not motion, it is the other half of what the change means.
+
+#### Two more rules
+
 - **Nothing already on the payload is announced.** The first read of a match in
   progress carries every action since kick-off, hundreds of them; opening the
   pitch in the 70th minute must not replay the afternoon. So the first payload
   that has events is a **seed**: every `ei` in it is recorded as seen and
   nothing is drawn. From then on, only ids that were not there before.
-- **The queue is a window, not a backlog.** A busy tick delivers more actions
-  than two-second slots to show them in, so whatever is on screen finishes and
-  the overflow is dropped oldest-first, at most four waiting. A ticker that
-  queued everything would be announcing a pass while the reader watches a goal
-  go in. The complete record is the [timeline](#events--the-timeline) and each
-  player's own [breakdown](#the-action-breakdown), both unchanged.
 - **Two kinds of entry never appear**: reversals (an entry carrying `cei` —
   Kickbase re-classifying something it already reported, which read aloud is the
   scoring system's second thoughts rather than the match) and zero-point
@@ -638,11 +746,9 @@ Four rules decide what a reader actually sees:
   the bench). The same two the breakdown dialog drops, for the same reasons.
 
 **The strip keeps its height between events**, showing the app's pulsing live
-dot and *Live-Events*. That is not decoration: the pitch under it sizes its
-portraits to the box it is given and re-runs that search whenever the box
-changes ([`usePitchBox`](../../src/components/squad/pitchMetrics.ts)), so a
-strip that appeared and vanished every two seconds would have twenty-two
-portraits breathing all afternoon.
+dot and *Live-Events*. That is not decoration: it is the same box-stability rule
+the animation follows — a strip that appeared and vanished every few seconds
+would have twenty-two portraits breathing all afternoon.
 
 ### The bell
 
@@ -664,6 +770,14 @@ Switched off, the bar and the strip both go, and the **ids keep being
 recorded** — which is what makes the bell instant in both directions. Turning it
 back on shows the next thing that happens, never the twenty minutes of football
 the reader chose not to watch.
+
+**The points stop trailing with it.** A silenced stream has nothing to be in
+step with, so the queue is emptied, the overlay goes, and the pitch shows the
+authoritative figures plainly — in a lump every ten seconds, with no counting
+and no tint, exactly as the inline pitch and a settled match always do. Because
+the held-back points live *in* the queue, emptying it releases them in the same
+breath: there is no window in which the bell has been switched off and a
+portrait is still showing a number the poll has moved on from.
 
 ## Ranking — who actually scored
 
