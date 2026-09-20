@@ -51,7 +51,16 @@ import { cn } from '@/lib/cn'
  * would put the crest behind the **row's** background rather than behind the
  * row's text, and it would simply never appear.
  */
-export function ClubWatermark({ team }: { team: TeamSummary | undefined }) {
+export function ClubWatermark({
+  team,
+}: {
+  /**
+   * Only the crest is read, so anything that carries one will do: the club
+   * directory's {@link TeamSummary} on the market and the rankings, a match
+   * payload's own [`MatchTeam`](../../api/models.ts) in a match's list.
+   */
+  team: Pick<TeamSummary, 'image'> | undefined
+}) {
   const src = cdnUrl(team?.image)
   if (src === undefined) return null
 

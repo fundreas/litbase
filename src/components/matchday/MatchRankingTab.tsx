@@ -2,10 +2,16 @@ import { ListOrdered, SquareSplitVertical } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
-import type { MatchLineup, MatchPlayer, MatchTeam } from '@/api/models'
+import {
+  POSITION_LABEL,
+  type MatchLineup,
+  type MatchPlayer,
+  type MatchTeam,
+} from '@/api/models'
 import { matchPlayerFigure } from '@/components/matchday/matchPlayerFigure'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { teamPoints } from '@/components/matchday/teamPoints'
+import { ClubWatermark } from '@/components/player/ClubWatermark'
 import { MatchEventBadge } from '@/components/player/MatchEventBadge'
 import {
   figureDescription,
@@ -218,13 +224,26 @@ function RankedList({
   return (
     <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
       {rows.map(({ player, team }, index) => (
-        <li key={player.id} className="flex items-center">
-          <span className="nums w-8 shrink-0 pl-3 text-right text-xs font-semibold text-faint">
+        /* `min-h-14` is a **floor**, not a height: the second line carries
+           whatever the match gave the player — a substitution arrow, a goal,
+           a card, or nothing at all — so an intrinsic row would be a
+           different height every third listing and the portraits beside them
+           would step up and down the list. */
+        <li key={player.id} className="flex min-h-14 items-stretch">
+          {/* The rank is a **rail**, the flush left-hand column the
+              [player ranking](../ranking/PlayerRankingTab.tsx) draws it in —
+              which is the whole reason the portrait beside it can butt
+              against an edge instead of ending on a cut. */}
+          <span className="nums flex w-7 shrink-0 items-center justify-center self-stretch border-r border-line bg-surface-2/40 text-xs font-semibold text-faint">
             {index + 1}
           </span>
           <Link
             to={`/leagues/${leagueId}/players/${player.id}`}
-            className="min-w-0 flex-1 transition-colors hover:bg-surface-2/60"
+            /* The club in words, for the reader the crest behind the row does
+               not reach: the row no longer spells it out, and a badge is not
+               a name to somebody who does not know the badge. */
+            title={`${player.name} · ${team.name ?? team.symbol}`}
+            className="flex min-w-0 flex-1 items-stretch transition-colors hover:bg-surface-2/60"
           >
             <PlayerRow player={player} team={team} />
           </Link>
@@ -267,67 +286,101 @@ function rankMatchPlayers(...lineups: MatchLineup[]): RankedPlayer[] {
 }
 
 /**
- * One row: portrait, name over club crest and what he did, then the owner and
- * the score.
+ * One row: portrait, name over what he did, then the owner and the score — on
+ * **his club's crest**.
  *
- * The **crest is on the second line**, where the duel's row puts the opponent's
- * fixture. Here it says which of the two clubs the player belongs to, which is
- * the one thing a combined list takes away and has to give back — and unlike the
- * duel it needs no scoreline beside it, because every row in this list is the
- * same match.
+ * **The portrait is the app's flush one**, the figure the
+ * [market](../market/MarketRow.tsx), the [Kader](../squad/PlayerListTab.tsx)
+ * and the [player ranking](../ranking/PlayerRankingTab.tsx) all draw: square
+ * and full-bleed against the rank rail, a wash under it because the Kickbase
+ * cutouts are transparent PNGs, and the inner edge masked so it dissolves into
+ * the row rather than ending on a line. It replaces a 34px circle with air
+ * around it. The sources are 1100×800 landscape and this box cover-crops them,
+ * so every pixel of both dimensions is a pixel of face — which is what a list
+ * of twenty-eight players is read for: recognising them.
+ *
+ * **The club is the watermark behind the lane**, in place of the 16px crest
+ * that used to open the second line. That crest answered *which of the two
+ * clubs* in principle and not in practice — a Bundesliga badge at 16px is a
+ * coloured speck — and it was spending width on the one line that also carries
+ * the goals, the cards and the substitution arrows. Behind the lane it costs
+ * the row nothing and is finally large enough to be recognised; see
+ * {@link ClubWatermark}. The name is in the row's tooltip for the reader the
+ * badge does not reach.
+ *
+ * The line it freed goes to the **position**, which is what the other ranked
+ * lists put there and what keeps the line from being empty on a player the
+ * match had no events for.
  */
 function PlayerRow({ player, team }: { player: MatchPlayer; team: MatchTeam }) {
   const figure = matchPlayerFigure(player)
 
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2">
-      <Avatar src={player.image} name={player.name} size={34} />
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink">{player.name}</p>
-        <span className="mt-0.5 flex items-center gap-2">
-          <Avatar
-            src={team.image}
-            name={team.symbol}
-            size={16}
-            square
-            className="bg-transparent"
-          />
-          {/* Goals, cards and the rest, from the match's own event feed — the
-              same glyphs the player page draws. The pitch has no room for
-              these; a row does. */}
-          {player.events?.map((event) => (
-            <MatchEventBadge key={event.kind} event={event} />
-          ))}
-          {/* Arrows only. Every row here belongs to one match, and in a match
-              a role exists only where there was a substitution — so an `S11`
-              chip would sit on the handful of players who were *taken off* and
-              on none of the ten beside them who also started, saying the
-              opposite of what it means. The tooltip and the accessible name
-              still spell the role out. */}
-          {player.role !== undefined && (
-            <MatchRoleMark
-              role={player.role}
-              showStart={false}
-              className="text-[0.6875rem]"
-            />
+    <div className="flex min-w-0 flex-1 items-stretch">
+      <span className="flex w-14 shrink-0 self-stretch">
+        <Avatar
+          src={player.image}
+          name={player.name}
+          fill
+          className={cn(
+            'w-full self-stretch bg-transparent',
+            'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+            '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
           )}
+        />
+      </span>
+
+      {/* `relative isolate overflow-hidden` is what the club watermark needs of
+          its host — see [`ClubWatermark`](../player/ClubWatermark.tsx). Behind
+          the **text**, not behind the portrait: that column is already a
+          picture. */}
+      <div className="relative isolate flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden py-2 pr-3 pl-1.5">
+        <ClubWatermark team={team} />
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{player.name}</p>
+          <span className="mt-0.5 flex items-center gap-2">
+            {player.position !== undefined && (
+              <span className="shrink-0 text-[0.6875rem] tracking-wide text-faint uppercase">
+                {POSITION_LABEL[player.position]}
+              </span>
+            )}
+            {/* Goals, cards and the rest, from the match's own event feed — the
+                same glyphs the player page draws. The pitch has no room for
+                these; a row does. */}
+            {player.events?.map((event) => (
+              <MatchEventBadge key={event.kind} event={event} />
+            ))}
+            {/* Arrows only. Every row here belongs to one match, and in a match
+                a role exists only where there was a substitution — so an `S11`
+                chip would sit on the handful of players who were *taken off* and
+                on none of the ten beside them who also started, saying the
+                opposite of what it means. The tooltip and the accessible name
+                still spell the role out. */}
+            {player.role !== undefined && (
+              <MatchRoleMark
+                role={player.role}
+                showStart={false}
+                className="text-[0.6875rem]"
+              />
+            )}
+          </span>
+        </div>
+
+        {player.owner !== undefined && (
+          <OwnerBadge owner={player.owner} size={20} />
+        )}
+
+        <span
+          aria-label={figureDescription(figure)}
+          className={cn(
+            'nums shrink-0 text-sm font-semibold',
+            isScore(figure) ? 'text-ink' : 'text-faint',
+          )}
+        >
+          {figureLabel(figure)}
         </span>
       </div>
-
-      {player.owner !== undefined && (
-        <OwnerBadge owner={player.owner} size={20} />
-      )}
-
-      <span
-        aria-label={figureDescription(figure)}
-        className={cn(
-          'nums shrink-0 text-sm font-semibold',
-          isScore(figure) ? 'text-ink' : 'text-faint',
-        )}
-      >
-        {figureLabel(figure)}
-      </span>
     </div>
   )
 }
