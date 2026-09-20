@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { ChevronRight, House, PlaneTakeoff, X } from 'lucide-react'
+import { Astroid, ChevronRight, House, PlaneTakeoff, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -13,7 +13,6 @@ import { Scoreline } from '@/components/player/PlayerMatchRow'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { usePointcastPrediction } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
-import { FilterChip } from '@/components/ui/FilterChip'
 import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
@@ -363,6 +362,22 @@ export function PlayerMatchEventsDialog({
               </Link>
             )}
 
+            {/* **In the header, and so outside the scroll area** — which is
+                the half of its placement that is not taste. It is the one
+                control that can explain an empty list, and inside the list it
+                would scroll away from the emptiness it caused, gone within a
+                flick of a hundred rows. Left of the ✗, so close keeps the
+                corner it has in every sheet in the app. */}
+            {hiddenCount > 0 && (
+              <BigEventsToggle
+                isActive={onlyBig}
+                hiddenCount={hiddenCount}
+                onToggle={() => {
+                  setOnlyBig(!onlyBig)
+                }}
+              />
+            )}
+
             <Dialog.Close
               aria-label="Schließen"
               className={cn(
@@ -373,29 +388,6 @@ export function PlayerMatchEventsDialog({
               <X size={18} aria-hidden="true" />
             </Dialog.Close>
           </div>
-
-          {/* **The filter sits outside the scroll area**, between the header
-              and the list. Inside it, the one control that can explain an
-              empty list would scroll away from the emptiness it caused — and
-              on a hundred rows it would be off screen within a flick, which is
-              the whole of its job gone. */}
-          {hiddenCount > 0 && (
-            <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
-              <FilterChip
-                isActive={onlyBig}
-                onClick={() => {
-                  setOnlyBig(!onlyBig)
-                }}
-              >
-                {`Nur große Aktionen (ab ${String(BIG_EVENT_POINTS)})`}
-              </FilterChip>
-              <span className="nums min-w-0 truncate text-[0.6875rem] text-faint">
-                {onlyBig
-                  ? `${String(hiddenCount)} ausgeblendet`
-                  : `${String(allEvents.length)} Aktionen`}
-              </span>
-            </div>
-          )}
 
           {/* `overscroll-contain` so reaching the end of a hundred rows does
               not start scrolling the page behind the dialog. */}
@@ -450,6 +442,65 @@ export function PlayerMatchEventsDialog({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  )
+}
+
+/**
+ * **The big-actions filter, as one glyph in the header.**
+ *
+ * A chip reading *Nur große Aktionen (ab 10)* sat between the header and the
+ * list until 2026-09-20 and said its piece well; it also spent a whole band of
+ * a sheet that is mostly list, on a phone where that band is a row and a half
+ * of the thing the reader came for. The header had room for a 36px square
+ * beside the ✗ and the sheet did not have room for the strip, so the strip
+ * went.
+ *
+ * An icon-only control owes the reader the words it dropped, and they go where
+ * words go: `title` and `aria-label` carry the threshold **and the count** —
+ * *Nur große Aktionen (ab 10) · 84 ausgeblendet* — which is more than the chip
+ * said and is one hover or one screen reader away rather than always on
+ * screen. `aria-pressed` carries the state, which colour alone cannot.
+ *
+ * The second half of the count survives on screen regardless: when the filter
+ * empties a list that had rows in it, the list itself names the threshold and
+ * the number hidden. That is the one moment the figure is load-bearing.
+ *
+ * **Not drawn when it would do nothing.** A match with no small actions in it
+ * gets no toggle, rather than one that visibly does nothing when tapped.
+ */
+function BigEventsToggle({
+  isActive,
+  hiddenCount,
+  onToggle,
+}: {
+  isActive: boolean
+  /** How many rows the filter is keeping out, for the label. */
+  hiddenCount: number
+  onToggle: () => void
+}) {
+  const label = `Nur große Aktionen (ab ${String(BIG_EVENT_POINTS)}) · ${String(hiddenCount)} ausgeblendet`
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={label}
+      aria-label={label}
+      aria-pressed={isActive}
+      className={cn(
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
+        'hover:bg-surface-2',
+        // Lit in the accent while it is filtering, because that is the state
+        // worth noticing: a list that is *not* showing everything should say
+        // so without being asked. Off, it sits at the weight of the ✗ beside
+        // it — available, not advertised.
+        isActive
+          ? 'text-accent hover:text-accent'
+          : 'text-muted hover:text-ink',
+      )}
+    >
+      <Astroid size={18} aria-hidden="true" />
+    </button>
   )
 }
 

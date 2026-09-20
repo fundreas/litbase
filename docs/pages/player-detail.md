@@ -348,8 +348,8 @@ repeated number.
 
 #### Only the big ones, by default
 
-A chip between the header and the list hides everything under **10 points
-either way**, and it starts **on**.
+A toggle in the dialog's header — the `Astroid` glyph, left of the ✗ — hides
+everything under **10 points either way**, and it starts **on**.
 
 Ten is where Kickbase's own scale changes character. Below it is the texture of
 a football match — the passes, duels, interceptions and fouls a midfielder
@@ -369,14 +369,24 @@ Three details keep it honest:
   is a feature; a filter that starts on says what the list is for. This one is
   opened off a number that needs explaining, not to be read end to end. One tap
   restores the complete record, which is unchanged underneath.
-- **The chip is outside the scroll area.** Inside it, the one control that can
-  explain an empty list would scroll away from the emptiness it caused — and on
-  a hundred rows it would be gone within a flick.
-- **It is not drawn when it would do nothing.** No small actions, no chip. And
+- **It is outside the scroll area**, which is the half of its placement that is
+  not taste. It is the one control that can explain an empty list, and inside
+  the list it would scroll away from the emptiness it caused — gone within a
+  flick of a hundred rows. It was a labelled chip in a band of its own between
+  the header and the list until 2026-09-20; the band cost a row and a half of a
+  sheet that is mostly list, on the screen size that can least spare it, and the
+  header already had room for a 36px square.
+- **An icon owes back the words it dropped.** `title` and `aria-label` carry the
+  threshold *and* the count — *Nur große Aktionen (ab 10) · 84 ausgeblendet* —
+  which is more than the chip's label said. `aria-pressed` carries the state,
+  which colour alone cannot. It is lit in the accent while filtering, because a
+  list that is not showing everything should say so without being asked.
+- **It is not drawn when it would do nothing.** No small actions, no toggle. And
   when the filter empties an otherwise non-empty list — a player whose whole
-  afternoon was below the bar — the list says *that*, naming the filter and the
-  count, rather than repeating the "no scoring actions" message, which would be
-  a lie the reader has no way to catch.
+  afternoon was below the bar — the list says *that*, naming the threshold and
+  the count, rather than repeating the "no scoring actions" message, which would
+  be a lie the reader has no way to catch. That is the one moment the figure is
+  load-bearing, and it is on screen rather than in a tooltip.
 
 **The header is the player.** His face, his name, his total — because that is
 whose sheet this is. It used to lead with the opponent's crest and name, which
