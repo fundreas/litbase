@@ -348,14 +348,20 @@ repeated number.
 
 #### The event filter, and the two thresholds
 
-A toggle in the dialog's header, left of the ✗. The icon is the state:
+A toggle in the dialog's header, left of the ✗ — the `Astroid` glyph, always
+the same glyph, with its **colour** as the state:
 
-| Icon | Shows | |
+| | Shows | |
 | --- | --- | --- |
-| `Astroid` | **≥ 5 points** either way | his afternoon, ~20 rows |
-| `Circle` | everything | the complete record, ~100 rows |
+| accent | **≥ 5 points** either way | his afternoon, ~20 rows |
+| muted | everything | the complete record, ~100 rows |
 
 It starts **filtered**.
+
+The unfiltered state swapped the mark for a plain `Circle` for part of
+2026-09-20. A control whose *shape* changes reads as two different buttons
+rather than one button in two states, which is the wrong thing to say about a
+toggle sitting in a header nobody is looking at.
 
 **Two numbers, two jobs.** Five decides what is on the page; ten decides what
 the page points at.
@@ -399,9 +405,12 @@ Four details keep it honest:
   ausgeblendet*. `aria-pressed` carries the state, which colour alone cannot;
   it came off while the control was a three-way cycle, where a
   pressed/not-pressed state would have said nothing true about a middle setting,
-  and went back on with the second state. The glyph is lit in the accent
-  whenever anything is held back, because a list that is not showing everything
-  should say so without being asked.
+  and went back on with the second state.
+- **Colour is the only visual carrier**, which is a thing to be careful with and
+  is carried here by three others: `aria-pressed` and the accessible name say it
+  outright, and the list underneath visibly grows or shrinks on the tap. The
+  feedback is the content — the strongest signal on the screen and the one the
+  reader is actually watching.
 - **It is not drawn when it would do nothing.** A match whose every action
   clears five gets no toggle. And when the filter empties a list that had rows —
   a player whose whole afternoon was below the bar — the list says *that*,

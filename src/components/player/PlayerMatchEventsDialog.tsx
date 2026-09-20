@@ -1,12 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import {
-  Astroid,
-  ChevronRight,
-  Circle,
-  House,
-  PlaneTakeoff,
-  X,
-} from 'lucide-react'
+import { Astroid, ChevronRight, House, PlaneTakeoff, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -504,8 +497,20 @@ export function PlayerMatchEventsDialog({
  * with two states and false for one with a middle setting, which is why it came
  * off for the cycle and goes back on now.
  *
- * The icon is the **state**: a plain ring for the whole list, the mark for the
- * filtered one. A tap changes it, so the glyph is also the feedback.
+ * ## One glyph, and the colour is the state
+ *
+ * The mark stays put and only its weight changes: accent while it is filtering,
+ * the muted grey of the ✗ beside it while the list is whole. It swapped to a
+ * plain `Circle` for the unfiltered state for part of the same day, and a
+ * control whose *shape* changes reads as two different buttons rather than one
+ * button in two states — which is the wrong thing to say about a toggle that
+ * sits in a header the reader is not looking at.
+ *
+ * That does leave **colour as the only visual carrier**, which is a thing to
+ * be careful with and is carried here by three others: `aria-pressed` and the
+ * accessible name say it outright, and the list underneath visibly grows or
+ * shrinks on the tap — the feedback is the content, which is the strongest
+ * signal on the screen and the one the reader is actually watching.
  *
  * ## What an icon owes back
  *
@@ -553,11 +558,7 @@ function EventFilterToggle({
           : 'text-muted hover:text-ink',
       )}
     >
-      {isActive ? (
-        <Astroid size={18} aria-hidden="true" />
-      ) : (
-        <Circle size={18} aria-hidden="true" />
-      )}
+      <Astroid size={18} aria-hidden="true" />
     </button>
   )
 }
