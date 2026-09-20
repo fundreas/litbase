@@ -1,5 +1,16 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { Astroid, ChevronRight, House, PlaneTakeoff, X } from 'lucide-react'
+import {
+  Astroid,
+  ChevronRight,
+  House,
+  PlaneTakeoff,
+  RefreshCcw,
+  ThumbsDown,
+  Timer,
+  Trophy,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -63,6 +74,42 @@ function isNotableEvent(event: PlayerMatchEvent): boolean {
 
 function isSuperEvent(event: PlayerMatchEvent): boolean {
   return Math.abs(event.points) >= SUPER_EVENT_POINTS
+}
+
+/**
+ * **The awards handed out at the whistle**, by `eti` — never by name.
+ *
+ * The catalogue is localised and it moves: every one of these titles was German
+ * a month before it was probed and is English now. `4270` is stable, *"Played
+ * Minutes Bonus"* is not, and a lookup keyed on the string would have gone
+ * quiet on a translation pass rather than failing loudly.
+ *
+ * `order` is a **fixed** sequence, not the payload's: playing time first, then
+ * the result. Two rows read as a header block only if they read the same way
+ * every time, and the payload's own order is `ei` descending, which is an
+ * accident of when Kickbase wrote them.
+ *
+ * **The set is treated as open.** `4264` is in the catalogue and has never been
+ * observed (**?**) — no probed match was won — and a clean-sheet award is a
+ * plausible fourth member that has not been seen either. Anything else arriving
+ * with `att: 2` is drawn from the catalogue's own name with no icon, which is
+ * a row that still tells the truth, rather than being dropped or forced into
+ * one of these three.
+ */
+const FULLTIME_AWARDS: Record<number, { icon: LucideIcon; order: number }> = {
+  /** Minuten gespielt — observed at +10. */
+  4270: { icon: Timer, order: 0 },
+  /** Spiel gewonnen — catalogue only, value unknown (**?**). */
+  4264: { icon: Trophy, order: 1 },
+  /** Spiel verloren — observed at −15. */
+  4267: { icon: ThumbsDown, order: 1 },
+}
+
+/** Where an award sorts. Unknown ones go last, in the order they arrived. */
+function awardOrder(event: PlayerMatchEvent): number {
+  const award =
+    event.typeId === undefined ? undefined : FULLTIME_AWARDS[event.typeId]
+  return award?.order ?? Number.MAX_SAFE_INTEGER
 }
 
 /**
@@ -193,14 +240,37 @@ export function PlayerMatchEventsDialog({
    * that can disagree with the first.
    */
   const allEvents = breakdown.data?.events ?? []
-  const shownEvents = onlyNotable ? allEvents.filter(isNotableEvent) : allEvents
-  const hiddenCount = allEvents.length - shownEvents.length
+
+  /*
+   * **Two lists, split on the phase that credited each row.**
+   *
+   * The full-time awards carry the whistle's minute rather than a minute of
+   * the match — `mt: 96` on the probed fixture — so in a newest-first list they
+   * sort to the *top*, above the 94th-minute goal that is the actual headline.
+   * Lifting them out is what puts the goal back at the head of the timeline.
+   */
+  const fulltimeEvents = allEvents
+    .filter((event) => event.kind === 'fulltime')
+    .sort((a, b) => awardOrder(a) - awardOrder(b))
+  const matchEvents = allEvents.filter((event) => event.kind !== 'fulltime')
+
+  /*
+   * **The filter is the timeline's, not the list's.** The awards are a
+   * two-row fixed block, not part of the hundred rows the filter exists to
+   * thin — and both of the observed ones clear every threshold anyway, so
+   * counting them would only make the hidden count wrong. Everything the
+   * toggle reasons about is therefore `matchEvents`.
+   */
+  const shownMatchEvents = onlyNotable
+    ? matchEvents.filter(isNotableEvent)
+    : matchEvents
+  const hiddenCount = matchEvents.length - shownMatchEvents.length
   /*
    * **Is the control worth drawing at all?** Only if it would change the list.
    * A match whose every action clears five gets no toggle, rather than one that
    * visibly does nothing when tapped.
    */
-  const canFilter = allEvents.some((event) => !isNotableEvent(event))
+  const canFilter = matchEvents.some((event) => !isNotableEvent(event))
 
   const opponent = match.opponentName ?? '–'
   const outcome = matchOutcome(match.goalsFor, match.goalsAgainst)
@@ -442,17 +512,30 @@ export function PlayerMatchEventsDialog({
                   ? 'Keine punktewirksamen Aktionen in diesem Spiel.'
                   : 'Das Spiel hat noch nicht begonnen.'}
               </p>
-            ) : shownEvents.length === 0 ? (
-              /* A **third** nothing, and the only one that is the app's doing
-                 rather than the match's: he played, he scored, and every
-                 action of it was below the bar. Saying "no actions" here would
-                 be a lie the reader has no way to catch — so it names the
-                 filter, and the chip that undoes it is directly above. */
-              <p className="py-6 text-center text-sm text-muted">
-                {`Keine Aktion ab ${String(NOTABLE_EVENT_POINTS)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
-              </p>
             ) : (
-              <EventList events={shownEvents} />
+              <>
+                {/* Mounted only when there is something in it — a match in
+                    progress has no awards yet, and an empty block with a rule
+                    under it is furniture describing nothing. */}
+                {fulltimeEvents.length > 0 && (
+                  <FulltimeAwards events={fulltimeEvents} />
+                )}
+
+                {matchEvents.length > 0 &&
+                  (shownMatchEvents.length === 0 ? (
+                    /* The one nothing that is the app's doing rather than the
+                       match's: he played, he scored, and every action of it
+                       was below the bar. Saying "no actions" here would be a
+                       lie the reader has no way to catch — so it names the
+                       filter, and the glyph that undoes it is in the header
+                       directly above. */
+                    <p className="py-6 text-center text-sm text-muted">
+                      {`Keine Aktion ab ${String(NOTABLE_EVENT_POINTS)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
+                    </p>
+                  ) : (
+                    <EventList events={shownMatchEvents} />
+                  ))}
+              </>
             )}
           </div>
 
@@ -564,9 +647,153 @@ function EventFilterToggle({
 }
 
 /**
- * The actions, **latest first** — the ordering
+ * **A labelled rule between two groups of rows.**
+ *
+ * A bare line would say *these are separate* and stop there, which is the half
+ * of it the reader can already see. The word says which of the two they are
+ * looking at — and it earns its place twice over on the whistle/timeline
+ * boundary, where the block above is two rows that look exactly like the rows
+ * below and differ in the one way nothing on screen shows: their minute is not
+ * a minute.
+ */
+function GroupRule({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-3 pb-1 first:pt-0">
+      <span className="text-[0.625rem] font-semibold tracking-wider text-faint uppercase">
+        {label}
+      </span>
+      <span aria-hidden="true" className="h-px min-w-0 flex-1 bg-line" />
+    </div>
+  )
+}
+
+/**
+ * **The awards handed out at the whistle**, above the match rather than in it.
+ *
+ * Two rows on the probed fixture — *Minuten gespielt +10*, *Spiel verloren
+ * −15* — and they were the top two rows of the timeline until 2026-09-20,
+ * sitting above a 94th-minute goal worth a hundred points. Not a sorting bug:
+ * their `mt` is `96`, the whistle, so a newest-first list is putting them
+ * exactly where they belong and the list is the wrong shape for them. They are
+ * not *late* events, they are *not events* — they are the match's own
+ * accounting, and the fix is to stop pretending they have a minute at all.
+ *
+ * So: **no minute gutter.** The column that would hold it holds the award's
+ * icon instead, which is the same width and says something true. Everything
+ * else — the name, the figure, the weight rule, the tabular column — is the
+ * timeline's, so the block reads as part of the same list rather than as a
+ * second design.
+ *
+ * The order is fixed by {@link FULLTIME_AWARDS}, not by the payload: playing
+ * time, then the result. Two rows read as a header block only if they read the
+ * same way every time.
+ */
+function FulltimeAwards({ events }: { events: PlayerMatchEvent[] }) {
+  return (
+    <>
+      <GroupRule label="Nach Schlusspfiff" />
+      <ol className="flex flex-col">
+        {events.map((event) => {
+          const Icon =
+            event.typeId === undefined
+              ? undefined
+              : FULLTIME_AWARDS[event.typeId]?.icon
+
+          return (
+            <li
+              key={event.id}
+              className="flex items-baseline gap-2.5 border-b border-line/60 py-1.5 last:border-0"
+            >
+              {/* The gutter's width, so the two groups' names and figures line
+                  up down the sheet. An award Kickbase has added since this was
+                  written gets the space and no glyph, which is a tidier
+                  unknown than a guessed icon. */}
+              <span className="flex w-9 shrink-0 justify-center">
+                {Icon !== undefined && (
+                  <Icon size={13} aria-hidden="true" className="text-faint" />
+                )}
+              </span>
+              <span
+                className={cn(
+                  'min-w-0 flex-1 text-sm text-ink',
+                  isSuperEvent(event) && 'font-bold',
+                )}
+              >
+                {event.name}
+              </span>
+              <span
+                className={cn(
+                  'nums shrink-0 text-sm',
+                  isSuperEvent(event) ? 'font-extrabold' : 'font-semibold',
+                  event.points > 0 ? 'text-positive' : 'text-negative',
+                )}
+              >
+                {delta(event.points)}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+    </>
+  )
+}
+
+/**
+ * **The last minute of the first half**, for the rule that divides the two.
+ *
+ * Derived from `mt` rather than from the fixture's own half markers, and that
+ * is the pragmatic choice rather than the obvious one. The markers exist —
+ * `ke` 11 and 12 on the structural entries — but they are dropped before this
+ * list is built (they are worth `p: 0`), and on the probed payload their own
+ * minutes disagree: `ke: 12` carries `mt: 45` and `ke: 11` carries `mt: 48`,
+ * which cannot both be the interval. The actions' minutes are consistent, and
+ * every one of them is on the side of 45 it should be.
+ *
+ * **?** First-half stoppage is folded into `45` on that payload rather than
+ * running to 45+3, so this is the boundary as Kickbase reports it. A payload
+ * that reported `46` for first-half stoppage would put that row under the
+ * wrong rule; none has been seen.
+ */
+const HALFTIME_MINUTE = 45
+
+/**
+ * **The match itself, latest first** — the ordering
  * [`toPlayerMatchBreakdown`](../../api/hooks/usePlayerMatchEvents.ts) hands
- * over, and the reason is there rather than here.
+ * over, minus the full-time awards, which {@link FulltimeAwards} has already
+ * taken out of it.
+ *
+ * **Divided at half time.** Ninety minutes is a long list to read as one run,
+ * and the halves are the division a reader already has in their head — *what
+ * did he do after the break* is a question about a football match in a way
+ * that *what did he do in rows 40 to 80* is not. Two rules rather than one
+ * label, so a list that only reaches one half still says which.
+ */
+function EventList({ events }: { events: PlayerMatchEvent[] }) {
+  // Descending, so the second half comes first. A rule labels the group
+  // *below* it, the same way the awards' rule does.
+  const secondHalf = events.filter((event) => event.minute > HALFTIME_MINUTE)
+  const firstHalf = events.filter((event) => event.minute <= HALFTIME_MINUTE)
+
+  return (
+    <>
+      {secondHalf.length > 0 && (
+        <>
+          <GroupRule label="2. Halbzeit" />
+          <EventRows events={secondHalf} />
+        </>
+      )}
+      {firstHalf.length > 0 && (
+        <>
+          <GroupRule label="1. Halbzeit" />
+          <EventRows events={firstHalf} />
+        </>
+      )}
+    </>
+  )
+}
+
+/**
+ * One run of rows.
  *
  * A minute gutter, the name, and what it was worth — three columns, because
  * that is the whole content and anything more would be decoration on a list a
@@ -578,7 +805,16 @@ function EventFilterToggle({
  * `45'`. That is what makes a long list scannable: the gutter becomes a
  * timeline of the match instead of a repeated number. It compares against the
  * row *above*, which is positional and so survived the list being turned
- * around: a minute is still printed on the first row of its group either way.
+ * around — and survives being split at half time too, since each run starts
+ * fresh and its first row prints, which is what a new group wants anyway.
+ *
+ * **A `revised` row is marked in the gutter**, beside its minute rather than
+ * instead of it. Kickbase credited it during or after the match — a Shot
+ * Assist at 27′ granted at half time, a Contest won at 70′ granted after the
+ * whistle — but the minute is the minute of the action and is perfectly
+ * genuine, so the row belongs exactly where it is and only wants a note
+ * saying the points arrived late. That is the whole difference from a
+ * full-time award, which has no true minute at all and is lifted out.
  *
  * **The super events are set in heavy type** — the name bold, the figure
  * extra-bold, at {@link SUPER_EVENT_POINTS} and in either direction. Always,
@@ -586,15 +822,10 @@ function EventFilterToggle({
  * decides what is on the page, ten decides what the page points at. Filtered
  * or whole, the goal and the card are where the eye lands first.
  *
- * It was conditional while the filter's own top setting was also ten — bolding
- * every row of a list that is all big actions is bolding none of them. With
- * that setting gone there is always something lighter to stand against, and
- * the flag that carried the condition went with it.
- *
- * The gutter stays quiet throughout: it is a timeline, and a timeline with
- * some of its minutes shouted is a worse one.
+ * The gutter otherwise stays quiet: it is a timeline, and a timeline with some
+ * of its minutes shouted is a worse one.
  */
-function EventList({ events }: { events: PlayerMatchEvent[] }) {
+function EventRows({ events }: { events: PlayerMatchEvent[] }) {
   return (
     <ol className="flex flex-col">
       {events.map((event, index) => {
@@ -606,15 +837,26 @@ function EventList({ events }: { events: PlayerMatchEvent[] }) {
             key={event.id}
             className="flex items-baseline gap-2.5 border-b border-line/60 py-1.5 last:border-0"
           >
-            {/* The gutter stays quiet either way: it is a timeline, and a
-                timeline with some of its minutes shouted is a worse one. */}
-            <span
-              className={cn(
-                'nums w-8 shrink-0 text-right text-xs',
-                isSameMinute ? 'text-transparent' : 'text-faint',
+            {/* `w-9` rather than the minute's own width, because the mark and
+                the minute share the column — and the awards block above uses
+                the same width, so the two groups' names and figures line up
+                down the sheet. */}
+            <span className="flex w-9 shrink-0 items-baseline justify-end gap-0.5">
+              {event.kind === 'revised' && (
+                <RefreshCcw
+                  size={10}
+                  aria-hidden="true"
+                  className="shrink-0 self-center text-faint"
+                />
               )}
-            >
-              {event.minute}′
+              <span
+                className={cn(
+                  'nums text-right text-xs',
+                  isSameMinute ? 'text-transparent' : 'text-faint',
+                )}
+              >
+                {event.minute}′
+              </span>
             </span>
             <span
               className={cn(
@@ -623,6 +865,11 @@ function EventList({ events }: { events: PlayerMatchEvent[] }) {
               )}
             >
               {event.name}
+              {/* The mark is a glyph in a gutter and says nothing to a reader
+                  who cannot see it; the sentence does. */}
+              {event.kind === 'revised' && (
+                <span className="sr-only"> (nachträglich gutgeschrieben)</span>
+              )}
             </span>
             {/* `nums` — tabular figures, so the column stays aligned when a
                 row goes heavy. A proportional face would set `+18` wider in

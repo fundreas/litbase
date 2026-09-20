@@ -128,6 +128,22 @@ export function breakdownFixtureFrom(
   }
 }
 
+/**
+ * **When Kickbase decided this entry**, which is a different question from
+ * when it happened — see [`att`](../types.ts).
+ *
+ *  - `'action'` — credited as it happened. The overwhelming majority.
+ *  - `'revised'` — decided during or after the match, about a moment *in* it.
+ *    Its `minute` is genuine, so it belongs in the timeline; it is marked
+ *    rather than moved, because "credited later" is worth knowing and is not
+ *    the same claim as "happened later".
+ *  - `'fulltime'` — awarded at the whistle: the playing-time bonus, the result
+ *    bonus. **Its `minute` is not a minute**, it is whatever the clock read
+ *    when the match ended, which is why these cannot be left in a list sorted
+ *    by minute — see {@link PlayerMatchBreakdown.events}.
+ */
+export type PlayerMatchEventKind = 'action' | 'revised' | 'fulltime'
+
 /** One scoring action, resolved and ready to draw. */
 export interface PlayerMatchEvent {
   /** The API's own `ei` — unique within the match, and the row key. */
@@ -137,6 +153,21 @@ export interface PlayerMatchEvent {
   points: number
   /** The catalogue's name, or a placeholder naming the code it could not resolve. */
   name: string
+  /** Which phase credited it — see {@link PlayerMatchEventKind}. */
+  kind: PlayerMatchEventKind
+  /**
+   * The raw `eti`, carried through **so the full-time awards can be told apart
+   * by code rather than by name**.
+   *
+   * The catalogue is localised and it moves: these titles were German a month
+   * before they were probed and are English now. `4270` is stable, *"Played
+   * Minutes Bonus"* is not, and a UI keyed on the string would have broken
+   * silently on a translation pass.
+   *
+   * Absent where the payload carried no `eti` at all, which is the same case
+   * {@link name} falls back to a placeholder for.
+   */
+  typeId?: number
 }
 
 /** Why a player scored what he scored in one match. */
@@ -156,7 +187,16 @@ export interface PlayerMatchBreakdown {
    * did not touch the score, which is a real case and reads as an empty list.
    */
   total?: number
-  /** Scoring actions, **latest first** — see {@link toPlayerMatchBreakdown}. */
+  /**
+   * Scoring actions, **latest first** — see {@link toPlayerMatchBreakdown}.
+   *
+   * **Mixed `kind`s, and the caller has to separate them.** The full-time
+   * awards carry the whistle's minute rather than a minute of the match, so in
+   * this ordering they sit at the top, above the 94th-minute goal that is the
+   * actual headline. That is not a list anyone should draw as-is; the
+   * [dialog](../../components/player/PlayerMatchEventsDialog.tsx) partitions on
+   * {@link PlayerMatchEvent.kind} and gives them a block of their own.
+   */
   events: PlayerMatchEvent[]
   /**
    * How many reversals were netted out of the list — see the mapper. Drawn as
@@ -292,6 +332,13 @@ export function usePlayerMatchEvents(
  *     70, 96 in the first five entries. So it is sorted — **newest at the
  *     top**, ties broken on `ei` so the order is stable.
  *
+ *     The sort is over **every** row including the full-time awards, whose
+ *     `mt` is the whistle rather than a minute. That is deliberate and it is
+ *     the caller's problem: this mapper's job is the payload, and a list that
+ *     silently reordered some rows by one rule and some by another would be
+ *     harder to reason about than one the dialog partitions on `kind`. See
+ *     {@link PlayerMatchBreakdown.events}.
+ *
  *     It ran forwards until 2026-09-20, on the reasoning that a finished match
  *     read after the fact is a report and a report runs chronologically. That
  *     is true of the match and false of the *question*: this dialog is opened
@@ -304,6 +351,21 @@ export function usePlayerMatchEvents(
  * "unknown" — every one of the 121 scoring events in the probed match resolved,
  * so a miss means the catalogue is short and the number is the only lead.
  */
+/**
+ * `att` → the phase, with everything unrecognised treated as an ordinary
+ * action.
+ *
+ * Open rather than exhaustive on purpose: a fifth value appearing would show up
+ * as a normal row in the timeline, which is wrong in a small way. Mapping it to
+ * the full-time block instead would be wrong in a large one — it would hoist an
+ * unknown entry above the match and out of its minute.
+ */
+function kindOf(att: number | undefined): PlayerMatchEventKind {
+  if (att === 2) return 'fulltime'
+  if (att === 1 || att === 3) return 'revised'
+  return 'action'
+}
+
 export function toPlayerMatchBreakdown(
   data: PlayerCenterResponse,
   names: Map<number, string> | undefined,
@@ -339,6 +401,8 @@ export function toPlayerMatchBreakdown(
         event.eti === undefined
           ? 'Unbekannte Aktion'
           : (names?.get(event.eti) ?? `Aktion ${String(event.eti)}`),
+      kind: kindOf(event.att),
+      typeId: event.eti,
     }))
     .sort((a, b) => b.minute - a.minute || Number(b.id) - Number(a.id) || 0)
 

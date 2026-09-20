@@ -232,7 +232,43 @@ returns the same payload.
 | `ddi` | string | Which template — the key into `dds` on `/v4/live/eventtypes`. Observed `"100"` on a goal, resolving against that object |
 | `ei` | string | This entry's own id, unique within the match |
 | `cei` | string | **The `ei` this entry takes back** — see below |
-| `att` | number | **?** `0`, `1`, `2` or `3`, absent on structural entries. `0` on the great majority; the non-zero values cluster on the reversal pairs below, which suggests a revision pass rather than anything about the action. Nothing reads it |
+| `att` | number | **The attribution phase** — *when Kickbase decided the entry*, not when it happened. `0` in play, `1` during the match, `2` **at the final whistle**, `3` after it; absent on structural entries. See below |
+
+> **`att` says when Kickbase decided an entry, not when it happened.** Read as
+> a revision counter until 2026-09-20, on the observation that its non-zero
+> values cluster on the reversal pairs below. Half right — `1` and `3` do land
+> there, because a revision pass is exactly when a takeback is appended — but
+> the cluster is a consequence rather than the meaning, and reading it that way
+> missed `2` altogether. Over all 129 entries of the settled match above:
+>
+> | `att` | What it is | n | Is `mt` a real minute? |
+> | ----- | ---------- | - | ---------------------- |
+> | *absent* | Structural — all `p: 0`, all `eti ≤ 0`, six of eight carry a `ke` | 8 | yes |
+> | `0` | In play, credited as it happened | 109 | yes |
+> | `1` | Decided **during** the match | 6 | yes — the minute of the action decided |
+> | `2` | Awarded **at the final whistle** | 2 | **no** — `mt: 96` is the whistle |
+> | `3` | Decided **after** the whistle | 4 | yes — the minute of the action decided |
+>
+> **`2` is the one that changes what may be drawn.** Its `mt` is the whistle, so
+> in a newest-first list those entries sort above the 94th-minute goal that is
+> the actual headline. The
+> [breakdown dialog](../pages/player-detail.md#full-time-awards-come-out-of-the-timeline)
+> lifts them out of the timeline into a block of their own. Two were observed,
+> both the fixture's own awards: `eti 4270` *Minuten gespielt* (+10) and
+> `eti 4267` *Spiel verloren* (−15). `eti 4264` *Spiel gewonnen* is in the
+> catalogue and has **never been observed** (**?**), and a clean-sheet award is
+> a plausible fourth member that has not been seen either — so the set is
+> treated as open, not closed.
+>
+> **`1` and `3` are not all takebacks.** Five of those ten survive the `cei`
+> netting, and what survives is a real action *credited late* — a Shot Assist at
+> 27′ granted mid-match, a Contest won at 70′ granted after the whistle. Their
+> minute is genuine, so they stay in the timeline and are marked rather than
+> moved.
+>
+> **?** on the labels, not the grouping: one player, one match. That `2` is
+> end-of-match is as certain as a two-entry sample gets; whether `1` and `3`
+> split on the whistle exactly rests on six entries and four.
 
 > **Kickbase re-scores by appending a reversal, not by editing.** When it
 > re-classifies an action it leaves the original entry alone and adds a new one

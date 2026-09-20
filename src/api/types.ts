@@ -1073,10 +1073,43 @@ export interface PlayerCenterEvent {
    */
   cei?: string
   /**
-   * **?** Seen as `0`, `1`, `2` and `3`, and absent on structural entries.
-   * `0` on the great majority; the non-zero values cluster on the reversal
-   * pairs above, which suggests a revision pass or attempt counter rather than
-   * anything about the action. Nothing reads it.
+   * **The attribution phase** — *when Kickbase decided this entry*, which is
+   * not the same question as `mt`, *when the thing happened*.
+   *
+   * Read as a counter until 2026-09-20, on the observation that the non-zero
+   * values cluster on the reversal pairs. Half right: `1` and `3` do land
+   * there, because a revision pass is exactly when a takeback is appended. But
+   * the cluster is a consequence, not the meaning, and reading it that way
+   * missed `2` entirely — which is the one value that changes what may be
+   * drawn.
+   *
+   * Measured over all 129 entries of `playercenter-2141-day2.json` (Baku, a
+   * settled matchday 2, netting to the stated 239):
+   *
+   * | `att` | What it is | n | Is `mt` a real minute? |
+   * | ----- | ---------- | - | ---------------------- |
+   * | absent | Structural — all `p: 0`, all `eti ≤ 0` | 8 | yes |
+   * | `0` | In play, credited as it happened | 109 | yes |
+   * | `1` | Decided **during** the match | 6 | yes — of the action decided |
+   * | `2` | Awarded **at the final whistle** | 2 | **no** — `mt: 96` is the whistle |
+   * | `3` | Decided **after** the whistle | 4 | yes — of the action decided |
+   *
+   * **`2` is the one with teeth.** Its `mt` is the whistle rather than a
+   * moment in the match, so those entries sort to the top of a newest-first
+   * list and push the 94th-minute goal — the actual headline — underneath a
+   * playing-time bonus. They are lifted out of the timeline entirely; see
+   * [`PlayerMatchEvent.kind`](./hooks/usePlayerMatchEvents.ts).
+   *
+   * **`1` and `3` are not all takebacks.** Five of the ten survive the
+   * {@link cei} netting, and what survives is a real action credited late — a
+   * Shot Assist at 27′ granted mid-match, a Contest won at 70′ granted after
+   * the whistle. Their minute is genuine, so they stay in the timeline and are
+   * marked rather than moved.
+   *
+   * **?** on the *labels*, not the grouping: one player, one match. That `2` is
+   * end-of-match is as certain as a two-entry sample gets — both were the
+   * fixture's own awards — but whether `1` and `3` split on the whistle exactly,
+   * rather than on some other pass, rests on six and four entries.
    */
   att?: number
 }
