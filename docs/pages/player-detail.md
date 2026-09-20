@@ -381,6 +381,13 @@ Three details keep it honest:
   which is more than the chip's label said. `aria-pressed` carries the state,
   which colour alone cannot. It is lit in the accent while filtering, because a
   list that is not showing everything should say so without being asked.
+- **Switched off, the weight does the filter's job.** In the whole list the big
+  actions are set in heavy type — the name bold, the figure extra-bold — so the
+  goal and the card are findable among ninety passes without the passes having
+  to go. It applies *only* to the unfiltered list: with the filter on every row
+  present is already big, and weight says nothing except against something
+  lighter. The minute gutter stays quiet either way, because a timeline with
+  some of its minutes shouted is a worse timeline.
 - **It is not drawn when it would do nothing.** No small actions, no toggle. And
   when the filter empties an otherwise non-empty list — a player whose whole
   afternoon was below the bar — the list says *that*, naming the threshold and

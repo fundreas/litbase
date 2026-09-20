@@ -424,7 +424,7 @@ export function PlayerMatchEventsDialog({
                 {`Keine Aktion ab ${String(BIG_EVENT_POINTS)} Punkten — ${String(hiddenCount)} kleinere ausgeblendet.`}
               </p>
             ) : (
-              <EventList events={shownEvents} />
+              <EventList events={shownEvents} emphasiseBig={!onlyBig} />
             )}
           </div>
 
@@ -520,18 +520,42 @@ function BigEventsToggle({
  * timeline of the match instead of a repeated number. It compares against the
  * row *above*, which is positional and so survived the list being turned
  * around: a minute is still printed on the first row of its group either way.
+ *
+ * **Shown whole, the big actions are set in heavy type** — see
+ * {@link emphasiseBig}. The filter and the weight are two answers to the same
+ * question and the reader picks one: hide the texture, or keep it and let the
+ * goal carry itself out of it.
  */
-function EventList({ events }: { events: PlayerMatchEvent[] }) {
+function EventList({
+  events,
+  emphasiseBig,
+}: {
+  events: PlayerMatchEvent[]
+  /**
+   * Set the big actions in heavy type — **only when the list is the whole
+   * list**.
+   *
+   * With the filter on, every row present is already a big one, and bolding
+   * all of them is bolding none of them: weight only says anything against
+   * something lighter. So the emphasis is the *unfiltered* list's way of
+   * keeping the property the filter provides — the eye finds the goal and the
+   * card among ninety passes without the passes having to go.
+   */
+  emphasiseBig: boolean
+}) {
   return (
     <ol className="flex flex-col">
       {events.map((event, index) => {
         const isSameMinute = events[index - 1]?.minute === event.minute
+        const isBig = emphasiseBig && isBigEvent(event)
 
         return (
           <li
             key={event.id}
             className="flex items-baseline gap-2.5 border-b border-line/60 py-1.5 last:border-0"
           >
+            {/* The gutter stays quiet either way: it is a timeline, and a
+                timeline with some of its minutes shouted is a worse one. */}
             <span
               className={cn(
                 'nums w-8 shrink-0 text-right text-xs',
@@ -540,12 +564,21 @@ function EventList({ events }: { events: PlayerMatchEvent[] }) {
             >
               {event.minute}′
             </span>
-            <span className="min-w-0 flex-1 text-sm text-ink">
-              {event.name}
-            </span>
             <span
               className={cn(
-                'nums shrink-0 text-sm font-semibold',
+                'min-w-0 flex-1 text-sm text-ink',
+                isBig && 'font-bold',
+              )}
+            >
+              {event.name}
+            </span>
+            {/* `nums` — tabular figures, so the column stays aligned when a
+                row goes heavy. A proportional face would set `+18` wider in
+                bold than `+1` is in semibold and ripple the whole column. */}
+            <span
+              className={cn(
+                'nums shrink-0 text-sm',
+                isBig ? 'font-extrabold' : 'font-semibold',
                 event.points > 0 ? 'text-positive' : 'text-negative',
               )}
             >
