@@ -1,8 +1,143 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { Maximize2, X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 import { cn } from '@/lib/cn'
+
+/**
+ * The two spellings of the Fullscreen API that are still in the field.
+ *
+ * Safari carried the prefixed names alone until 16.4, which is recent enough
+ * on iPad — where this *does* work, unlike the iPhone — to be worth the four
+ * extra properties. Declared rather than cast at each call site so that a
+ * `undefined` check is what the compiler sees, not an `any`.
+ */
+interface PrefixedElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void
+}
+interface PrefixedDocument extends Document {
+  webkitFullscreenElement?: Element | null
+  webkitExitFullscreen?: () => Promise<void> | void
+}
+
+function fullscreenElement(): Element | null {
+  const owner = document as PrefixedDocument
+  return owner.fullscreenElement ?? owner.webkitFullscreenElement ?? null
+}
+
+function exitFullscreen(): void {
+  const owner = document as PrefixedDocument
+  const exit = owner.exitFullscreen ?? owner.webkitExitFullscreen
+  // Rejects if something else already left full screen between the check and
+  // the call. Nothing to recover: the goal state is the one we are in.
+  if (exit !== undefined) void Promise.resolve(exit.call(owner)).catch(() => {})
+}
+
+/**
+ * **The browser's own full screen, for as long as the pane is open.**
+ *
+ * The pane was `fixed inset-0` and nothing more until 2026-09-20, which fills
+ * the *viewport* — and on a phone the viewport is what is left once the URL
+ * bar, the tab strip and the system chrome have taken their bands. That is the
+ * difference between a big pitch and a screen with nothing on it but the
+ * pitch, and this is the one screen in the app whose entire purpose is the
+ * second.
+ *
+ * ## It is the document that goes full screen, not the dialog
+ *
+ * Fullscreening `Dialog.Content` is the obvious reading and it quietly breaks
+ * the screen. A fullscreen element is the *only* subtree the browser paints,
+ * and everything Radix portals — the player breakdown the big pitch opens as
+ * `#fullscreen/player:4711`, every select and tooltip — is portalled to
+ * `body`, a **sibling** of the pane rather than a child. Those would render
+ * into a subtree nobody is looking at: a sheet that opens, traps focus, and is
+ * invisible. `documentElement` contains all of it by construction, and the
+ * pane is still `fixed inset-0` inside it, so nothing about the layout changes
+ * — only how much screen the viewport is.
+ *
+ * ## Failure is the old behaviour, not an error
+ *
+ * `requestFullscreen` is absent on iPhone Safari altogether (which grants full
+ * screen to `<video>` and nothing else), and rejects inside a frame without
+ * `allow="fullscreen"` and whenever the browser judges the gesture too stale.
+ * In every one of those the pane is still a `fixed inset-0` overlay over the
+ * page — exactly what it was before this existed. So the rejection is
+ * swallowed rather than surfaced: there is nothing the reader could do about
+ * it and nothing they have lost.
+ *
+ * ## Escape has to keep meaning one thing
+ *
+ * In full screen the browser eats the first Escape to leave it, so the keydown
+ * never reaches the dialog and the reader is left looking at the pane again,
+ * having pressed the key that closes it. So the *exit* is listened for
+ * instead: leaving full screen by any route — Escape, F11, the browser's own
+ * notification — closes the pane with it. One press, one meaning.
+ *
+ * Only an exit from full screen **this pane took** closes it. A reader who was
+ * already in full screen before opening the pitch keeps it when they close the
+ * pitch, and does not have the pane shut under them by an exit they never
+ * made.
+ */
+function useBrowserFullscreen(open: boolean, onExit: () => void): void {
+  // The close callback is read at event time, not captured: it is a fresh
+  // closure on every render of the pane, and listing it as a dependency below
+  // would exit and re-enter full screen — a full-screen flash of the whole
+  // display — on each one. Kept current from an effect of its own rather than
+  // written during render, which is the same latest-ref pattern minus the
+  // render-phase side effect.
+  const exitHandler = useRef(onExit)
+  useEffect(() => {
+    exitHandler.current = onExit
+  })
+
+  useEffect(() => {
+    if (!open) return
+
+    const root = document.documentElement as PrefixedElement
+    const request = root.requestFullscreen ?? root.webkitRequestFullscreen
+    if (request === undefined) return
+
+    /** Did *this* pane take full screen? Only then may it give it back. */
+    let ours = false
+    /** Closed while the request was still in flight. */
+    let released = false
+
+    const giveBack = () => {
+      if (!ours) return
+      // Cleared before exiting, so the `fullscreenchange` our own exit fires
+      // is not mistaken for the reader leaving.
+      ours = false
+      if (fullscreenElement() !== null) exitFullscreen()
+    }
+
+    void Promise.resolve(request.call(root)).then(
+      () => {
+        ours = true
+        if (released) giveBack()
+      },
+      () => {
+        // iPad Safari before the permission, a sandboxed frame, a stale
+        // gesture. The pane covers the viewport either way.
+      },
+    )
+
+    const onChange = () => {
+      if (!ours || fullscreenElement() !== null) return
+      ours = false
+      exitHandler.current()
+    }
+
+    document.addEventListener('fullscreenchange', onChange)
+    document.addEventListener('webkitfullscreenchange', onChange)
+
+    return () => {
+      released = true
+      document.removeEventListener('fullscreenchange', onChange)
+      document.removeEventListener('webkitfullscreenchange', onChange)
+      giveBack()
+    }
+  }, [open])
+}
 
 /**
  * A pitch, given the whole screen.
@@ -12,6 +147,12 @@ import { cn } from '@/lib/cn'
  * and `fixed inset-0` rather than the app's usual centred card for the same
  * reason: there is one object on this screen and a padded panel around it would
  * spend exactly the space that is the point of opening it.
+ *
+ * **And the browser's full screen underneath it** — see
+ * {@link useBrowserFullscreen}. `fixed inset-0` only ever claimed the viewport,
+ * which on a phone is the screen minus the URL bar and the system chrome; the
+ * Fullscreen API claims the rest. Where it is refused, which is every iPhone,
+ * the pane is exactly what it was before.
  *
  * ## Why a dialog rather than a route
  *
@@ -83,6 +224,11 @@ export function FullscreenPane({
   banner?: ReactNode
   children: ReactNode
 }) {
+  // Not just the page's full screen — the browser's. See the hook.
+  useBrowserFullscreen(open, () => {
+    onOpenChange(false)
+  })
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
