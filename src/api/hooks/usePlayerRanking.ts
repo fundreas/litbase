@@ -55,6 +55,88 @@ const POSITION_BY_WIRE: Record<string, PositionKey> = {
   FWD: 'fwd',
 }
 
+/** `v1/rankings/index.json`, as the file writes it. */
+interface WireIndex {
+  latestMatchday?: unknown
+  matchdays?: unknown
+}
+
+/** Which matchdays can be ranked at all. */
+export interface RankingsIndex {
+  /** Every matchday with a file, ascending. */
+  days: number[]
+  /** The newest of them — what `current.json` resolves to. */
+  latestMatchday: number | undefined
+}
+
+/**
+ * **Which matchdays pointcast has published a ranking for.**
+ *
+ * One small file, and the only honest answer to the question a matchday
+ * picker has to ask. The season schedule cannot answer it: the run rebuilds
+ * once a night, so between Sunday's last whistle and that night there is a
+ * matchday the fixture list calls played and pointcast has no file for.
+ * Offering it in a picker would be offering a 404 as a destination.
+ *
+ * Read **only** by [Saison](../../pages/SeasonPage.tsx), whose picker steps
+ * through cumulative totals and therefore needs the list up front.
+ * [Spieltag](../../pages/MatchdayPage.tsx) does not: it is driven by the
+ * fixture list it already has, and a matchday with no file yet gets a sentence
+ * saying so, which is the better answer there — the matchday exists, the
+ * ranking is simply not out.
+ *
+ * A missing file resolves to `null`, like every other file here. That is also
+ * what a competition pointcast does not cover looks like, which is why the
+ * caller treats "no index" and "no picker" as the same thing.
+ */
+export function useRankingsIndex(
+  competitionId: string | undefined,
+): UseQueryResult<RankingsIndex | null> {
+  const isCovered = competitionId === POINTCAST_COMPETITION_ID
+
+  return useQuery({
+    queryKey: qk.pointcastRankingsIndex(competitionId ?? 'none'),
+    enabled: isCovered,
+    staleTime: RANKING_STALE_MS,
+    retry: false,
+    queryFn: async (): Promise<RankingsIndex | null> => {
+      const response = await fetch(
+        `${env.pointcastBaseUrl}/v1/rankings/index.json`,
+      )
+
+      if (response.status === 404) return null
+      if (!response.ok) {
+        throw new Error(`Rangliste: HTTP ${String(response.status)}`)
+      }
+      if (
+        !(response.headers.get('content-type') ?? '').includes(
+          'application/json',
+        )
+      ) {
+        return null
+      }
+
+      const file = (await response.json()) as WireIndex
+      if (typeof file !== 'object' || !Array.isArray(file.matchdays)) {
+        return null
+      }
+
+      const days = (file.matchdays as { matchday?: unknown }[])
+        .map((entry) => finite(entry?.matchday))
+        .filter((day): day is number => day !== undefined)
+      if (days.length === 0) return null
+
+      return {
+        days,
+        // The file's own `latestMatchday` is null before the season's first
+        // kickoff, which the list above has already ruled out — so the last
+        // entry is the fallback rather than a guess.
+        latestMatchday: finite(file.latestMatchday) ?? days.at(-1),
+      }
+    },
+  })
+}
+
 /** One entry of an `overall` or a `byPosition` list, as the file writes it. */
 interface WireEntry {
   rank?: unknown
@@ -289,7 +371,7 @@ export interface PlayerRankingResult {
  * | --------- | ------ | ---- | --------------- |
  * | The matchday being played | Kickbase, live | 25 | a request per position |
  * | Any earlier matchday | pointcast | 100 | a reading of one file |
- * | The season | pointcast | 100 | a reading of one file |
+ * | The season, to any matchday | pointcast | 100 | a reading of one file |
  *
  * This is the **one place in the app that knows there are two sources**. Both
  * pages hand it a scope and take back a single shape;
@@ -334,7 +416,10 @@ export function usePlayerRanking({
 }: {
   competitionId: string | undefined
   scope: RankingScope
-  /** The matchday to rank. Ignored for `scope: 'season'`. */
+  /**
+   * Which matchday to rank — or, on `scope: 'season'`, the matchday to count
+   * **up to**. Left out, a season list runs to wherever the season has got to.
+   */
   day?: number | undefined
   /** The matchday being played, from the schedule. */
   currentDay?: number | undefined
@@ -363,10 +448,19 @@ export function usePlayerRanking({
   const pointcast = usePointcastRanking(
     source === 'pointcast' ? competitionId : undefined,
     scope,
-    // The season file is only ever read as "through wherever the season has
-    // got to" — a season ranking through matchday 2 is a historical curio no
-    // screen offers a way to ask for.
-    scope === 'season' ? 'current' : day,
+    /*
+     * A season file is published per matchday and holds the totals **through**
+     * it, so `day` means something different on each scope: which matchday to
+     * rank, or where to stop adding them up.
+     *
+     * No `day` falls back to `current`, and that is not the same as asking for
+     * the newest matchday by number. `current.json` is the only season file
+     * guaranteed to exist — between a matchday's last whistle and that night's
+     * run, the newest matchday the fixture list knows about has no file at
+     * all, and a page that defaulted to its number would greet the reader with
+     * "not published yet" on the one view that always has an answer.
+     */
+    scope === 'season' ? (day ?? 'current') : day,
   )
 
   /*

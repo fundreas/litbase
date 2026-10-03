@@ -220,16 +220,19 @@ at, and on a phone a tap target the width of a club name is a target you miss.
 ## Rangliste
 
 ```
+  ◀   bis 4. Spieltag          ⌄    ▶
+      16. Aug – 28. Sep · Beendet
+
   ( Alle )  ( TW )  ( ABW )  ( MF )  ( ANG )
 
-  1  [img] Kimmich                 557
+  1  [img] Olise                  1269
         MF                          ← the crest is behind the row
-  2  [img] Upamecano       (ᴍ)     489
-        ABW
-  3  [img] Matanović               487
-        ANG
+  2  [img] Kimmich         (ᴍ)     865
+        MF
+  3  [img] Pavlović                838
+        MF
 
-  litbase-pointcast — die besten 100 je Kategorie · Stand: 4. Spieltag.
+  litbase-pointcast — die besten 100 je Kategorie.
 ```
 
 The season's hundred best players, points descending — the same
@@ -251,19 +254,53 @@ What it costs is freshness: the run rebuilds once a night, so from the moment
 a matchday kicks off the list is behind. That is the right trade **here** and
 nowhere else — a season total is not a number anyone watches move, and
 [Spieltag](matchday.md) still reads the live list for the matchday in play. The
-footnote names the matchday the totals run through, so "behind" is on screen
+picker names the matchday the totals run through, so "behind" is on screen
 rather than implied.
 
 A competition pointcast does not publish for falls back to Kickbase's
 twenty-five, which is what those leagues have always had.
 
-**The owner badge here is the most recent matchday's**, which is as close to
-*now* as one request gets. `day` on the list is the source's own notion of
-where the season has got to — the matchday the totals run **through**, which is
-the last one with points rather than the next one to be played. That is the
-lineup worth asking about — the badge answers "whose team was he in last
-weekend", not "who owned him for the goals that got him up here". No
-season-long ownership history exists anywhere to offer instead.
+### The matchday is a stopping point
+
+`rankings/season/{n}.json` is published **per matchday**, each holding the
+totals through it — so this page can answer *who was top after the second
+matchday*, not only *who is top now*. That is the
+[`MatchdayPicker`](../../src/components/MatchdayPicker.tsx) above the list —
+the same control [Duelle](duels.md) docks, in its `card` variant, with `?day=`
+in the URL beside `?pos=`.
+
+**It reads *bis 4. Spieltag*, not *4. Spieltag*.** The selection is a stopping
+point rather than a subject, and a control naming one matchday over a table of
+four matchdays' points would be naming the wrong thing. The caption widens to
+match: the span runs from the season's first kick-off to the selected
+matchday's last, not that matchday's own weekend.
+
+**Which matchdays it offers comes from
+[`rankings/index.json`](../pointcast.md#rankings), not the fixture list.** They
+disagree for a few hours every week — the run is nightly, so a matchday played
+out on Sunday evening has no file until that night, and the fixture list would
+have the picker offering it. The index is the list of files that exist, so the
+picker cannot step onto a 404.
+
+**No index, no picker.** That is one condition covering both reasons there
+might be nothing to pick from: a competition pointcast does not cover, and a
+season before its first kick-off. The list then falls back to Kickbase or to
+`season/current.json` respectively, and the control is absent rather than drawn
+with one option in it.
+
+**With no `?day=` the app asks for `current.json`**, which is deliberately not
+the same as asking for the newest matchday by number — see
+[pointcast](../pointcast.md#rankings). Picking from the drawer always writes
+the number out, so a URL can be shared and will still show the same list
+tomorrow.
+
+**The owner badge follows the selection.** `day` travels with the list, so a
+ranking through matchday 2 draws the lineups *of* matchday 2 — the fan-out
+reads `teamcenter?dayNumber=`, the lineup as it stood. On the default view
+that makes it the most recent matchday's, which is as close to *now* as one
+request gets: the badge answers "whose team was he in that weekend", not "who
+owned him for the goals that got him up here". No season-long ownership
+history exists anywhere to offer instead.
 
 **It does not poll.** A season total does move while a matchday runs, but this
 is not the screen anyone watches it move on — a request every ten seconds for a

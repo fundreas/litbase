@@ -6,8 +6,11 @@ import {
   useCompetitionTable,
   useTeamDirectory,
 } from '@/api/hooks/useCompetition'
-import { usePlayerRanking } from '@/api/hooks/usePlayerRanking'
-import { useSeasonRecords } from '@/api/hooks/useMatchday'
+import { useSeasonRecords, useSeasonSchedule } from '@/api/hooks/useMatchday'
+import {
+  usePlayerRanking,
+  useRankingsIndex,
+} from '@/api/hooks/usePlayerRanking'
 import {
   clubStandings,
   POSITION_LABEL,
@@ -15,6 +18,7 @@ import {
   type PositionKey,
   type StandingsMode,
 } from '@/api/models'
+import { MatchdayPicker } from '@/components/MatchdayPicker'
 import { PageHeading } from '@/components/PageHeading'
 import { PlayerRankingTab } from '@/components/ranking/PlayerRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
@@ -120,25 +124,103 @@ export function SeasonPage() {
    * [pointcast](../api/hooks/usePlayerRanking.ts) rather than Kickbase. That
    * file is rebuilt once a night, so during a matchday it is behind; what it
    * buys is a hundred rows with real placements instead of twenty-five, which
-   * on the season's own page is the better trade. The footnote under the list
+   * on the season's own page is the better trade. The picker above the list
    * names the matchday it runs through, so "behind" is visible rather than
    * silent.
    */
   const rankingPosition = toRankingPosition(searchParams.get('pos'))
   const rankingId = view === VIEWS.ranking ? competitionId : undefined
+
+  /*
+   * **The season is cumulative, so the matchday is a stopping point.**
+   * `rankings/season/{n}.json` holds the totals through matchday `n`, which
+   * is what lets this page answer *who was top after the second matchday* —
+   * and the fixture list cannot say which of those files exist, because the
+   * run that writes them is nightly. So the index says, and the picker offers
+   * exactly what it lists.
+   *
+   * No index — a competition pointcast does not cover, or a season before its
+   * first kickoff — means no picker and no `day`, and the hook falls back to
+   * `current`. One condition, so the control cannot appear without something
+   * behind it.
+   */
+  const rankedDays = useRankingsIndex(rankingId)
+  const schedule = useSeasonSchedule(rankingId)
+
+  /*
+   * **Only an explicit `?day=` becomes a request for a numbered file.**
+   * Without one the hook asks for `current.json` and this stays `undefined`,
+   * which matters on a cold load: resolving the default to `latestMatchday`
+   * as soon as the index lands would fetch `current.json` first and then
+   * `season/4.json` for the identical list.
+   *
+   * Validated against the index rather than the fixture list, so a
+   * hand-edited `?day=99` falls back to the default instead of rendering
+   * "not published yet" for a matchday nobody could have reached.
+   */
+  const requestedDay = Number(searchParams.get('day'))
+  const rankingDay = rankedDays.data?.days.includes(requestedDay)
+    ? requestedDay
+    : undefined
+
+  /*
+   * What the picker shows as chosen. The default is the newest matchday with
+   * a file, which is exactly what `current.json` resolved to — the same run
+   * writes both, so the control cannot name a matchday the list is not of.
+   */
+  const pickerDay = rankingDay ?? rankedDays.data?.latestMatchday
+
+  /*
+   * The schedule narrowed to the matchdays that have a file, which is what
+   * the picker steps through. It keeps the schedule's dates — the picker's
+   * caption is a span of real kick-offs, and the index carries none.
+   */
+  const pickerSchedule = useMemo(() => {
+    if (rankedDays.data === null || rankedDays.data === undefined) {
+      return undefined
+    }
+    if (schedule.data === undefined) return undefined
+
+    const days = new Set(rankedDays.data.days)
+    const matchdays = schedule.data.matchdays.filter((entry) =>
+      days.has(entry.day),
+    )
+    return matchdays.length === 0
+      ? undefined
+      : { currentDay: schedule.data.currentDay, matchdays }
+  }, [rankedDays.data, schedule.data])
+
   const ranking = usePlayerRanking({
     competitionId: rankingId,
     scope: 'season',
+    day: rankingDay,
     position: rankingPosition,
   })
   // Club names for the ranking's second line. The same cache entry the table
   // above reads, so it costs nothing on a page that already has it.
   const teams = useTeamDirectory(rankingId)
 
+  /*
+   * One writer for both of the ranking's query parameters, so neither can
+   * drop the other on the way through. `replace` keeps the back button
+   * meaning "leave the page" rather than walking back through every chip and
+   * every matchday that was tapped.
+   */
+  const patchParams = (key: 'pos' | 'day', value: string | undefined) => {
+    const params = new URLSearchParams(searchParams)
+    if (value === undefined) params.delete(key)
+    else params.set(key, value)
+    setSearchParams(params, { replace: true })
+  }
+
   const base = `/leagues/${leagueId}/${VIEWS.table}`
-  // `?pos=` rides along, so switching to the table and back keeps the filter.
-  const suffix =
-    rankingPosition === undefined ? '' : `?pos=${String(rankingPosition)}`
+  // `?pos=` and `?day=` ride along, so a trip to the table and back comes
+  // home to the list you were reading rather than to the default one.
+  const rankingParams = new URLSearchParams()
+  if (rankingPosition !== undefined) rankingParams.set('pos', rankingPosition)
+  const selectedDayParam = searchParams.get('day')
+  if (selectedDayParam !== null) rankingParams.set('day', selectedDayParam)
+  const suffix = rankingParams.size === 0 ? '' : `?${rankingParams.toString()}`
   const tabs: BottomTab[] = [
     { value: VIEWS.table, label: 'Tabelle', icon: Table2, to: base },
     {
@@ -205,33 +287,56 @@ export function SeasonPage() {
       />
 
       {view === VIEWS.ranking ? (
-        ranking.isError ? (
-          <ErrorState
-            error={ranking.error}
-            onRetry={() => {
-              void ranking.refetch()
-            }}
-          />
-        ) : (
-          <PlayerRankingTab
-            data={ranking.data}
-            teams={teams.data}
-            leagueId={leagueId}
-            viewerId={user?.id}
-            isPending={ranking.isPending}
-            scope="season"
-            source={ranking.source}
-            position={rankingPosition}
-            onPositionChange={(next) => {
-              const params = new URLSearchParams(searchParams)
-              if (next === undefined) params.delete('pos')
-              else params.set('pos', next)
-              // `replace` keeps the back button meaning "leave the page" rather
-              // than walking back through every chip that was tapped.
-              setSearchParams(params, { replace: true })
-            }}
-          />
-        )
+        <div className="flex flex-col gap-3">
+          {/* **Above the list, not in the heading.** On
+              [Spieltag](./MatchdayPage.tsx) the picker *is* the `h1`, because
+              both of that page's views are about one selected matchday and
+              nothing else. Here it belongs to one of two views — the Tabelle
+              has no matchday — so the page keeps its own title and the picker
+              is a tile under it, the card variant [Duelle](./DuelsPage.tsx)
+              uses.
+
+              It is absent until there is something to pick from, rather than
+              drawn empty: a control with one option and no dates would be
+              furniture. */}
+          {pickerSchedule !== undefined && pickerDay !== undefined && (
+            <MatchdayPicker
+              schedule={pickerSchedule}
+              selectedDay={pickerDay}
+              through
+              onSelect={(day) => {
+                /* The newest matchday is written out like any other. It is
+                   the same list either way, and a URL that names the matchday
+                   it is showing can be shared — where dropping the parameter
+                   would quietly re-point at *now* the next time it is opened. */
+                patchParams('day', String(day))
+              }}
+            />
+          )}
+
+          {ranking.isError ? (
+            <ErrorState
+              error={ranking.error}
+              onRetry={() => {
+                void ranking.refetch()
+              }}
+            />
+          ) : (
+            <PlayerRankingTab
+              data={ranking.data}
+              teams={teams.data}
+              leagueId={leagueId}
+              viewerId={user?.id}
+              isPending={ranking.isPending}
+              scope="season"
+              source={ranking.source}
+              position={rankingPosition}
+              onPositionChange={(next) => {
+                patchParams('pos', next)
+              }}
+            />
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-1">
           <ColumnHeader mode={mode} />

@@ -66,20 +66,45 @@ const STATE_CLASS: Record<MatchdayState, string> = {
  *
  * **Only one `h1` per page**, so `heading` renders one and `card` does not.
  * The two are otherwise the same markup.
+ *
+ * ## `through`
+ *
+ * The selection usually means *that matchday*. On
+ * [Saison](../../docs/pages/season.md#rangliste) it means *every matchday up
+ * to and including that one*, because the list under it is a cumulative total
+ * — and a control reading **4. Spieltag** above a table of four matchdays'
+ * points would be naming the wrong thing.
+ *
+ * So `through` prefixes the label with *bis* and widens the date caption to
+ * run from the season's first kick-off to the selected matchday's last. One
+ * word and one date, and the control says what the page is showing. It is a
+ * prop rather than a second component because everything else about the
+ * gesture — step, step, or open the list — is identical, and a page should not
+ * have to teach the reader a new control to ask the same question.
  */
 export function MatchdayPicker({
   schedule,
   selectedDay,
   onSelect,
   variant = 'card',
+  through = false,
 }: {
   schedule: SeasonSchedule
   selectedDay: number
   onSelect: (day: number) => void
   variant?: 'card' | 'heading'
+  /** The selection means *up to and including* this matchday, not *this* one. */
+  through?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const selected = schedule.matchdays.find((entry) => entry.day === selectedDay)
+  /*
+   * The span a cumulative selection covers: the season's first kick-off to the
+   * chosen matchday's last. Taken from the schedule it was handed, which on
+   * Saison is already narrowed to the matchdays that have a ranking — so
+   * "from" is the first matchday *offered*, which is the first one counted.
+   */
+  const first = schedule.matchdays[0]
 
   /*
    * The neighbours are taken from the schedule rather than `selectedDay ± 1`,
@@ -153,6 +178,7 @@ export function MatchdayPicker({
                     isHeading ? 'text-xl tracking-tight' : 'text-base',
                   )}
                 >
+                  {through && 'bis '}
                   {selectedDay}. Spieltag
                 </span>
                 {/* In the heading the chevron rides with the title — that is
@@ -171,9 +197,12 @@ export function MatchdayPicker({
               </span>
               <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
                 <span className="truncate">
-                  {selected === undefined
+                  {selected === undefined || first === undefined
                     ? 'Kein Spielplan'
-                    : dateRange(selected.start, selected.end)}
+                    : dateRange(
+                        through ? first.start : selected.start,
+                        selected.end,
+                      )}
                 </span>
                 {isHeading && selected !== undefined && (
                   <>
@@ -209,7 +238,7 @@ export function MatchdayPicker({
       <Drawer
         open={isOpen}
         onOpenChange={setIsOpen}
-        title="Spieltag wählen"
+        title={through ? 'Bis zu welchem Spieltag?' : 'Spieltag wählen'}
         side="right"
       >
         <ul className="flex flex-col gap-1">
@@ -217,6 +246,8 @@ export function MatchdayPicker({
             <li key={matchday.day}>
               <MatchdayRow
                 matchday={matchday}
+                through={through}
+                first={first}
                 isSelected={matchday.day === selectedDay}
                 isCurrent={matchday.day === schedule.currentDay}
                 onSelect={() => {
@@ -254,11 +285,16 @@ function Trigger({
 
 function MatchdayRow({
   matchday,
+  through,
+  first,
   isSelected,
   isCurrent,
   onSelect,
 }: {
   matchday: SeasonMatchday
+  through: boolean
+  /** The season's first matchday, for the cumulative date span. */
+  first: SeasonMatchday | undefined
   isSelected: boolean
   isCurrent: boolean
   onSelect: () => void
@@ -288,6 +324,7 @@ function MatchdayRow({
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
           <span className="nums truncate text-sm font-semibold">
+            {through && 'bis '}
             {matchday.day}. Spieltag
           </span>
           {isCurrent && (
@@ -298,8 +335,14 @@ function MatchdayRow({
         </span>
         <span className="mt-0.5 flex items-center gap-1.5 text-xs">
           <span className="truncate text-faint">
-            {dateRange(matchday.start, matchday.end)}
+            {dateRange(
+              through && first !== undefined ? first.start : matchday.start,
+              matchday.end,
+            )}
           </span>
+          {/* On a cumulative row the state belongs to the **last** matchday
+              counted, which is the only one that can still be running — and
+              the only reason the total under it would move. */}
           <StateChip matchday={matchday} />
         </span>
       </span>

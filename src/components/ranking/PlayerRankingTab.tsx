@@ -326,24 +326,17 @@ export function PlayerRankingTab({
    * arithmetic rather than Kickbase's, which a reader comparing it against the
    * app is entitled to know.
    *
-   * The season line names the matchday it runs **through**, because that is
-   * the one thing about a season total a reader cannot see: the list is a day
-   * behind the moment a matchday kicks off, and *Stand: 4. Spieltag* says so
-   * without claiming anything about how fresh the rest of it is.
+   * It does **not** name the matchday. On a season list that is the picker's
+   * job — *bis 4. Spieltag*, in the control that sets it — and saying it twice
+   * on one screen would make the footnote look like a second, quieter claim
+   * about the same thing.
    */
   const footnote =
     data === undefined || data.players.length === 0
       ? undefined
       : source === 'live'
         ? 'Kickbase liefert die besten 25 je Kategorie.'
-        : [
-            `litbase-pointcast — die besten ${String(POINTCAST_LIMIT)} je Kategorie`,
-            scope === 'season' && data.day > 0
-              ? `Stand: ${String(data.day)}. Spieltag`
-              : undefined,
-          ]
-            .filter((part) => part !== undefined)
-            .join(' · ') + '.'
+        : `litbase-pointcast — die besten ${String(POINTCAST_LIMIT)} je Kategorie.`
 
   return (
     <div className="flex flex-col gap-3">

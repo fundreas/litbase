@@ -33,13 +33,19 @@ against.
 | ----- | ---- | ------- |
 | Predictions | `/v1/matchday/{md}.json` | [Erwartete Punkte](pages/squad.md#erwartete-punkte) — [`usePointcast`](../src/api/hooks/usePointcast.ts) |
 | [Rankings](#rankings) | `/v1/rankings/matchday/{md}.json` | [Spieltag — Rangliste](pages/matchday.md#rangliste) |
-| [Rankings](#rankings) | `/v1/rankings/season/current.json` | [Saison — Rangliste](pages/season.md#rangliste) |
+| [Rankings](#rankings) | `/v1/rankings/season/{md\|current}.json` | [Saison — Rangliste](pages/season.md#rangliste) |
+| [Rankings](#rankings) | `/v1/rankings/index.json` | The Saison picker — which matchdays it may offer |
 
-The spec also publishes `/v1/index.json`, `/v1/players/index.json`,
-`/v1/players/{playerId}.json` and `/v1/rankings/index.json`. The app calls none
-of them: it already knows the matchday it wants from the season schedule, and
-asking an index first would be a round trip to learn something it can simply
-try.
+The spec also publishes `/v1/index.json`, `/v1/players/index.json` and
+`/v1/players/{playerId}.json`. The app calls none of them: it already knows the
+matchday it wants from the season schedule, and asking an index first would be
+a round trip to learn something it can simply try.
+
+`rankings/index.json` is the exception, and only on Saison. There the matchday
+is a **stopping point** for a cumulative total, so the picker has to know which
+matchdays have a file *before* it offers them — the fixture list cannot say,
+because the run is nightly and a matchday played on Sunday has no file until
+that night.
 
 ## Rankings
 
@@ -57,13 +63,25 @@ identical rows.
 | --- | --- |
 | `GET /v1/rankings/matchday/{matchday}.json` | One matchday's points |
 | `GET /v1/rankings/matchday/current.json` | The latest matchday that has kicked off |
-| `GET /v1/rankings/season/{matchday}.json` | Season totals **through** that matchday |
+| `GET /v1/rankings/season/{matchday}.json` | Season totals **through** that matchday — one file per matchday, each cumulative |
 | `GET /v1/rankings/season/current.json` | Season totals so far |
-| `GET /v1/rankings/index.json` | Which matchdays have a ranking |
+| `GET /v1/rankings/index.json` | Which matchdays have a ranking, and `latestMatchday` |
 
 A file that does not exist is a **404**, which the app reads as "not published
 yet" rather than as an error. Before the season's first kickoff there are none
 at all.
+
+**`current.json` is not the same as the newest matchday by number.** It is the
+only file of its scope guaranteed to exist, which is why it is what the app
+asks for when nobody has picked a matchday: between a matchday's last whistle
+and that night's run, the newest matchday the fixture list knows about has no
+file, and a page defaulting to its number would greet the reader with "not
+published yet" on the one view that always has an answer.
+
+The cumulative files are real history, not a rolling window. `season/2.json`
+read on 2026-10-03 still had Kimmich top on `557` — exactly the figure
+Kickbase's own `sorting=1` list returned on 2026-09-06, when matchday 2 was
+the newest there was.
 
 ### Response `200`
 

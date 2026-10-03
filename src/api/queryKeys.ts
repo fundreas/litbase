@@ -210,6 +210,13 @@ export const qk = {
    * and keying it by a number would pin a season total to the matchday it
    * happened to be through when it was first read.
    */
+  /**
+   * Which matchdays have a ranking file at all — one tiny document, read by
+   * the [Saison](./hooks/usePlayerRanking.ts) picker so it cannot offer a
+   * matchday that would 404.
+   */
+  pointcastRankingsIndex: (competitionId: string) =>
+    [...qk.competition(competitionId), 'pointcastRankingsIndex'] as const,
   pointcastRanking: (
     competitionId: string,
     scope: string,
