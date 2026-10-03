@@ -1,11 +1,4 @@
-import {
-  FlaskConical,
-  LayoutGrid,
-  List,
-  Shirt,
-  TrendingDown,
-  TrendingUp,
-} from 'lucide-react'
+import { FlaskConical, LayoutGrid, List, Shirt } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -24,13 +17,15 @@ import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { ClubWatermark } from '@/components/player/ClubWatermark'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
+import { ValueDelta, ValueModeButton } from '@/components/squad/ValueMode'
+import { useValueMode, type ValueMode } from '@/components/squad/useValueMode'
 import { Avatar } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { cn } from '@/lib/cn'
 import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
-import { money, moneyDelta } from '@/lib/format'
+import { money } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
@@ -141,6 +136,7 @@ export function PlayerListTab({
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
   const [view, setView] = useSquadView()
+  const [valueMode, setValueMode] = useValueMode()
   const expected = useExpectedPointsView(matchday)
 
   const handleToggle = (player: SquadMember) => {
@@ -173,6 +169,12 @@ export function PlayerListTab({
           `justify-between`, which would drag a lone toggle left with it. */}
       <div className="flex items-center justify-end gap-2">
         {scenarioTo !== undefined && <ScenarioLink to={scenarioTo} />}
+        {/* Only beside the list. The tiles carry no money at all — see
+            [`PlayerTile`](#PlayerTile) — so a control over which figure they
+            would show would be a control over nothing. */}
+        {view === 'list' && (
+          <ValueModeButton value={valueMode} onChange={setValueMode} />
+        )}
         <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
       </div>
 
@@ -232,6 +234,7 @@ export function PlayerListTab({
                     isForSale={forSale?.has(player.id)}
                     onToggleForSale={onToggleForSale}
                     onToggle={handleToggle}
+                    valueMode={valueMode}
                     expectedPoints={expected.entry(player.id)}
                     onEditExpected={onEditExpected}
                   />
@@ -471,6 +474,7 @@ function PlayerRow({
   isForSale,
   onToggleForSale,
   onToggle,
+  valueMode,
   expectedPoints,
   onEditExpected,
 }: {
@@ -489,6 +493,8 @@ function PlayerRow({
   isForSale: boolean | undefined
   onToggleForSale: (playerId: string) => void
   onToggle: (player: SquadMember) => void
+  /** Which figure goes under the market value — the toolbar's choice. */
+  valueMode: ValueMode
   /**
    * What he is expected to score — the manager's own guess, or the model's
    * prediction standing in for one. `undefined` when neither exists.
@@ -556,10 +562,6 @@ function PlayerRow({
   const bodyClass =
     'relative isolate flex min-w-0 flex-1 items-center gap-3 overflow-hidden px-3 py-2.5'
 
-  const changeDay = player.marketValueChangeDay
-  const ChangeIcon =
-    changeDay !== undefined && changeDay < 0 ? TrendingDown : TrendingUp
-
   const details = (
     <>
       <ClubWatermark team={team} />
@@ -614,32 +616,25 @@ function PlayerRow({
         <span className="nums block text-sm font-semibold text-ink">
           {money(player.marketValue)}
         </span>
-        {/* The **last 24 hours**, not profit against the purchase price.
-              Profit is a fact about a trade made months ago and it never
-              changes on its own; what a squad page is read for is what moved
-              overnight — who is climbing, who is bleeding value and should go
-              on the market. `profitLoss` still lives on the model and on the
-              player's own page, where the purchase price is next to it and
-              the figure means something.
+        {/* **One line, two questions, and the toolbar picks which.** The
+              default is the last 24 hours, because that is what a squad page
+              is read for between matchdays — who is climbing, who is bleeding
+              value and should go on the market before the morning. The other
+              is the profit since purchase, which the row used to leave to the
+              player's own page: it is a fact about a trade made months ago
+              and it does not move on its own, but it is the figure you want
+              the moment you are deciding *whether to sell*, which is the
+              other half of what this list is for.
 
-              The arrow belongs here in a way it did not in front of the
-              profit figure: it is the *same* signal as the amount, its
-              direction, so the two cannot contradict each other. */}
-        <span
-          className={cn(
-            'nums flex items-center justify-end gap-0.5 text-xs',
-            changeDay !== undefined && changeDay > 0 && 'text-positive',
-            changeDay !== undefined && changeDay < 0 && 'text-negative',
-            (changeDay === undefined || changeDay === 0) && 'text-faint',
-          )}
-          title="Marktwertänderung in den letzten 24 Stunden"
-        >
-          {changeDay !== undefined && changeDay !== 0 && (
-            <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
-          )}
-          {moneyDelta(changeDay)}
-          <span className="sr-only"> in den letzten 24 Stunden</span>
-        </span>
+              Both cannot sit here at once — a second signed amount in the
+              same place would make the pair a puzzle — so they take turns.
+              See [`ValueDelta`](./ValueMode.tsx), which draws whichever is
+              showing identically in a rival's Kader. */}
+        <ValueDelta
+          mode={valueMode}
+          changeDay={player.marketValueChangeDay}
+          profitLoss={player.profitLoss}
+        />
       </span>
     </>
   )

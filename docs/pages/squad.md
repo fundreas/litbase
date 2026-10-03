@@ -407,7 +407,7 @@ duplicated here.
 | Status mark | `player.status !== 0` | `PlayerStatusBadge` — red card when suspended, white cross in a red disc otherwise, tooltip from `stxt` |
 | Probability | `startProbability` (`prob`) | Glyph only, on its own line under the name — beside the expected-points chip |
 | Market value | `marketValue` | Compact euros, tabular figures |
-| 24-hour change | `marketValueChangeDay` (`tfhmvt`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when flat or unknown |
+| Value change | `marketValueChangeDay` (`tfhmvt`) **or** `profitLoss` (`mvgl`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when unknown, grey at zero. [Which of the two](#24-h-oder-seit-kauf) is the toolbar's choice |
 | Club | `useTeamDirectory` | The crest **watermarked behind the row**, 13 %, cropped and faded — the same badge the [market](market.md#two-crests-and-they-mean-different-things) draws, from [`ClubWatermark`](../../src/components/player/ClubWatermark.tsx). It costs the row no width, which is why a Kader row can carry the club at all |
 | Fixture panel | `useUpcomingMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays) — opens the [expected-points sheet](#erwartete-punkte) |
 | Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The crest panel enters it; it does not display it |
@@ -434,19 +434,52 @@ made here is on the pitch the moment you switch across. An earlier version read
 `lo` directly and showed stale rows for about a second after every edit, until
 the save round trip and refetch landed.
 
-The bottom-right figure is the **market-value change over the last 24 hours** —
-`tfhmvt`, signed and coloured, with a trend arrow in front of it.
+### 24 h oder seit Kauf
 
-It used to be `profitLoss` (`mvgl`), the gain or loss *against the purchase
-price*. That is a fact about a trade made months ago and it never moves on its
-own, whereas what this page gets read for is what changed overnight: who is
-climbing, who is bleeding value and belongs on the market. Profit still lives
-on `SquadMember` and is rendered on the [player's own page](player-detail.md),
-next to the purchase price that gives it meaning.
+The bottom-right figure answers one of **two** questions, and the control at
+the right of the toolbar says which:
+
+| Mode | Source | The question |
+| ---- | ------ | ------------ |
+| **24 h** (default) | `marketValueChangeDay` (`tfhmvt`) | What moved overnight — who is climbing, who is bleeding value and belongs on the market before the morning |
+| **seit Kauf** | `profitLoss` (`mvgl`) | What he has made since he was bought — whether selling him today books a gain or crystallises a loss |
+
+Both are signed and coloured, both carry the same ↗/↘ derived from their own
+sign, and both are drawn by [`ValueDelta`](../../src/components/squad/ValueMode.tsx),
+which is also what a rival's [Kader](manager-detail.md) uses — so a player
+reads the same wherever he is met.
+
+**Not a pair toggle.** The [list/grid control](#kader--two-layouts) beside it shows
+both its glyphs with the live one lit, which works because a layout's two
+states *look like* what they do. These two are both a signed amount of money in
+the same place: a clock and a coin side by side would say nothing about which
+figure is in the rows, because neither glyph is the figure. So this one names
+its state — `⏱ 24 h` / `🪙 seit Kauf` — and a tap swaps the label and every row
+at once. It is the same shell as its two neighbours, so the three read as one
+toolbar.
+
+The choice is **remembered**, through the same safe-localStorage wrapper as the
+layout (`litbase.squad.valueMode`), and shared with the manager page: a reader
+who picked *seit Kauf* on his own Kader did not mean "only here". It is not in
+the URL — a preference, not a place.
+
+It is **only beside the list**. The tiles carry no money at all, so a control
+over which figure they would show would be a control over nothing.
+
+For a long time the row had only the first of these, and that was deliberate:
+profit is a fact about a trade made months ago and it never moves on its own,
+while this page is read between matchdays for what changed overnight. What the
+argument missed is the other half of what the page is for — deciding *whether
+to sell* — where the purchase price is exactly the figure you want. The answer
+was not to pick one but to make picking free. Profit is still on the
+[player's own page](player-detail.md) too, next to the purchase price that
+gives it meaning.
 
 `tfhmvt` is **not documented on the squad endpoint**, so the model types it as
 optional and an absent value renders as `–` rather than a false `0 €`. Its
 sibling `sdmvt` (the same measure over seven days) is declared and unused.
+`mvgl` *is* documented, and on one's own squad it is read as `mvgl ?? 0` — on
+your own players "no gain" is a claim you are entitled to make.
 
 The arrow is `TrendingUp`/`TrendingDown` derived from the sign of that same
 figure — not `marketValueTrend` (`mvt`). An `mvt` arrow sat here once, in front

@@ -1801,6 +1801,17 @@ export interface ManagerSquadMember {
   /** Change over the last 24 hours, in € (`tfhmvt`). */
   marketValueChangeDay?: number
   /**
+   * **What he has made his owner since he was bought**, in € (`mvgl`).
+   *
+   * Kickbase gives a rival's purchase price away this far and no further: the
+   * gain, not the price it is measured from. That is enough for the figure the
+   * [squad lists](../components/squad/ValueMode.tsx) offer beside the
+   * overnight change, and it is why this is optional where
+   * {@link SquadMember.profitLoss} is not — a payload that omits it leaves a
+   * `–`, not a confident nought.
+   */
+  profitLoss?: number
+  /**
    * Lineup-probability tier, when the payload carries `prob`. It has not so
    * far; the Kader fills the gap per player with `useStartProbabilities`.
    */

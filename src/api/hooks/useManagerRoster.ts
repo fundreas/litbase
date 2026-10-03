@@ -82,6 +82,10 @@ function selectSquadMembers(data: ManagerSquadResponse): ManagerSquadMember[] {
     marketValue: player.mv,
     marketValueTrend: toTrend(player.mvt),
     marketValueChangeDay: player.tfhmvt,
+    // Left `undefined` rather than defaulted to `0`, unlike one's own squad:
+    // "no gain" and "the payload did not say" are different claims about
+    // somebody else's trade, and only one of them is ours to make.
+    profitLoss: player.mvgl,
     startProbability: toStartProbability(player.prob),
     totalPoints: player.p,
     averagePoints: player.ap,

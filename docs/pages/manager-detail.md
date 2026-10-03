@@ -224,12 +224,21 @@ honest division between the two tabs: the Aufstellung is a *matchday*, the Kader
 is a *squad*, and a player bought yesterday is in the second and not the first.
 
 Rows are the [squad page](squad.md)'s design, and by now they are that row
-almost exactly: the **24-hour change** in euros under the market value, arrow
-and amount; the **lineup probability** badge under the name with the
+almost exactly: a **signed figure** in euros under the market value, arrow and
+amount; the **lineup probability** badge under the name with the
 **[expected-points chip](squad.md#erwartete-punkte)** beside it; and the
 **fixture crest** at the end, which is the way into the sheet. Both figures on
 that second line are estimates about the same coming matchday, and the pair is
 what a rival's eleven is judged on.
+
+**That first figure is night or lifetime**, switched by the one control above
+the list — the [same control, same remembered choice](squad.md#24-h-oder-seit-kauf)
+as one's own Kader, because a reader who picked *seit Kauf* over there did not
+mean "only there". *24 h* is `tfhmvt`; *seit Kauf* is `mvgl`, what the player
+has made this manager since he bought him, and the payload carries both. The
+second question is if anything the more interesting one here: *what has this
+squad actually earned him* is asked about a rival far more often than about
+oneself, and until now the answer was nowhere in the app.
 
 **The season line is gone.** `p`/`ap` used to sit under the name — "what has
 this cost him all season" — and it was a fact about the past holding the place
@@ -250,9 +259,12 @@ written so it becomes a no-op if that changes. Fifteen requests, once per half
 hour, into the `playerDetail` cache entries the player pages read, so opening a
 player from here finds his page already loaded.
 
-The domain model is [`ManagerSquadMember`](../../src/api/models.ts), a smaller
-shape than `SquadMember` on purpose: filling the missing profit with a zero
-would draw a grey `±0` under every player, and that is a claim.
+The domain model is [`ManagerSquadMember`](../../src/api/models.ts), still a
+smaller shape than `SquadMember` — but `profitLoss` is on it now, because
+`mvgl` was on the payload all along. It stays **optional** where `SquadMember`'s
+is not, and is mapped straight across rather than through a `?? 0`: on your own
+players "no gain" is a claim you are entitled to make, and on somebody else's
+trade it is not. A player the payload says nothing about gets a faint `–`.
 
 ### Expected points, on somebody else's players
 

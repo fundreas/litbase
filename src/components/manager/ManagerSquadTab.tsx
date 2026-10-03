@@ -1,4 +1,4 @@
-import { Shirt, TrendingDown, TrendingUp, Users } from 'lucide-react'
+import { Shirt, Users } from 'lucide-react'
 import { Link } from 'react-router'
 
 import {
@@ -22,6 +22,8 @@ import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { ClubWatermark } from '@/components/player/ClubWatermark'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
+import { ValueDelta, ValueModeButton } from '@/components/squad/ValueMode'
+import { useValueMode, type ValueMode } from '@/components/squad/useValueMode'
 import { Avatar } from '@/components/ui/Avatar'
 import { StatTile } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/States'
@@ -30,7 +32,7 @@ import {
   expectedPointsTotal,
   type ExpectedPointsEntry,
 } from '@/lib/expectedPoints'
-import { money, moneyDelta, points } from '@/lib/format'
+import { money, points } from '@/lib/format'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 
@@ -50,14 +52,22 @@ const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
  * standings' `tv` — the two agree, and the sum is the one that cannot go stale
  * against the list under it.
  *
- * **Rows are the same design as one's own squad**: the 24-hour change under
- * the market value and the lineup probability under the name, both of which
- * this tab went without until 2026-09-08 — the change on the mistaken
- * grounds that the payload lacked it, the probability because nobody fetched
- * it. What stays off is what Kickbase only tells you about your own players:
- * the offer count, and the shirt as a *control*. The rail stays as a marker —
- * whether a player is in the eleven is the first thing you want from someone
- * else's squad — and every row opens the player's own page.
+ * **Rows are the same design as one's own squad**: a signed figure under the
+ * market value and the lineup probability under the name, both of which this
+ * tab went without until 2026-09-08 — the change on the mistaken grounds that
+ * the payload lacked it, the probability because nobody fetched it. What stays
+ * off is what Kickbase only tells you about your own players: the offer count,
+ * and the shirt as a *control*. The rail stays as a marker — whether a player
+ * is in the eleven is the first thing you want from someone else's squad — and
+ * every row opens the player's own page.
+ *
+ * **That figure is either night or lifetime**, switched by the one control
+ * above the list — the overnight change (`tfhmvt`) or what the player has made
+ * his owner since he was bought (`mvgl`), and the payload carries both. See
+ * [`ValueMode`](../squad/ValueMode.tsx), which is the same control and the same
+ * stored preference one's own Kader uses: the second question is if anything
+ * more interesting here, because *what has this squad actually earned him* is
+ * asked about a rival far more often than about oneself.
  *
  * **The probability costs a detail request per player**, the same gap-filling
  * fan-out the squad page runs for its own rows: `prob` is not on this payload.
@@ -102,6 +112,10 @@ export function ManagerSquadTab({
      current table does not hold simply has no watermark. */
   const teams = useTeamDirectory(competitionId)
   const expectedPoints = useExpectedPointsView(day)
+  /* The same preference one's own Kader is read with — see
+     [`useValueMode`](../squad/ValueMode.tsx). A reader who wants profit under
+     the price wants it under every price. */
+  const [valueMode, setValueMode] = useValueMode()
   const expected = useExpectedPointsSheet({
     matchday: day,
     resolve: (playerId) => {
@@ -183,6 +197,14 @@ export function ManagerSquadTab({
         )}
       </div>
 
+      {/* The list's one control, where one's own Kader keeps it: at the right
+          edge, above the first position. Alone on its row rather than on the
+          heading of the first group — it governs every group, and a control
+          sitting on one of them would read as that group's. */}
+      <div className="-mb-1 flex items-center justify-end">
+        <ValueModeButton value={valueMode} onChange={setValueMode} />
+      </div>
+
       {byPosition.map((group) => (
         <section key={group.position} className="flex flex-col gap-1.5">
           <h3
@@ -204,6 +226,7 @@ export function ManagerSquadTab({
                 startProbability={startProbabilities.get(player.id)}
                 fixture={upcoming?.fixtureByTeamId.get(player.teamId)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
+                valueMode={valueMode}
                 expectedPoints={expectedPoints.entry(player.id)}
                 onEditExpected={expected.open}
               />
@@ -238,6 +261,7 @@ function PlayerRow({
   startProbability,
   fixture,
   to,
+  valueMode,
   expectedPoints,
   onEditExpected,
 }: {
@@ -246,6 +270,8 @@ function PlayerRow({
   /** His club's fixture this matchday, or `undefined` on a bye. */
   fixture: TeamFixture | undefined
   to: string
+  /** Which figure goes under the market value — the tab's own choice. */
+  valueMode: ValueMode
   /**
    * What he is expected to score on the coming matchday — the reader's guess,
    * or the model's prediction standing in for one.
@@ -255,10 +281,6 @@ function PlayerRow({
   /** His club, for the watermark behind the row. */
   team?: TeamSummary
 }) {
-  const changeDay = player.marketValueChangeDay
-  const ChangeIcon =
-    changeDay !== undefined && changeDay < 0 ? TrendingDown : TrendingUp
-
   return (
     /* The shell moved onto the `li` and the link became the row's *body*, so
        the target at the end can be a button: a link wrapping the whole row
@@ -358,25 +380,19 @@ function PlayerRow({
             <span className="nums block text-sm font-semibold text-ink">
               {money(player.marketValue)}
             </span>
-            {/* The last 24 hours in euros, arrow and amount — `tfhmvt`, which
-                is on this payload after all. A flat day is a grey `±0`, as on
-                the squad page: it is a fact about a night, unlike a profit of
-                zero, which would be a claim about a trade. */}
-            <span
-              className={cn(
-                'nums flex items-center justify-end gap-0.5 text-xs',
-                changeDay !== undefined && changeDay > 0 && 'text-positive',
-                changeDay !== undefined && changeDay < 0 && 'text-negative',
-                (changeDay === undefined || changeDay === 0) && 'text-faint',
-              )}
-              title="Marktwertänderung in den letzten 24 Stunden"
-            >
-              {changeDay !== undefined && changeDay !== 0 && (
-                <ChangeIcon size={11} aria-hidden="true" className="shrink-0" />
-              )}
-              {moneyDelta(changeDay)}
-              <span className="sr-only"> in den letzten 24 Stunden</span>
-            </span>
+            {/* The overnight change or what the player has made his owner,
+                whichever the control above the list is on — `tfhmvt` and
+                `mvgl`, both of which are on this payload after all. The
+                second is the more interesting one here: *what has this squad
+                actually earned him* is a question you ask about a rival far
+                more often than about yourself. Drawn by the same
+                [`ValueDelta`](../squad/ValueMode.tsx) one's own Kader uses, so
+                a player reads the same in his owner's squad as in yours. */}
+            <ValueDelta
+              mode={valueMode}
+              changeDay={player.marketValueChangeDay}
+              profitLoss={player.profitLoss}
+            />
           </span>
         </span>
       </Link>
