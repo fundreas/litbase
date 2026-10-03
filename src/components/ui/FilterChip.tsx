@@ -94,6 +94,19 @@ export const CHIP_ROW = `${CHIP_SCROLL} -mx-3 px-3`
 export const CHIP_ROW_START = `${CHIP_SCROLL} -ml-3 min-w-0 flex-1 pl-3`
 
 /**
+ * The mirror of it — the row **sharing its line with a label on the left**,
+ * which is what the [scenario](../../pages/WhatIfPage.tsx)'s sale-day picker
+ * needs: its caption sits before the chips rather than above them, because the
+ * block it lives in is pinned over a list and a line of height there is a line
+ * of squad nobody can see.
+ *
+ * Bleeds **right only**, for the same reason {@link CHIP_ROW_START} bleeds
+ * left only: the end the chips scroll out at is the screen's, the end the
+ * label holds is not.
+ */
+export const CHIP_ROW_END = `${CHIP_SCROLL} -mr-3 min-w-0 flex-1 pr-3`
+
+/**
  * Horizontally scrolling row of chips. On a phone there is no room to wrap a
  * dozen competitions, so the row scrolls sideways with the scrollbar hidden
  * and its own overflow container — the page itself never scrolls horizontally.

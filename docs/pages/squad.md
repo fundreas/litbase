@@ -464,7 +464,11 @@ who picked *seit Kauf* on his own Kader did not mean "only here". It is not in
 the URL — a preference, not a place.
 
 It is **only beside the list**. The tiles carry no money at all, so a control
-over which figure they would show would be a control over nothing.
+over which figure they would show would be a control over nothing. It is also
+gone from the [scenario](whatif.md#the-day-the-sales-happen-on)'s Kader
+whenever a sale day is picked: every row there is then showing a *forecast*
+price and its distance from the value standing now, and neither of this
+control's two answers is among them.
 
 For a long time the row had only the first of these, and that was deliberate:
 profit is a fact about a trade made months ago and it never moves on its own,

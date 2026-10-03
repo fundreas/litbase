@@ -1,4 +1,8 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import {
+  useQueries,
+  useQuery,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 
 import type { MarketValueDay, MarketValueForecast } from '@/api/models'
 import { qk } from '@/api/queryKeys'
@@ -63,6 +67,78 @@ function toDay(
 }
 
 /**
+ * **One player's file, mapped** — or `null` where there is none.
+ *
+ * Shared by the two hooks below so that a squad asked for twenty forecasts and
+ * a page asking for one parse the same bytes the same way, and land on the
+ * same cache entry.
+ *
+ * **A missing file resolves to `null`, not an error.** A player who joined the
+ * competition after the last run simply has no file, and a forecast is an
+ * extra on a page that is complete without it — so it must never put an error
+ * box where the market history should be. Both shapes of "missing" are caught,
+ * the same two `useMatchdayRanking` handles: a 404 from the static host, and a
+ * 200 of `<!doctype html>` from a dev server or SPA fallback that rewrote the
+ * unknown path.
+ */
+async function fetchForecast(
+  playerId: string,
+): Promise<MarketValueForecast | null> {
+  const response = await fetch(forecastUrl(playerId))
+
+  if (response.status === 404) return null
+  if (!response.ok) {
+    throw new Error(`Prognose: HTTP ${String(response.status)}`)
+  }
+  if (
+    !(response.headers.get('content-type') ?? '').includes('application/json')
+  ) {
+    return null
+  }
+
+  const series = (await response.json()) as ForecastPoint[]
+  // Guarded rather than trusted: this is a foreign host, and a truncated or
+  // reshaped file must read as "no forecast" instead of throwing inside the
+  // render of a page that has everything else it needs.
+  if (!Array.isArray(series)) return null
+
+  const points = series.filter(
+    (point) =>
+      typeof point?.date === 'string' &&
+      typeof point.mv === 'number' &&
+      Number.isFinite(point.mv),
+  )
+
+  const [anchorPoint, ...rest] = points
+  if (anchorPoint === undefined) return null
+
+  return {
+    anchor: toDay(anchorPoint, undefined, false),
+    days: rest.map((point, index) =>
+      toDay(point, index === 0 ? anchorPoint : rest[index - 1], true),
+    ),
+  } satisfies MarketValueForecast
+}
+
+/**
+ * The query one player's forecast is read through, wherever it is read from.
+ *
+ * One builder rather than two literals: the squad hook below runs this by the
+ * dozen through `useQueries`, and a key or a `staleTime` that drifted from the
+ * single-player one would quietly fetch every file twice.
+ */
+function forecastQuery(competitionId: string | undefined, playerId: string) {
+  return {
+    queryKey: qk.playerForecast(competitionId ?? 'none', playerId),
+    staleTime: FORECAST_STALE_MS,
+    // A file that is not there is not there; retrying three times over a
+    // second only delays the empty answer.
+    retry: false,
+    queryFn: () => fetchForecast(playerId),
+  }
+}
+
+/**
  * **The next five days of a player's market value, predicted.**
  *
  * Not Kickbase: [litbase-foresight](https://github.com/fundreas/litbase-foresight)
@@ -85,13 +161,8 @@ function toDay(
  * still ahead is `forecastAhead`'s job, against the history the app already
  * has; this hook only maps the file.
  *
- * **A missing file resolves to `null`, not an error.** A player who joined the
- * competition after the last run simply has no file, and a forecast is an
- * extra on a page that is complete without it — so it must never put an error
- * box where the market history should be. Both shapes of "missing" are caught,
- * the same two `useMatchdayRanking` handles: a 404 from the static host, and a
- * 200 of `<!doctype html>` from a dev server or SPA fallback that rewrote the
- * unknown path.
+ * A file that is not there resolves to `null` rather than erroring — see
+ * {@link fetchForecast}.
  */
 export function usePlayerForecast(
   competitionId: string | undefined,
@@ -100,49 +171,50 @@ export function usePlayerForecast(
   const isCovered = competitionId === FORECAST_COMPETITION_ID
 
   return useQuery({
-    queryKey: qk.playerForecast(competitionId ?? 'none', playerId ?? 'none'),
+    ...forecastQuery(competitionId, playerId ?? 'none'),
     enabled: isCovered && playerId !== undefined,
-    staleTime: FORECAST_STALE_MS,
-    // A file that is not there is not there; retrying three times over a
-    // second only delays the empty answer.
-    retry: false,
-    queryFn: async () => {
-      const response = await fetch(forecastUrl(playerId as string))
-
-      if (response.status === 404) return null
-      if (!response.ok) {
-        throw new Error(`Prognose: HTTP ${String(response.status)}`)
-      }
-      if (
-        !(response.headers.get('content-type') ?? '').includes(
-          'application/json',
-        )
-      ) {
-        return null
-      }
-
-      const series = (await response.json()) as ForecastPoint[]
-      // Guarded rather than trusted: this is a foreign host, and a truncated
-      // or reshaped file must read as "no forecast" instead of throwing inside
-      // the render of a page that has everything else it needs.
-      if (!Array.isArray(series)) return null
-
-      const points = series.filter(
-        (point) =>
-          typeof point?.date === 'string' &&
-          typeof point.mv === 'number' &&
-          Number.isFinite(point.mv),
-      )
-
-      const [anchorPoint, ...rest] = points
-      if (anchorPoint === undefined) return null
-
-      return {
-        anchor: toDay(anchorPoint, undefined, false),
-        days: rest.map((point, index) =>
-          toDay(point, index === 0 ? anchorPoint : rest[index - 1], true),
-        ),
-      } satisfies MarketValueForecast
-    },
   })
+}
+
+/**
+ * **A whole squad's forecasts at once**, by player id, for the
+ * [scenario](../../pages/WhatIfPage.tsx)'s target day.
+ *
+ * One request per player, which sounds worse than it is: these are ~300-byte
+ * static files on a CDN behind one connection, and they are the same cache
+ * entries the player page fills, so a squad looked at twice is fetched once.
+ * The page that asks already fires a Kickbase detail request per player
+ * without a lineup probability, which is the same count against a far heavier
+ * endpoint.
+ *
+ * Players **without** a file are simply absent from the map — the caller falls
+ * back to the market value Kickbase has for them today, which is the only
+ * honest substitute for a prediction nobody made.
+ */
+export function useSquadForecasts(
+  competitionId: string | undefined,
+  playerIds: string[],
+): Map<string, MarketValueForecast> {
+  const isCovered = competitionId === FORECAST_COMPETITION_ID
+
+  const queries = useQueries({
+    queries: isCovered
+      ? playerIds.map((playerId) => forecastQuery(competitionId, playerId))
+      : [],
+  })
+
+  // Rebuilt per render rather than memoised, as in `useStartProbabilities`:
+  // `useQueries` hands back a fresh array every time, so memoising it needs a
+  // surrogate key that is harder to trust than the twenty map writes it saves.
+  const byPlayerId = new Map<string, MarketValueForecast>()
+  for (const [index, query] of queries.entries()) {
+    const playerId = playerIds[index]
+    const forecast = query.data
+    if (playerId === undefined || forecast === undefined || forecast === null) {
+      continue
+    }
+    byPlayerId.set(playerId, forecast)
+  }
+
+  return byPlayerId
 }

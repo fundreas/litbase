@@ -770,6 +770,12 @@ from a dev server or SPA fallback that rewrote the unknown path — the same pai
 history would make the model's guess look like a measurement; the list can say
 `FC` on the row, a single-stroke line cannot say it at all.
 
+**The same files price a whole squad elsewhere.** The
+[scenario](whatif.md#the-day-the-sales-happen-on) asks for one per owned player
+so that its sales can be dated to a day in the next five —
+`useSquadForecasts`, the same query keys, so a squad looked at twice is fetched
+once.
+
 ### All-time high and low
 
 Computed from the series, **not read off `lmv`/`hmv`**. The API returns days

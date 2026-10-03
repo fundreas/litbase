@@ -14,6 +14,7 @@ import {
 import { MarketValueChart } from '@/components/player/MarketValueChart'
 import { MarketValueCard } from '@/components/player/PlayerStatCards'
 import { Card, CardHeader } from '@/components/ui/Card'
+import { ForecastChip } from '@/components/ui/ForecastChip'
 import { EmptyState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
@@ -254,25 +255,5 @@ function DayRow({ day }: { day: MarketValueDay }) {
         {day.change === undefined ? '–' : moneyDelta(day.change)}
       </span>
     </div>
-  )
-}
-
-/**
- * The mark that says "this day has not happened yet".
- *
- * Two letters rather than the word: it rides in the row's date column next to
- * a weekday and a date, and *Prognose* spelled out there pushed the date off a
- * phone-width line. The full word is the `title`, and the `sr-only` span is
- * what a screen reader reads instead of spelling out "eff cee".
- */
-function ForecastChip() {
-  return (
-    <span
-      title="Prognose"
-      className="shrink-0 rounded border border-accent/40 bg-accent/10 px-1 py-px text-[0.5625rem] font-bold tracking-wide text-accent uppercase"
-    >
-      <span aria-hidden="true">FC</span>
-      <span className="sr-only">Prognose</span>
-    </span>
   )
 }

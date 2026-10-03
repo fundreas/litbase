@@ -149,6 +149,77 @@ A tab of its own, which is the other obvious place for a list this size, would
 have the same fault from the other end: you cannot switch a bid off while
 looking at the eleven it changes.
 
+## The day the sales happen on
+
+Market values move every night, and a squad's does not move as one: half of it
+is climbing while the other half bleeds. So *when* you sell is a real question,
+and the scenario lets it be asked — a row of day chips at the foot of the
+budget block, and the whole page reprices itself onto the day you pick:
+
+```
+┌─────────────────────────────────────────┐
+│ BUDGET NACH DEN VERKÄUFEN               │
+│ 14.182.000 €                            │
+│ Budget 1.900.000 € · 3 verkauft         │
+│ +12.282.000 € (+310.000 € ggü. jetzt)   │
+├─────────────────────────────────────────┤
+│ VERKAUF  (Jetzt)(Fr., 3.)(Sa., 4.)(So.… │
+└─────────────────────────────────────────┘
+```
+
+The figures are the **market-value forecast** — the same nightly
+[litbase-foresight](player-detail.md#the-forecast-on-top) run the player page's
+market tab heads its list with, one static JSON file per player, read through
+the same cache entries. What is new is only that the scenario asks for the
+**whole squad's** files rather than one player's.
+
+**The chips are the run's days, not the calendar's.** The file carries five,
+and the night takes one of them away at a time, so a picker built out of
+`today + 1 … + 5` would offer a day half the squad has no number for. The
+union of what the files actually hold, minus everything the recalculation has
+already overtaken, is what gets a chip — which is why the forecasts are fetched
+whether or not a day is picked. They are ~300-byte files on a CDN; the page
+already fires one Kickbase detail request per player without a lineup
+probability, against a far heavier endpoint.
+
+**"Jetzt", not "Heute".** Kickbase moves every value at 22:00 German time, so
+before then *today's* value is still a prediction and the figure on screen is
+last night's — which is exactly why the first chip beside it can carry today's
+own date. Two chips reading *Heute* and *Fr., 3.* on a Friday the 3rd would be
+a riddle; a now and a date are not. It is the same cut `forecastAhead` makes on
+the player page, made against the clock instead of against a history.
+
+**Every row reprices, not just the total.** With a day picked, each Kader row
+shows what *that* player would fetch on it, wearing the same `FC` chip the
+player page's forecast rows wear, and the line underneath swaps the toolbar's
+delta for the one comparison a future price has — its distance from the value
+standing now. A total adding up to tomorrow's prices over a list showing
+today's would be two answers on one screen. The toolbar's own
+[value toggle](squad.md#24-h-oder-seit-kauf) goes away while that is on: neither
+of its two answers is in the rows for it to switch between.
+
+**A player the forecast cannot reach keeps his real value** — he joined after
+the last run, or his file is a run older than the rest and stops short of the
+last chip. He is counted at today's market value in the rows and in the sum,
+and the working says how many such players there were (*2 ohne Prognose*): a
+total that is part fact and part prediction has to say which parts. Answering
+with the nearest day the file *does* hold would quietly mix two dates into one
+figure.
+
+**The delta is printed, not implied.** *(+310.000 € ggü. jetzt)* beside the
+proceeds is the figure the whole control exists for — whether waiting is
+actually the better move — and it is a few per cent of a squad, which is not
+something anyone reads off two totals seen a minute apart.
+
+**It is gone where there is nothing to pick:** outside the Bundesliga, which is
+the only competition the run publishes for, and on the Aufstellung tab along
+with the rest of the budget block. What day you sell on is not a question about
+who you would field.
+
+**Nothing else moves with it.** The bid's own rules, the 33 % ceiling and the
+team value behind it are all still measured on today — see *the rules are the
+real ones* below. The sale day is the scenario's arithmetic, not Kickbase's.
+
 ## Nothing happens here, except the bid
 
 The sales are **hypothetical**. Nobody is sold, no `POST` is sent, the squad
@@ -230,6 +301,9 @@ mode never has to be entered — the page *is* the mode. A tap on any row marks
 that player as sold in this scenario; the row takes the accent outline the sale
 calculator uses.
 
+With a [sale day](#the-day-the-sales-happen-on) picked, every row prints what
+that player would fetch on it instead of what he is worth now.
+
 The **target is not in this list.** Every row here is a player you could sell,
 and he is the one you are buying — he appears where that means something, on
 the bench of the third tab. (He carries one placeholder figure wherever he is
@@ -285,6 +359,9 @@ What differs from the purchase, and nothing else does:
   bound. The same per-bid list is in this scenario's header too: *what if the
   two I expect to win land and I sell these three to pay for them* is the
   fuller version of the question this page exists for.
+- **The sale day is the same control**, and it is this scenario it was built
+  for: *what would these three bring if I held them until Sunday* is the whole
+  question a sale-only scenario is asking.
 - **The market is not waited for.** The listing and the team value are the
   purchase's business; this scenario needs the squad and the budget, which it
   already has, so it renders as soon as they land.

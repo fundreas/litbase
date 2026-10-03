@@ -11,10 +11,13 @@ import {
 } from '@/api/hooks/useMatchday'
 import { usePlaceOffer, useWithdrawOffer } from '@/api/hooks/useMarketOffers'
 import { usePlayerDetail } from '@/api/hooks/usePlayer'
+import { useSquadForecasts } from '@/api/hooks/usePlayerForecast'
 import { useSquad } from '@/api/hooks/useSquad'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { useStatusReasons } from '@/api/hooks/useStatusReasons'
 import {
+  forecastDays,
+  forecastValueOn,
   offerBaseline,
   type MarketListing,
   type PlayerDetail,
@@ -31,12 +34,13 @@ import { SwapDialog } from '@/components/squad/SwapDialog'
 import { useLineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { CHIP_ROW_END, FilterChip } from '@/components/ui/FilterChip'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
-import { money, moneyExact } from '@/lib/format'
+import { money, moneyDelta, moneyExact, weekdayDay } from '@/lib/format'
 import { checkOffer, debtAllowance, maximumOffer } from '@/lib/offerRules'
 
 /** The three views, sharing one scenario. */
@@ -397,6 +401,17 @@ function WhatIfScenario({
   /** Who would be sold to pay for him. Ids, as the sale calculator holds them. */
   const [sold, setSold] = useState<ReadonlySet<string>>(() => new Set())
   /**
+   * **The day the sales are imagined to happen on** — an ISO date out of the
+   * [forecast](../api/hooks/usePlayerForecast.ts), or `undefined` for the
+   * value standing now.
+   *
+   * `undefined` is not "no answer" but the answer most of the time: the value
+   * Kickbase is showing today is a fact, and every day on offer beside it is a
+   * prediction. So the scenario starts on the fact, and the manager is the one
+   * who asks for the prediction.
+   */
+  const [saleDate, setSaleDate] = useState<string | undefined>(undefined)
+  /**
    * The symbol legend. `useState` rather than the squad page's `#legend` hash:
    * every exit from this page is a back press, and a hash layer over it would
    * spend one of those on closing a sheet instead of leaving the scenario.
@@ -494,6 +509,61 @@ function WhatIfScenario({
   const startProbabilities = useStartProbabilities(leagueId, full)
   const statusReasons = useStatusReasons(leagueId, full)
 
+  /**
+   * **Every sellable player's next five days**, so the scenario can be dated.
+   *
+   * `own` and not `full`: the only players this page can sell are the ones it
+   * already owns, and a forecast for a man on the bench of a bid that has not
+   * been accepted would be money nobody can realise.
+   *
+   * It is fetched whether or not a day is picked, because the days themselves
+   * come out of the files — the run publishes five, of which tonight's
+   * recalculation has usually eaten one, and a picker built from the calendar
+   * instead would offer a day half the squad has no number for. They are
+   * ~300-byte static files on a CDN, and the same cache entries the player
+   * pages fill.
+   */
+  const ownIds = useMemo(() => own.map((member) => member.id), [own])
+  const forecasts = useSquadForecasts(competitionId, ownIds)
+  /**
+   * The days those files can still speak for, oldest first — the chips.
+   *
+   * Recomputed each render rather than memoised: the map behind it is rebuilt
+   * each render too (see the hook), so a `useMemo` on it would be a dependency
+   * that always changed, wearing a cache for nothing.
+   */
+  const saleDays = forecastDays(forecasts.values())
+  /**
+   * …and the one that is selected, **if it is still on offer**.
+   *
+   * A page left open across ten in the evening is a page whose furthest day
+   * has just become today's value — the chips shift under it, and a date that
+   * is no longer among them has to fall back to today rather than quietly
+   * keep pricing the squad off a prediction that has been overtaken.
+   */
+  const saleDay =
+    saleDate !== undefined && saleDays.includes(saleDate) ? saleDate : undefined
+  /**
+   * **What each player would fetch on that day**, by id — the figure the rows
+   * print and the total adds up.
+   *
+   * Only the players the forecast actually reaches are in here. The rest keep
+   * today's market value, in the rows and in the sum, and the working under
+   * the total says how many of them there were: a prediction nobody made is
+   * better replaced by a fact than by the nearest other day's guess.
+   *
+   * Built per render rather than memoised, like the map it reads from — a
+   * dozen lookups against a five-entry list, and nothing downstream of it is
+   * memoised either.
+   */
+  const saleValues = new Map<string, number>()
+  if (saleDay !== undefined) {
+    for (const member of own) {
+      const value = forecastValueOn(forecasts.get(member.id), saleDay)
+      if (value !== undefined) saleValues.set(member.id, value)
+    }
+  }
+
   const bid = listing === undefined ? 0 : Number(amount)
   /**
    * What the standing bids have already claimed.
@@ -520,9 +590,26 @@ function WhatIfScenario({
     listing === undefined
       ? undefined
       : checkOffer(bid, listing.marketValue, rules)
-  const proceeds = squad
-    .filter((member) => sold.has(member.id))
-    .reduce((sum, member) => sum + member.marketValue, 0)
+  const soldMembers = own.filter((member) => sold.has(member.id))
+  /** What the sales bring in **on the chosen day** — today's values by default. */
+  const proceeds = soldMembers.reduce(
+    (sum, member) => sum + (saleValues.get(member.id) ?? member.marketValue),
+    0,
+  )
+  /** The same sales at the value standing now — what the day is measured on. */
+  const proceedsToday = soldMembers.reduce(
+    (sum, member) => sum + member.marketValue,
+    0,
+  )
+  /**
+   * How many of the marked players the forecast could not price for that day —
+   * counted so the working can say so rather than leaving a total that is
+   * quietly part prediction and part fact without saying which parts.
+   */
+  const unforecastCount =
+    saleDay === undefined
+      ? 0
+      : soldMembers.filter((member) => !saleValues.has(member.id)).length
   const isBusy = placeOffer.isPending || withdrawOffer.isPending
   const error = placeOffer.error ?? withdrawOffer.error
   const ownOffer = listing?.ownOffer
@@ -550,7 +637,15 @@ function WhatIfScenario({
             listing === undefined ? undefined : Number.isFinite(bid) ? bid : 0
           }
           proceeds={proceeds}
+          proceedsToday={proceedsToday}
           soldCount={sold.size}
+          /* The sale day, and the days there are to pick from. Empty outside
+             the Bundesliga and whenever the forecast host has nothing to say,
+             in which case the picker is not drawn at all. */
+          saleDays={saleDays}
+          saleDay={saleDay}
+          onSelectSaleDay={setSaleDate}
+          unforecastCount={unforecastCount}
           pendingSpend={pendingSpend}
           /* The **bids**, not the arrivals: the two differ only if a bid
              somehow stands on a player already owned, and this line is the
@@ -687,6 +782,10 @@ function WhatIfScenario({
             statusReasons={statusReasons}
             forSale={sold}
             onToggleForSale={toggleSold}
+            /* Empty until a day is picked, and then every row prices itself
+               for that day — the list and the total have to be answering the
+               same question. */
+            saleValues={saleValues}
           />
         </TabsContent>
 
@@ -1189,7 +1288,12 @@ function ProjectedBudget({
   budget,
   bid,
   proceeds,
+  proceedsToday,
   soldCount,
+  saleDays,
+  saleDay,
+  onSelectSaleDay,
+  unforecastCount,
   pendingSpend,
   pendingCount,
   allowance,
@@ -1198,8 +1302,18 @@ function ProjectedBudget({
   budget: number
   /** What would be spent, or `undefined` when nothing is being bought. */
   bid: number | undefined
+  /** What the sales bring in on {@link saleDay}. */
   proceeds: number
+  /** What the same sales bring in today — the figure the day is measured on. */
+  proceedsToday: number
   soldCount: number
+  /** The forecast days there are to choose from, oldest first; may be empty. */
+  saleDays: string[]
+  /** The one chosen, or `undefined` for today. */
+  saleDay: string | undefined
+  onSelectSaleDay: (date: string | undefined) => void
+  /** Marked players the forecast could not price for that day. */
+  unforecastCount: number
   /** What the bids still switched on would take; `0` once they all are off. */
   pendingSpend: number
   /** How many of them there are — `0` whenever the spend is. */
@@ -1294,6 +1408,36 @@ function ProjectedBudget({
               <span className="text-positive">
                 {soldCount} verkauft +{money(proceeds)}
               </span>
+              {/* **What the day is worth**, and only while it is worth
+                  something: the sales on a future day against the same sales
+                  today. It is the one figure that says whether waiting is
+                  actually the better move, and it is small — a few per cent of
+                  a squad — so it has to be printed rather than inferred from
+                  two totals read at different times. */}
+              {saleDay !== undefined && proceeds !== proceedsToday && (
+                <span
+                  className={
+                    proceeds > proceedsToday ? 'text-positive' : 'text-negative'
+                  }
+                >
+                  ({moneyDelta(proceeds - proceedsToday)} ggü. jetzt)
+                </span>
+              )}
+              {/* The part of that total that is **not** a prediction. A run
+                  that is a day older than the rest stops short of the last
+                  chip, and a player it never covered has no file at all; both
+                  keep today's value, and a total that is part fact has to say
+                  which part. */}
+              {unforecastCount > 0 && (
+                <>
+                  <span aria-hidden="true" className="text-faint">
+                    ·
+                  </span>
+                  <span className="text-faint">
+                    {unforecastCount} ohne Prognose
+                  </span>
+                </>
+              )}
             </>
           )}
         </p>
@@ -1322,6 +1466,86 @@ function ProjectedBudget({
             )}
           </p>
         )}
+
+        {saleDays.length > 0 && (
+          <SaleDayPicker
+            days={saleDays}
+            selected={saleDay}
+            onSelect={onSelectSaleDay}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * **"…and if I sold them on Sunday instead?"**
+ *
+ * Market values move every night, and a squad's does not move with it: some
+ * players are climbing and some are bleeding, which is exactly the question a
+ * manager deciding *when* to sell is asking. The
+ * [forecast](../api/hooks/usePlayerForecast.ts) answers it for the next five
+ * days, and this is where the scenario takes the answer — one chip per day the
+ * run still speaks for, and **Heute**, which is the only one of them that is a
+ * fact rather than a prediction and is therefore the one the page opens on.
+ *
+ * It sits at the foot of the budget block because that is the figure it moves,
+ * and **on one line with its caption** rather than under it: the block is
+ * pinned over a list of twenty players, and a line of height taken here is a
+ * row of squad nobody can see. The chips scroll sideways —
+ * [`CHIP_ROW_END`](../components/ui/FilterChip.tsx) — so the fifth day is
+ * reachable on a phone without the row wrapping to a second line and taking
+ * that row back anyway.
+ *
+ * The picker is **not drawn at all** where there is nothing to pick: outside
+ * the Bundesliga, which is the only competition the run publishes for, and
+ * whenever the host has nothing the night has not already overtaken.
+ *
+ * It is absent from the pitch along with the rest of the block, which is
+ * right: who you would field is not a question about what day you sell on.
+ */
+function SaleDayPicker({
+  days,
+  selected,
+  onSelect,
+}: {
+  days: string[]
+  selected: string | undefined
+  onSelect: (date: string | undefined) => void
+}) {
+  return (
+    <div className="mt-1.5 flex items-center gap-2 border-t border-line pt-2">
+      <span className="shrink-0 text-[0.6875rem] tracking-wide text-faint uppercase">
+        Verkauf
+      </span>
+
+      <div className={CHIP_ROW_END} role="group" aria-label="Verkaufstag">
+        {/* **"Jetzt", not "Heute"**, and the difference is the whole reason
+            the first chip beside it can carry today's own date: Kickbase moves
+            every value at ten in the evening, so until then *today's* value is
+            a prediction like any other and the figure on screen is last
+            night's. Two chips reading "Heute" and "Fr., 3." on a Friday the
+            3rd would be a riddle; a now and a date are not. */}
+        <FilterChip
+          isActive={selected === undefined}
+          onClick={() => {
+            onSelect(undefined)
+          }}
+        >
+          Jetzt
+        </FilterChip>
+        {days.map((date) => (
+          <FilterChip
+            key={date}
+            isActive={selected === date}
+            onClick={() => {
+              onSelect(date)
+            }}
+          >
+            {weekdayDay(date)}
+          </FilterChip>
+        ))}
       </div>
     </div>
   )

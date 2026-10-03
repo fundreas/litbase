@@ -181,6 +181,26 @@ export function weekdayDate(iso: string | null | undefined): string {
   return Number.isNaN(parsed) ? '–' : weekdayDateFormatter.format(parsed)
 }
 
+const weekdayDayFormatter = new Intl.DateTimeFormat(LOCALE, {
+  weekday: 'short',
+  day: 'numeric',
+})
+
+/**
+ * `So., 4.` — a day of **this week**, with no month on it.
+ *
+ * For a row of chips covering five consecutive days, where the month is the
+ * same for all but one of them and spelling it out is what forces the reader
+ * to scroll to see the last option. The weekday is what makes it unambiguous
+ * over a span that short, and the number is what tells two of the same weekday
+ * apart across a longer one.
+ */
+export function weekdayDay(iso: string | null | undefined): string {
+  if (!iso) return '–'
+  const parsed = Date.parse(iso)
+  return Number.isNaN(parsed) ? '–' : weekdayDayFormatter.format(parsed)
+}
+
 const timeFormatter = new Intl.DateTimeFormat(LOCALE, {
   hour: '2-digit',
   minute: '2-digit',

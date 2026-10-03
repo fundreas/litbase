@@ -3375,6 +3375,68 @@ export function forecastAhead(
 }
 
 /**
+ * **The valuation day in force right now** — the newest one Kickbase has
+ * actually run, as an ISO date.
+ *
+ * Not today's date: values move at {@link MARKET_VALUE_HOUR} German time, so
+ * until ten in the evening the figure every screen in the app is showing is
+ * **yesterday's** entry. {@link standingDayOf} is the whole rule; this is the
+ * exported door to it, for the callers that have a clock rather than a
+ * transfer to date.
+ *
+ * It is what separates a forecast day that is still ahead from one the night
+ * has already overtaken — the same cut {@link forecastAhead} makes against a
+ * player's own history, for a caller that holds no history.
+ */
+export function standingDay(now: number = nowMs()): string {
+  return standingDayOf(now)
+}
+
+/**
+ * **The days a set of forecasts can still speak for**, oldest first.
+ *
+ * The union of their dates, minus everything the nightly recalculation has
+ * already overtaken — see {@link standingDay}. A union rather than an
+ * intersection: the files all come out of one run and carry one set of dates,
+ * but a player whose file is a run older would otherwise take every other
+ * player's last day away with him.
+ *
+ * At most five in practice, which is what the run publishes.
+ */
+export function forecastDays(
+  forecasts: Iterable<MarketValueForecast>,
+  now: number = nowMs(),
+): string[] {
+  const standing = standingDay(now)
+  const dates = new Set<string>()
+
+  for (const forecast of forecasts) {
+    for (const day of forecast.days) {
+      if (day.date > standing) dates.add(day.date)
+    }
+  }
+
+  return [...dates].sort()
+}
+
+/**
+ * What a forecast says a player will be worth **on one named day**, or
+ * `undefined` where it does not reach that far.
+ *
+ * `undefined` rather than the nearest day it does hold: a run that is a day
+ * older than the rest stops short of the last chip, and answering with its
+ * fourth day while the caller asked for the fifth would quietly mix two dates
+ * into one total. The caller falls back to the market value of today, and says
+ * how many players it had to.
+ */
+export function forecastValueOn(
+  forecast: MarketValueForecast | undefined,
+  date: string,
+): number | undefined {
+  return forecast?.days.find((day) => day.date === date)?.value
+}
+
+/**
  * The slice of history a window covers, and the rows to list for it.
  *
  * Two different densities on purpose. The **chart** gets every day in the

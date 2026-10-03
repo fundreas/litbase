@@ -22,10 +22,11 @@ import { useValueMode, type ValueMode } from '@/components/squad/useValueMode'
 import { Avatar } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ForecastChip } from '@/components/ui/ForecastChip'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { cn } from '@/lib/cn'
 import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
-import { money } from '@/lib/format'
+import { money, moneyDelta } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
@@ -85,6 +86,7 @@ export function PlayerListTab({
   statusReasons,
   forSale,
   onToggleForSale,
+  saleValues,
   onEditExpected,
   scenarioTo,
 }: {
@@ -111,6 +113,21 @@ export function PlayerListTab({
    */
   forSale: ReadonlySet<string> | null
   onToggleForSale: (playerId: string) => void
+  /**
+   * **What each player would fetch on a day that has not come yet**, by id —
+   * the [scenario](../../pages/WhatIfPage.tsx)'s target day, and nothing else
+   * passes it.
+   *
+   * Where an id is in here the row prints this figure instead of today's
+   * market value, marked as a prediction, with its distance from today under
+   * it in place of the toolbar's delta. That is the whole of it: the row is
+   * otherwise the row, because a scenario that sold at tomorrow's prices while
+   * showing today's would be two answers on one screen.
+   *
+   * A player the forecast does not reach is simply absent and keeps his real
+   * value — which is what the total does with him too.
+   */
+  saleValues?: ReadonlyMap<string, number>
   /**
    * Open the [expected-points sheet](./ExpectedPointsDialog.tsx) for a player.
    *
@@ -171,8 +188,13 @@ export function PlayerListTab({
         {scenarioTo !== undefined && <ScenarioLink to={scenarioTo} />}
         {/* Only beside the list. The tiles carry no money at all — see
             [`PlayerTile`](#PlayerTile) — so a control over which figure they
-            would show would be a control over nothing. */}
-        {view === 'list' && (
+            would show would be a control over nothing.
+
+            And only while the rows are showing today's money. With a sale day
+            picked, the line under every price is that price's distance from
+            today, which is the only comparison a future value has — neither of
+            this button's two answers is in the rows for it to switch between. */}
+        {view === 'list' && (saleValues?.size ?? 0) === 0 && (
           <ValueModeButton value={valueMode} onChange={setValueMode} />
         )}
         <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
@@ -235,6 +257,7 @@ export function PlayerListTab({
                     onToggleForSale={onToggleForSale}
                     onToggle={handleToggle}
                     valueMode={valueMode}
+                    saleValue={saleValues?.get(player.id)}
                     expectedPoints={expected.entry(player.id)}
                     onEditExpected={onEditExpected}
                   />
@@ -475,6 +498,7 @@ function PlayerRow({
   onToggleForSale,
   onToggle,
   valueMode,
+  saleValue,
   expectedPoints,
   onEditExpected,
 }: {
@@ -495,6 +519,12 @@ function PlayerRow({
   onToggle: (player: SquadMember) => void
   /** Which figure goes under the market value — the toolbar's choice. */
   valueMode: ValueMode
+  /**
+   * What he would fetch on the scenario's target day, where one is chosen and
+   * the forecast reaches it. It replaces both figures on the right — see the
+   * tab's `saleValues`.
+   */
+  saleValue?: number
   /**
    * What he is expected to score — the manager's own guess, or the model's
    * prediction standing in for one. `undefined` when neither exists.
@@ -613,9 +643,25 @@ function PlayerRow({
       </span>
 
       <span className="shrink-0 text-right">
-        <span className="nums block text-sm font-semibold text-ink">
-          {money(player.marketValue)}
-        </span>
+        {/* **The target day's price, where the scenario has picked one.** The
+              figure keeps the column, the weight and the place it always had —
+              a predicted value is still the value this row is being judged on,
+              and moving it would make the two kinds of row impossible to
+              compare down a list. What marks it is the chip beside it and the
+              line underneath, which swaps the toolbar's delta for the one
+              question a future price raises: *how far is that from today?* */}
+        {saleValue === undefined ? (
+          <span className="nums block text-sm font-semibold text-ink">
+            {money(player.marketValue)}
+          </span>
+        ) : (
+          <span className="flex items-center justify-end gap-1">
+            <ForecastChip />
+            <span className="nums text-sm font-semibold text-ink">
+              {money(saleValue)}
+            </span>
+          </span>
+        )}
         {/* **One line, two questions, and the toolbar picks which.** The
               default is the last 24 hours, because that is what a squad page
               is read for between matchdays — who is climbing, who is bleeding
@@ -630,11 +676,26 @@ function PlayerRow({
               same place would make the pair a puzzle — so they take turns.
               See [`ValueDelta`](./ValueMode.tsx), which draws whichever is
               showing identically in a rival's Kader. */}
-        <ValueDelta
-          mode={valueMode}
-          changeDay={player.marketValueChangeDay}
-          profitLoss={player.profitLoss}
-        />
+        {saleValue === undefined ? (
+          <ValueDelta
+            mode={valueMode}
+            changeDay={player.marketValueChangeDay}
+            profitLoss={player.profitLoss}
+          />
+        ) : (
+          <span
+            title="Gegenüber dem aktuellen Marktwert"
+            className={cn(
+              'nums block text-xs',
+              saleValue > player.marketValue && 'text-positive',
+              saleValue < player.marketValue && 'text-negative',
+              saleValue === player.marketValue && 'text-faint',
+            )}
+          >
+            {moneyDelta(saleValue - player.marketValue)}
+            <span className="sr-only"> gegenüber jetzt</span>
+          </span>
+        )}
       </span>
     </>
   )
