@@ -198,6 +198,22 @@ line differs: there it is position and market value, here it is position and
 **club**, since a competition-wide list is the one place where "who does he
 play for" is not already answered by the surrounding screen.
 
+### No ownership switch here
+
+[Saison](season.md#the-ownership-switch) carries one above this same list —
+*Alle Spieler* / *Vergeben* / *Frei* — and this page deliberately does not.
+
+The filter can only mean what the badges mean, and here they mean **who fielded
+him that weekend**: the fan-out reads the lineups as they stood on the selected
+matchday. A control labelled *Frei* over that would make a claim about the
+transfer market out of a fact about one afternoon's squads — and on an old
+matchday it would be answering a question about a market that has moved on
+since. On the season list the badge is the most recent matchday's, which is as
+close to *now* as the data gets, so the switch is offered there and nowhere
+else. The page passes no handler and
+[`PlayerRankingTab`](../../src/components/ranking/PlayerRankingTab.tsx) draws no
+control.
+
 ### Two sources, one list
 
 Kickbase serves exactly one ranking and it is always the **current** matchday's.

@@ -223,7 +223,7 @@ at, and on a phone a tap target the width of a club name is a target you miss.
   ◀   bis 4. Spieltag          ⌄    ▶
       16. Aug – 28. Sep · Beendet
 
-  ( Alle )  ( TW )  ( ABW )  ( MF )  ( ANG )
+  ( Alle ) ( TW ) ( ABW ) ( MF ) ( ANG )  [ 👥 Alle Spieler ]
 
   1  [img] Olise                  1269
         MF                          ← the crest is behind the row
@@ -241,6 +241,60 @@ The season's hundred best players, points descending — the same
 and the same owner badges. One list, two pages: the scope is the only
 difference, and both go through the same
 [`usePlayerRanking`](../../src/api/hooks/usePlayerRanking.ts).
+
+### The ownership switch
+
+**At the end of the position chips, on their line and at their height**: one
+label you tap to change, and the word on it is the state.
+
+| Reads | Shows | `?owner=` |
+| ----- | ----- | --------- |
+| *Alle Spieler* | the whole ranking | absent |
+| *Vergeben* | only players a manager of the league has | `owned` |
+| *Frei* | only players nobody in the league has | `free` |
+
+A ranking read with an eye on the market asks two questions — *who of the best
+is already taken* and *who of the best is still going* — and a hundred rows is
+too many to answer either by eye.
+
+**It filters on exactly what the badges show**, which is what keeps it honest:
+*Vergeben* is the rows with a badge, *Frei* the rows without one, so the filter
+can always be checked against the column beside it. It therefore inherits the
+badge's notion of ownership — the selected matchday's squads, not today's; see
+[the badge note](#rangliste) below. A transfer since that matchday is not in it.
+
+**It is a cut over the rows in hand**, unlike the position chips, which are
+five separate lists. So *Frei* over the top 100 is the free players *among
+those hundred* — not a hundred free players, and in a league that owns the top
+of the table it is a short list. That is the true answer to the question;
+padding it would need a ranking nobody publishes.
+
+**Placements survive the cut** — the rows read 3, 7, 12 rather than renumbering
+from 1. The figure is a position in the ranking, not a count of what is on
+screen.
+
+Three details:
+
+- **One glyph, and the colour is the state.** Accent while the list is cut,
+  muted while it is whole — the same rule the
+  [match-event filter](player-detail.md#the-event-filter-and-the-two-thresholds)
+  was rebuilt around. The label already says which of the three it is, so the
+  colour only confirms it.
+- **It does not scroll with the chips.** The row beside it is a scroller that
+  bleeds through the content well's padding, so the switch is a sibling of it
+  rather than its last item: it stays put at the end of the line while the
+  chips swipe under it, and the row drops its *right* bleed so they cannot run
+  beneath a translucent control. Five chips fit a phone alone; with the switch
+  taking the end of the line, this is the screen where that row finally does
+  have to be swiped — see
+  [`CHIP_ROW_START`](../../src/components/ui/FilterChip.tsx).
+- **`rounded-lg`, against the chips' `rounded-full`.** Same line, same height,
+  different corner — so a control that cycles three states does not read as a
+  sixth chip that toggles.
+- **No switch where it could not be answered.** A matchday the API has no
+  lineups for at all leaves it undrawn and the list whole, rather than
+  reporting every player in the competition as free. The
+  [matchday page](matchday.md#rangliste) gets none either — see there.
 
 **It comes from [pointcast](../pointcast.md#rankings), not Kickbase**, and that
 is a judgement rather than a rule. Kickbase does serve a season ranking —

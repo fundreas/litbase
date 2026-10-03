@@ -20,7 +20,10 @@ import {
 } from '@/api/models'
 import { MatchdayPicker } from '@/components/MatchdayPicker'
 import { PageHeading } from '@/components/PageHeading'
-import { PlayerRankingTab } from '@/components/ranking/PlayerRankingTab'
+import {
+  PlayerRankingTab,
+  type OwnershipFilter,
+} from '@/components/ranking/PlayerRankingTab'
 import { Avatar } from '@/components/ui/Avatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { Card } from '@/components/ui/Card'
@@ -48,6 +51,17 @@ function toRankingPosition(raw: string | null): PositionKey | undefined {
   return raw !== null && raw in POSITION_LABEL
     ? (raw as PositionKey)
     : undefined
+}
+
+/**
+ * `?owner=` → the ownership cut on the ranking, *vergeben* or *frei*.
+ *
+ * Anything else — absent, misspelled, hand-edited — is the unfiltered list,
+ * which is also why `all` is never written: the default needs no parameter,
+ * and a link that carries one saying "no filter" is a link that looks filtered.
+ */
+function toOwnershipFilter(raw: string | null): OwnershipFilter {
+  return raw === 'owned' || raw === 'free' ? raw : 'all'
 }
 
 /**
@@ -129,6 +143,7 @@ export function SeasonPage() {
    * silent.
    */
   const rankingPosition = toRankingPosition(searchParams.get('pos'))
+  const rankingOwnership = toOwnershipFilter(searchParams.get('owner'))
   const rankingId = view === VIEWS.ranking ? competitionId : undefined
 
   /*
@@ -206,7 +221,10 @@ export function SeasonPage() {
    * meaning "leave the page" rather than walking back through every chip and
    * every matchday that was tapped.
    */
-  const patchParams = (key: 'pos' | 'day', value: string | undefined) => {
+  const patchParams = (
+    key: 'pos' | 'day' | 'owner',
+    value: string | undefined,
+  ) => {
     const params = new URLSearchParams(searchParams)
     if (value === undefined) params.delete(key)
     else params.set(key, value)
@@ -220,6 +238,7 @@ export function SeasonPage() {
   if (rankingPosition !== undefined) rankingParams.set('pos', rankingPosition)
   const selectedDayParam = searchParams.get('day')
   if (selectedDayParam !== null) rankingParams.set('day', selectedDayParam)
+  if (rankingOwnership !== 'all') rankingParams.set('owner', rankingOwnership)
   const suffix = rankingParams.size === 0 ? '' : `?${rankingParams.toString()}`
   const tabs: BottomTab[] = [
     { value: VIEWS.table, label: 'Tabelle', icon: Table2, to: base },
@@ -333,6 +352,14 @@ export function SeasonPage() {
               position={rankingPosition}
               onPositionChange={(next) => {
                 patchParams('pos', next)
+              }}
+              /* The cut lives in the URL beside `?pos=` and `?day=`, for the
+                 same reasons: it survives a refresh, it comes back when you
+                 go to the Tabelle and return, and a shortlist of the free
+                 players can be sent to somebody as a link. */
+              ownership={rankingOwnership}
+              onOwnershipChange={(next) => {
+                patchParams('owner', next === 'all' ? undefined : next)
               }}
             />
           )}

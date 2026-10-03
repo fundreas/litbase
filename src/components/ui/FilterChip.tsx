@@ -46,6 +46,11 @@ export function FilterChip({
  * and the next one is always half-visible — which is the only affordance the
  * row has, the scrollbar being hidden.
  *
+ * The scroll classes are {@link CHIP_SCROLL}, split out so that
+ * {@link CHIP_ROW_START} — the same row with a control beside it — cannot
+ * drift from them while changing the bleed. The gesture is the part that took
+ * a real device to get right; the margins are not.
+ *
  * The last two are the fix, and neither is cosmetic:
  *
  * - **`overscroll-x-contain`** keeps the swipe in the row. A horizontal drag
@@ -69,8 +74,24 @@ export function FilterChip({
  *   alongside it, because narrowing a gesture to one axis is no reason to take
  *   zooming away from anyone who needs it.
  */
-export const CHIP_ROW =
-  '-mx-3 no-scrollbar flex gap-2 overflow-x-auto px-3 overscroll-x-contain touch-pan-x touch-pinch-zoom'
+const CHIP_SCROLL =
+  'no-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain touch-pan-x touch-pinch-zoom'
+
+export const CHIP_ROW = `${CHIP_SCROLL} -mx-3 px-3`
+
+/**
+ * The same row **sharing its line with a control on the right** — the
+ * ranking's ownership switch, which sits at the end of the position chips
+ * rather than on a line of its own.
+ *
+ * It keeps every scroll class above and bleeds **left only**: the right-hand
+ * end of the row is no longer the screen's edge but the control's, so a right
+ * bleed would run the chips under it — and under a translucent one they would
+ * show through. `min-w-0` is what lets the row shrink below its content and
+ * scroll at all; without it a flex item floors at its contents' width and
+ * pushes the control off the screen instead.
+ */
+export const CHIP_ROW_START = `${CHIP_SCROLL} -ml-3 min-w-0 flex-1 pl-3`
 
 /**
  * Horizontally scrolling row of chips. On a phone there is no room to wrap a

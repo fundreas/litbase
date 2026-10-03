@@ -1,4 +1,4 @@
-import { Trophy } from 'lucide-react'
+import { Trophy, Users } from 'lucide-react'
 import { Link } from 'react-router'
 
 import type { RankingScope, TeamSummary } from '@/api/hooks/useCompetition'
@@ -17,7 +17,11 @@ import { POSITION_LABEL, POSITION_NAME } from '@/api/models'
 import { OwnerBadge } from '@/components/matchday/OwnerBadge'
 import { ClubWatermark } from '@/components/player/ClubWatermark'
 import { Avatar } from '@/components/ui/Avatar'
-import { CHIP_ROW, FilterChip } from '@/components/ui/FilterChip'
+import {
+  CHIP_ROW,
+  CHIP_ROW_START,
+  FilterChip,
+} from '@/components/ui/FilterChip'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
@@ -35,6 +39,36 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
   { key: 'mid', label: POSITION_LABEL.mid },
   { key: 'fwd', label: POSITION_LABEL.fwd },
 ]
+
+/**
+ * Whether the list is cut by who has the player — see
+ * {@link OwnershipSwitch}.
+ *
+ * `'all'` is the default and is **not** written to the URL: the unfiltered
+ * list is what the page is, and a parameter naming the absence of a filter is
+ * noise in a link somebody shares.
+ */
+export type OwnershipFilter = 'all' | 'owned' | 'free'
+
+/**
+ * The cycle, in the order a tap walks it.
+ *
+ * *Alle* leads because it is where the list starts and where a second tap
+ * past *Frei* comes back to; the two cuts follow in the order they are asked
+ * for — *who is taken* before *who is still going*, which is the order a
+ * manager scanning a ranking for a signing reads them in.
+ */
+const OWNERSHIP_CYCLE = [
+  // *Alle Spieler*, not *Alle*: the position chips above already have an
+  // *Alle* and two controls over one list should not share a word.
+  { value: 'all', label: 'Alle Spieler', caption: 'alle Spieler' },
+  { value: 'owned', label: 'Vergeben', caption: 'nur vergebene Spieler' },
+  { value: 'free', label: 'Frei', caption: 'nur freie Spieler' },
+] as const satisfies readonly {
+  value: OwnershipFilter
+  label: string
+  caption: string
+}[]
 
 /**
  * The competition's best players, best first — and **who in the league owns
@@ -94,6 +128,40 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * most of the twenty-five, which is exactly what makes the filled ones worth
  * looking at.
  *
+ * ## The ownership cut
+ *
+ * The badge answers *who has him* one row at a time; the switch above the list
+ * asks it of the whole list — **Alle / Vergeben / Frei**. A ranking read with
+ * an eye on the market is two different questions, and until now the reader had
+ * to answer both by eye: *who of the best is already taken* (the league's own
+ * form guide) and *who of the best is still going* (the shortlist). A hundred
+ * rows is too many to scan for either.
+ *
+ * **It filters on exactly what the badges show**, which is what keeps the
+ * control honest: *Vergeben* is the rows with a badge and *Frei* is the rows
+ * without one, so a reader can always check the filter against the column
+ * beside it. That also means it inherits the badge's notion of ownership — the
+ * selected matchday's squads, not today's; see below.
+ *
+ * **It is drawn only where the caller handles it.** The
+ * [matchday page](../../pages/MatchdayPage.tsx) passes no handler and gets no
+ * switch: there the badge means *who fielded him that weekend*, and a control
+ * labelled *Frei* would make a claim about the transfer market out of a fact
+ * about one afternoon's lineups. On [Saison](../../pages/SeasonPage.tsx) the
+ * badge is the latest matchday's, which is as close to *now* as the data gets.
+ *
+ * The cut is a `.filter()` over rows already in hand — unlike the position
+ * chips, which are five separate lists. So *Frei* over the top 100 is the free
+ * players **among those hundred**, not a hundred free players, and a league
+ * that owns most of the top of the table will see a short list. That is the
+ * true answer to the question asked, and padding it would need a ranking
+ * nobody publishes.
+ *
+ * **Placements survive the cut.** The rank is taken before filtering, so the
+ * rows read 3, 7, 12 rather than renumbering 1, 2, 3 — the figure is a position
+ * in the ranking and not a count of what is on screen. It matters on a live
+ * list, where the source sends no rank and the row's index is all there is.
+ *
  * ## What ownership costs
  *
  * The league standings (one cached request, shared with every page that names
@@ -131,6 +199,8 @@ export function PlayerRankingTab({
   source,
   position,
   onPositionChange,
+  ownership = 'all',
+  onOwnershipChange,
 }: {
   data: MatchdayTopScorers | undefined
   teams: Map<string, TeamSummary> | undefined
@@ -141,6 +211,14 @@ export function PlayerRankingTab({
   source: RankingSource
   position: PositionKey | undefined
   onPositionChange: (position: PositionKey | undefined) => void
+  /** Which rows the ownership switch is letting through. */
+  ownership?: OwnershipFilter
+  /**
+   * Handles the switch — **and decides whether there is one**. A caller that
+   * omits it gets the whole list and no control; see the doc above for why
+   * the matchday page is one.
+   */
+  onOwnershipChange?: (ownership: OwnershipFilter) => void
 }) {
   /*
    * Ownership is asked one manager at a time — there is no bulk source, see
@@ -182,18 +260,69 @@ export function PlayerRankingTab({
   }
 
   /*
-   * The chips render above whatever the list is doing — skeleton, empty state
-   * or rows. Returning early past them would make the control disappear on the
-   * tap that changes it and come back when the request lands, which reads as
-   * the page having lost the filter rather than as it fetching one.
+   * **The fan-out has to have answered before the cut means anything.** Until
+   * it does, every row looks unowned, and filtering on that would draw a
+   * confident list of the wrong players; and a matchday the API has nothing
+   * for at all (`isEmpty` once settled — out of range, or before the league
+   * existed) can never answer it, so there the switch is not offered and the
+   * list stays whole rather than claiming the whole competition is free.
    *
-   * Five short labels fit a phone on one line, so this row has never had to be
-   * swiped — but it is the same control as the battles' and shares its class
-   * list, so the narrow screen that does have to swipe it can. See
-   * [`CHIP_ROW`](../ui/FilterChip.tsx).
+   * **The standings count as pending too.** With no managers yet the fan-out
+   * has nothing to ask and reports itself neither pending nor filled — an
+   * empty `useQueries` is not pending — so reading `lineups` alone would call
+   * it *missing* for the moment before the standings land, and the switch
+   * would appear a beat after the list instead of with it.
    */
-  const chips = (
-    <div className={CHIP_ROW} role="group" aria-label="Position">
+  const ownershipPending = standings.isPending || lineups.isPending
+  const ownershipMissing = !ownershipPending && lineups.isEmpty
+  const cut: OwnershipFilter =
+    onOwnershipChange === undefined || ownershipMissing ? 'all' : ownership
+
+  /*
+   * Ranked before cut, so a filtered list reads 3, 7, 12 — the placement in
+   * the ranking, not a count of the rows that survived. The source's own rank
+   * is preferred where there is one, because only it knows about ties: two
+   * players on 254 points are both second and the row after them is fourth,
+   * which counting cannot say. The live list sends none, and then the position
+   * in the **unfiltered** list is the honest fallback.
+   */
+  const ranked = (data?.players ?? []).map((player, index) => ({
+    player,
+    rank: player.rank ?? index + 1,
+  }))
+
+  const rows =
+    cut === 'all'
+      ? ranked
+      : ranked.filter(
+          (row) => (ownerOf(row.player.id) !== undefined) === (cut === 'owned'),
+        )
+
+  /*
+   * **The controls render above whatever the list is doing** — skeleton, empty
+   * state or rows. Returning early past them would make a control disappear on
+   * the tap that changes it and come back when the request lands, which reads
+   * as the page having lost the filter rather than as it fetching one.
+   *
+   * Absent on a caller that handles no cut, and on a matchday whose lineups
+   * the API cannot answer for at all — see `ownershipMissing` above.
+   */
+  const ownershipSwitch =
+    onOwnershipChange === undefined || ownershipMissing ? undefined : (
+      <OwnershipSwitch value={cut} onChange={onOwnershipChange} />
+    )
+
+  const positionChips = (
+    <div
+      /* Full bleed when it owns the line, left bleed only when it shares it —
+         see [`CHIP_ROW_START`](../ui/FilterChip.tsx). Five short labels fit a
+         phone on their own, which is why this row had never had to be swiped;
+         with the switch taking the end of the line they no longer do, and the
+         scroll the class list has always carried finally earns its keep. */
+      className={ownershipSwitch === undefined ? CHIP_ROW : CHIP_ROW_START}
+      role="group"
+      aria-label="Position"
+    >
       {FILTERS.map((filter) => (
         <FilterChip
           key={filter.key ?? 'all'}
@@ -208,40 +337,70 @@ export function PlayerRankingTab({
     </div>
   )
 
-  const list = isPending ? (
-    <SkeletonList rows={10} />
-  ) : data === undefined || data.players.length === 0 ? (
-    <EmptyState
-      icon={<Trophy size={22} />}
-      title="Keine Wertung"
-      description={`${scope === 'season' ? 'In dieser Saison' : 'Für diesen Spieltag'} hat noch ${position === undefined ? 'kein Spieler' : `kein ${POSITION_NAME[position]}`} gepunktet.`}
-    />
-  ) : (
-    <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-      {data.players.map((player, index) => {
-        const team = teams?.get(player.teamId)
-        const owner = ownerOf(player.id)
-        /* The source's own placement where there is one, because only it
-           knows about ties: two players on 254 points are both second, and
-           the row after them is fourth. Counting the rows cannot say that,
-           so the live list — which sends no rank — falls back to it. */
-        const rank = player.rank ?? index + 1
+  /*
+   * **The two controls share one line.** The ownership switch is a cut on the
+   * same list as the chips beside it, and giving it a row of its own made the
+   * head of the page three stacked bands of control over the rows they are
+   * about. It sits at the end, where it is out of the chips' reading order and
+   * still the first thing the eye lands on coming back up from the list.
+   */
+  const chips =
+    ownershipSwitch === undefined ? (
+      positionChips
+    ) : (
+      <div className="flex items-center gap-2">
+        {positionChips}
+        {ownershipSwitch}
+      </div>
+    )
 
-        return (
-          <li key={player.id}>
-            <Link
-              to={`/leagues/${leagueId}/players/${player.id}`}
-              /* The club, in words, for the one reader the crest does not
+  /* A cut list waits for the fan-out rather than rendering what it has: the
+     rows would be filtered on an ownership map that is still filling, so the
+     list would be wrong first and right a moment later. The skeleton is only
+     ever seen on a reload that arrives with the filter already in the URL. */
+  const list =
+    isPending || (cut !== 'all' && ownershipPending) ? (
+      <SkeletonList rows={10} />
+    ) : data === undefined || data.players.length === 0 ? (
+      <EmptyState
+        icon={<Trophy size={22} />}
+        title="Keine Wertung"
+        description={`${scope === 'season' ? 'In dieser Saison' : 'Für diesen Spieltag'} hat noch ${position === undefined ? 'kein Spieler' : `kein ${POSITION_NAME[position]}`} gepunktet.`}
+      />
+    ) : rows.length === 0 ? (
+      /* The list had rows and the switch took them all. Saying *keine Wertung*
+       here would blame the season for what the control did one tap ago — so it
+       names the filter, which is also the way back out of it. */
+      <EmptyState
+        icon={<Users size={22} />}
+        title={cut === 'owned' ? 'Niemand vergeben' : 'Alle vergeben'}
+        description={
+          cut === 'owned'
+            ? 'Aus dieser Wertung gehört kein Spieler einem Manager der Liga.'
+            : 'Jeder Spieler aus dieser Wertung gehört bereits einem Manager der Liga.'
+        }
+      />
+    ) : (
+      <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+        {rows.map(({ player, rank }) => {
+          const team = teams?.get(player.teamId)
+          const owner = ownerOf(player.id)
+
+          return (
+            <li key={player.id}>
+              <Link
+                to={`/leagues/${leagueId}/players/${player.id}`}
+                /* The club, in words, for the one reader the crest does not
                  reach: the row no longer prints it, and a badge is not a name
                  to somebody who does not know the badge. */
-              title={
-                team === undefined
-                  ? player.lastName
-                  : `${player.lastName} · ${team.name}`
-              }
-              className="flex items-stretch transition-colors hover:bg-surface-2/60"
-            >
-              {/* The rank is a rail, the same flush left-hand column the squad
+                title={
+                  team === undefined
+                    ? player.lastName
+                    : `${player.lastName} · ${team.name}`
+                }
+                className="flex items-stretch transition-colors hover:bg-surface-2/60"
+              >
+                {/* The rank is a rail, the same flush left-hand column the squad
                   row puts its shirt in — which is what lets the portrait beside
                   it butt against an edge rather than end on a cut.
 
@@ -249,75 +408,75 @@ export function PlayerRankingTab({
                   needs no medal glyphs to read as a podium, and three coloured
                   numbers in twenty-five stay legible where three icons would
                   just be more to look at. */}
-              <span
-                className={cn(
-                  'nums flex w-7 shrink-0 items-center justify-center self-stretch',
-                  'border-r border-line bg-surface-2/40 text-xs font-semibold',
-                  rank <= 3 ? 'text-accent' : 'text-faint',
-                )}
-              >
-                {rank}
-              </span>
+                <span
+                  className={cn(
+                    'nums flex w-7 shrink-0 items-center justify-center self-stretch',
+                    'border-r border-line bg-surface-2/40 text-xs font-semibold',
+                    rank <= 3 ? 'text-accent' : 'text-faint',
+                  )}
+                >
+                  {rank}
+                </span>
 
-              {/* Flush portrait, as on the squad, market and activity rows: the
+                {/* Flush portrait, as on the squad, market and activity rows: the
                   Kickbase cutouts are transparent PNGs, so a wash grounds the
                   figure and the inner edge is masked to dissolve into the row
                   instead of ending on a line. The figure gets the row's full
                   height, which at this width is the difference between a
                   thumbnail of a face and a player standing in the list. */}
-              <span className="flex w-14 shrink-0 self-stretch">
-                <Avatar
-                  src={player.image}
-                  name={player.lastName}
-                  fill
-                  className={cn(
-                    'w-full self-stretch bg-transparent',
-                    'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
-                    '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
-                  )}
-                />
-              </span>
+                <span className="flex w-14 shrink-0 self-stretch">
+                  <Avatar
+                    src={player.image}
+                    name={player.lastName}
+                    fill
+                    className={cn(
+                      'w-full self-stretch bg-transparent',
+                      'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+                      '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
+                    )}
+                  />
+                </span>
 
-              {/* `relative isolate overflow-hidden` is what the club
+                {/* `relative isolate overflow-hidden` is what the club
                   watermark needs of its host — see
                   [`ClubWatermark`](../player/ClubWatermark.tsx). */}
-              <span className="relative isolate flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden py-2.5 pr-3 pl-1">
-                <ClubWatermark team={team} />
+                <span className="relative isolate flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden py-2.5 pr-3 pl-1">
+                  <ClubWatermark team={team} />
 
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-ink">
-                    {player.lastName}
-                  </span>
-                  {/* The position, and **not** the club: the crest behind the
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-ink">
+                      {player.lastName}
+                    </span>
+                    {/* The position, and **not** the club: the crest behind the
                       row says which club, at a size a name in 11px grey never
                       competed with. Spelling it out as well was the badge and
                       the caption for the same picture — and on a phone it was
                       the half of this line that truncated. It stays in the
                       row's tooltip. */}
-                  <span className="block truncate text-[0.6875rem] text-faint">
-                    {POSITION_LABEL[player.position]}
+                    <span className="block truncate text-[0.6875rem] text-faint">
+                      {POSITION_LABEL[player.position]}
+                    </span>
                   </span>
-                </span>
 
-                {/* Fixed width whether or not it is filled, so the scores stay
+                  {/* Fixed width whether or not it is filled, so the scores stay
                     in a column: a badge that shifted every row it appeared on
                     would cost more than it tells. */}
-                <span className="flex w-5 shrink-0 justify-center">
-                  {owner !== undefined && (
-                    <OwnerBadge owner={owner} size={20} />
-                  )}
-                </span>
+                  <span className="flex w-5 shrink-0 justify-center">
+                    {owner !== undefined && (
+                      <OwnerBadge owner={owner} size={20} />
+                    )}
+                  </span>
 
-                <span className="nums w-12 shrink-0 text-right text-sm font-semibold text-ink">
-                  {points(player.points)}
+                  <span className="nums w-12 shrink-0 text-right text-sm font-semibold text-ink">
+                    {points(player.points)}
+                  </span>
                 </span>
-              </span>
-            </Link>
-          </li>
-        )
-      })}
-    </ol>
-  )
+              </Link>
+            </li>
+          )
+        })}
+      </ol>
+    )
 
   /*
    * Where the numbers came from, and therefore why the list is as long as it
@@ -346,5 +505,75 @@ export function PlayerRankingTab({
         <p className="px-0.5 text-[0.6875rem] text-faint">{footnote}</p>
       )}
     </div>
+  )
+}
+
+/**
+ * **The ownership cut, as one label you tap to change** — *Alle Spieler*,
+ * *Vergeben*, *Frei*, and round again.
+ *
+ * It sits **at the end of the position chips, on their line and at their
+ * height** (`h-9`), which is what makes the head of the list one band of
+ * controls instead of two. The corner radius is the one thing it keeps for
+ * itself: `rounded-lg` against the chips' `rounded-full`, so a control that
+ * cycles three states does not read as a sixth chip that toggles.
+ *
+ * Three chips would have been the obvious thing and would have been wrong
+ * twice over: they would have doubled the row of controls above a list that
+ * already has five position chips, and they would have given a secondary cut
+ * the same weight as the primary one. A cycle is one target, and the word on
+ * it is the state — which is the whole reason this is a label and not an icon.
+ * The reader never has to decode a glyph to know what the list is showing.
+ *
+ * **The glyph does not change; its colour does.** Accent while the list is
+ * cut, muted while it is whole — the lesson the
+ * [match-event filter](../player/PlayerMatchEventsDialog.tsx) was rebuilt
+ * around: a control whose *shape* changes reads as two different buttons
+ * rather than one button in three states. Here the label carries the state
+ * outright anyway, so the colour is only confirming what the word says.
+ *
+ * **No `aria-pressed`.** It is true or false for a two-state toggle and says
+ * nothing honest about a middle setting, so the state travels in the
+ * accessible name instead — which also has to carry what a tap will do, since
+ * nothing about a cycle announces its next step.
+ */
+function OwnershipSwitch({
+  value,
+  onChange,
+}: {
+  value: OwnershipFilter
+  onChange: (value: OwnershipFilter) => void
+}) {
+  const index = OWNERSHIP_CYCLE.findIndex((entry) => entry.value === value)
+  // `findIndex` answers -1 for a value outside the cycle — a hand-edited URL,
+  // which falls back to the unfiltered list rather than to a blank button.
+  const current =
+    OWNERSHIP_CYCLE[index === -1 ? 0 : index] ?? OWNERSHIP_CYCLE[0]
+  const next =
+    OWNERSHIP_CYCLE[(index === -1 ? 0 : index + 1) % OWNERSHIP_CYCLE.length] ??
+    OWNERSHIP_CYCLE[0]
+  const label = `Zeigt ${current.caption} — tippen für ${next.caption}`
+  const isCut = current.value !== 'all'
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onChange(next.value)
+      }}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5',
+        'text-xs font-medium transition-colors',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+        isCut
+          ? 'border-accent/40 bg-accent/10 text-accent'
+          : 'border-line bg-surface text-muted hover:text-ink active:bg-surface-2',
+      )}
+    >
+      <Users size={14} aria-hidden="true" />
+      {current.label}
+    </button>
   )
 }
