@@ -5,7 +5,7 @@ import { useLocation, useSearchParams } from 'react-router'
 import { useTeamDirectory } from '@/api/hooks/useCompetition'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useMatchdayMatches, useSeasonSchedule } from '@/api/hooks/useMatchday'
-import { useMatchdayRanking } from '@/api/hooks/useMatchdayRanking'
+import { usePlayerRanking } from '@/api/hooks/usePlayerRanking'
 import {
   matchdayState,
   POSITION_LABEL,
@@ -166,9 +166,10 @@ export function MatchdayPage() {
   /*
    * Kickbase's ranking is the *current* matchday's and can be nothing else —
    * every matchday parameter probed is swallowed. So the matchday being played
-   * comes from the API, live, and everything before it from the app's own
-   * files under `data/`. `useMatchdayRanking` is the seam, and the only thing
-   * on this page that knows there are two sources at all.
+   * comes from the API, live, and everything before it from the
+   * [pointcast](../api/hooks/usePlayerRanking.ts) ranking files.
+   * `usePlayerRanking` is the seam, and the only thing on this page that knows
+   * there are two sources at all.
    *
    * Gating on the view matters: the Spiele view is the page's front door and
    * should not pay for a request it never renders. Passing `undefined` leaves
@@ -176,8 +177,9 @@ export function MatchdayPage() {
    */
   const rankingId = view === VIEWS.ranking ? competitionId : undefined
 
-  const ranking = useMatchdayRanking({
+  const ranking = usePlayerRanking({
     competitionId: rankingId,
+    scope: 'matchday',
     day: rankingDay,
     currentDay: schedule.data?.currentDay,
     position: rankingPosition,
@@ -316,14 +318,16 @@ export function MatchdayPage() {
           ) : ranking.isError ? (
             <ErrorState error={ranking.error} onRetry={ranking.refetch} />
           ) : ranking.isMissing ? (
-            /* Not an error and not an empty list: this matchday simply has no
-               file yet. Every matchday is in this state until the seed script
-               is run for it, so it says what is missing and what produces it
-               rather than offering a retry that cannot help. */
+            /* Not an error and not an empty list: pointcast simply has no
+               file for this matchday. It publishes nightly, so the matchday
+               that has just finished can be in this state for a few hours —
+               and a competition it does not cover never leaves it. Either way
+               the sentence says what is missing rather than offering a retry
+               that cannot help. */
             <EmptyState
               icon={<ListOrdered size={22} />}
-              title="Noch nicht archiviert"
-              description={`Für Spieltag ${String(rankingDay)} liegt noch keine gespeicherte Rangliste vor. Kickbase liefert nur Spieltag ${String(schedule.data.currentDay)} — ältere werden mit "npm run data:rankings" erzeugt.`}
+              title="Noch keine Rangliste"
+              description={`Für Spieltag ${String(rankingDay)} ist noch keine Rangliste veröffentlicht. Kickbase liefert nur Spieltag ${String(schedule.data.currentDay)}; ältere kommen von litbase-pointcast, das einmal pro Nacht neu rechnet.`}
               action={
                 latestRankedDay === undefined ? undefined : (
                   <button

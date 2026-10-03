@@ -3,10 +3,10 @@ import { useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 
 import {
-  useCompetitionPlayers,
   useCompetitionTable,
   useTeamDirectory,
 } from '@/api/hooks/useCompetition'
+import { usePlayerRanking } from '@/api/hooks/usePlayerRanking'
 import { useSeasonRecords } from '@/api/hooks/useMatchday'
 import {
   clubStandings,
@@ -115,11 +115,19 @@ export function SeasonPage() {
    *
    * `isLive` is not passed: a season total does move while a matchday runs, but
    * this is not the screen anyone watches it move on. Polling here would be a
-   * request every ten seconds for a number nobody is staring at.
+   * request every ten seconds for a number nobody is staring at — and it is
+   * the same reasoning that lets this list come from
+   * [pointcast](../api/hooks/usePlayerRanking.ts) rather than Kickbase. That
+   * file is rebuilt once a night, so during a matchday it is behind; what it
+   * buys is a hundred rows with real placements instead of twenty-five, which
+   * on the season's own page is the better trade. The footnote under the list
+   * names the matchday it runs through, so "behind" is visible rather than
+   * silent.
    */
   const rankingPosition = toRankingPosition(searchParams.get('pos'))
   const rankingId = view === VIEWS.ranking ? competitionId : undefined
-  const ranking = useCompetitionPlayers(rankingId, {
+  const ranking = usePlayerRanking({
+    competitionId: rankingId,
     scope: 'season',
     position: rankingPosition,
   })
@@ -212,7 +220,7 @@ export function SeasonPage() {
             viewerId={user?.id}
             isPending={ranking.isPending}
             scope="season"
-            source="live"
+            source={ranking.source}
             position={rankingPosition}
             onPositionChange={(next) => {
               const params = new URLSearchParams(searchParams)

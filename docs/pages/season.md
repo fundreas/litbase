@@ -32,7 +32,7 @@ and duel pages dock:
 | Tab | What |
 | --- | ---- |
 | **Tabelle** | The clubs — everything below |
-| **Rangliste** | The season's [25 best players](#rangliste) |
+| **Rangliste** | The season's [100 best players](#rangliste) |
 
 The view is a **path segment**, so each is linkable and survives a refresh, and
 `?pos=` rides along on the tab link so the position filter survives a trip to
@@ -229,33 +229,41 @@ at, and on a phone a tap target the width of a club name is a target you miss.
   3  [img] Matanović               487
         ANG
 
-  Kickbase liefert die besten 25 je Kategorie.
+  litbase-pointcast — die besten 100 je Kategorie · Stand: 4. Spieltag.
 ```
 
-The season's twenty-five best players, points descending — the same
+The season's hundred best players, points descending — the same
 [`PlayerRankingTab`](../../src/components/ranking/PlayerRankingTab.tsx) the
 [matchday page](matchday.md#rangliste) renders, with the same position chips
 and the same owner badges. One list, two pages: the scope is the only
-difference, and it is a `sorting=1` on one request.
+difference, and both go through the same
+[`usePlayerRanking`](../../src/api/hooks/usePlayerRanking.ts).
 
-`?sorting=1` is a different **question**, not a different sort: different
-players, ranked by a different number. Verified against a player's own `ph` —
-Kimmich's `557` is exactly the `303` and `254` of the two matchdays played.
+**It comes from [pointcast](../pointcast.md#rankings), not Kickbase**, and that
+is a judgement rather than a rule. Kickbase does serve a season ranking —
+`?sorting=1` on the competition's player list, a different *question* rather
+than a different sort, verified against a player's own `ph` — but it is capped
+at twenty-five like everything else there. The published file is a hundred
+rows with real placements, ties sharing a place, and a top hundred per
+position rather than four more requests.
 
-**No archive and none needed.** The season ranking is the one list Kickbase
-serves that is not tied to a matchday, so it answers directly and there is
-nothing for [`data/rankings/`](../../data/README.md) to fill in. The 25-row cap
-is Kickbase's; the chips are the way past it, four more requests reaching 93
-players between them, exactly as on the matchday page.
+What it costs is freshness: the run rebuilds once a night, so from the moment
+a matchday kicks off the list is behind. That is the right trade **here** and
+nowhere else — a season total is not a number anyone watches move, and
+[Spieltag](matchday.md) still reads the live list for the matchday in play. The
+footnote names the matchday the totals run through, so "behind" is on screen
+rather than implied.
+
+A competition pointcast does not publish for falls back to Kickbase's
+twenty-five, which is what those leagues have always had.
 
 **The owner badge here is the most recent matchday's**, which is as close to
-*now* as one request gets. `day` on the response is the endpoint's own notion
-of where the season has got to, and it is **not** the fixture list's
-`currentDay`: probed on 2026-09-07 it read `2` where the schedule already said
-`3`, so it tracks the last matchday with points rather than the next one to be
-played. That is the lineup worth asking about — the badge answers "whose team
-was he in last weekend", not "who owned him for the goals that got him up
-here". No season-long ownership history exists in the API to offer instead.
+*now* as one request gets. `day` on the list is the source's own notion of
+where the season has got to — the matchday the totals run **through**, which is
+the last one with points rather than the next one to be played. That is the
+lineup worth asking about — the badge answers "whose team was he in last
+weekend", not "who owned him for the goals that got him up here". No
+season-long ownership history exists anywhere to offer instead.
 
 **It does not poll.** A season total does move while a matchday runs, but this
 is not the screen anyone watches it move on — a request every ten seconds for a

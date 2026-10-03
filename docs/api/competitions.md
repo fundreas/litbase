@@ -148,8 +148,9 @@ fields are present.
 > same two numbers were `303` and `254`, against a season total of `557` — the
 > pair stayed consistent, so this is Kickbase revising a score after the fact
 > rather than a disagreement between endpoints. It is the reason
-> [the seed script](../../scripts/build-matchday-rankings.mjs) rebuilds the
-> whole season on every run instead of appending the newest matchday.
+> [pointcast](../pointcast.md#rankings) rebuilds the whole season every night
+> instead of appending the newest matchday, and the reason the app does not
+> cache a settled matchday's ranking forever.
 
 **Scoping parameters still do nothing.** `dayNumber`, `matchId`, `mi`, `day`,
 `md`, `matchDay`, `matchday`, `d` and `dn` were each tried and each returned
@@ -168,17 +169,19 @@ assembled per player, from
 [`playercenter`](#get-v4competitionscompetitionidplayercenterplayerid)`?dayNumber=`
 or from the `ph` of the performance endpoint.
 
-**So the app assembles them offline.**
-[`scripts/build-matchday-rankings.mjs`](../../scripts/build-matchday-rankings.mjs)
-does exactly that sweep — 18 `teamprofile` calls for the players, then one
-`performance` call each, which is ~470 requests and answers *every* matchday of
-the season at once — and commits the result under
-[`data/rankings/`](../../data/README.md) for the app to `fetch`. Verified
-against this endpoint: on 2026-09-07 all 25 rows of the `sorting=1` list were
-exactly the sum of the two matchday files.
+**So it is assembled elsewhere.**
+[pointcast](../pointcast.md#rankings) does exactly that sweep nightly — it is
+already reading every player's history to train on — and publishes the result
+as static JSON the app `fetch`es. Verified against this endpoint: on 2026-09-07
+all 25 rows of the `sorting=1` list were exactly the sum of the matchday files.
 
-That is a build step precisely because it cannot be a request. Doing it in the
-browser would be several hundred calls to render one list.
+That it happens outside the browser is not an optimisation but the only
+option: several hundred calls to render one list is not a page load.
+
+> Until October 2026 the app did the sweep itself, in
+> `scripts/build-matchday-rankings.mjs`, and committed the output under
+> `data/rankings/`. Both are gone — the same arithmetic over the same history,
+> run somewhere it does not have to be re-run by hand every weekend.
 
 ### Response `200`
 

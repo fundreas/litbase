@@ -196,12 +196,31 @@ export const qk = {
     position: string = 'all',
   ) => [...qk.competition(competitionId), 'players', scope, position] as const,
   /**
-   * One archived matchday-ranking file. Not keyed by position: the file holds
-   * every player who scored that day, so the position lists are slices of one
-   * fetch rather than five.
+   * One points-ranking file from the
+   * [pointcast API](./hooks/usePlayerRanking.ts) — a matchday's or the
+   * season's.
+   *
+   * Not keyed by position: the file carries the overall list *and* a top 100
+   * per position, so the chips are five readings of one fetch rather than
+   * five requests. `scope` is, because a matchday and the season through it
+   * are two different files.
+   *
+   * `'current'` is a key of its own rather than resolving to the matchday it
+   * stands for: that is the one file whose contents change under a fixed URL,
+   * and keying it by a number would pin a season total to the matchday it
+   * happened to be through when it was first read.
    */
-  competitionRankingArchive: (competitionId: string, day: number) =>
-    [...qk.competition(competitionId), 'rankingArchive', day] as const,
+  pointcastRanking: (
+    competitionId: string,
+    scope: string,
+    matchday: number | 'current',
+  ) =>
+    [
+      ...qk.competition(competitionId),
+      'pointcastRanking',
+      scope,
+      matchday,
+    ] as const,
   /**
    * One player's market-value forecast, from the
    * [foresight API](./hooks/usePlayerForecast.ts) rather than Kickbase.

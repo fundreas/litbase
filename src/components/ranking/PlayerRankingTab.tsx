@@ -3,9 +3,9 @@ import { Link } from 'react-router'
 
 import type { RankingScope, TeamSummary } from '@/api/hooks/useCompetition'
 import {
-  ARCHIVE_LIMIT,
+  POINTCAST_LIMIT,
   type RankingSource,
-} from '@/api/hooks/useMatchdayRanking'
+} from '@/api/hooks/usePlayerRanking'
 import { useMatchdayLineups } from '@/api/hooks/useMatchdaySquad'
 import { useRanking } from '@/api/hooks/useRanking'
 import type {
@@ -42,17 +42,18 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  *
  * **One list, three callers.** It is the Rangliste of
  * [Spieltag](../../pages/MatchdayPage.tsx) — for the matchday being played, and
- * for any earlier one out of the app's own archive — and the Rangliste of
+ * for any earlier one out of
+ * [pointcast](../../api/hooks/usePlayerRanking.ts) — and the Rangliste of
  * [Saison](../../pages/SeasonPage.tsx). `scope` and `source` say which; nothing
- * else here branches on either, because the hooks hand over one shape whichever
+ * else here branches on either, because the hook hands over one shape whichever
  * side answered. This component is deliberately not the place where the sources
  * are told apart.
  *
  * **What differs is the row count, and that is on purpose.** Kickbase caps its
- * ranking at 25 and no parameter raises it; our own files hold every player who
- * scored, so an archived matchday shows 100. Padding the live list or trimming
- * the archived one to match would be inventing a consistency the data does not
- * have — so the footnote under the list says which you are reading instead.
+ * ranking at 25 and no parameter raises it; the pointcast files are published
+ * at 100 per list. Padding the live list or trimming the published one to match
+ * would be inventing a consistency the data does not have — so the footnote
+ * under the list says which you are reading instead.
  *
  * ## The position chips are five lists, and how they are made depends
  *
@@ -62,17 +63,19 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * whom the *Alle* list has no room for — a `.filter()` over the rows already in
  * hand would have shown four or five names and called it a ranking.
  *
- * In the archive it *is* a filter, and for the mirror-image reason: the file
- * holds every player of that matchday, so there is no cap to get past and four
- * more fetches would buy nothing.
+ * From pointcast the five lists arrive **together, in one file**, for the same
+ * reason that makes them worth having separately: each is its own top 100, and
+ * the overall list does not contain them. So the chip is neither a request nor
+ * a filter there — it picks the list that was already fetched.
  *
  * Live, the chips **compose with the scope**, so a season list has its own five
  * cache entries and the matchday's five are not disturbed by a trip to the
  * other page.
  *
  * **A short list is not a truncated one.** *TW* comes back with 18 rows on a
- * live nine-fixture matchday, because that is every keeper who played — the cap
- * is simply above the population. Nothing here pads it or explains it away.
+ * nine-fixture matchday from either source, because that is every keeper who
+ * played — the cap is simply above the population. Nothing here pads it or
+ * explains it away.
  *
  * ## The badge is the point
  *
@@ -110,14 +113,13 @@ const FILTERS: { key: PositionKey | undefined; label: string }[] = [
  * fielded him on matchday 1 rather than who happens to own him today.
  *
  * **On the season list it is the most recent matchday's**, which is the closest
- * thing to "now" that costs no extra request. `data.day` under `sorting=1` is
- * the endpoint's own notion of where the season has got to — probed 2026-09-07
- * it read `2` while the fixture list's `currentDay` was already `3`, so it
- * tracks the last matchday with points rather than the next one to be played,
- * which is exactly the lineup worth asking about. A season row therefore says
- * *this is whose team he was in last weekend*, not *somebody had him for the
- * goals that got him up here* — and no season-long ownership history exists in
- * the API to offer instead.
+ * thing to "now" that costs no extra request. `data.day` is the *source's* own
+ * notion of where the season has got to — the matchday the totals run through,
+ * which is the last one with points rather than the next one to be played, and
+ * so exactly the lineup worth asking about. A season row therefore says *this
+ * is whose team he was in last weekend*, not *somebody had him for the goals
+ * that got him up here* — and no season-long ownership history exists anywhere
+ * to offer instead.
  */
 export function PlayerRankingTab({
   data,
@@ -219,7 +221,11 @@ export function PlayerRankingTab({
       {data.players.map((player, index) => {
         const team = teams?.get(player.teamId)
         const owner = ownerOf(player.id)
-        const rank = index + 1
+        /* The source's own placement where there is one, because only it
+           knows about ties: two players on 254 points are both second, and
+           the row after them is fourth. Counting the rows cannot say that,
+           so the live list — which sends no rank — falls back to it. */
+        const rank = player.rank ?? index + 1
 
         return (
           <li key={player.id}>
@@ -315,17 +321,29 @@ export function PlayerRankingTab({
 
   /*
    * Where the numbers came from, and therefore why the list is as long as it
-   * is. Without it the 25 of a live matchday and the 100 of an archived one
-   * look like a bug in one of them — and the archived list is our arithmetic
-   * rather than Kickbase's, which a reader comparing it against the app is
-   * entitled to know.
+   * is. Without it the 25 of a live matchday and the 100 of a published one
+   * look like a bug in one of them — and the published list is pointcast's
+   * arithmetic rather than Kickbase's, which a reader comparing it against the
+   * app is entitled to know.
+   *
+   * The season line names the matchday it runs **through**, because that is
+   * the one thing about a season total a reader cannot see: the list is a day
+   * behind the moment a matchday kicks off, and *Stand: 4. Spieltag* says so
+   * without claiming anything about how fresh the rest of it is.
    */
   const footnote =
     data === undefined || data.players.length === 0
       ? undefined
-      : source === 'archive'
-        ? `Eigene Auswertung aus den Spieltagsdaten — die besten ${String(ARCHIVE_LIMIT)} je Kategorie.`
-        : 'Kickbase liefert die besten 25 je Kategorie.'
+      : source === 'live'
+        ? 'Kickbase liefert die besten 25 je Kategorie.'
+        : [
+            `litbase-pointcast — die besten ${String(POINTCAST_LIMIT)} je Kategorie`,
+            scope === 'season' && data.day > 0
+              ? `Stand: ${String(data.day)}. Spieltag`
+              : undefined,
+          ]
+            .filter((part) => part !== undefined)
+            .join(' · ') + '.'
 
   return (
     <div className="flex flex-col gap-3">

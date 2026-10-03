@@ -137,8 +137,8 @@ played reads as "these three are on" in one look rather than one dot at a time.
 | ---- | ---------- | ---- |
 | The fixtures | `useMatchdayMatches(cid, day)` → `/competitions/{cid}/matchdays` | **Nothing new** — a third `select` on the season payload the squad page, the duel picker and the player pages already share |
 | The live score and minute | `useLiveMatches(matches)` → `/matches/{mi}/details` × N | One request per **started** match; a finished one is fetched once and held, only a running one polls |
-| The ranking, matchday being played | `useMatchdayRanking(…)` → `/competitions/{cid}/players` | **One request per position chip**, cached per chip, and only on the Rangliste view — the Spiele view is the front door and does not pay for a list it never renders |
-| The ranking, any earlier matchday | `useMatchdayRanking(…)` → `data/rankings/{cid}/matchday-{day}.json` | **One static file**, cached forever, holding every player who scored that day — the position chips are slices of it rather than four more fetches |
+| The ranking, matchday being played | `usePlayerRanking(…)` → `/competitions/{cid}/players` | **One request per position chip**, cached per chip, and only on the Rangliste view — the Spiele view is the front door and does not pay for a list it never renders |
+| The ranking, any earlier matchday | `usePlayerRanking(…)` → `{pointcast}/v1/rankings/matchday/{day}.json` | **One static file**, cached an hour, carrying the overall top 100 *and* a top 100 per position — the five chips are five readings of it rather than five fetches |
 | The clubs in it | `useTeamDirectory(cid)` → `/competitions/{cid}/table` | Shared cache entry with the [Saison](season.md) page; club names for the ranking's second line |
 | Who owns them | `useRanking(id)` + `useMatchdayLineups(id, day, managerIds)` | One cached request for the managers, then **one per manager** — the same fan-out and the same cache entries the [match lineup](match-detail.md) uses |
 
@@ -202,30 +202,40 @@ play for" is not already answered by the surrounding screen.
 
 Kickbase serves exactly one ranking and it is always the **current** matchday's.
 So an earlier matchday is answered from
-[`data/rankings/`](../../data/README.md) instead — the app's own files, built
-from per-player performance histories by
-[`scripts/build-matchday-rankings.mjs`](../../scripts/build-matchday-rankings.mjs)
-and committed to the repo.
+[pointcast](../pointcast.md#rankings) instead — the same static tree on GitHub
+Pages that already serves the app's expected points, which since October 2026
+also publishes a points ranking per matchday and for the season to date.
+
+> Until then this was the app's own job: a committed `data/rankings/` tree,
+> rebuilt by a script that read every player's performance history. Both are
+> gone. The arithmetic was always pointcast's kind of work, and a repo is a bad
+> place to keep a data set that has to be refreshed every weekend by hand.
 
 | Selection | Source | Rows | Position chips |
 | --------- | ------ | ---- | -------------- |
 | The matchday being played | Kickbase, live | 25 | a request each |
-| Any earlier matchday | `data/`, ours | 100 | slices of one file |
+| Any earlier matchday | pointcast | 100 | readings of one file |
 
-[`useMatchdayRanking`](../../src/api/hooks/useMatchdayRanking.ts) is the seam,
-and the only place in the app that knows there are two sources — everything
+[`usePlayerRanking`](../../src/api/hooks/usePlayerRanking.ts) is the seam, and
+the only place in the app that knows there are two sources — everything
 downstream of it sees one shape.
 
-**The row counts differ, and are left differing.** 25 is Kickbase's cap and no
-parameter raises it; our own files hold every player who scored, so 100 is a
-display choice with room above it. Padding one list or trimming the other would
-invent a consistency the data does not have, so a footnote under the rows says
-which you are reading instead.
+**The split is by time, not by preference.** Kickbase is the only source that
+moves while matches are running; pointcast rebuilds once a night, so during a
+matchday its newest file is last night's. The matchday in play therefore comes
+from the API and everything settled from the files, which is the same rule as
+before with a different store behind it.
 
-**A matchday with no file yet says so**, and names the command that makes one.
-That is an ordinary state — every matchday is in it until the script runs — so
-it gets a sentence and a way out, not an error box with a retry that cannot
-help.
+**The row counts differ, and are left differing.** 25 is Kickbase's cap and no
+parameter raises it; pointcast publishes 100 per list. Padding one list or
+trimming the other would invent a consistency the data does not have, so a
+footnote under the rows says which you are reading instead.
+
+**A matchday with no file yet says so.** The run is nightly, so the matchday
+that finished on Sunday evening can be in this state for a few hours, and a
+competition pointcast does not cover never leaves it. It gets a sentence and a
+way back to a matchday that does have one, not an error box with a retry that
+cannot help.
 
 ### The picker is the page heading
 
@@ -343,7 +353,7 @@ identical rows. While that was the whole story the picker was *hidden* on this
 view: a control that visibly does nothing is worse than its absence, because it
 would imply the list below had followed.
 
-With [`data/rankings/`](../../data/README.md) behind it the control does
+With [pointcast](../pointcast.md#rankings) behind it the control does
 something, so it is the same [`MatchdayPicker`](../../src/components/MatchdayPicker.tsx)
 on the same `?day=` as the fixtures — step a matchday and the ranking follows;
 switch views and you keep the day you were on.
@@ -357,7 +367,7 @@ season's first kick-off there is no picker at all, just a line saying so.
 
 ### The owner badge across matchdays
 
-On an **archived matchday it is historically correct**, which is worth saying
+On a **past matchday it is historically correct**, which is worth saying
 because nothing else on the screen is fetched per matchday: the fan-out reads
 `teamcenter?dayNumber=`, the lineup *as it stood*, so a row from matchday 1
 shows who fielded him on matchday 1.

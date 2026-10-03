@@ -1984,6 +1984,16 @@ export interface CompetitionPlayerSummary {
   image?: string
   /** The fixture these points were scored in. */
   matchId?: string
+  /**
+   * The row's placement, when the source computed one.
+   *
+   * [pointcast](../api/hooks/usePlayerRanking.ts) ranks with **ties sharing a
+   * place** — 1, 1, 3 — which is what a ranking means and what counting the
+   * rows cannot produce. Kickbase sends no rank at all, so a live list leaves
+   * this `undefined` and the position in the array is the best available
+   * answer.
+   */
+  rank?: number
 }
 
 /**
@@ -1993,10 +2003,19 @@ export interface CompetitionPlayerSummary {
  * because it is the *endpoint's* notion of "current matchday" and only it can
  * say which matchday these points belong to. The two agree in practice and the
  * page shows the number, so a disagreement would be visible rather than silent.
+ *
+ * On a season list `day` is the matchday the totals run **through**, which is
+ * the same question asked of a running total.
  */
 export interface MatchdayTopScorers {
   day: number
   players: CompetitionPlayerSummary[]
+  /**
+   * Every match of `day` has been played. `undefined` from a source that does
+   * not say — Kickbase never does, and the page it feeds knows from the
+   * schedule anyway.
+   */
+  isComplete?: boolean
 }
 
 /**
