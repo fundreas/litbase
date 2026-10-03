@@ -2934,29 +2934,90 @@ export function purchasePremium(
   return ownership.purchasePrice - ownership.marketValueAtPurchase
 }
 
+/* --- The nightly recalculation -------------------------------------------- */
+
+/** The hour Kickbase moves every market value, on the German wall clock. */
+const MARKET_VALUE_HOUR = 22
+
 /**
- * The valuation that stood at `at` — the newest day in the history stamped no
- * later than that moment.
+ * The zone that hour is read in.
+ *
+ * `mvud` on the market response has been observed at 20:00 UTC in summer,
+ * which is 22:00 in Germany — the hour Kickbase's own app names. It is a
+ * **local** hour, so it sits at 21:00 UTC once the clocks go back, which is
+ * why this is a zone and an hour rather than a fixed offset.
+ */
+const MARKET_VALUE_ZONE = 'Europe/Berlin'
+
+const DAY_MS = 24 * 60 * 60_000
+
+/** The German wall clock, for reading a moment's date and hour off it. */
+const germanClock = new Intl.DateTimeFormat('en-CA', {
+  timeZone: MARKET_VALUE_ZONE,
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+})
+
+/**
+ * Which day's valuation was standing at `moment`, as the ISO date of the
+ * series entry — which is **not** the date the moment itself falls on.
+ *
+ * Values move at {@link MARKET_VALUE_HOUR} German time, so a day's entry comes
+ * into force at ten in the evening *of its own date* and holds until ten the
+ * next evening. A transfer at two in the afternoon therefore settles against
+ * **yesterday's** entry: tonight's recalculation had not run when the money
+ * changed hands, and the figure it went on to produce is not one anybody could
+ * have been judging the deal against.
+ *
+ * The date arithmetic runs in UTC on purpose — the German date has already
+ * been read off the clock above, and `Date.UTC` is then the one way to step a
+ * day back without a second zone getting an opinion.
+ */
+function standingDayOf(moment: number): string {
+  const parts = germanClock.formatToParts(moment)
+  const field = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value)
+
+  const year = field('year')
+  const month = field('month')
+  const day = field('day')
+  const hour = field('hour')
+  // A moment outside the range `Intl` will format. The caller has already
+  // parsed it, so this is close to unreachable — answering the UTC date is
+  // still better than arithmetic on NaN.
+  if (Number.isNaN(year + month + day + hour)) {
+    return new Date(moment).toISOString().slice(0, 10)
+  }
+
+  const midnight = Date.UTC(year, month - 1, day)
+  const standing = hour < MARKET_VALUE_HOUR ? midnight - DAY_MS : midnight
+  return new Date(standing).toISOString().slice(0, 10)
+}
+
+/**
+ * The valuation that **stood** at `at` — the newest entry whose recalculation
+ * had already run by that moment.
  *
  * For dating a **transfer** against the market: what a manager paid only means
  * something next to what the player was worth *that day*, not next to today's
  * value, which has moved since.
  *
- * Walks to the last day at or before the moment rather than matching the date
- * string, so a day missing from the series (the `mv: 0` placeholders are
+ * ## The standing day is not the calendar day
+ *
+ * Kickbase moves every value nightly at {@link MARKET_VALUE_HOUR} German time,
+ * so for anything settled before ten in the evening the figure in force is the
+ * **previous** day's — see {@link standingDayOf}. That is the number the
+ * manager was looking at while deciding, which is the only one the comparison
+ * is worth making against, and it is why the label beside it names a day
+ * rather than saying *am Transfertag*.
+ *
+ * Walks to the last entry at or before that day rather than indexing by its
+ * date, so a day missing from the series (the `mv: 0` placeholders are
  * stripped, and `dt` does have gaps) falls back to the last real valuation
  * instead of answering nothing.
- *
- * ## The one-day caveat
- *
- * Each day carries a single value and Kickbase recalculates them nightly at
- * 20:00 UTC (`mvud` on the market response), so a day's entry covers a
- * window that does not start at its own midnight. Which side of that recalc a
- * given `dt` is stamped on is **not established** (**?**) — so for a transfer
- * settled late in the evening this can be the valuation from either side of
- * the day's move. Both are within one day's change of the truth, and the day
- * the answer comes from is named wherever it is shown, rather than presented as
- * exact.
  *
  * `undefined` when the moment predates the year of history the API serves, or
  * the player's first valuation in the competition.
@@ -2969,10 +3030,12 @@ export function marketValueAt(
   const moment = Date.parse(at)
   if (Number.isNaN(moment)) return undefined
 
-  // Oldest first, so the last day that is not in the future wins.
+  const until = standingDayOf(moment)
+
+  // Oldest first, so the last entry in force at that moment wins.
   let standing: MarketValueDay | undefined
   for (const day of history.days) {
-    if (day.timestamp > moment) break
+    if (day.date > until) break
     standing = day
   }
   return standing

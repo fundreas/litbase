@@ -420,14 +420,16 @@ function DealerRow({
 }
 
 /**
- * The money on a transfer: the fee, the market value of the day it went
- * through, and the distance between them.
+ * The money on a transfer: the fee, the market value that was standing when it
+ * went through, and the distance between them.
  *
- * **The day is named on the label**, not left implicit — the snapshot is a
- * daily one and Kickbase moves values overnight, so a transfer late in the
- * evening can sit within a day of the figure quoted here; see
- * [`marketValueAt`](../../api/models.ts). A dated label is honest about that in
- * a way a bare *Marktwert* would not be.
+ * **The day is named on the label**, not left implicit — and the day named is
+ * often the one *before* the transfer. Kickbase moves every value at ten in
+ * the evening German time, so an afternoon deal is held against the previous
+ * day's figure, which is the one the manager could see while deciding; see
+ * [`marketValueAt`](../../api/models.ts). A dated label is what keeps that
+ * legible, where a bare *Marktwert* would read as a contradiction of the
+ * transfer's own date.
  *
  * **Colour reads from the dealing manager's side, so it flips with the
  * direction.** Paying over the market value is an instant paper loss on the

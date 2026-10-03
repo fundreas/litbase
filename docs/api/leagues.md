@@ -893,9 +893,17 @@ shows up to the minute in one batch of sales on 2026-09-02: the three at
 **20:02–20:03** read `D-1`, the six at **20:04** read `D`.
 
 That closes the open question in
-[events.md](../pages/events.md) — and it means walking the series to "the last
-day stamped no later than the transfer" lands **a day early** for any transfer
-before 20:00 UTC, which is nearly all of them.
+[events.md](../pages/events.md). Walking the series to "the last day stamped no
+later than the transfer" lands **a day late** for any transfer before 20:00
+UTC, which is nearly all of them — so
+[`marketValueAt`](../../src/api/models.ts) does not walk to the transfer's own
+date any more. It walks to the date of the **last recalc before the transfer**,
+which is the previous day's stamp until the evening's run has gone through.
+
+**The recalc is read as 22:00 on the German clock, not as a fixed 20:00 UTC**
+(**?**). Every transfer above was settled in September, when the two are the
+same instant; which of them Kickbase holds to once the clocks go back is
+untested, and an hour of winter evenings is what hangs on it.
 
 ### Used by
 

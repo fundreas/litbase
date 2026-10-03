@@ -192,12 +192,17 @@ a reader scrolls back to, describes a different player.
 
 So the sheet reads the year of daily values
 [`usePlayerMarketValue`](../../src/api/hooks/usePlayer.ts) already serves the
-player page and quotes the one day the transfer fell on:
+player page and quotes the entry that was **in force when the deal settled**:
 
 | Line | Reads |
 | ---- | ----- |
-| **Marktwert am** *Fr., 4. Sep.* | The valuation standing that day |
+| **Marktwert am** *Fr., 4. Sep.* | The valuation standing at that moment |
 | **Aufpreis** / **Abschlag** | Fee minus that valuation, signed — `+1,2 Mio. €` |
+
+**The day named is usually the day before the transfer**, and that is the point
+rather than a bug in the label — see the box below. A deal struck on Saturday
+afternoon is judged against Friday evening's valuation, because that is the
+figure that was on the screen while the manager decided.
 
 **Red for an *Aufpreis*, green for an *Abschlag*.** Paying over the market value
 is an instant paper loss in the squad the player lands in, so the colours run
@@ -211,28 +216,32 @@ Marktwert* is green and *Unter Marktwert* red. The
 reason.
 
 [`marketValueAt`](../../src/api/models.ts) does the lookup by walking to the
-**last day stamped no later than the transfer**, rather than matching the date
+**last entry whose recalc had already run**, rather than matching the date
 string: the series has gaps — days before the player entered the competition
 come back as `mv: 0` and are stripped — and a gap should fall back to the last
 real valuation instead of answering nothing.
 
-> **The `dt` stamp is settled now, and the walk is a day early.** Kickbase
-> recalculates values nightly at 20:00 UTC (`mvud` on the market response), and
-> the 28 transfers in the test league pin what the stamp means:
-> **a value stamped `dt = D` is what that day's 20:00 UTC recalc produced, in
-> force until `D+1` 20:00 UTC** — see
+> **The `dt` stamp is settled, and the walk follows it.** Kickbase recalculates
+> values nightly at 22:00 German time (20:00 UTC in summer; `mvud` on the market
+> response), and the 28 transfers in the test league pin what the stamp means:
+> **a value stamped `dt = D` is what that evening's recalc produced, in force
+> until the next one** — see
 > [the API note](../api/leagues.md#which-resolves-the-dt-stamp-on-the-market-value-series).
 >
-> So for a transfer settled *before* 20:00 UTC — nearly all of them — the
-> valuation that stood is the one at `dt = D-1`, and "the last day stamped no
-> later than the transfer" picks `dt = D`: **one recalc too new**.
+> So a transfer settled *before* ten in the evening — nearly all of them — stood
+> against `dt = D-1`, and the walk cuts the series there. It used to cut at the
+> transfer's own date, which was one recalc too new: every afternoon deal was
+> judged against a valuation that did not exist yet, and an *Aufpreis* could
+> read as an *Abschlag* purely because the player moved overnight.
 >
-> The fix is not to shift the walk by a day. It is to stop doing the walk:
-> **`GET /activitiesFeed/{activityId}` returns the frozen valuation itself**,
-> in the same response as the buyer and the fee, and it matched the daily series
-> on all 25 transfers that could distinguish a day. That request also carries
-> the buyer's **user id**, which the feed row lacks and which the row currently
-> recovers by matching a display name against the standings.
+> **There is still a cheaper answer for this sheet specifically.**
+> `GET /activitiesFeed/{activityId}` returns the frozen valuation itself, in
+> the same response as the buyer and the fee, and it matched the daily series on
+> all 25 transfers that could distinguish a day. It also carries the buyer's
+> **user id**, which the feed row lacks and currently recovers by matching a
+> display name against the standings. The walk stays because the
+> [player's transfer tab](player-detail.md) and the ownership card have no
+> activity id to look up and need the same arithmetic.
 
 It costs no extra request for a reader who then opens the player — same query
 key, same cache entry as the market tab. And when the transfer predates the year

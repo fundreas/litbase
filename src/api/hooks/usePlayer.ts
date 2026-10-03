@@ -4,6 +4,7 @@ import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
 import {
   didPlay,
+  marketValueAt,
   toEventTallies,
   matchOutcome,
   toOwnerId,
@@ -478,8 +479,6 @@ export function useOwnership(
 
   if (current?.u === undefined) return undefined
 
-  const purchaseDate = current.dt.slice(0, 10)
-
   return {
     managerId: current.u,
     managerName: current.unm,
@@ -489,8 +488,9 @@ export function useOwnership(
     wasGranted: money.data.wasGranted,
     isViewer: money.data.isViewer,
     since: current.dt,
-    marketValueAtPurchase: history?.days.find(
-      (day) => day.date === purchaseDate,
-    )?.value,
+    // The valuation **standing when the deal went through**, not the one
+    // tonight's recalculation went on to stamp on that date — see
+    // `marketValueAt`.
+    marketValueAtPurchase: marketValueAt(history, current.dt)?.value,
   }
 }

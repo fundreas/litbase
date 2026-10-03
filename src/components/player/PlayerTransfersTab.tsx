@@ -39,10 +39,15 @@ import { money, moneyDelta, time, weekdayDate } from '@/lib/format'
  *
  * A fee alone is not a judgement — 12 Mio. is a bargain or a disaster
  * depending on the day. So each priced row carries the fee against the market
- * value **of that day**, exactly as the
+ * value **that was standing when the deal went through**, exactly as the
  * [transfer sheet](../events/ActivityDialogs.tsx) does on the events page, and
  * for the same reason: today's value has moved since and says nothing about
  * the deal.
+ *
+ * **Standing, not stamped on the date.** Kickbase moves every value at ten in
+ * the evening German time, so an afternoon transfer is held against the
+ * previous day's figure — the one the buyer could actually see while bidding.
+ * See [`marketValueAt`](../../api/models.ts).
  *
  * **The colour reads from the acting manager's side**, which means it flips
  * with the direction. Paying over the market value is a paper loss the moment
@@ -94,7 +99,8 @@ export function PlayerTransfersTab({
 
       <p className="px-1 text-[0.6875rem] text-faint">
         Nur Transfers dieser Liga aus der laufenden Saison. Der zweite Betrag
-        ist die Differenz zum Marktwert des Transfertages.
+        ist die Differenz zum Marktwert, der zum Zeitpunkt des Transfers galt —
+        neue Marktwerte gibt es täglich um 22 Uhr.
       </p>
     </div>
   )

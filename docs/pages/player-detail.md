@@ -834,7 +834,7 @@ Each row is therefore:
 | Face and name | **The manager who acted** — the buyer on a purchase, the seller on a sale. Never Kickbase, unless the chain opens with a sale and there is nobody else to name |
 | Under it | Where the player came from or went — *Von Marvin*, *Von Kickbase*, *An Kickbase verkauft*, *Startkader*, *Freigegeben* — and when, to the minute |
 | Right, top | The fee, or `–` where none was paid |
-| Right, under | The **difference to the market value of that day** |
+| Right, under | The **difference to the market value standing at that moment** — the previous evening's recalc for anything settled before ten at night, which is the figure the manager was looking at. See [`marketValueAt`](../../src/api/models.ts) |
 
 Faces come from the [standings](../api/leagues.md#get-v4leaguesleagueidranking),
 not the payload: `uim` arrived on about one manager in five, so without the fill
@@ -972,7 +972,7 @@ Assembled from **three** sources, because no single one has it:
 | Who owns them | `transferHistory` — the last entry that is not a release |
 | What they paid | `marketvalue/365`'s `trp` |
 | Profit / loss | `marketvalue/365`'s `prlo` |
-| Market value that day | the history itself, looked up by the purchase date |
+| Market value at the purchase | the history itself, read through `marketValueAt` — the entry in force at that moment, which for an afternoon buy is the **previous** day's stamp |
 | Over- / underpay | `trp − marketValueAtPurchase` |
 
 **`trp` means different things in the two payloads, and only one of them is a
