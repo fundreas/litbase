@@ -1,4 +1,4 @@
-import { Calculator, Gavel, X } from 'lucide-react'
+import { Calculator, ChevronDown, Gavel, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -67,15 +67,22 @@ type Tab = (typeof TABS)[keyof typeof TABS]
  *
  * A manager with three live bids does not have the budget the app shows him;
  * he has that budget minus three purchases that may all land tonight. So the
- * scenario counts them — **on by default**, and switched off from the header:
- * their money leaves the projection and their players arrive on the bench,
- * because "what if they were all accepted" is a question about the eleven as
- * much as about the money.
+ * scenario counts them — **every one of them, until it is switched off**, from
+ * the [panel in the header](#OffersPanel): their money leaves the projection
+ * and their players arrive on the bench, because "what if they were accepted"
+ * is a question about the eleven as much as about the money.
  *
- * The switch moves the **projection and the squad only**. What the bid on the
- * offer tab is checked against does not move with it: `committedElsewhere` is
- * always the full sum, because Kickbase counts every standing bid against the
- * ceiling whether or not this page is imagining them accepted. Same rule as
+ * **One bid at a time.** The summary row counts the lot or none of them; the
+ * list behind its chevron carries a switch per bid, which is the question a
+ * manager with three out actually has — *this* one I expect to win, those two
+ * I do not, so what does that leave me? The exclusions are held as a set of
+ * ids, so a bid placed or lost while the page is open joins or leaves the
+ * reckoning on its own.
+ *
+ * The switches move the **projection and the squad only**. What the bid on the
+ * offer tab is checked against does not move with them: `committedElsewhere`
+ * is always the full sum, because Kickbase counts every standing bid against
+ * the ceiling whether or not this page is imagining it accepted. Same rule as
  * the sales — see *the rules are the real ones* below.
  *
  * A bid is three questions that the [bid dialog](../components/market/OfferDialog.tsx)
@@ -135,13 +142,18 @@ export function WhatIfPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   /**
-   * Whether the scenario imagines every standing bid accepted. **On.**
+   * **Which standing bids the scenario leaves out**, by listing id — empty,
+   * because every one of them counts until it is switched off.
+   *
+   * Held as the *exclusions* rather than the inclusions so that a bid placed
+   * while this page is open arrives counted, like every other: a set of
+   * inclusions seeded at mount would silently drop it.
    *
    * Held here rather than in the scenario below because the header that
-   * switches it is rendered by this component — the loading and error branches
-   * need it before there is a scenario to hold anything.
+   * switches them is rendered by this component — the loading and error
+   * branches need it before there is a scenario to hold anything.
    */
-  const [countsOffers, setCountsOffers] = useState(true)
+  const [excluded, setExcluded] = useState<ReadonlySet<string>>(() => new Set())
 
   const market = useMarket(leagueId)
   const squad = useSquad(leagueId)
@@ -178,10 +190,34 @@ export function WhatIfPage() {
       ),
     [market.data, playerId],
   )
-  const offersTotal = offers.reduce(
+  /**
+   * …and the ones the scenario is actually counting — the switches' answer.
+   *
+   * Derived from `offers` each render rather than held, so that a bid placed
+   * or lost while the page is open joins or leaves this list on its own. The
+   * exclusions are ids and an id that no longer has a listing simply matches
+   * nothing.
+   */
+  const counted = useMemo(
+    () => offers.filter((entry) => !excluded.has(entry.id)),
+    [offers, excluded],
+  )
+  const countedTotal = counted.reduce(
     (total, entry) => total + (entry.ownOffer ?? 0),
     0,
   )
+
+  const toggleOffer = (offerId: string) => {
+    setExcluded((current) => {
+      const next = new Set(current)
+      if (!next.delete(offerId)) next.add(offerId)
+      return next
+    })
+  }
+  /** All or nothing, from the summary row's own switch. */
+  const setAllOffers = (counts: boolean) => {
+    setExcluded(counts ? new Set() : new Set(offers.map((entry) => entry.id)))
+  }
 
   const heading = (
     <ScenarioHeading
@@ -189,10 +225,11 @@ export function WhatIfPage() {
       subtitle={
         isPurchase ? 'Ein Kauf, durchgerechnet' : 'Verkäufe, durchgerechnet'
       }
-      offerCount={offers.length}
-      offersTotal={offersTotal}
-      countsOffers={countsOffers}
-      onCountOffers={setCountsOffers}
+      offers={offers}
+      counted={counted}
+      countedTotal={countedTotal}
+      onToggleOffer={toggleOffer}
+      onCountAll={setAllOffers}
       onLeave={() => {
         void navigate(-1)
       }}
@@ -285,7 +322,7 @@ export function WhatIfPage() {
         teamValue={market.data?.teamValue}
         allowsUnderpay={details.data?.allowsUnderpay}
         offers={offers}
-        countsOffers={countsOffers}
+        countedOffers={counted}
         onLeave={() => {
           void navigate(-1)
         }}
@@ -327,7 +364,7 @@ function WhatIfScenario({
   teamValue,
   allowsUnderpay,
   offers,
-  countsOffers,
+  countedOffers,
   onLeave,
 }: {
   /** The player being bought, or `undefined` for a scenario that only sells. */
@@ -344,8 +381,8 @@ function WhatIfScenario({
   allowsUnderpay: boolean | undefined
   /** The listings this account has a standing bid on, the target's aside. */
   offers: MarketListing[]
-  /** Whether those bids are imagined accepted — the header's switch. */
-  countsOffers: boolean
+  /** The subset of them the header's switches have left imagined accepted. */
+  countedOffers: MarketListing[]
   /** Back to wherever the bid dialog was — every conclusion uses it. */
   onLeave: () => void
 }) {
@@ -412,12 +449,11 @@ function WhatIfScenario({
    * man on the pitch twice.
    */
   const arrivals = useMemo(() => {
-    if (!countsOffers) return []
     const owned = new Set(own.map((member) => member.id))
-    return offers
+    return countedOffers
       .filter((entry) => entry.id !== target?.id && !owned.has(entry.id))
       .map((entry) => asMember(entry))
-  }, [countsOffers, offers, own, target?.id])
+  }, [countedOffers, own, target?.id])
   /** Those, him, and them — the squad the scenario is arranged from. */
   const full = useMemo(
     () =>
@@ -471,8 +507,14 @@ function WhatIfScenario({
     (total, entry) => total + (entry.ownOffer ?? 0),
     0,
   )
-  /** …and what the *scenario* has them spending, which is nothing while off. */
-  const pendingSpend = countsOffers ? committedElsewhere : 0
+  /**
+   * …and what the *scenario* has them spending: the bids still switched on,
+   * which is nothing once they are all off.
+   */
+  const pendingSpend = countedOffers.reduce(
+    (total, entry) => total + (entry.ownOffer ?? 0),
+    0,
+  )
   const rules = { allowsUnderpay, budget, teamValue, committedElsewhere }
   const verdict =
     listing === undefined
@@ -513,7 +555,7 @@ function WhatIfScenario({
           /* The **bids**, not the arrivals: the two differ only if a bid
              somehow stands on a player already owned, and this line is the
              money, which that bid still spends. */
-          pendingCount={countsOffers ? offers.length : 0}
+          pendingCount={countedOffers.length}
           allowance={debtAllowance(teamValue)}
           maximumBid={maximumOffer(rules)}
         />
@@ -746,19 +788,22 @@ function asMember(listing: MarketListing, detail?: PlayerDetail): SquadMember {
  * The ✗ is the fourth way out, for the two tabs that have no buttons of their
  * own — a scenario you cannot leave from the pitch would be a trap.
  *
- * **The offers switch lives here**, on a row of its own under the title,
- * because it is the only control on the page that every tab is subject to: it
- * moves the money on two of them and the bench on the third, and the budget
- * block it would otherwise belong in is not drawn on the pitch. The row is
- * absent entirely when there is no bid standing, which is most of the time.
+ * **The offers panel lives here**, under the title, because it is the only
+ * control on the page that every tab is subject to: it moves the money on two
+ * of them and the bench on the third, and the budget block it would otherwise
+ * belong in is not drawn on the pitch. A tab of its own would have the same
+ * fault from the other side — you cannot switch a bid off while looking at the
+ * eleven it changes. It is absent entirely when there is no bid standing,
+ * which is most of the time.
  */
 function ScenarioHeading({
   listing,
   subtitle,
-  offerCount,
-  offersTotal,
-  countsOffers,
-  onCountOffers,
+  offers,
+  counted,
+  countedTotal,
+  onToggleOffer,
+  onCountAll,
   onLeave,
 }: {
   /**
@@ -768,12 +813,14 @@ function ScenarioHeading({
   listing: MarketListing | undefined
   /** What the scenario is, until the player it is about has landed. */
   subtitle: string
-  /** How many bids this account has standing, the target's aside. */
-  offerCount: number
-  /** What they add up to. */
-  offersTotal: number
-  countsOffers: boolean
-  onCountOffers: (counts: boolean) => void
+  /** Every bid this account has standing, the target's aside. */
+  offers: MarketListing[]
+  /** The ones still switched on. */
+  counted: MarketListing[]
+  /** What those add up to. */
+  countedTotal: number
+  onToggleOffer: (offerId: string) => void
+  onCountAll: (counts: boolean) => void
   onLeave: () => void
 }) {
   return (
@@ -825,12 +872,13 @@ function ScenarioHeading({
         </div>
       </div>
 
-      {offerCount > 0 && (
-        <OffersSwitch
-          count={offerCount}
-          total={offersTotal}
-          isOn={countsOffers}
-          onChange={onCountOffers}
+      {offers.length > 0 && (
+        <OffersPanel
+          offers={offers}
+          counted={counted}
+          countedTotal={countedTotal}
+          onToggle={onToggleOffer}
+          onCountAll={onCountAll}
         />
       )}
     </div>
@@ -838,94 +886,253 @@ function ScenarioHeading({
 }
 
 /**
- * **"…and if every bid I have out were accepted?"** — the scenario's one
- * global switch, on by default.
+ * **"…and if the bids I have out were accepted?"** — the scenario's one global
+ * control, and the only one every tab is subject to.
  *
  * A manager with three live bids does not really have the budget the app
  * prints for him; he has that minus three purchases that could all land
- * tonight. Defaulting to *on* is therefore the honest reading of "what if" —
- * and it is switchable because the opposite reading is honest too: bids are
- * lost far more often than they are won, and a scenario that insisted on
- * counting them would be a different kind of wrong.
+ * tonight. Counting them is therefore the honest reading of "what if", which
+ * is why **every bid starts switched on** — and why each can be switched off,
+ * because the opposite reading is honest too: bids are lost far more often
+ * than they are won, and the manager usually knows which of his are hopeless.
  *
- * **It moves the squad as well as the money.** The bids' players arrive on the
- * bench of the lineup tab, which is the whole reason the switch is not simply
+ * **One bid at a time, not all or nothing.** The summary row flips the lot,
+ * which is the quick answer; the chevron opens the list behind it, one row per
+ * standing bid, and that is where the real question gets asked — *this* bid is
+ * the one I expect to win, so what does the squad look like with him in it and
+ * the other two gone? A single switch could only ever answer the two extremes
+ * of that, and neither extreme is what a manager with three bids out believes.
+ *
+ * **It moves the squad as well as the money.** A counted bid's player arrives
+ * on the bench of the lineup tab, which is the whole reason this is not simply
  * a line of arithmetic in the budget block — and the reason it sits in the
  * header, which is the one thing on the page the pitch does not hide.
  *
- * The whole row is the target: a `role="switch"` button with the label inside
- * it, rather than a checkbox with the label beside it. The pill on the right
- * is drawn, not real — it has no state of its own to disagree with the
- * button's `aria-checked`.
+ * The target's own bid is not in here: the page's caller filters it out,
+ * because re-bidding on a player *replaces* the standing offer rather than
+ * adding to it, and the list would be offering to spend his money twice.
+ *
+ * Each row, and the summary, is a `role="switch"` button with its label inside
+ * it rather than a checkbox with the label beside it. The pills are drawn, not
+ * real — they have no state of their own to disagree with `aria-checked`.
  */
-function OffersSwitch({
-  count,
-  total,
-  isOn,
-  onChange,
+function OffersPanel({
+  offers,
+  counted,
+  countedTotal,
+  onToggle,
+  onCountAll,
 }: {
-  count: number
-  total: number
+  offers: MarketListing[]
+  counted: MarketListing[]
+  countedTotal: number
+  onToggle: (offerId: string) => void
+  onCountAll: (counts: boolean) => void
+}) {
+  /* Shut to begin with. The summary is the whole answer for the manager with
+     one bid out, and the list is a dozen rows above a page that is already
+     scrolled — it opens when somebody wants to disagree with the default. */
+  const [isOpen, setIsOpen] = useState(false)
+  const countedIds = new Set(counted.map((entry) => entry.id))
+  const isAll = counted.length === offers.length
+  const isNone = counted.length === 0
+
+  return (
+    <div className="border-t border-line">
+      <div className="flex items-center">
+        {/* The summary and the disclosure are one target: reading "2 von 3"
+            and wanting to know *which* two is the same impulse. */}
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={() => {
+            setIsOpen((open) => !open)
+          }}
+          title="Gebote einzeln wählen"
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2 py-2 pl-3 text-left',
+            'transition-colors hover:bg-surface-2',
+            /* `ring-inset`: the heading card clips its overflow to keep its
+               corners, so a ring drawn outside this row would be cut off. */
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+          )}
+        >
+          <Gavel
+            size={14}
+            aria-hidden="true"
+            className={cn('shrink-0', isNone ? 'text-faint' : 'text-accent')}
+          />
+
+          <span className="min-w-0 flex-1 truncate text-xs text-muted">
+            {isAll ? (
+              <>
+                <span className="nums font-semibold text-ink">
+                  {offers.length} offene{offers.length === 1 ? 's' : ''} Gebot
+                  {offers.length === 1 ? '' : 'e'}
+                </span>{' '}
+                angenommen
+              </>
+            ) : (
+              /* Partial, and zero reads as a case of it rather than as its own
+                 sentence — "0 von 3" keeps the denominator on screen, which is
+                 what says the list is still there to re-open. */
+              <>
+                <span className="nums font-semibold text-ink">
+                  {counted.length} von {offers.length}
+                </span>{' '}
+                Geboten angenommen
+              </>
+            )}
+          </span>
+
+          {/* What saying yes costs, so the switch is not a leap of faith — and
+              it is the counted sum, because that is the figure that left the
+              total above the tabs. */}
+          <span
+            className={cn(
+              'nums shrink-0 text-xs font-semibold',
+              isNone ? 'text-faint' : 'text-negative',
+            )}
+          >
+            −{money(countedTotal)}
+          </span>
+
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={cn(
+              'shrink-0 text-faint transition-transform',
+              isOpen && 'rotate-180',
+            )}
+          />
+        </button>
+
+        {/* All or none, without opening anything — the two answers most
+            managers want, kept one tap away from the summary that states
+            them. */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isAll ? true : isNone ? false : 'mixed'}
+          onClick={() => {
+            onCountAll(!isAll)
+          }}
+          title="Alle offenen Gebote mitrechnen"
+          aria-label="Alle offenen Gebote mitrechnen"
+          className={cn(
+            'flex h-8 shrink-0 items-center rounded-lg px-3',
+            'transition-colors hover:bg-surface-2',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+          )}
+        >
+          <SwitchPill state={isAll ? 'on' : isNone ? 'off' : 'mixed'} />
+        </button>
+      </div>
+
+      {isOpen && (
+        /* In the market's own order, which is the order the bids were found
+           in — not sorted by amount, because a list that reorders itself as
+           you switch rows off is a list you lose your place in. */
+        <ul className="border-t border-line bg-surface-2/40">
+          {offers.map((entry) => (
+            <li key={entry.id}>
+              <OfferToggleRow
+                listing={entry}
+                isOn={countedIds.has(entry.id)}
+                onToggle={() => {
+                  onToggle(entry.id)
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/**
+ * One standing bid, and whether the scenario believes in it.
+ *
+ * The portrait and the surname identify him the way every other list in the
+ * app does; the figure is **what was bid**, not what he is worth, because that
+ * is the money this row is deciding about. Switched off, the whole row fades
+ * rather than only its pill — the player is still listed, which is the point,
+ * but he is no longer part of the arithmetic above or the bench behind.
+ */
+function OfferToggleRow({
+  listing,
+  isOn,
+  onToggle,
+}: {
+  listing: MarketListing
   isOn: boolean
-  onChange: (isOn: boolean) => void
+  onToggle: () => void
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={isOn}
-      onClick={() => {
-        onChange(!isOn)
-      }}
-      title="Offene Gebote als angenommen rechnen"
+      onClick={onToggle}
       className={cn(
-        'flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left',
-        'transition-colors hover:bg-surface-2',
-        /* `ring-inset`: the heading card clips its overflow to keep its
-           corners, so a ring drawn outside this row would be cut off. */
+        'flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors',
+        'hover:bg-surface-2',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+        !isOn && 'opacity-55',
       )}
     >
-      <Gavel
-        size={14}
-        aria-hidden="true"
-        className={cn('shrink-0', isOn ? 'text-accent' : 'text-faint')}
-      />
+      <Avatar src={listing.image} name={listing.lastName} size={22} />
 
-      <span className="min-w-0 flex-1 truncate text-xs text-muted">
-        <span className="nums font-semibold text-ink">
-          {count} offene{count === 1 ? 's' : ''} Gebot{count === 1 ? '' : 'e'}
-        </span>{' '}
-        angenommen
+      <span className="min-w-0 flex-1 truncate text-xs text-ink">
+        {listing.lastName}
       </span>
 
-      {/* What saying yes costs, so the switch is not a leap of faith. Faint
-          while it is off: the figure is still true, it is simply not in the
-          total above the tabs. */}
       <span
         className={cn(
           'nums shrink-0 text-xs font-semibold',
           isOn ? 'text-negative' : 'text-faint',
         )}
       >
-        −{money(total)}
+        −{money(listing.ownOffer ?? 0)}
       </span>
 
-      <span
-        aria-hidden="true"
-        className={cn(
-          'relative h-4 w-7 shrink-0 rounded-full transition-colors',
-          isOn ? 'bg-accent' : 'bg-line',
-        )}
-      >
-        <span
-          className={cn(
-            'absolute top-0.5 h-3 w-3 rounded-full transition-all',
-            isOn ? 'left-3.5 bg-accent-ink' : 'left-0.5 bg-faint',
-          )}
-        />
-      </span>
+      <SwitchPill state={isOn ? 'on' : 'off'} />
     </button>
+  )
+}
+
+/**
+ * The drawn pill, shared by the summary and its rows.
+ *
+ * `mixed` is the summary's only extra state — some bids counted and some not —
+ * and it is drawn as the knob stopped halfway on a dimmed track, which is the
+ * one position neither of the other two can be mistaken for.
+ */
+function SwitchPill({ state }: { state: 'on' | 'off' | 'mixed' }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'relative h-4 w-7 shrink-0 rounded-full transition-colors',
+        state === 'on'
+          ? 'bg-accent'
+          : state === 'mixed'
+            ? 'bg-accent/40'
+            : 'bg-line',
+      )}
+    >
+      <span
+        className={cn(
+          'absolute top-0.5 h-3 w-3 rounded-full transition-all',
+          state === 'on'
+            ? 'left-3.5 bg-accent-ink'
+            : state === 'mixed'
+              ? 'left-2 bg-accent'
+              : 'left-0.5 bg-faint',
+        )}
+      />
+    </span>
   )
 }
 
@@ -993,7 +1200,7 @@ function ProjectedBudget({
   bid: number | undefined
   proceeds: number
   soldCount: number
-  /** What the standing bids would take, or `0` while the switch is off. */
+  /** What the bids still switched on would take; `0` once they all are off. */
   pendingSpend: number
   /** How many of them there are — `0` whenever the spend is. */
   pendingCount: number
@@ -1057,8 +1264,9 @@ function ProjectedBudget({
               <span>Spieler zum Verkaufen antippen</span>
             </>
           )}
-          {/* The bids already out, while the header's switch counts them. Named
-            separately from `Gebot` above, which is the one being typed. */}
+          {/* The bids already out that the header's panel is still counting.
+            Named separately from `Gebot` above, which is the one being
+            typed. */}
           {pendingCount > 0 && (
             <>
               <span aria-hidden="true" className="text-faint">

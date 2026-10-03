@@ -75,24 +75,51 @@ listing's baseline exactly as the dialog's does.
 
 A manager with three live bids does not have the budget the app prints for him.
 He has that budget minus three purchases that could all land tonight — so the
-scenario counts them, and says so on a switch in the header:
+scenario counts them, and says so on a panel in the header — one switch for
+all of them, and one per bid behind the chevron:
 
 ```
 ┌──────┬──────────────────────────────────┐
 │      │ Was wäre wenn                [✕] │
 │ img  │ Kevin Behrens                    │
-├──────┴──────────────────────────────────┤
-│ ⚖  3 offene Gebote angenommen  −12,4 Mio│ ●───
+├──────┴──────────────────────────────┬───┤
+│ ⚖  2 von 3 Geboten …   −8,2 Mio   ⌄ │ ●─│
+├─────────────────────────────────────┴───┤
+│ (img) Hofmann              −3,1 Mio  ●──│
+│ (img) Undav                −5,1 Mio  ●──│
+│ (img) Führich              −4,2 Mio  ──○│
 └─────────────────────────────────────────┘
 ```
 
-**On by default**, because that is the honest reading of *what if*; switchable,
-because the opposite reading is honest too — bids are lost far more often than
-they are won, and a scenario that insisted on counting them would be a
-different kind of wrong. The row is absent entirely when no bid is standing,
-which is most of the time.
+**Every bid counts until it is switched off**, because that is the honest
+reading of *what if*; each is switchable, because the opposite reading is
+honest too — bids are lost far more often than they are won, and a scenario
+that insisted on counting them would be a different kind of wrong. The panel is
+absent entirely when no bid is standing, which is most of the time.
 
-It moves **two things**:
+**One bid at a time, not all or nothing.** The summary row's pill flips the
+lot, which is the quick answer and the only one a manager with a single bid out
+needs. The chevron opens the list behind it — one row per standing bid, with
+the player's portrait, his surname, *what was bid for him* and a switch — and
+that is where the real question gets asked: *this* one I expect to win, those
+two I do not, so what does that leave me? A single global switch could only
+ever answer the two extremes of that, and with three bids out neither extreme
+is what the manager believes.
+
+The list is **shut to begin with**: the summary is the whole answer most of the
+time, and a dozen rows pinned above a page that is already scrolled is a cost
+paid by everyone to serve the reader who wants to disagree. It stays in the
+market's own order rather than sorting by amount, because a list that reorders
+itself as you switch rows off is a list you lose your place in. The summary's
+pill takes a third, **mixed** state — the knob stopped halfway on a dimmed
+track — whenever some are counted and some are not, and the figure beside it is
+always the **counted** sum, which is the one that left the total above the tabs.
+
+The exclusions are held as a **set of ids**, not a set of inclusions: a bid
+placed or lost while the page is open then joins or leaves the reckoning on its
+own, where a list of inclusions seeded at mount would silently drop it.
+
+Switched-on bids move **two things**:
 
 - the **projection**, which loses `Σ ownOffer` and says so in its working:
   *3 offene Gebote −12,4 Mio.*, a separate term from the *Gebot* being typed on
@@ -108,17 +135,19 @@ market row already carries the name, the portrait, the club, the availability
 mark and the lineup probability, which is everything the pitch draws; what it
 cannot say is points, and the pitch never asks.
 
-**It does not move the rules.** `committedElsewhere` — what the offer tab's
-ceiling is measured against — stays the full sum whatever the switch says,
+**They do not move the rules.** `committedElsewhere` — what the offer tab's
+ceiling is measured against — stays the full sum whatever the switches say,
 because Kickbase counts every live bid against the 33 % ceiling whether or not
-this page is imagining them accepted. A rule that moved with a checkbox would
-be a rule about the checkbox. Same principle as
+this page is imagining it accepted. A rule that moved with a checkbox would be
+a rule about the checkbox. Same principle as
 [the rules are the real ones](#nothing-happens-here-except-the-bid) below.
 
-The switch lives in the **header** rather than in the budget block it is
-mostly arithmetic for, because it is the only control every tab is subject to —
-and the budget block is not drawn on the pitch, which is where its players
-appear.
+The panel lives in the **header** rather than in the budget block it is mostly
+arithmetic for, because it is the only control every tab is subject to — and
+the budget block is not drawn on the pitch, which is where its players appear.
+A tab of its own, which is the other obvious place for a list this size, would
+have the same fault from the other end: you cannot switch a bid off while
+looking at the eleven it changes.
 
 ## Nothing happens here, except the bid
 
@@ -250,9 +279,12 @@ What differs from the purchase, and nothing else does:
   total, so a figure that equals the budget does not read as a page that failed
   to load.
 - **Unless bids are standing**, which is the one thing that spends money here.
-  With the [offers switch](#the-bids-already-standing) on, the label becomes
-  *Budget nach den Transfers* and the overdraft allowance comes back — the
-  *Gebot höchstens* half of that line does not, since there is no bid to bound.
+  With any of the [offers](#the-bids-already-standing) counted, the label
+  becomes *Budget nach den Transfers* and the overdraft allowance comes back —
+  the *Gebot höchstens* half of that line does not, since there is no bid to
+  bound. The same per-bid list is in this scenario's header too: *what if the
+  two I expect to win land and I sell these three to pay for them* is the
+  fuller version of the question this page exists for.
 - **The market is not waited for.** The listing and the team value are the
   purchase's business; this scenario needs the squad and the budget, which it
   already has, so it renders as soon as they land.
