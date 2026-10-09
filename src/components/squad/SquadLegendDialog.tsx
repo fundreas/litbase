@@ -1,5 +1,13 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { House, PlaneTakeoff, Shirt, Target } from 'lucide-react'
+import {
+  Hand,
+  House,
+  MoveHorizontal,
+  PlaneTakeoff,
+  Shirt,
+  Target,
+  Timer,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { START_PROBABILITY, START_PROBABILITY_TIERS } from '@/api/models'
@@ -29,6 +37,8 @@ export function SquadLegendDialog({
    * Two of the marks below are the **row's own controls** — the shirt rail
    * and the expected-points chip — and neither exists on the lineup tab. They
    * are dropped there rather than explaining something that is not on screen.
+   * The pitch gets a section of its own in their place: the three gestures a
+   * portrait answers to, which no symbol on it can show.
    */
   isSquadList,
 }: {
@@ -109,6 +119,32 @@ export function SquadLegendDialog({
                   }
                   label="Auf der Bank"
                   description="Nicht aufgestellt. Tippen setzt ihn in die Aufstellung."
+                />
+              </LegendSection>
+            )}
+
+            {/* The pitch's counterpart: not symbols but **gestures**, which
+                are the one thing on that view with nothing on screen to look
+                at. A portrait carries three of them and shows none, so this
+                is where the hold gets explained — the tap teaches itself by
+                being the obvious one, and the hold would otherwise only be
+                found by accident. */}
+            {!isSquadList && (
+              <LegendSection title="Auf dem Spielfeld">
+                <LegendRow
+                  symbol={<Hand size={16} aria-hidden="true" />}
+                  label="Tippen"
+                  description="Öffnet das Profil des Spielers."
+                />
+                <LegendRow
+                  symbol={<Timer size={16} aria-hidden="true" />}
+                  label="Gedrückt halten"
+                  description="Nimmt ihn aus der Aufstellung — der Ring füllt sich, dann wandert er auf die Bank."
+                />
+                <LegendRow
+                  symbol={<MoveHorizontal size={16} aria-hidden="true" />}
+                  label="Ziehen"
+                  description="Verschiebt ihn innerhalb seiner Reihe. Auf einen anderen Platz als den seiner Position lässt er sich nicht legen."
                 />
               </LegendSection>
             )}

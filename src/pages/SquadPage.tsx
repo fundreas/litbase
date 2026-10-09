@@ -632,6 +632,7 @@ function SquadViews({
           <LineupTab
             squad={squad}
             editor={editor}
+            leagueId={leagueId}
             fixtureByTeamId={fixtureByTeamId}
             matchday={day}
             startProbabilities={startProbabilities}

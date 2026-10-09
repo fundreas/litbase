@@ -798,6 +798,7 @@ function WhatIfScenario({
           <LineupTab
             squad={remaining}
             editor={editor}
+            leagueId={leagueId}
             fixtureByTeamId={fixtureByTeamId}
             matchday={day}
             startProbabilities={startProbabilities}

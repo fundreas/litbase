@@ -6,6 +6,7 @@ import {
   useState,
   type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 
@@ -14,12 +15,35 @@ import type { PositionKey } from '@/api/models'
 /**
  * How far the pointer has to travel before a tap becomes a drag.
  *
- * The same portrait is both a button (tap removes the player) and a drag
- * handle, so the two gestures are told apart by distance rather than by giving
- * dragging its own affordance. A few pixels of slop is what a finger produces
- * on a tap; below that the gesture stays a tap and the click runs as before.
+ * The same portrait carries three gestures — tap opens the player, a hold
+ * benches him, a drag moves him along his row — so they are told apart by
+ * distance and time rather than by giving each one its own affordance. A few
+ * pixels of slop is what a finger produces on a tap; below that the gesture is
+ * still a press, and the click that follows still runs as before.
  */
 const DRAG_THRESHOLD_PX = 6
+
+/**
+ * How long the portrait has to be held before the player is benched.
+ *
+ * Long enough that no tap reaches it — a deliberate tap is well under 200ms,
+ * and taking a player off the pitch is the destructive half of this control.
+ * Short enough that the hold does not feel stuck: the ring that fills over
+ * exactly this duration is what makes the wait legible, so the number is
+ * exported and the animation is timed from it rather than from a CSS literal
+ * that could drift away from it.
+ */
+export const LONG_PRESS_MS = 420
+
+/**
+ * How long a completed hold keeps swallowing clicks.
+ *
+ * The release after a hold normally fires a click, which {@link LineupDrag.isTap}
+ * consumes — but a hold that ends outside the portrait produces none, and the
+ * flag would then eat the next activation of *any* portrait, including a
+ * keyboard one that has no `pointerdown` to reset it. This is the backstop.
+ */
+const CLICK_GRACE_MS = 500
 
 export interface DraggablePlayer {
   id: string
@@ -36,6 +60,9 @@ export interface DragHandleProps {
   onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void
   onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void
   onDragStart: (event: ReactDragEvent<HTMLElement>) => void
+  /** A hold is this control's own gesture; the browser must not claim it. */
+  onContextMenu: (event: ReactMouseEvent<HTMLElement>) => void
+  draggable: false
 }
 
 export interface LineupDrag<T extends DraggablePlayer> {
@@ -43,13 +70,20 @@ export interface LineupDrag<T extends DraggablePlayer> {
   order: T[]
   /** The player currently under the pointer, or `null` when idle. */
   dragging: T | null
+  /**
+   * The player being held down, while the hold is still running — the card
+   * draws the filling ring from this, and lets go of it the moment the gesture
+   * turns into a drag or the hold completes.
+   */
+  pressingId: string | null
   /** Attach to the floating portrait; it is positioned imperatively. */
   ghostRef: (node: HTMLElement | null) => void
   dragProps: (player: T) => DragHandleProps
   /**
-   * Whether the gesture that just ended was a tap rather than a drag — call it
-   * from `onClick` before acting, or dropping a player also removes him.
-   * Calling it consumes the verdict, so call it once per click.
+   * Whether the gesture that just ended was a tap rather than a drag or a
+   * completed hold — call it from `onClick` before acting, or dropping a
+   * player also opens him, and benching him opens him too. Calling it consumes
+   * the verdict, so call it once per click.
    */
   isTap: () => boolean
 }
@@ -85,7 +119,26 @@ export function moveTo(
 }
 
 /**
- * Drag-and-drop reordering of players inside their position row.
+ * The three gestures a fielded portrait carries: tap, hold, drag.
+ *
+ * ## Why one hook owns all three
+ *
+ * They start identically — a finger on a portrait — and only diverge by what
+ * happens next: travel past {@link DRAG_THRESHOLD_PX} makes it a drag, time
+ * past {@link LONG_PRESS_MS} makes it a hold, an early release leaves it a tap.
+ * Split across two hooks they would race: the hold would fire under a finger
+ * that had already begun to carry a player along his row. So the press is one
+ * state machine, and the hook hands the view back only the verdict — the
+ * reorder, the `onLongPress`, or an `isTap` that lets the click through to the
+ * player's page.
+ *
+ * ## Why the hold is the destructive one
+ *
+ * Tapping a portrait used to take the player off the pitch, which put the
+ * cheap gesture on the irreversible edit and left no gesture at all for
+ * reading the player. Now the tap opens him and the hold benches him: the
+ * edit costs deliberate effort, and the ring filling under the finger says so
+ * before it commits.
  *
  * ## Why pointer events rather than HTML5 drag-and-drop
  *
@@ -115,13 +168,23 @@ export function moveTo(
 export function useLineupDrag<T extends DraggablePlayer>({
   items,
   onReorder,
+  onLongPress,
 }: {
   items: T[]
   /** Called with the complete new id order once a drag is released. */
   onReorder: (orderedIds: string[]) => void
+  /**
+   * Called when a portrait has been held for {@link LONG_PRESS_MS} without
+   * travelling — the gesture that takes a player off the pitch. Fires while the
+   * finger is still down, which is what makes the hold feel like it *did*
+   * something rather than like a tap that was slow.
+   */
+  onLongPress?: (player: T) => void
 }): LineupDrag<T> {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [previewIds, setPreviewIds] = useState<string[] | null>(null)
+  /** Who is being held right now — the card draws its ring from this. */
+  const [pressingId, setPressingId] = useState<string | null>(null)
 
   /** Where the gesture began, until it is known to be a drag. */
   const startRef = useRef<{
@@ -129,12 +192,19 @@ export function useLineupDrag<T extends DraggablePlayer>({
     x: number
     y: number
     player: T
+    /** The portrait itself, so the hold can let go of the capture it took. */
+    node: HTMLElement
     /** Pointer offset from the portrait's centre, so it does not jump. */
     grabX: number
     grabY: number
   } | null>(null)
   /** True once the threshold was passed — read by `isTap` in the click. */
   const didDragRef = useRef(false)
+  /** True once a hold has fired — same effect on the click, different cause. */
+  const didPressRef = useRef(false)
+  /** The running hold, and the backstop that un-swallows a lost click. */
+  const pressTimerRef = useRef<number | null>(null)
+  const graceTimerRef = useRef<number | null>(null)
   const previewRef = useRef<string[] | null>(null)
   const ghostNodeRef = useRef<HTMLElement | null>(null)
   const ghostPointRef = useRef({ x: 0, y: 0 })
@@ -144,12 +214,33 @@ export function useLineupDrag<T extends DraggablePlayer>({
     setPreviewIds(ids)
   }, [])
 
+  const cancelPress = useCallback(() => {
+    if (pressTimerRef.current !== null) {
+      window.clearTimeout(pressTimerRef.current)
+      pressTimerRef.current = null
+    }
+    setPressingId(null)
+  }, [])
+
   const stop = useCallback(() => {
     startRef.current = null
     ghostNodeRef.current = null
+    cancelPress()
     setDraggingId(null)
     setPreview(null)
-  }, [setPreview])
+  }, [cancelPress, setPreview])
+
+  // Nothing survives the pitch going away: a hold that fired after unmount
+  // would bench a player on a view the manager has already left.
+  useEffect(
+    () => () => {
+      if (pressTimerRef.current !== null)
+        window.clearTimeout(pressTimerRef.current)
+      if (graceTimerRef.current !== null)
+        window.clearTimeout(graceTimerRef.current)
+    },
+    [],
+  )
 
   // Escape aborts mid-drag and puts the row back the way it was. `didDragRef`
   // deliberately stays set: the click that follows the release is still not a
@@ -240,18 +331,55 @@ export function useLineupDrag<T extends DraggablePlayer>({
     onPointerDown: (event) => {
       if (event.pointerType === 'mouse' && event.button !== 0) return
       didDragRef.current = false
-      const rect = event.currentTarget.getBoundingClientRect()
+      didPressRef.current = false
+      const node = event.currentTarget
+      const rect = node.getBoundingClientRect()
       startRef.current = {
         pointerId: event.pointerId,
         x: event.clientX,
         y: event.clientY,
         player,
+        node,
         grabX: rect.left + rect.width / 2 - event.clientX,
         grabY: rect.top + rect.height / 2 - event.clientY,
       }
       // Capture, so the rest of the gesture is delivered here even though the
       // pointer immediately leaves this portrait.
-      event.currentTarget.setPointerCapture(event.pointerId)
+      node.setPointerCapture(event.pointerId)
+
+      // The hold starts counting from the first contact. It is armed for every
+      // press, because a press is not yet a tap or a drag — whichever of the
+      // three the gesture turns out to be, it starts exactly like this.
+      setPressingId(player.id)
+      pressTimerRef.current = window.setTimeout(() => {
+        pressTimerRef.current = null
+        const start = startRef.current
+        if (start === null) return
+
+        // The gesture is over the moment the hold lands: clearing `startRef`
+        // is what makes the move and up handlers below ignore the rest of it,
+        // so a finger that drifts afterwards cannot also start a drag.
+        startRef.current = null
+        setPressingId(null)
+        didPressRef.current = true
+        if (graceTimerRef.current !== null)
+          window.clearTimeout(graceTimerRef.current)
+        graceTimerRef.current = window.setTimeout(() => {
+          didPressRef.current = false
+        }, CLICK_GRACE_MS)
+
+        // Hand the pointer back. The card is about to animate off the pitch,
+        // and a capture held by a node that is unmounting pins events to it.
+        if (start.node.hasPointerCapture(start.pointerId))
+          start.node.releasePointerCapture(start.pointerId)
+
+        // A bench is a destructive edit made without looking at a dialog, so
+        // it gets the one confirmation a phone can give. Absent on desktop and
+        // on iOS, where it is silently nothing.
+        navigator.vibrate?.(12)
+
+        onLongPress?.(start.player)
+      }, LONG_PRESS_MS)
     },
 
     onPointerMove: (event) => {
@@ -264,6 +392,10 @@ export function useLineupDrag<T extends DraggablePlayer>({
           event.clientY - start.y,
         )
         if (distance < DRAG_THRESHOLD_PX) return
+        // Travel means this was never a hold. Carrying a player along his row
+        // and taking him off the pitch are different intentions, and the one
+        // the finger is already expressing wins.
+        cancelPress()
         didDragRef.current = true
         setDraggingId(player.id)
         setPreview(items.map((item) => item.id))
@@ -293,6 +425,14 @@ export function useLineupDrag<T extends DraggablePlayer>({
     },
 
     onKeyDown: (event) => {
+      // Keyboard parity for the hold, which is as unreachable as a drag
+      // without a pointer. Delete over a selected thing is the gesture every
+      // other list on a keyboard uses for "take this one out".
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault()
+        onLongPress?.(player)
+        return
+      }
       // Keyboard parity for the same edit: a drag is unreachable without a
       // pointer, and the arrows read as "move him along the row".
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
@@ -310,9 +450,18 @@ export function useLineupDrag<T extends DraggablePlayer>({
       )
     },
 
-    // The portrait contains an `<img>`, which the browser would happily start
-    // a native drag on, cancelling the pointer capture halfway through.
+    // The portrait contains an `<img>` inside a link, both of which the
+    // browser would happily start a native drag on, cancelling the pointer
+    // capture halfway through.
+    draggable: false,
     onDragStart: (event) => {
+      event.preventDefault()
+    },
+
+    // A hold on a link is the browser's own gesture too — the context menu on
+    // a desktop, the link callout on a phone. Here the hold means something
+    // else, so the native one is refused.
+    onContextMenu: (event) => {
       event.preventDefault()
     },
   })
@@ -320,16 +469,19 @@ export function useLineupDrag<T extends DraggablePlayer>({
   return {
     order,
     dragging,
+    pressingId,
     ghostRef,
     dragProps,
-    // Reading the flag also clears it. A drag that produced no click at all
-    // would otherwise leave it set, and the next activation of *any* portrait
+    // Reading the flags also clears them. A drag that produced no click at all
+    // would otherwise leave one set, and the next activation of *any* portrait
     // — a keyboard Enter, which has no `pointerdown` to reset it — would be
-    // swallowed as if it were the tail of that drag.
+    // swallowed as if it were the tail of that drag. The hold's flag carries a
+    // timed backstop for the same reason; see `CLICK_GRACE_MS`.
     isTap: () => {
-      const wasDrag = didDragRef.current
+      const wasGesture = didDragRef.current || didPressRef.current
       didDragRef.current = false
-      return !wasDrag
+      didPressRef.current = false
+      return !wasGesture
     },
   }
 }
