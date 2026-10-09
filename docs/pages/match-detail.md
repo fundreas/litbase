@@ -908,6 +908,58 @@ them and a 30px portrait does not.
 Players with no points sort **last**, not as zero, and two unknowns fall back to
 the name so the order stays stable while the fan-out lands one player at a time.
 
+### Before kick-off it ranks the predictions
+
+Between the sheets being published and the first whistle — the hour this tab is
+most worth opening, because a lineup is still yours to change — every figure in
+the match is unknown. The list was twenty-two dashes in alphabetical order, and
+a ranking ordered by surname is not a ranking.
+
+So for exactly that window the figure column carries
+[expected points](squad.md#erwartete-punkte) and the list is **ranked by them**:
+
+| | |
+| --- | --- |
+| Your own guess for that player | wins, always — accent green |
+| Otherwise the [pointcast](../pointcast.md) prediction | orange, dashed edge |
+| Neither | `–`, and he sorts to the foot of the list |
+
+That precedence is not this list's to invent. It is
+[`expectedPointsView`](../../src/lib/expectedPoints.ts) — the same resolution
+the Kader, the market, a club's roster and both duel views read — so a player
+you have overruled on your own squad is overruled here too, and the figure is
+the one cached file per matchday rather than a request of this page's own.
+
+The chip **replaces** the dash rather than sitting beside it. On a
+[duel row](duel-detail.md#the-ranking-tab) the two coexist because the figure
+there is a kick-off time, which says something the chip does not; here the
+whole page is one match whose kick-off the header already gives, so a column of
+dashes beside a column of chips would be the same emptiness printed twice.
+
+**Only while the fixture is `upcoming`.** Once a match is running its figures
+are facts, and a list mixing one club's real scores with the other's
+predictions would rank the two against each other as though they were the same
+kind of number. The chips go at kick-off, which is also the moment the first
+real figure arrives to take their place. The state comes from the fixture, like
+everything else on this page — so `npm run dev:live` exercises both sides of
+the switch.
+
+In *Nach Verein* the club heading follows the rows: its total becomes the
+**projection**, the sum of the same figures, drawn as the target glyph and the
+feature's two colours rather than as a bare bold number. Substitutes are in it
+exactly as they are in the real total — a bench player's prediction is already
+weighted by how likely he is to play, so it is the club's expected yield and
+not eighteen starters. The pitch's corner label still reads `–` in that window
+and the two do not contradict each other: one says *no points yet*, the other
+*expected to bring*, and only the second is a claim this tab is in a position
+to make, because only this tab is ordering by it.
+
+The window has a floor: with **no team sheets at all** the ranking is still an
+`EmptyState`, because there are no rows to rank. The predictions reach this tab
+through the players Kickbase has named, not through
+[pointcast's own expected eleven](../pointcast.md#expected-lineups) — that one
+is the [Aufstellung](#aufstellung--both-team-sheets) tab's fallback.
+
 **It shares the pitch's queries.** Both tabs are rendered by one `SquadsView`
 inside the page, so flicking between them costs nothing — they are two readings
 of the same set of requests, exactly as the duel page's two views are.
@@ -922,6 +974,8 @@ of the same set of requests, exactly as the duel page's two views are.
 | Match payload error | `ErrorState` with retry |
 | Points still arriving | The pitch renders; a spinner and *Punkte werden geladen …* under it |
 | No team sheets yet, Ranking tab | `EmptyState` — the pitch has its own sentence on the grass |
+| Sheets out, not kicked off | Rows ranked by [expected points](#before-kick-off-it-ranks-the-predictions); club headings show the projection |
+| Sheets out, no prediction and no guess | `–` as before, and those players sort last |
 
 ## Possible extensions
 

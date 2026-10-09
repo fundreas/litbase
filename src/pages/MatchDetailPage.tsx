@@ -248,10 +248,17 @@ function SquadsView({
 
   if (view === VIEWS.ranking) {
     return (
+      /* `day` and `state` are what let the list rank the **predictions**
+         before kick-off instead of twenty-two dashes in alphabetical order —
+         see [`MatchRankingTab`](../components/matchday/MatchRankingTab.tsx).
+         Both come from the fixture, this page's one source of truth about
+         which matchday it is and whether the match is on. */
       <MatchRankingTab
         home={lineup.home}
         away={lineup.away}
         leagueId={leagueId}
+        day={day}
+        state={state}
       />
     )
   }

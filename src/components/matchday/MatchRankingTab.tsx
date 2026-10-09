@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 
 import {
   POSITION_LABEL,
+  type FixtureState,
   type MatchLineup,
   type MatchPlayer,
   type MatchTeam,
@@ -19,10 +20,21 @@ import {
   isScore,
 } from '@/components/player/playerFigure'
 import { MatchRoleMark } from '@/components/player/statGlyphs'
+import {
+  ExpectedPointsBadge,
+  ProjectedPointsFigure,
+} from '@/components/squad/ExpectedPointsBadge'
+import { projectedDescription } from '@/components/squad/expectedPointsLabels'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { PairToggle } from '@/components/ui/PairToggle'
 import { EmptyState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
+import {
+  isProjection,
+  projectedPointsTotal,
+  type ExpectedPointsView,
+} from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import { readString, writeString } from '@/lib/storage'
 
@@ -66,18 +78,51 @@ type RankingView = 'combined' | 'perTeam'
  * A player with no points sorts **last** rather than as zero — not knowing is
  * not the same as nothing, the rule [`byMatchdayPoints`](../../api/models.ts)
  * holds for the duel list and this repeats for its own model.
+ *
+ * ## Before kick-off it ranks the predictions instead
+ *
+ * Between the team sheets being published and the first whistle — the hour
+ * this tab is most worth opening, because the lineup is still yours to
+ * change — every figure in the match is unknown, so the list was twenty-two
+ * dashes in alphabetical order. A ranking ordered by surname is not a ranking.
+ *
+ * So for exactly that window the rows carry
+ * [expected points](../squad/ExpectedPointsBadge.tsx) and are **ranked by
+ * them**: the reader's own guess where he made one, the
+ * [pointcast](../../api/hooks/usePointcast.ts) prediction everywhere else.
+ * That precedence is not this list's to invent — it is
+ * [`expectedPointsView`](../../lib/expectedPoints.ts), the one the Kader, the
+ * market and both duel views already read, so a player a reader has overruled
+ * is overruled here too.
+ *
+ * **Only while `state` is `upcoming`.** The moment a match is running its
+ * figures are facts, and a list that mixed one club's real scores with the
+ * other's predictions would rank them against each other as if they were the
+ * same kind of number. The chips disappear at kick-off, which is also when the
+ * first real figure arrives to take their place.
  */
 export function MatchRankingTab({
   home,
   away,
   leagueId,
+  day,
+  state,
 }: {
   home: MatchLineup
   away: MatchLineup
   leagueId: string
+  /** The matchday, for the predictions and the reader's own guesses. */
+  day: number
+  /** From the fixture, not from the match payload — see the page. */
+  state: FixtureState
 }) {
   const [view, setView] = useRankingView()
-  const combined = rankMatchPlayers(home, away)
+  // Hooked unconditionally and *used* only before kick-off: the file is one
+  // cached request shared with every other screen on this matchday, so asking
+  // for it during a live match costs nothing and keeps the hook order honest.
+  const expectedPoints = useExpectedPointsView(day)
+  const expected = state === 'upcoming' ? expectedPoints : undefined
+  const combined = rankMatchPlayers(expected, home, away)
 
   if (combined.length === 0) {
     return (
@@ -98,13 +143,13 @@ export function MatchRankingTab({
       />
 
       {view === 'combined' ? (
-        <RankedList rows={combined} leagueId={leagueId} />
+        <RankedList rows={combined} leagueId={leagueId} expected={expected} />
       ) : (
         /* Home above away, the order the header's scoreline establishes and
            the one the pitch stacks them in. */
         <div className="flex flex-col gap-4">
-          <TeamRanking lineup={home} leagueId={leagueId} />
-          <TeamRanking lineup={away} leagueId={leagueId} />
+          <TeamRanking lineup={home} leagueId={leagueId} expected={expected} />
+          <TeamRanking lineup={away} leagueId={leagueId} expected={expected} />
         </div>
       )}
     </div>
@@ -161,19 +206,43 @@ function useRankingView(): [RankingView, (view: RankingView) => void] {
  * [`teamPoints`](./teamPoints.ts) the pitch's corner labels use — including
  * substitutes, `–` until the first figure lands — so a reader flicking between
  * the two tabs meets one number, not two that disagree.
+ *
+ * **Before kick-off it is a projection instead**, the sum of the same figures
+ * the rows beneath it now carry — see {@link MatchRankingTab}. It is drawn as
+ * [`ProjectedPointsFigure`](../squad/ExpectedPointsBadge.tsx): the target
+ * glyph and the feature's two colours, which is what keeps it from being read
+ * as a club that has already scored 1.240. The pitch's corner label still says
+ * `–` in that window and the two do not contradict each other — one is "no
+ * points yet", the other "expected to bring", and only the second is a claim
+ * this tab is in a position to make, because only this tab is ranking by it.
  */
 function TeamRanking({
   lineup,
   leagueId,
+  expected,
 }: {
   lineup: MatchLineup
   leagueId: string
+  /** Set only before kick-off — see {@link MatchRankingTab}. */
+  expected?: ExpectedPointsView
 }) {
-  const rows = rankMatchPlayers(lineup)
+  const rows = rankMatchPlayers(expected, lineup)
   const total = teamPoints(lineup)
   const name = lineup.team.name ?? lineup.team.symbol
-  const totalLabel =
-    total === undefined
+  /* Substitutes included, exactly as the real total includes them: a bench
+     player's prediction is already weighted by how likely he is to play, so
+     the sum is the club's expected yield rather than eighteen starters. */
+  const projected =
+    expected === undefined
+      ? undefined
+      : projectedPointsTotal(
+          rows.map((row) => row.player),
+          expected,
+        )
+  const showProjected = projected !== undefined && isProjection(projected)
+  const totalLabel = showProjected
+    ? `${name} — ${projectedDescription(projected)}`
+    : total === undefined
       ? `${name}: noch keine Punkte`
       : `${name}: ${points(total)} Punkte in diesem Spiel`
 
@@ -190,16 +259,26 @@ function TeamRanking({
         <span className="truncate text-xs font-semibold tracking-wide text-muted uppercase">
           {name}
         </span>
-        <span
-          aria-hidden="true"
-          className={cn(
-            'nums ml-auto shrink-0 text-sm font-bold',
-            total === undefined ? 'text-faint' : 'text-ink',
-          )}
-        >
-          {points(total)}
-        </span>
-        <span className="sr-only">{totalLabel}</span>
+        {showProjected ? (
+          <ProjectedPointsFigure
+            projected={projected}
+            iconSize={11}
+            className="ml-auto text-sm"
+          />
+        ) : (
+          <>
+            <span
+              aria-hidden="true"
+              className={cn(
+                'nums ml-auto shrink-0 text-sm font-bold',
+                total === undefined ? 'text-faint' : 'text-ink',
+              )}
+            >
+              {points(total)}
+            </span>
+            <span className="sr-only">{totalLabel}</span>
+          </>
+        )}
       </h3>
 
       {rows.length === 0 ? (
@@ -207,7 +286,7 @@ function TeamRanking({
           Keine Aufstellung veröffentlicht
         </p>
       ) : (
-        <RankedList rows={rows} leagueId={leagueId} />
+        <RankedList rows={rows} leagueId={leagueId} expected={expected} />
       )}
     </section>
   )
@@ -217,9 +296,12 @@ function TeamRanking({
 function RankedList({
   rows,
   leagueId,
+  expected,
 }: {
   rows: RankedPlayer[]
   leagueId: string
+  /** Set only before kick-off — see {@link MatchRankingTab}. */
+  expected?: ExpectedPointsView
 }) {
   return (
     <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
@@ -245,7 +327,7 @@ function RankedList({
             title={`${player.name} · ${team.name ?? team.symbol}`}
             className="flex min-w-0 flex-1 items-stretch transition-colors hover:bg-surface-2/60"
           >
-            <PlayerRow player={player} team={team} />
+            <PlayerRow player={player} team={team} expected={expected} />
           </Link>
         </li>
       ))}
@@ -257,12 +339,21 @@ function RankedList({
  * Players in one list, best first — **one lineup or both**, which is the whole
  * difference between the two readings.
  *
+ * What "best" means is whatever figure the row is showing: the points, or
+ * before kick-off the expected points — so the order and the column always
+ * agree, and a reader never meets a list sorted by a number he cannot see.
+ * The two never mix, because `expected` is only handed in while the match is
+ * `upcoming` and nobody has scored anything then.
+ *
  * Not memoised: the lineups behind it are rebuilt every render by
  * [`useMatchLineup`](../../api/hooks/useMatchLineup.ts) as points arrive, so a
  * memo keyed on them would never hit — the same reasoning the duel rosters
  * carry.
  */
-function rankMatchPlayers(...lineups: MatchLineup[]): RankedPlayer[] {
+function rankMatchPlayers(
+  expected: ExpectedPointsView | undefined,
+  ...lineups: MatchLineup[]
+): RankedPlayer[] {
   const rows: RankedPlayer[] = []
 
   for (const lineup of lineups) {
@@ -271,11 +362,16 @@ function rankMatchPlayers(...lineups: MatchLineup[]): RankedPlayer[] {
     }
   }
 
+  const figure = ({ player }: RankedPlayer): number | undefined =>
+    player.points ?? expected?.entry(player.id)?.value
+
   return rows.sort((a, b) => {
-    const left = a.player.points
-    const right = b.player.points
+    const left = figure(a)
+    const right = figure(b)
     // Unknown sorts last, and two unknowns fall back to the name so the order
-    // stays stable while points land one request at a time.
+    // stays stable while points land one request at a time — and so the
+    // players the model has nothing for sit together at the foot of the list
+    // rather than being scattered through it as zeroes.
     if (left === undefined && right === undefined) {
       return a.player.name.localeCompare(b.player.name)
     }
@@ -312,8 +408,24 @@ function rankMatchPlayers(...lineups: MatchLineup[]): RankedPlayer[] {
  * lists put there and what keeps the line from being empty on a player the
  * match had no events for.
  */
-function PlayerRow({ player, team }: { player: MatchPlayer; team: MatchTeam }) {
+function PlayerRow({
+  player,
+  team,
+  expected,
+}: {
+  player: MatchPlayer
+  team: MatchTeam
+  /** Set only before kick-off — see {@link MatchRankingTab}. */
+  expected?: ExpectedPointsView
+}) {
   const figure = matchPlayerFigure(player)
+  /* The chip **replaces** the dash rather than joining it. On the duel row the
+     two sit side by side because the figure there is a kick-off time, which
+     says something the chip does not; here the whole page is one match and the
+     figure before it starts is `–`, so a column of dashes beside a column of
+     chips would be the same emptiness printed twice. */
+  const entry =
+    player.points === undefined ? expected?.entry(player.id) : undefined
 
   return (
     <div className="flex min-w-0 flex-1 items-stretch">
@@ -371,15 +483,19 @@ function PlayerRow({ player, team }: { player: MatchPlayer; team: MatchTeam }) {
           <OwnerBadge owner={player.owner} size={20} />
         )}
 
-        <span
-          aria-label={figureDescription(figure)}
-          className={cn(
-            'nums shrink-0 text-sm font-semibold',
-            isScore(figure) ? 'text-ink' : 'text-faint',
-          )}
-        >
-          {figureLabel(figure)}
-        </span>
+        {entry === undefined ? (
+          <span
+            aria-label={figureDescription(figure)}
+            className={cn(
+              'nums shrink-0 text-sm font-semibold',
+              isScore(figure) ? 'text-ink' : 'text-faint',
+            )}
+          >
+            {figureLabel(figure)}
+          </span>
+        ) : (
+          <ExpectedPointsBadge value={entry.value} isForecast={!entry.isOwn} />
+        )}
       </div>
     </div>
   )
