@@ -20,6 +20,7 @@ import {
   type TeamSquadPlayer,
   type TeamStanding,
 } from '@/api/models'
+import { LigainsiderLink } from '@/components/LigainsiderLink'
 import { Avatar } from '@/components/ui/Avatar'
 import { Card, CardHeader, StatTile } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
@@ -70,6 +71,8 @@ export function TeamOverviewTab({
   isPointsPending,
   teams,
   leagueId,
+  teamId,
+  teamName,
 }: {
   standing: TeamStanding | undefined
   /** The whole table, for grading the ticker's opponents. */
@@ -84,6 +87,9 @@ export function TeamOverviewTab({
   isPointsPending: boolean
   teams: Map<string, TeamSummary> | undefined
   leagueId: string
+  /** The club itself, for the link out to its news. */
+  teamId: string
+  teamName: string | undefined
 }) {
   const placementByTeamId = useMemo(
     () => new Map((table ?? []).map((row) => [row.teamId, row.placement])),
@@ -123,6 +129,11 @@ export function TeamOverviewTab({
         isPointsPending={isPointsPending}
         leagueId={leagueId}
       />
+
+      {/* Sixth and last, and not a card of this app's: the club's news on
+          ligainsider, which is where the injuries and line-up hints the
+          cards above cannot show are written up. */}
+      <LigainsiderLink kind="team" id={teamId} name={teamName} />
     </div>
   )
 }

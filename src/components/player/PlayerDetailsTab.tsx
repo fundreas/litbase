@@ -10,6 +10,7 @@ import {
   type PlayerMatch,
   type PlayerOwnership,
 } from '@/api/models'
+import { LigainsiderLink } from '@/components/LigainsiderLink'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { PlayerMatchRow } from '@/components/player/PlayerMatchRow'
 import {
@@ -183,6 +184,10 @@ export function PlayerDetailsTab({
           )}
         </Card>
       )}
+
+      {/* Last, after everything the app knows: where to read what it does not
+          — the injury, the line-up hint, the transfer rumour. */}
+      <LigainsiderLink kind="player" id={player.id} name={player.fullName} />
 
       {/* Every row here is this season's, so the breakdown needs no `seasonId`
           and the match page can always resolve the fixture. Keyed by the match

@@ -193,6 +193,7 @@ lands.
 | Manager | `transferHistory` + `marketvalue/365` — see [Ownership](#ownership) |
 | Saisonstatistik | `sec` (÷60), `g`, `a`, `y`, `r`, `cs`, plus appearances in the header |
 | Spiele | the days `mdsum` names, rendered as full match rows |
+| News auf LigaInsider | a link to his ligainsider page — see [ligainsider](../ligainsider.md) |
 
 **Spiele are the same rows as the Leistung tab.**
 [`PlayerMatchRow`](../../src/components/player/PlayerMatchRow.tsx) is shared, so
@@ -221,6 +222,12 @@ one is optional in the DTO and defaulted in the mapper.
 "penalties scored", the company it keeps says "saved", and every player in the
 probe had `0` because the season was one matchday old. The confirmed half of
 that — a saved penalty — shows up as a per-match event instead.
+
+**The last row leaves the app.** Injuries, line-up hints and transfer talk are
+written up on [ligainsider.de](../ligainsider.md), which the browser cannot read
+and the app can only link to. The row opens the player's page there in a new
+tab, and is absent for a player the link table does not know rather than
+present and apologetic.
 
 ## Leistung tab
 

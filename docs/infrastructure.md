@@ -297,6 +297,7 @@ chunk split pay off, are in [Building and deploying](deployment.md).
 | `npm run format` | Prettier write |
 | `npm run format:check` | Prettier check |
 | `npm run check` | typecheck + lint + format check |
+| `npm run ligainsider` | Rebuild the [ligainsider link table](ligainsider.md) in `public/` — after a transfer window |
 
 `@/*` resolves to `src/*`, aliased in both `vite.config.ts` and
 `tsconfig.app.json`.

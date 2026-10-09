@@ -248,6 +248,8 @@ export function TeamDetailPage() {
             isPointsPending={teamPoints.isPending}
             teams={teams.data}
             leagueId={leagueId}
+            teamId={teamId ?? ''}
+            teamName={profile.data?.teamName ?? standing?.row.teamName}
           />
         )}
 

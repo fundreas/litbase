@@ -191,6 +191,15 @@ ranking them level with a genuine nought would put whoever the network was
 slowest about at the bottom of a list about merit. The same rule the duel and
 match rankings hold.
 
+### News auf LigaInsider
+
+The sixth block is not a card of this app's: a link to the club's news page on
+[ligainsider.de](../ligainsider.md), opened in a new tab. It is where the
+injuries and line-up hints the five cards above cannot show are written up, and
+a link is all a static app can offer of a site that sends no CORS headers. It
+sits last because it is where to go *next*, and it is absent — not greyed —
+for a club the link table does not know.
+
 ## Kader
 
 The tab the page is worth building for — and, since 2026-09-05, one request.

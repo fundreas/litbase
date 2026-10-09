@@ -43,6 +43,13 @@ export const qk = {
     list: () => [...qk.competitions.all, 'list'] as const,
   },
 
+  /**
+   * The ligainsider link table — one static file shipped with the app, see
+   * [`useLigainsider`](./hooks/useLigainsider.ts). Scoped to nothing: it is a
+   * property of the build, not of a league or a competition.
+   */
+  ligainsider: ['ligainsider'] as const,
+
   league: (leagueId: string) => ['league', leagueId] as const,
   leagueMe: (leagueId: string) => [...qk.league(leagueId), 'me'] as const,
   leagueOverview: (leagueId: string) =>

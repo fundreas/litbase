@@ -14,6 +14,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | [API layer](api-layer.md) | The axios instance, endpoint registry, wire DTOs → domain models, query keys and caching policy |
 | [Kickbase API reference](api/README.md) | Every endpoint the app calls, by resource: parameters, response fields, and what is still guesswork |
 | [pointcast](pointcast.md) | The second API: expected points and the player rankings, served as static JSON |
+| [ligainsider](ligainsider.md) | The link table to ligainsider.de: how it is built, why it is a link and not the news |
 | [Routing and layout](routing-and-layout.md) | Route table, auth and league guards, the app shell, header and drawer |
 | [Authentication](authentication.md) | Login, token persistence, silent renewal, and why there is no refresh token |
 | [Building and deploying](deployment.md) | `npm run build`, the Docker image, and how nginx serves the SPA |

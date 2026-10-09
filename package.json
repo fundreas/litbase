@@ -15,7 +15,8 @@
     "lint:fix": "oxlint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm run lint && npm run format:check"
+    "check": "npm run typecheck && npm run lint && npm run format:check",
+    "ligainsider": "node scripts/ligainsider/build.mjs"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.2.6",

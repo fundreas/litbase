@@ -1,0 +1,1946 @@
+{
+  "generatedAt": "2026-10-09T16:44:59.366Z",
+  "baseUrl": "https://www.ligainsider.de",
+  "teams": {
+    "2": {
+      "id": "1",
+      "path": "fc-bayern-muenchen/1",
+      "name": "FC Bayern München"
+    },
+    "3": {
+      "id": "14",
+      "path": "borussia-dortmund/14",
+      "name": "Borussia Dortmund"
+    },
+    "4": {
+      "id": "3",
+      "path": "eintracht-frankfurt/3",
+      "name": "Eintracht Frankfurt"
+    },
+    "5": {
+      "id": "18",
+      "path": "sc-freiburg/18",
+      "name": "SC Freiburg"
+    },
+    "6": {
+      "id": "9",
+      "path": "hamburger-sv/9",
+      "name": "Hamburger SV"
+    },
+    "7": {
+      "id": "4",
+      "path": "bayer-04-leverkusen/4",
+      "name": "Bayer 04 Leverkusen"
+    },
+    "8": {
+      "id": "13",
+      "path": "fc-schalke-04/13",
+      "name": "FC Schalke 04"
+    },
+    "9": {
+      "id": "12",
+      "path": "vfb-stuttgart/12",
+      "name": "VfB Stuttgart"
+    },
+    "10": {
+      "id": "2",
+      "path": "sv-werder-bremen/2",
+      "name": "SV Werder Bremen"
+    },
+    "13": {
+      "id": "21",
+      "path": "fc-augsburg/21",
+      "name": "FC Augsburg"
+    },
+    "14": {
+      "id": "10",
+      "path": "tsg-hoffenheim/10",
+      "name": "TSG Hoffenheim"
+    },
+    "15": {
+      "id": "5",
+      "path": "borussia-moenchengladbach/5",
+      "name": "Borussia Mönchengladbach"
+    },
+    "18": {
+      "id": "17",
+      "path": "1-fsv-mainz-05/17",
+      "name": "1. FSV Mainz 05"
+    },
+    "28": {
+      "id": "15",
+      "path": "1-fc-koeln/15",
+      "name": "1. FC Köln"
+    },
+    "29": {
+      "id": "1249",
+      "path": "sc-paderborn-07/1249",
+      "name": "SC Paderborn 07"
+    },
+    "40": {
+      "id": "1246",
+      "path": "1-fc-union-berlin/1246",
+      "name": "1. FC Union Berlin"
+    },
+    "43": {
+      "id": "1311",
+      "path": "rb-leipzig/1311",
+      "name": "RB Leipzig"
+    },
+    "77": {
+      "id": "1331",
+      "path": "sv-07-elversberg/1331",
+      "name": "SV 07 Elversberg"
+    }
+  },
+  "players": {
+    "4": {
+      "id": "1685",
+      "path": "janis-blaswich_1685"
+    },
+    "32": {
+      "id": "1641",
+      "path": "loris-karius_1641"
+    },
+    "43": {
+      "id": "1720",
+      "path": "mitchell-weiser_1720"
+    },
+    "49": {
+      "id": "1835",
+      "path": "matthias-ginter_1835"
+    },
+    "51": {
+      "id": "2122",
+      "path": "rani-khedira_2122"
+    },
+    "54": {
+      "id": "1812",
+      "path": "emre-can_1812"
+    },
+    "60": {
+      "id": "1821",
+      "path": "dominik-kohr_1821"
+    },
+    "72": {
+      "id": "4530",
+      "path": "mark-flekken_4530"
+    },
+    "75": {
+      "id": "1981",
+      "path": "patrick-drewes_1981"
+    },
+    "78": {
+      "id": "2362",
+      "path": "jonas-hofmann_2362"
+    },
+    "89": {
+      "id": "2153",
+      "path": "christian-guenter_2153"
+    },
+    "118": {
+      "id": "2361",
+      "path": "vincenzo-grifo_2361"
+    },
+    "157": {
+      "id": "2441",
+      "path": "niklas-stark_2441"
+    },
+    "168": {
+      "id": "2391",
+      "path": "sven-michel_2391"
+    },
+    "173": {
+      "id": "2385",
+      "path": "jonathan-tah_2385"
+    },
+    "237": {
+      "id": "114",
+      "path": "manuel-neuer_114"
+    },
+    "357": {
+      "id": "727",
+      "path": "jens-grahl_727"
+    },
+    "383": {
+      "id": "205",
+      "path": "sven-ulreich_205"
+    },
+    "417": {
+      "id": "613",
+      "path": "ron-robert-zieler_613"
+    },
+    "461": {
+      "id": "643",
+      "path": "timothy-chandler_643"
+    },
+    "493": {
+      "id": "1512",
+      "path": "michael-gregoritsch_1512"
+    },
+    "513": {
+      "id": "501",
+      "path": "mario-goetze_501"
+    },
+    "524": {
+      "id": "567",
+      "path": "oliver-baumann_567"
+    },
+    "550": {
+      "id": "521",
+      "path": "stefan-bell_521"
+    },
+    "577": {
+      "id": "499",
+      "path": "daniel-batz_499"
+    },
+    "608": {
+      "id": "1867",
+      "path": "niclas-fuellkrug_1867"
+    },
+    "619": {
+      "id": "692",
+      "path": "kevin-stoeger_692"
+    },
+    "620": {
+      "id": "1781",
+      "path": "alexander-schwolow_1781"
+    },
+    "663": {
+      "id": "2590",
+      "path": "robert-andrich_2590"
+    },
+    "670": {
+      "id": "2676",
+      "path": "kenan-karaman_2676"
+    },
+    "737": {
+      "id": "2594",
+      "path": "luca-waldschmidt_2594"
+    },
+    "755": {
+      "id": "1316",
+      "path": "kevin-mueller_1316"
+    },
+    "849": {
+      "id": "6321",
+      "path": "tim-kleindienst_6321"
+    },
+    "859": {
+      "id": "5825",
+      "path": "jan-gyamerah_5825"
+    },
+    "1012": {
+      "id": "4755",
+      "path": "edin-dzeko_4755"
+    },
+    "1223": {
+      "id": "3296",
+      "path": "marvin-friedrich_3296"
+    },
+    "1225": {
+      "id": "2452",
+      "path": "leopold-zingerle_2452"
+    },
+    "1246": {
+      "id": "1667",
+      "path": "willi-orban_1667"
+    },
+    "1257": {
+      "id": "1935",
+      "path": "lukas-kuebler_1935"
+    },
+    "1333": {
+      "id": "5622",
+      "path": "lukas-klostermann_5622"
+    },
+    "1540": {
+      "id": "650",
+      "path": "danny-da-costa_650"
+    },
+    "1553": {
+      "id": "3616",
+      "path": "janik-haberer_3616"
+    },
+    "1580": {
+      "id": "2626",
+      "path": "marvin-schwaebe_2626"
+    },
+    "1590": {
+      "id": "3298",
+      "path": "robin-zentner_3298"
+    },
+    "1639": {
+      "id": "5815",
+      "path": "nadiem-amiri_5815"
+    },
+    "1645": {
+      "id": "6131",
+      "path": "maximilian-eggestein_6131"
+    },
+    "1664": {
+      "id": "6206",
+      "path": "maximilian-mittelstaedt_6206"
+    },
+    "1671": {
+      "id": "5816",
+      "path": "grischa-proemel_5816"
+    },
+    "1685": {
+      "id": "5768",
+      "path": "joshua-kimmich_5768"
+    },
+    "1689": {
+      "id": "5680",
+      "path": "benjamin-henrichs_5680"
+    },
+    "1691": {
+      "id": "6693",
+      "path": "finn-porath_6693"
+    },
+    "1704": {
+      "id": "5837",
+      "path": "waldemar-anton_5837"
+    },
+    "1728": {
+      "id": "6511",
+      "path": "oerjan-nyland_6511"
+    },
+    "1745": {
+      "id": "6545",
+      "path": "amara-conde_6545"
+    },
+    "1767": {
+      "id": "6540",
+      "path": "jannik-huth_6540"
+    },
+    "1809": {
+      "id": "5670",
+      "path": "marius-wolf_5670"
+    },
+    "1811": {
+      "id": "1851",
+      "path": "jeffrey-gouweleeuw_1851"
+    },
+    "1815": {
+      "id": "2439",
+      "path": "andrej-kramaric_2439"
+    },
+    "1856": {
+      "id": "2020",
+      "path": "marcel-sabitzer_2020"
+    },
+    "1858": {
+      "id": "2245",
+      "path": "anthony-jung_2245"
+    },
+    "1863": {
+      "id": "6379",
+      "path": "daniel-heuer-fernandes_6379"
+    },
+    "1865": {
+      "id": "5765",
+      "path": "yussuf-poulsen_5765"
+    },
+    "1873": {
+      "id": "9357",
+      "path": "gregor-kobel_9357"
+    },
+    "1883": {
+      "id": "6295",
+      "path": "moritz-nicolas_6295"
+    },
+    "1889": {
+      "id": "7056",
+      "path": "bakery-jatta_7056"
+    },
+    "1910": {
+      "id": "7609",
+      "path": "florian-mueller_7609"
+    },
+    "1920": {
+      "id": "10454",
+      "path": "serhou-guirassy_10454"
+    },
+    "1954": {
+      "id": "11324",
+      "path": "bernardo_11324"
+    },
+    "1955": {
+      "id": "11325",
+      "path": "oliver-burke_11325"
+    },
+    "1961": {
+      "id": "4815",
+      "path": "serge-gnabry_4815"
+    },
+    "1964": {
+      "id": "10508",
+      "path": "felix-goetze_10508"
+    },
+    "1978": {
+      "id": "6513",
+      "path": "jordan-torunarigha_6513"
+    },
+    "1991": {
+      "id": "11541",
+      "path": "dayot-upamecano_11541"
+    },
+    "1996": {
+      "id": "7047",
+      "path": "marco-friedl_7047"
+    },
+    "2006": {
+      "id": "12798",
+      "path": "stefan-posch_12798"
+    },
+    "2015": {
+      "id": "12780",
+      "path": "raphael-obermair_12780"
+    },
+    "2030": {
+      "id": "7480",
+      "path": "phillip-tietz_7480"
+    },
+    "2038": {
+      "id": "6324",
+      "path": "konrad-laimer_6324"
+    },
+    "2065": {
+      "id": "7041",
+      "path": "felix-uduokhai_7041"
+    },
+    "2068": {
+      "id": "12683",
+      "path": "dan-axel-zagadou_12683"
+    },
+    "2069": {
+      "id": "8912",
+      "path": "timo-huebers_8912"
+    },
+    "2074": {
+      "id": "14139",
+      "path": "robin-hack_14139"
+    },
+    "2084": {
+      "id": "13911",
+      "path": "philipp-lienhart_13911"
+    },
+    "2120": {
+      "id": "13737",
+      "path": "nikolas-nartey_13737"
+    },
+    "2125": {
+      "id": "14520",
+      "path": "niklas-beste_14520"
+    },
+    "2126": {
+      "id": "13968",
+      "path": "nicolas-kuehn_13968"
+    },
+    "2141": {
+      "id": "15835",
+      "path": "ridle-baku_15835"
+    },
+    "2144": {
+      "id": "12490",
+      "path": "robin-koch_12490"
+    },
+    "2148": {
+      "id": "14604",
+      "path": "alexander-meyer_14604"
+    },
+    "2172": {
+      "id": "18542",
+      "path": "chris-fuehrich_18542"
+    },
+    "2176": {
+      "id": "6593",
+      "path": "lucas-hoeler_6593"
+    },
+    "2195": {
+      "id": "18728",
+      "path": "finn-dahmen_18728"
+    },
+    "2199": {
+      "id": "18427",
+      "path": "josha-vagnoman_18427"
+    },
+    "2201": {
+      "id": "18217",
+      "path": "linton-maina_18217"
+    },
+    "2214": {
+      "id": "10442",
+      "path": "atakan-karazor_10442"
+    },
+    "2232": {
+      "id": "2723",
+      "path": "phillipp-mwene_2723"
+    },
+    "2237": {
+      "id": "6395",
+      "path": "fabian-bredlow_6395"
+    },
+    "2247": {
+      "id": "12284",
+      "path": "borna-sosa_12284"
+    },
+    "2255": {
+      "id": "19272",
+      "path": "jonathan-burkardt_19272"
+    },
+    "2261": {
+      "id": "10416",
+      "path": "florian-neuhaus_10416"
+    },
+    "2275": {
+      "id": "18640",
+      "path": "christoph-baumgartner_18640"
+    },
+    "2279": {
+      "id": "7943",
+      "path": "frederik-roennow_7943"
+    },
+    "2294": {
+      "id": "7061",
+      "path": "amos-pieper_7061"
+    },
+    "2300": {
+      "id": "20102",
+      "path": "josip-stanisic_20102"
+    },
+    "2301": {
+      "id": "19164",
+      "path": "oliver-batista-meier_19164"
+    },
+    "2302": {
+      "id": "14145",
+      "path": "wooyeong-jeong_14145"
+    },
+    "2358": {
+      "id": "20244",
+      "path": "tom-krauss_20244"
+    },
+    "2366": {
+      "id": "20098",
+      "path": "alphonso-davies_20098"
+    },
+    "2373": {
+      "id": "20416",
+      "path": "ozan-kabak_20416"
+    },
+    "2383": {
+      "id": "20052",
+      "path": "nico-schlotterbeck_20052"
+    },
+    "2395": {
+      "id": "18478",
+      "path": "julian-ryerson_18478"
+    },
+    "2399": {
+      "id": "15833",
+      "path": "lennard-maloney_15833"
+    },
+    "2400": {
+      "id": "5713",
+      "path": "christopher-trimmel_5713"
+    },
+    "2445": {
+      "id": "5936",
+      "path": "marius-funk_5936"
+    },
+    "2449": {
+      "id": "12138",
+      "path": "heechan-hwang_12138"
+    },
+    "2471": {
+      "id": "8133",
+      "path": "markus-schubert_8133"
+    },
+    "2476": {
+      "id": "21202",
+      "path": "jaesung-lee_21202"
+    },
+    "2491": {
+      "id": "6374",
+      "path": "tim-skarke_6374"
+    },
+    "2495": {
+      "id": "19242",
+      "path": "tim-boss_19242"
+    },
+    "2498": {
+      "id": "7463",
+      "path": "tom-baack_7463"
+    },
+    "2522": {
+      "id": "12557",
+      "path": "david-raum_12557"
+    },
+    "2536": {
+      "id": "13896",
+      "path": "matthias-koebbing_13896"
+    },
+    "2552": {
+      "id": "19202",
+      "path": "marius-buelter_19202"
+    },
+    "2560": {
+      "id": "18612",
+      "path": "philipp-sander_18612"
+    },
+    "2646": {
+      "id": "20640",
+      "path": "sheraldo-becker_20640"
+    },
+    "2661": {
+      "id": "20616",
+      "path": "moussa-diaby_20616"
+    },
+    "2687": {
+      "id": "12446",
+      "path": "christopher-nkunku_12446"
+    },
+    "2694": {
+      "id": "20766",
+      "path": "angelo-stiller_20766"
+    },
+    "2702": {
+      "id": "20728",
+      "path": "eric-martel_20728"
+    },
+    "2714": {
+      "id": "20804",
+      "path": "maximilian-beier_20804"
+    },
+    "2717": {
+      "id": "18702",
+      "path": "robert-skov_18702"
+    },
+    "2718": {
+      "id": "20776",
+      "path": "ellyes-skhiri_20776"
+    },
+    "2722": {
+      "id": "20826",
+      "path": "patrick-osterhage_20826"
+    },
+    "2725": {
+      "id": "18822",
+      "path": "sebastiaan-bornauw_18822"
+    },
+    "2736": {
+      "id": "7791",
+      "path": "ramy-bensebaini_7791"
+    },
+    "2746": {
+      "id": "7794",
+      "path": "patrik-schick_7794"
+    },
+    "2749": {
+      "id": "15810",
+      "path": "steffen-tigges_15810"
+    },
+    "2762": {
+      "id": "11068",
+      "path": "timo-becker_11068"
+    },
+    "2764": {
+      "id": "22010",
+      "path": "yannik-keitel_22010"
+    },
+    "2765": {
+      "id": "21998",
+      "path": "jan-thielmann_21998"
+    },
+    "2783": {
+      "id": "19022",
+      "path": "edmond-tapsoba_19022"
+    },
+    "2803": {
+      "id": "23854",
+      "path": "tim-lemperle_23854"
+    },
+    "2804": {
+      "id": "24149",
+      "path": "jamal-musiala_24149"
+    },
+    "2822": {
+      "id": "21594",
+      "path": "silas_21594"
+    },
+    "2842": {
+      "id": "21590",
+      "path": "felix-agu_21590"
+    },
+    "2846": {
+      "id": "23862",
+      "path": "malik-tillman_23862"
+    },
+    "2850": {
+      "id": "20114",
+      "path": "jan-olschowsky_20114"
+    },
+    "2852": {
+      "id": "24129",
+      "path": "luca-philipp_24129"
+    },
+    "2854": {
+      "id": "24166",
+      "path": "ermedin-demirovic_24166"
+    },
+    "2855": {
+      "id": "23720",
+      "path": "ragnar-ache_23720"
+    },
+    "2862": {
+      "id": "24405",
+      "path": "jens-castrop_24405"
+    },
+    "2863": {
+      "id": "24398",
+      "path": "ansgar-knauff_24398"
+    },
+    "2864": {
+      "id": "24116",
+      "path": "nnamdi-collins_24116"
+    },
+    "2876": {
+      "id": "14580",
+      "path": "ron-schallenberg_14580"
+    },
+    "2887": {
+      "id": "22974",
+      "path": "ritsu-doan_22974"
+    },
+    "2895": {
+      "id": "20674",
+      "path": "paul-nebel_20674"
+    },
+    "2897": {
+      "id": "24546",
+      "path": "rocco-reitz_24546"
+    },
+    "2928": {
+      "id": "20088",
+      "path": "lukas-petkov_20088"
+    },
+    "2939": {
+      "id": "22008",
+      "path": "eren-dinkci_22008"
+    },
+    "2941": {
+      "id": "23700",
+      "path": "joe-scally_23700"
+    },
+    "2967": {
+      "id": "26067",
+      "path": "soufiane-el-faouzi_26067"
+    },
+    "2977": {
+      "id": "24594",
+      "path": "nahuel-noll_24594"
+    },
+    "2988": {
+      "id": "21336",
+      "path": "jamie-leweling_21336"
+    },
+    "3019": {
+      "id": "22000",
+      "path": "noah-atubolu_22000"
+    },
+    "3026": {
+      "id": "26087",
+      "path": "lasse-guenther_26087"
+    },
+    "3027": {
+      "id": "20424",
+      "path": "marvin-pieringer_20424"
+    },
+    "3029": {
+      "id": "24396",
+      "path": "dejan-ljubicic_24396"
+    },
+    "3041": {
+      "id": "1938",
+      "path": "silvan-widmer_1938"
+    },
+    "3063": {
+      "id": "26588",
+      "path": "fabio-chiarodia_26588"
+    },
+    "3069": {
+      "id": "25090",
+      "path": "felix-nmecha_25090"
+    },
+    "3072": {
+      "id": "26101",
+      "path": "jonas-urbig_26101"
+    },
+    "3081": {
+      "id": "26231",
+      "path": "gabriel-vidovic_26231"
+    },
+    "3089": {
+      "id": "26128",
+      "path": "hiroki-ito_26128"
+    },
+    "3102": {
+      "id": "26243",
+      "path": "tom-rothe_26243"
+    },
+    "3120": {
+      "id": "26133",
+      "path": "tom-bischof_26133"
+    },
+    "3124": {
+      "id": "26236",
+      "path": "patrick-wimmer_26236"
+    },
+    "3129": {
+      "id": "27204",
+      "path": "ko-itakura_27204"
+    },
+    "3139": {
+      "id": "18071",
+      "path": "cedric-itten_18071"
+    },
+    "3158": {
+      "id": "21986",
+      "path": "fisnik-asllani_21986"
+    },
+    "3166": {
+      "id": "35787",
+      "path": "keke-topp_35787"
+    },
+    "3176": {
+      "id": "27354",
+      "path": "arijon-ibrahimovic_27354"
+    },
+    "3183": {
+      "id": "26138",
+      "path": "anton-kade_26138"
+    },
+    "3187": {
+      "id": "27369",
+      "path": "andras-schaefer_27369"
+    },
+    "3190": {
+      "id": "12583",
+      "path": "julian-chabot_12583"
+    },
+    "3193": {
+      "id": "24512",
+      "path": "tiago-tomas_24512"
+    },
+    "3204": {
+      "id": "27420",
+      "path": "bambase-conte_27420"
+    },
+    "3209": {
+      "id": "20278",
+      "path": "yannik-engelhardt_20278"
+    },
+    "3218": {
+      "id": "27467",
+      "path": "mio-backhaus_27467"
+    },
+    "3228": {
+      "id": "27480",
+      "path": "justin-njinmah_27480"
+    },
+    "3232": {
+      "id": "19196",
+      "path": "luca-pfeiffer_19196"
+    },
+    "3277": {
+      "id": "26094",
+      "path": "miro-muheim_26094"
+    },
+    "3281": {
+      "id": "24555",
+      "path": "ludovit-reis_24555"
+    },
+    "3284": {
+      "id": "24711",
+      "path": "maximilian-rohr_24711"
+    },
+    "3304": {
+      "id": "25780",
+      "path": "igor-matanovic_25780"
+    },
+    "3307": {
+      "id": "5753",
+      "path": "janik-bachmann_5753"
+    },
+    "3318": {
+      "id": "23911",
+      "path": "ransford-koenigsdoerffer_23911"
+    },
+    "3336": {
+      "id": "27339",
+      "path": "stefano-marino_27339"
+    },
+    "3350": {
+      "id": "27483",
+      "path": "felix-keidel_27483"
+    },
+    "3364": {
+      "id": "1982",
+      "path": "carl-klaus_1982"
+    },
+    "3419": {
+      "id": "11224",
+      "path": "matheo-raab_11224"
+    },
+    "3450": {
+      "id": "15549",
+      "path": "markus-kolke_15549"
+    },
+    "3453": {
+      "id": "14385",
+      "path": "derrick-koehn_14385"
+    },
+    "3470": {
+      "id": "26102",
+      "path": "anthony-caci_26102"
+    },
+    "3471": {
+      "id": "24095",
+      "path": "adam-hlozek_24095"
+    },
+    "3481": {
+      "id": "22538",
+      "path": "jens-stage_22538"
+    },
+    "3491": {
+      "id": "15795",
+      "path": "sebastian-klaas_15795"
+    },
+    "3492": {
+      "id": "26447",
+      "path": "marcel-hoffmeier_26447"
+    },
+    "3516": {
+      "id": "20348",
+      "path": "enzo-leopold_20348"
+    },
+    "3543": {
+      "id": "35857",
+      "path": "nathaniel-brown_35857"
+    },
+    "3559": {
+      "id": "27568",
+      "path": "laurin-ulrich_27568"
+    },
+    "3754": {
+      "id": "7631",
+      "path": "lucas-vazquez_7631"
+    },
+    "3759": {
+      "id": "24219",
+      "path": "miguel-gutierrez_24219"
+    },
+    "4199": {
+      "id": "7138",
+      "path": "aleix-garcia_7138"
+    },
+    "4292": {
+      "id": "34927",
+      "path": "david-herold_34927"
+    },
+    "4296": {
+      "id": "26158",
+      "path": "dzenan-pejcinovic_26158"
+    },
+    "4318": {
+      "id": "26552",
+      "path": "tim-oermann_26552"
+    },
+    "4333": {
+      "id": "27518",
+      "path": "lukas-ullrich_27518"
+    },
+    "4335": {
+      "id": "27532",
+      "path": "derry-scherhant_27532"
+    },
+    "4352": {
+      "id": "18802",
+      "path": "stanley-nsoki_18802"
+    },
+    "4406": {
+      "id": "26881",
+      "path": "junior-dina-ebimbe_26881"
+    },
+    "4446": {
+      "id": "27560",
+      "path": "aljoscha-kemlein_27560"
+    },
+    "4563": {
+      "id": "35823",
+      "path": "loic-bade_35823"
+    },
+    "4589": {
+      "id": "24547",
+      "path": "justin-diehl_24547"
+    },
+    "4596": {
+      "id": "35733",
+      "path": "brajan-gruda_35733"
+    },
+    "4598": {
+      "id": "26979",
+      "path": "josip-juranovic_26979"
+    },
+    "4606": {
+      "id": "35927",
+      "path": "hasan-kurucay_35927"
+    },
+    "4654": {
+      "id": "27169",
+      "path": "mert-koemuer_27169"
+    },
+    "6061": {
+      "id": "35905",
+      "path": "ibrahim-maza_35905"
+    },
+    "6080": {
+      "id": "35918",
+      "path": "aleksandar-pavlovic_35918"
+    },
+    "6081": {
+      "id": "35949",
+      "path": "can-uzun_35949"
+    },
+    "6085": {
+      "id": "35226",
+      "path": "dennis-seimen_35226"
+    },
+    "6104": {
+      "id": "36753",
+      "path": "marc-guiu_36753"
+    },
+    "6111": {
+      "id": "24960",
+      "path": "benedict-hollerbach_24960"
+    },
+    "6148": {
+      "id": "38539",
+      "path": "lukas-pinckert_38539"
+    },
+    "6149": {
+      "id": "2876",
+      "path": "frank-lehmann_2876"
+    },
+    "6158": {
+      "id": "6495",
+      "path": "luca-schnellbacher_6495"
+    },
+    "6160": {
+      "id": "26473",
+      "path": "nicolas-kristof_26473"
+    },
+    "6168": {
+      "id": "24864",
+      "path": "robin-fellhauer_24864"
+    },
+    "6172": {
+      "id": "24620",
+      "path": "junior-adamu_24620"
+    },
+    "6174": {
+      "id": "35904",
+      "path": "arthur_35904"
+    },
+    "6176": {
+      "id": "24619",
+      "path": "nicolas-seiwald_24619"
+    },
+    "6183": {
+      "id": "24815",
+      "path": "noel-futkeu_24815"
+    },
+    "6197": {
+      "id": "36261",
+      "path": "laurin-curda_36261"
+    },
+    "6199": {
+      "id": "36130",
+      "path": "shuto-machino_36130"
+    },
+    "6201": {
+      "id": "26449",
+      "path": "nicolai-remberg_26449"
+    },
+    "6209": {
+      "id": "20344",
+      "path": "philipp-treu_20344"
+    },
+    "6217": {
+      "id": "36121",
+      "path": "rayan-philippe_36121"
+    },
+    "6292": {
+      "id": "35894",
+      "path": "mattes-hansen_35894"
+    },
+    "6300": {
+      "id": "36735",
+      "path": "assan-ouedraogo_36735"
+    },
+    "6319": {
+      "id": "23248",
+      "path": "franck-honorat_23248"
+    },
+    "6668": {
+      "id": "27022",
+      "path": "minjae-kim_27022"
+    },
+    "6745": {
+      "id": "35360",
+      "path": "victor-boniface_35360"
+    },
+    "6751": {
+      "id": "38854",
+      "path": "florian-pruhs_38854"
+    },
+    "7156": {
+      "id": "11916",
+      "path": "maximilian-woeber_11916"
+    },
+    "7158": {
+      "id": "19154",
+      "path": "deniz-undav_19154"
+    },
+    "7167": {
+      "id": "35359",
+      "path": "senne-lynen_35359"
+    },
+    "7215": {
+      "id": "26088",
+      "path": "jordy-makengo_26088"
+    },
+    "7216": {
+      "id": "26203",
+      "path": "max-rosenfelder_26203"
+    },
+    "7219": {
+      "id": "35249",
+      "path": "isak-johannesson_35249"
+    },
+    "7224": {
+      "id": "27079",
+      "path": "castello-lukeba_27079"
+    },
+    "7226": {
+      "id": "4828",
+      "path": "harry-kane_4828"
+    },
+    "7239": {
+      "id": "35735",
+      "path": "max-finkgraefe_35735"
+    },
+    "7242": {
+      "id": "16537",
+      "path": "robin-gosens_16537"
+    },
+    "7257": {
+      "id": "36303",
+      "path": "leonidas-stergiou_36303"
+    },
+    "7269": {
+      "id": "36300",
+      "path": "nathan-tella_36300"
+    },
+    "7275": {
+      "id": "36306",
+      "path": "kaua-santos_36306"
+    },
+    "7277": {
+      "id": "35910",
+      "path": "fares-chaibi_35910"
+    },
+    "7278": {
+      "id": "36788",
+      "path": "lukasz-poreba_36788"
+    },
+    "7282": {
+      "id": "36310",
+      "path": "olivier-deman_36310"
+    },
+    "7283": {
+      "id": "12771",
+      "path": "calvin-brackelmann_12771"
+    },
+    "7320": {
+      "id": "36890",
+      "path": "tjark-scheller_36890"
+    },
+    "7325": {
+      "id": "35727",
+      "path": "elias-baum_35727"
+    },
+    "7336": {
+      "id": "36794",
+      "path": "sima-suso_36794"
+    },
+    "7349": {
+      "id": "36816",
+      "path": "finn-jeltsch_36816"
+    },
+    "7350": {
+      "id": "38517",
+      "path": "otto-stange_38517"
+    },
+    "7394": {
+      "id": "27549",
+      "path": "kofi-amoako_27549"
+    },
+    "7417": {
+      "id": "36931",
+      "path": "noel-aseko_36931"
+    },
+    "7441": {
+      "id": "36946",
+      "path": "cole-campbell_36946"
+    },
+    "7463": {
+      "id": "36948",
+      "path": "francis-onyeka_36948"
+    },
+    "7514": {
+      "id": "37052",
+      "path": "florian-le-joncour_37052"
+    },
+    "7543": {
+      "id": "36318",
+      "path": "max-moerstedt_36318"
+    },
+    "7616": {
+      "id": "36702",
+      "path": "jano-ter-horst_36702"
+    },
+    "7673": {
+      "id": "37227",
+      "path": "albian-hajdari_37227"
+    },
+    "7676": {
+      "id": "25579",
+      "path": "fabian-rieder_25579"
+    },
+    "7684": {
+      "id": "12508",
+      "path": "michel-aebischer_12508"
+    },
+    "7696": {
+      "id": "37153",
+      "path": "nediljko-labrovic_37153"
+    },
+    "7717": {
+      "id": "27057",
+      "path": "alexander-prass_27057"
+    },
+    "7721": {
+      "id": "26702",
+      "path": "marco-gruell_26702"
+    },
+    "7723": {
+      "id": "27234",
+      "path": "leopold-querfeld_27234"
+    },
+    "7737": {
+      "id": "37180",
+      "path": "joey-veerman_37180"
+    },
+    "7745": {
+      "id": "11929",
+      "path": "vladimir-coufal_11929"
+    },
+    "7750": {
+      "id": "37515",
+      "path": "robin-hranac_37515"
+    },
+    "7774": {
+      "id": "26866",
+      "path": "yukhym-konoplya_26866"
+    },
+    "7781": {
+      "id": "36387",
+      "path": "leo-sauer_36387"
+    },
+    "7963": {
+      "id": "36489",
+      "path": "jarell-quansah_36489"
+    },
+    "8001": {
+      "id": "23949",
+      "path": "luka-lochoshvili_23949"
+    },
+    "8061": {
+      "id": "35421",
+      "path": "johan-bakayoko_35421"
+    },
+    "8166": {
+      "id": "38831",
+      "path": "chuki_38831"
+    },
+    "8222": {
+      "id": "16217",
+      "path": "moussa-sylla_16217"
+    },
+    "8227": {
+      "id": "21774",
+      "path": "maarten-vandevoordt_21774"
+    },
+    "8235": {
+      "id": "37275",
+      "path": "adrian-gantenbein_37275"
+    },
+    "8247": {
+      "id": "23957",
+      "path": "ramon-hendriks_23957"
+    },
+    "8252": {
+      "id": "36255",
+      "path": "maurice-krattenmacher_36255"
+    },
+    "8274": {
+      "id": "38546",
+      "path": "said-el-mala_38546"
+    },
+    "8277": {
+      "id": "37365",
+      "path": "vitalie-becker_37365"
+    },
+    "8289": {
+      "id": "37114",
+      "path": "lukas-petersson_37114"
+    },
+    "8292": {
+      "id": "37450",
+      "path": "santiago-castaneda_37450"
+    },
+    "8296": {
+      "id": "36005",
+      "path": "frederik-schmahl_36005"
+    },
+    "8301": {
+      "id": "26346",
+      "path": "luca-sirch_26346"
+    },
+    "8307": {
+      "id": "36958",
+      "path": "kaishu-sano_36958"
+    },
+    "8329": {
+      "id": "37170",
+      "path": "michael-olise_37170"
+    },
+    "8351": {
+      "id": "37210",
+      "path": "oscar-hoejlund_37210"
+    },
+    "8355": {
+      "id": "37195",
+      "path": "noahkai-banks_37195"
+    },
+    "8363": {
+      "id": "37208",
+      "path": "berkay-yilmaz_37208"
+    },
+    "8364": {
+      "id": "37207",
+      "path": "bruno-ogbus_37207"
+    },
+    "8367": {
+      "id": "18447",
+      "path": "albert-sambi-lokonga_18447"
+    },
+    "8374": {
+      "id": "21876",
+      "path": "martin-terrier_21876"
+    },
+    "8381": {
+      "id": "36114",
+      "path": "livan-burcu_36114"
+    },
+    "8872": {
+      "id": "38855",
+      "path": "jonah-sticker_38855"
+    },
+    "8984": {
+      "id": "36091",
+      "path": "nyamekye-awortwie-grant_36091"
+    },
+    "9224": {
+      "id": "38111",
+      "path": "tom-zimmerschied_38111"
+    },
+    "9283": {
+      "id": "37353",
+      "path": "deniz-zeitler_37353"
+    },
+    "9384": {
+      "id": "36018",
+      "path": "noah-darvich_36018"
+    },
+    "9440": {
+      "id": "37067",
+      "path": "filippo-mane_37067"
+    },
+    "9507": {
+      "id": "37124",
+      "path": "antonio-nusa_37124"
+    },
+    "9513": {
+      "id": "25603",
+      "path": "karl-hein_25603"
+    },
+    "9540": {
+      "id": "37438",
+      "path": "isac-lidberg_37438"
+    },
+    "9598": {
+      "id": "35971",
+      "path": "valentin-gendrey_35971"
+    },
+    "9600": {
+      "id": "22752",
+      "path": "alexander-schlager_22752"
+    },
+    "9605": {
+      "id": "35437",
+      "path": "albert-groenbaek_35437"
+    },
+    "9615": {
+      "id": "37516",
+      "path": "ameen-al-dakhil_37516"
+    },
+    "9642": {
+      "id": "26695",
+      "path": "chrislain-matsima_26695"
+    },
+    "9683": {
+      "id": "37532",
+      "path": "andrej-ilic_37532"
+    },
+    "9684": {
+      "id": "20630",
+      "path": "alexis-claude-maurice_20630"
+    },
+    "9698": {
+      "id": "22570",
+      "path": "fabio-silva_22570"
+    },
+    "9754": {
+      "id": "39047",
+      "path": "juma-bah_39047"
+    },
+    "9776": {
+      "id": "37867",
+      "path": "andrija-maksimovic_37867"
+    },
+    "9965": {
+      "id": "37237",
+      "path": "faik-sakar_37237"
+    },
+    "9995": {
+      "id": "35765",
+      "path": "david-mokwa_35765"
+    },
+    "10004": {
+      "id": "38489",
+      "path": "younes-ebnoutalib_38489"
+    },
+    "10024": {
+      "id": "38328",
+      "path": "joel-schmied_38328"
+    },
+    "10048": {
+      "id": "38279",
+      "path": "luka-duric_38279"
+    },
+    "10049": {
+      "id": "37221",
+      "path": "hennes-behrens_37221"
+    },
+    "10106": {
+      "id": "36465",
+      "path": "marin-ljubicic_36465"
+    },
+    "10112": {
+      "id": "38305",
+      "path": "luca-jaquez_38305"
+    },
+    "10113": {
+      "id": "36962",
+      "path": "tidiam-gomis_36962"
+    },
+    "10114": {
+      "id": "26083",
+      "path": "carney-chukwuemeka_26083"
+    },
+    "10115": {
+      "id": "38304",
+      "path": "daniel-svensson_38304"
+    },
+    "10120": {
+      "id": "38495",
+      "path": "alexander-roessing-lelesiit_38495"
+    },
+    "10121": {
+      "id": "25482",
+      "path": "imad-rondic_25482"
+    },
+    "10122": {
+      "id": "26579",
+      "path": "fabio-gruber_26579"
+    },
+    "10131": {
+      "id": "38501",
+      "path": "dariusz-stalmach_38501"
+    },
+    "10134": {
+      "id": "37129",
+      "path": "mick-schmetgens_37129"
+    },
+    "10789": {
+      "id": "38411",
+      "path": "lennart-karl_38411"
+    },
+    "10916": {
+      "id": "38514",
+      "path": "mertcan-ayhan_38514"
+    },
+    "11006": {
+      "id": "37105",
+      "path": "yuito-suzuki_37105"
+    },
+    "11007": {
+      "id": "38409",
+      "path": "cyriaque-irie_38409"
+    },
+    "11008": {
+      "id": "38383",
+      "path": "ezechiel-banzuzi_38383"
+    },
+    "11010": {
+      "id": "11591",
+      "path": "kevin-diks_11591"
+    },
+    "11043": {
+      "id": "25114",
+      "path": "lorenz-assignon_25114"
+    },
+    "11099": {
+      "id": "38153",
+      "path": "jobe-bellingham_38153"
+    },
+    "11100": {
+      "id": "37188",
+      "path": "samuele-inacio_37188"
+    },
+    "11161": {
+      "id": "35863",
+      "path": "koki-machida_35863"
+    },
+    "11162": {
+      "id": "38223",
+      "path": "leon-avdullahu_38223"
+    },
+    "11170": {
+      "id": "37563",
+      "path": "ruben-mueller_37563"
+    },
+    "11186": {
+      "id": "38581",
+      "path": "jeremiaha-maluze_38581"
+    },
+    "11253": {
+      "id": "38873",
+      "path": "nicholas-mickelson_38873"
+    },
+    "11255": {
+      "id": "23002",
+      "path": "nikola-katic_23002"
+    },
+    "11261": {
+      "id": "38606",
+      "path": "sota-kawasaki_38606"
+    },
+    "11262": {
+      "id": "37144",
+      "path": "salim-musah_37144"
+    },
+    "11512": {
+      "id": "26628",
+      "path": "nicolas-capaldo_26628"
+    },
+    "11513": {
+      "id": "38550",
+      "path": "christian-kofane_38550"
+    },
+    "11556": {
+      "id": "35978",
+      "path": "han-noah-massengo_35978"
+    },
+    "11570": {
+      "id": "38632",
+      "path": "sebastian-sebulonsen_38632"
+    },
+    "11591": {
+      "id": "37065",
+      "path": "cajetan-lenz_37065"
+    },
+    "11631": {
+      "id": "22632",
+      "path": "wouter-burger_22632"
+    },
+    "11665": {
+      "id": "38608",
+      "path": "kacper-potulski_38608"
+    },
+    "11666": {
+      "id": "34997",
+      "path": "maximilian-kinzig_34997"
+    },
+    "11675": {
+      "id": "22566",
+      "path": "luis-diaz_22566"
+    },
+    "11680": {
+      "id": "38775",
+      "path": "kennet-eichhorn_38775"
+    },
+    "11748": {
+      "id": "38636",
+      "path": "wael-mohya_38636"
+    },
+    "11752": {
+      "id": "25626",
+      "path": "warmed-omari_25626"
+    },
+    "11756": {
+      "id": "37258",
+      "path": "montrell-culbreath_37258"
+    },
+    "11875": {
+      "id": "38630",
+      "path": "rav-van-den-berg_38630"
+    },
+    "11886": {
+      "id": "38565",
+      "path": "romulo-cardoso_38565"
+    },
+    "11949": {
+      "id": "38678",
+      "path": "shafiq-nandja_38678"
+    },
+    "11955": {
+      "id": "37086",
+      "path": "bilal-el-khannouss_37086"
+    },
+    "11956": {
+      "id": "38674",
+      "path": "equi-fernandez_38674"
+    },
+    "11957": {
+      "id": "35709",
+      "path": "eliesse-ben-seghir_35709"
+    },
+    "11958": {
+      "id": "22736",
+      "path": "alessio-castro-montes_22736"
+    },
+    "11959": {
+      "id": "37622",
+      "path": "adam-daghim_37622"
+    },
+    "11967": {
+      "id": "24438",
+      "path": "fabio-vieira_24438"
+    },
+    "12158": {
+      "id": "38892",
+      "path": "luca-vozar_38892"
+    },
+    "12262": {
+      "id": "38879",
+      "path": "albert-millgramm_38879"
+    },
+    "12284": {
+      "id": "38762",
+      "path": "keita-kosugi_38762"
+    },
+    "12285": {
+      "id": "38440",
+      "path": "love-arrhov_38440"
+    },
+    "12294": {
+      "id": "38710",
+      "path": "ayoube-amaimouni-echghouyab_38710"
+    },
+    "12297": {
+      "id": "38876",
+      "path": "satoshi-tanaka_38876"
+    },
+    "12314": {
+      "id": "38779",
+      "path": "bara-sapoko-ndiaye_38779"
+    },
+    "12317": {
+      "id": "38679",
+      "path": "raif-adam_38679"
+    },
+    "12321": {
+      "id": "38128",
+      "path": "jahmai-simpson-pusey_38128"
+    },
+    "12341": {
+      "id": "27435",
+      "path": "rodrigo-ribeiro_27435"
+    },
+    "12367": {
+      "id": "38662",
+      "path": "yanik-spalt_38662"
+    },
+    "12368": {
+      "id": "24494",
+      "path": "sander-tangvik_24494"
+    },
+    "12763": {
+      "id": "24183",
+      "path": "emmanuel-latte-lath_24183"
+    },
+    "13431": {
+      "id": "38861",
+      "path": "johannes-siebeking_38861"
+    },
+    "13433": {
+      "id": "38811",
+      "path": "louis-lemke_38811"
+    },
+    "13438": {
+      "id": "38812",
+      "path": "otto-ruoppi_38812"
+    },
+    "13442": {
+      "id": "37888",
+      "path": "hugo-bolin_37888"
+    },
+    "13448": {
+      "id": "22176",
+      "path": "adil-aouchiche_22176"
+    },
+    "13449": {
+      "id": "37743",
+      "path": "moussa-ndiaye_37743"
+    },
+    "13472": {
+      "id": "38816",
+      "path": "luca-reggiani_38816"
+    },
+    "13479": {
+      "id": "38810",
+      "path": "uchenna-ogundu_38810"
+    },
+    "13629": {
+      "id": "38833",
+      "path": "linus-guether_38833"
+    },
+    "13671": {
+      "id": "38837",
+      "path": "tom-wisbereit_38837"
+    },
+    "13806": {
+      "id": "37667",
+      "path": "youngwoo-seol_37667"
+    },
+    "13888": {
+      "id": "35433",
+      "path": "guela-doue_35433"
+    },
+    "14048": {
+      "id": "38267",
+      "path": "keisuke-goto_38267"
+    },
+    "14140": {
+      "id": "16759",
+      "path": "gideon-mensah_16759"
+    },
+    "14241": {
+      "id": "36418",
+      "path": "facundo-medina_36418"
+    },
+    "14249": {
+      "id": "36433",
+      "path": "neil-el-aynaoui_36433"
+    },
+    "14251": {
+      "id": "25609",
+      "path": "ismael-saibari_25609"
+    },
+    "14256": {
+      "id": "38592",
+      "path": "zakaria-el-ouahdi_38592"
+    },
+    "14300": {
+      "id": "38936",
+      "path": "paul-okon-engstler_38936"
+    },
+    "14425": {
+      "id": "37717",
+      "path": "david-moller-wolfe_37717"
+    },
+    "14662": {
+      "id": "37104",
+      "path": "justin-lerma_37104"
+    },
+    "14896": {
+      "id": "38801",
+      "path": "abdoul-kone_38801"
+    },
+    "14899": {
+      "id": "38741",
+      "path": "kaua-prates_38741"
+    },
+    "14911": {
+      "id": "38885",
+      "path": "clemens-lippmann_38885"
+    },
+    "14914": {
+      "id": "26215",
+      "path": "timur-gayret_26215"
+    },
+    "14917": {
+      "id": "25990",
+      "path": "zeno-van-den-bosch_25990"
+    },
+    "14920": {
+      "id": "38920",
+      "path": "malik-pimpong_38920"
+    },
+    "14923": {
+      "id": "38826",
+      "path": "kenny-quetant_38826"
+    },
+    "14926": {
+      "id": "37561",
+      "path": "darwin-soylu_37561"
+    },
+    "15181": {
+      "id": "38925",
+      "path": "jan-leszczynski_38925"
+    },
+    "15193": {
+      "id": "37794",
+      "path": "mats-rots_37794"
+    },
+    "15196": {
+      "id": "38872",
+      "path": "rihito-yamamoto_38872"
+    },
+    "15199": {
+      "id": "36841",
+      "path": "afonso-moreira_36841"
+    },
+    "15202": {
+      "id": "38869",
+      "path": "zento-uno_38869"
+    },
+    "15211": {
+      "id": "37021",
+      "path": "joane-gadou_37021"
+    },
+    "15256": {
+      "id": "38922",
+      "path": "oskar-wojcik_38922"
+    },
+    "15262": {
+      "id": "38750",
+      "path": "nathan-de-cat_38750"
+    },
+    "15283": {
+      "id": "38937",
+      "path": "martin-adeline_38937"
+    },
+    "15313": {
+      "id": "38929",
+      "path": "paul-erevbenagie_38929"
+    },
+    "15373": {
+      "id": "38945",
+      "path": "reigan-heskey_38945"
+    },
+    "15376": {
+      "id": "38844",
+      "path": "maxime-esteve_38844"
+    },
+    "15472": {
+      "id": "16774",
+      "path": "patson-daka_16774"
+    },
+    "15478": {
+      "id": "36654",
+      "path": "bilal-nadir_36654"
+    },
+    "15589": {
+      "id": "39011",
+      "path": "otavio_39011"
+    },
+    "15613": {
+      "id": "36955",
+      "path": "daiki-hashioka_36955"
+    },
+    "16369": {
+      "id": "26786",
+      "path": "raphael-onyedika_26786"
+    },
+    "16378": {
+      "id": "38406",
+      "path": "konstantinos-karetsas_38406"
+    },
+    "16564": {
+      "id": "38828",
+      "path": "mathieu-nguefack_38828"
+    },
+    "16945": {
+      "id": "36506",
+      "path": "thijs-dallinga_36506"
+    },
+    "16948": {
+      "id": "25767",
+      "path": "giannis-konstantelias_25767"
+    },
+    "17179": {
+      "id": "38930",
+      "path": "rael-nakuzola_38930"
+    },
+    "17203": {
+      "id": "39019",
+      "path": "terem-moffi_39019"
+    },
+    "17282": {
+      "id": "38448",
+      "path": "mikey-moore_38448"
+    },
+    "17285": {
+      "id": "24489",
+      "path": "lilian-brassier_24489"
+    },
+    "17288": {
+      "id": "25841",
+      "path": "youri-regeer_25841"
+    },
+    "17306": {
+      "id": "36339",
+      "path": "kastriot-imeri_36339"
+    },
+    "17309": {
+      "id": "36869",
+      "path": "ethan-nwaneri_36869"
+    }
+  }
+}
