@@ -6,6 +6,7 @@ import {
   useTeamDirectory,
   useCompetitionTable,
 } from '@/api/hooks/useCompetition'
+import { useExpectedLineup } from '@/api/hooks/useExpectedLineup'
 import { useLiveMatches } from '@/api/hooks/useLiveMatches'
 import { useSeasonSchedule, useTeamSeason } from '@/api/hooks/useMatchday'
 import { useTeamPoints, useTeamProfile } from '@/api/hooks/useTeam'
@@ -135,6 +136,23 @@ export function TeamDetailPage() {
   const live = useLiveMatches(current === undefined ? undefined : [current])
 
   /*
+   * **The club's own expected lineup for that fixture**, which the header's
+   * strip opens beside Ligainsider's poster — two projections of the same
+   * eleven, made by completely different means.
+   *
+   * One small file, and only while the fixture is still ahead of us: the run
+   * publishes the matchday it is predicting and nothing else, so for a match
+   * that has kicked off this would be a 404 for an answer the pitch on the
+   * Live tab already holds.
+   */
+  const expected = useExpectedLineup(
+    competitionId,
+    teamId,
+    current?.day,
+    current !== undefined && fixtureState(current) === 'upcoming',
+  )
+
+  /*
    * The per-player fan-out, for the two tabs that read it: the Spiele column
    * and the Übersicht's scorer card. They share the cache entries, so between
    * them it is one fan-out; the Kader and the Live tab stay off it.
@@ -234,6 +252,7 @@ export function TeamDetailPage() {
         }
         teamId={teamId ?? ''}
         poster={profile.data?.poster}
+        expected={expected.data ?? undefined}
         leagueId={leagueId}
       />
 

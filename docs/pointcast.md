@@ -35,9 +35,11 @@ against.
 | [Rankings](#rankings) | `/v1/rankings/matchday/{md}.json` | [Spieltag — Rangliste](pages/matchday.md#rangliste) |
 | [Rankings](#rankings) | `/v1/rankings/season/{md\|current}.json` | [Saison — Rangliste](pages/season.md#rangliste) |
 | [Rankings](#rankings) | `/v1/rankings/index.json` | The Saison picker — which matchdays it may offer |
+| [Lineups](#expected-lineups) | `/v1/lineups/{md}/{teamId}.json` | [Spiel — Aufstellung](pages/match-detail.md#when-there-is-no-lineup-yet) before the sheets are out, and the [club](pages/team.md#tapping-the-strip-the-projected-eleven-or-the-match) page's second projected XI |
 
-The spec also publishes `/v1/index.json`, `/v1/players/index.json` and
-`/v1/players/{playerId}.json`. The app calls none of them: it already knows the
+The spec also publishes `/v1/index.json`, `/v1/players/index.json`,
+`/v1/players/{playerId}.json` and `/v1/lineups/index.json`. The app calls none
+of them: it already knows the
 matchday it wants from the season schedule, and asking an index first would be
 a round trip to learn something it can simply try.
 
@@ -46,6 +48,100 @@ is a **stopping point** for a cumulative total, so the picker has to know which
 matchdays have a file *before* it offers them — the fixture list cannot say,
 because the run is nightly and a matchday played on Sunday has no file until
 that night.
+
+## Expected lineups
+
+**One file per club per matchday**, and only for the matchday the run is
+currently predicting. Everything else is a 404, which is what
+[`useExpectedLineup`](../src/api/hooks/useExpectedLineup.ts) turns into a
+`null` — the prediction is an extra on screens that are complete without it.
+
+| | |
+| --- | --- |
+| `GET /v1/lineups/{matchday}/{teamId}.json` | One club's expected eleven, bench and absentees |
+| `GET /v1/lineups/current/{teamId}.json` | The same file under a stable name |
+| `GET /v1/lineups/index.json` | Every club with a fixture, its shape and its file |
+
+The app asks for the **numbered** spelling, never `current`. Both callers
+already know the matchday they are drawing — a match page from the fixture
+list, a club page from the club's next fixture — and `current` would answer
+with a *different* matchday's eleven under the one the screen is claiming to
+show. The index is not read for the same reason the ranking index is not read
+by Spieltag: asking which clubs have a file, in order to then ask for the two
+you want, is a round trip to avoid a 404 that costs nothing.
+
+### Response `200`
+
+```json
+{
+  "apiVersion": "v1", "seasonId": "42", "matchday": 5,
+  "generatedAt": "2026-10-09T17:38:37Z", "predictor": "two_stage_lgbm",
+  "teamId": "2", "teamName": "Bayern",
+  "opponentTeamId": "13", "opponentTeamName": "Augsburg",
+  "isHome": false, "kickoff": "2026-10-10T13:30:00Z",
+  "summary": {
+    "formation": "4-4-2", "counts": { "GK": 1, "DEF": 4, "MID": 4, "FWD": 2 },
+    "formationSource": "team", "usualFormation": "4-4-2",
+    "formationHistory": ["4-4-2", "4-4-2", "5-3-2"],
+    "squadSize": 23, "confidence": 0.749,
+    "tiers": { "sure": 1, "likely": 10, "coin_flip": 6, "bench": 3, "out": 3 }
+  },
+  "lineup": { "GK": [ … ], "DEF": [ … ], "MID": [ … ], "FWD": [ … ] },
+  "bench": [ … ], "out": [ … ]
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `summary.formation` | string | The expected starters as `DEF-MID-FWD`; the keeper is implied |
+| `summary.usualFormation` | string | The club's most common recent shape — `formation` only leaves it on evidence |
+| `summary.formationSource` | string | `team` · `league` · `default`, where that shape came from |
+| `summary.confidence` | number \| null | Mean `pStart` over the expected eleven |
+| `summary.tiers` | object | How many players fall in each tier |
+| `lineup` | object | The expected XI by position, in depth order |
+| `bench` | array | Expected in the squad but not the XI, best first |
+| `out` | array | Not expected in the squad at all, best first |
+
+One entry:
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `playerId` · `name` | string | Kickbase's id, and the short name |
+| `position` | string | `GK` · `DEF` · `MID` · `FWD` |
+| `tier` | string | `sure` · `likely` · `coin_flip` · `bench` · `out` — see below |
+| `status` | string \| null | `fit` for nearly everyone; `injured`, `questionable`, `rehab`, `suspended`, `absent`, `unknown` |
+| `depthRank` | int | Place in the pecking order at this position, starters first |
+| `inLineup` | bool | In the expected XI. The pitch draws exactly these |
+| `pStart` · `pPlay` · `pSquad` | number \| null | `0…1`, each **capped by the status**; the `…Raw` twins are the same figures before the cap |
+| `replaces` | object \| null | *Bench only.* The expected starter at his position with the lowest `pStart` — the man he is nearest to displacing |
+| `replacedBy` | object \| null | *Starters only.* The next man up behind him |
+| `xP` · `p20` · `p80` | number \| null | The same prediction `matchday/{md}.json` carries for him |
+| `marketValue` | int \| null | |
+
+### The tier is the file's, not a threshold on `pStart`
+
+`sure` means the XI and very likely to start; `likely`, the XI but not
+certainly; `coin_flip`, the boundary either way; `bench`, the squad but not the
+XI; `out`, not expected in the squad at all. The run publishes the tier
+*beside* the probability because the boundary is not one number — a `0.63` at
+left-back behind two injured rivals is a different claim from a `0.63` among
+four fit strikers. Nothing in the app re-derives it.
+
+### `replaces` is what makes the bench worth drawing
+
+It turns a list of names into a list of **changes**: *Díaz → für Saibari*, with
+the substitute's own `pStart` beside it. That is the half of a predicted lineup
+worth more than the eleven itself — the eleven is one guess, and `replaces`
+says where that guess is soft. A bench entry with no counterpart (a
+third-choice keeper displaces nobody in particular) is still drawn, without an
+arrow.
+
+### Not every club has a file
+
+Eighteen teams had one on matchday 5, but a club with too little history or a
+build that failed has none, and the two screens are written for it: the match
+page draws the one eleven it has rather than an eleven against an empty half,
+and says plainly that the other side has no prediction.
 
 ## Rankings
 

@@ -534,8 +534,42 @@ This is also, incidentally, the first real source for the state
 
 Kickbase publishes team sheets around an hour before kick-off; until then the
 payload's lineup arrays are simply empty. That is not an error and not a team of
-nobody, so the pitch says so in a sentence rather than drawing two empty
-halves. `il` on the payload claims the sheets are *official* rather than
+nobody — and for the whole of the week in which a Kickbase manager actually sets
+his own lineup, it was also the only thing this tab had to say.
+
+**So the pitch draws the predicted elevens instead**, from
+[pointcast](../pointcast.md#expected-lineups): one file per club per matchday,
+rebuilt nightly, with the bench behind each eleven and the starter every bench
+player is nearest to displacing. See
+[`ExpectedMatchLineup`](../../src/components/lineup/ExpectedMatchLineup.tsx).
+
+It is the same pitch, the same sizing search and the same eight bands as the
+real thing — a prediction is only useful if it can be read against the sheet it
+stands in for — and everything that differs is what a guess has to say for
+itself:
+
+- an orange dashed note **above** the grass, the app's one notation for
+  *predicted*, which is also what the [expected-points](squad.md#erwartete-punkte)
+  chip wears;
+- the **tier** in each portrait's top-right corner — how sure the run is that
+  this man starts — and the app's own availability cross or red card top-left;
+- a **start probability** on the plate where the real pitch puts points. `78 %`
+  is the honest version of a name on a team sheet;
+- the **formation** in each corner plate, where a real match shows the club's
+  points — a predicted sheet has no points, and a shape is what it does have.
+
+Under it the two benches are drawn as the **substitutions they would produce**,
+each row a sentence: *Díaz → für Saibari*, with his own chance of starting
+beside it.
+
+**Either real sheet wins the moment it exists.** The branch is on the sheets
+themselves, so a fixture with one club's eleven published falls straight back to
+the official pitch — a fact beats a prediction even next to an empty half.
+Matchdays the run has not predicted 404, which is read as "no prediction" and
+leaves the sentence that has always stood here, with the prediction named as the
+other thing that is missing.
+
+`il` on the payload claims the sheets are *official* rather than
 predicted, but it reads `false` on matches played weeks ago — closer to a flag
 set around kick-off than a durable fact. This tab does not act on it: it draws
 whatever sheets it is given, and qualifying them would be a claim about the

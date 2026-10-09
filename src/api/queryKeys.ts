@@ -256,6 +256,22 @@ export const qk = {
    */
   pointcast: (competitionId: string, matchday: number) =>
     [...qk.competition(competitionId), 'pointcast', matchday] as const,
+  /**
+   * **One club's expected lineup for one matchday**, from the
+   * [pointcast API](./hooks/useExpectedLineup.ts).
+   *
+   * One file per club per matchday, so the key is both — and no league: the
+   * prediction is a fact about the Bundesliga, not about who owns whom. The
+   * match page asks for two clubs and the club page for one, and where they
+   * meet on the same matchday they share the entry.
+   */
+  pointcastLineup: (competitionId: string, matchday: number, teamId: string) =>
+    [
+      ...qk.competition(competitionId),
+      'pointcastLineup',
+      matchday,
+      teamId,
+    ] as const,
   competitionTable: (competitionId: string) =>
     [...qk.competition(competitionId), 'table'] as const,
   competitionMatchdays: (competitionId: string) =>

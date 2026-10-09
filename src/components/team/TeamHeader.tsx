@@ -7,6 +7,7 @@ import {
   liveScoreFor,
   teamResult,
   TEAM_RESULT_LABEL,
+  type ExpectedLineup,
   type LiveMatch,
   type TeamPoster,
   type TeamRecord,
@@ -47,6 +48,7 @@ export function TeamHeader({
   opponent,
   teamId,
   poster,
+  expected,
   leagueId,
 }: {
   /** Name and crest, from the table-backed directory. */
@@ -65,6 +67,12 @@ export function TeamHeader({
   teamId: string
   /** The projected XI, which an upcoming fixture's strip opens. */
   poster: TeamPoster | undefined
+  /**
+   * **The second projected XI** — pointcast's own, drawn beside the poster in
+   * the same dialog. See
+   * [`useExpectedLineup`](../../api/hooks/useExpectedLineup.ts).
+   */
+  expected: ExpectedLineup | undefined
   leagueId: string
 }) {
   const row = standing?.row
@@ -129,7 +137,9 @@ export function TeamHeader({
           opponent={opponent}
           teamId={teamId}
           teamName={name}
+          teamImage={team?.image ?? row?.teamImage}
           poster={poster}
+          expected={expected}
           leagueId={leagueId}
         />
       )}
@@ -163,7 +173,9 @@ function FixtureStrip({
   opponent,
   teamId,
   teamName,
+  teamImage,
   poster,
+  expected,
   leagueId,
 }: {
   fixture: TeamSeasonFixture
@@ -180,7 +192,10 @@ function FixtureStrip({
    */
   teamId: string
   teamName: string
+  /** The crest, for the corner of the predicted pitch in the dialog. */
+  teamImage: string | undefined
   poster: TeamPoster | undefined
+  expected: ExpectedLineup | undefined
   leagueId: string
 }) {
   /**
@@ -206,7 +221,15 @@ function FixtureStrip({
    * them is the better answer to "what about this match", and which one it is
    * is a fact about the clock rather than a preference.
    */
-  const opensPoster = state === 'upcoming' && poster !== undefined
+  /*
+   * **Either projection is enough to open it.** Ligainsider's poster is the
+   * one Kickbase serves and the one most clubs have; pointcast's prediction is
+   * the app's own, and it exists for every club with a fixture. A club missing
+   * one of the two still has something to show, and the dialog draws whichever
+   * it was handed.
+   */
+  const opensPoster =
+    state === 'upcoming' && (poster !== undefined || expected !== undefined)
 
   /*
    * While the match runs the score has to be read from *this* club's side —
@@ -322,10 +345,13 @@ function FixtureStrip({
       <LineupPosterDialog
         open={posterDialog.isOpen}
         onOpenChange={posterDialog.setOpen}
-        poster={poster.image}
+        poster={poster?.image}
         teamName={teamName}
-        sourceLogo={poster.sourceLogo}
-        updatedAt={poster.updatedAt}
+        sourceLogo={poster?.sourceLogo}
+        updatedAt={poster?.updatedAt}
+        expected={expected}
+        crest={teamImage}
+        leagueId={leagueId}
       />
     </>
   )

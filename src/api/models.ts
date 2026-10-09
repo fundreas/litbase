@@ -3516,3 +3516,197 @@ export interface PointcastMatchday {
   generatedAt?: string
   byPlayerId: ReadonlyMap<string, PointcastPrediction>
 }
+
+/**
+ * How certain the run is that a player is in the eleven it drew.
+ *
+ * Five steps, and they are **the file's own**, not a reading of `pStart`: the
+ * model publishes the tier beside the probability because the boundary between
+ * "in the XI" and "on the bench" is not a single threshold — a 0.63 at
+ * left-back behind two injured rivals is a different claim from a 0.63 among
+ * four fit strikers. See
+ * [the spec](https://fundreas.github.io/litbase-pointcast/v1/openapi.json).
+ *
+ * The order here is the order of confidence, which is what anything rendering
+ * all five reads it in.
+ */
+export type ExpectedTier = 'sure' | 'likely' | 'coin_flip' | 'bench' | 'out'
+
+/** The five in order, best first — for a legend, and for sorting. */
+export const EXPECTED_TIERS: ExpectedTier[] = [
+  'sure',
+  'likely',
+  'coin_flip',
+  'bench',
+  'out',
+]
+
+/**
+ * What each tier claims, in the app's own words.
+ *
+ * Deliberately *not* the wording of
+ * [`START_PROBABILITY`](#START_PROBABILITY), which is Ligainsider's five-step
+ * scale on the same screen in the same shape of badge. The two answer the same
+ * question from different sources, and a reader comparing them has to be able
+ * to tell which is speaking — so the labels name different things: Ligainsider
+ * judges the *player*, the run predicts the *lineup*.
+ */
+export const EXPECTED_TIER: Record<
+  ExpectedTier,
+  { label: string; description: string }
+> = {
+  sure: {
+    label: 'Gesetzt',
+    description: 'Steht in der erwarteten Startelf, ein Start ist sehr sicher.',
+  },
+  likely: {
+    label: 'Wahrscheinlich',
+    description: 'Steht in der erwarteten Startelf, sicher ist es nicht.',
+  },
+  coin_flip: {
+    label: 'Wackelkandidat',
+    description: 'Auf der Kippe zwischen Startelf und Bank.',
+  },
+  bench: {
+    label: 'Bank',
+    description: 'Im Kader erwartet, aber nicht in der Startelf.',
+  },
+  out: {
+    label: 'Nicht im Kader',
+    description: 'Wird im Spieltagskader nicht erwartet.',
+  },
+}
+
+/**
+ * The player's availability as the run read it — Kickbase's `st` after the
+ * run's own interpretation, not a second opinion on it.
+ *
+ * `fit` is the overwhelming majority and draws nothing; everything else is
+ * what caps a player's probabilities, which is why a 23-year-old regular can
+ * turn up in {@link ExpectedLineup.out} with no model reason at all.
+ */
+export type ExpectedStatus =
+  | 'absent'
+  | 'fit'
+  | 'injured'
+  | 'questionable'
+  | 'rehab'
+  | 'suspended'
+  | 'unknown'
+
+/** What a non-`fit` status says, for the mark's tooltip. */
+export const EXPECTED_STATUS_LABEL: Record<ExpectedStatus, string> = {
+  absent: 'Nicht im Kader',
+  fit: 'Einsatzbereit',
+  injured: 'Verletzt',
+  questionable: 'Angeschlagen',
+  rehab: 'Aufbautraining',
+  suspended: 'Gesperrt',
+  unknown: 'Status unbekannt',
+}
+
+/** The other man in a swap — all the file carries of him, and enough. */
+export interface ExpectedCounterpart {
+  playerId: string
+  name: string
+}
+
+/** One squad player on a predicted team sheet. */
+export interface ExpectedPlayer {
+  id: string
+  name: string
+  position: PositionKey
+  tier: ExpectedTier
+  /** In the expected eleven. The pitch draws exactly these. */
+  inLineup: boolean
+  /** Place in the pecking order at his position, best first. */
+  depthRank: number
+  /** `0…1`, the chance he starts — already capped by his status. */
+  startChance?: number
+  /** `0…1`, the chance he plays at all. */
+  playChance?: number
+  /** `0…1`, the chance he is in the matchday squad. */
+  squadChance?: number
+  /** The run's expected Kickbase points for him, the same figure `xP` carries. */
+  expected?: number
+  /** `fit` for nearly everyone; anything else is drawn as a mark. */
+  status?: ExpectedStatus
+  /**
+   * **For a bench player:** the expected starter at his position he would most
+   * likely come in for — which is what makes the bench a list of *possible
+   * substitutions* rather than a list of names.
+   */
+  replaces?: ExpectedCounterpart
+  /** **For a starter:** the next man up behind him. */
+  replacedBy?: ExpectedCounterpart
+  marketValue?: number
+}
+
+/**
+ * **One club's expected lineup for the coming matchday**, as the app holds it.
+ *
+ * Not a team sheet: nobody has named this eleven. It is
+ * [litbase-pointcast](https://github.com/fundreas/litbase-pointcast)'s own
+ * prediction, published per club for the matchday it is currently predicting
+ * and nothing else — see [`useExpectedLineup`](./hooks/useExpectedLineup.ts),
+ * which is also where the 404 that means "not this matchday" is turned into a
+ * `null`.
+ *
+ * Every screen that draws one has to say so, which is what
+ * [`ExpectedLineupNote`](../components/lineup/ExpectedLineupNote.tsx) is for:
+ * an eleven on a pitch is the single most authoritative-looking object this
+ * app draws, and this one is a guess.
+ */
+export interface ExpectedLineup {
+  /** The matchday predicted, as the file declares it. */
+  matchday: number
+  /** When the run that wrote it happened, ISO 8601. */
+  generatedAt?: string
+  /** Which model produced it, e.g. `two_stage_lgbm`. */
+  predictor?: string
+  teamId: string
+  teamName?: string
+  opponentTeamId?: string
+  opponentTeamName?: string
+  isHome?: boolean
+  /** The fixture's kick-off, ISO 8601 — the moment this stops being a guess. */
+  kickoff?: string
+  /** `4-4-2`, outfield only: the keeper is implied. */
+  formation: string
+  /** The club's usual recent shape, which {@link formation} only leaves on evidence. */
+  usualFormation?: string
+  /** Whether that shape came from this club's games, the league's, or a default. */
+  formationSource: 'team' | 'league' | 'default'
+  /** `0…1`, the mean `pStart` over the expected eleven. */
+  confidence?: number
+  /** The expected eleven, keeper first and then up the pitch. */
+  starters: ExpectedPlayer[]
+  /** Expected in the squad but not the eleven, best first. */
+  bench: ExpectedPlayer[]
+  /** Not expected in the squad at all, best first. */
+  out: ExpectedPlayer[]
+}
+
+/**
+ * The bench players the run thinks are **closest to coming on**, as swaps.
+ *
+ * A bench entry carries `replaces`, the starter at his position with the
+ * lowest `pStart` — so the two together read as one sentence: *Díaz for
+ * Saibari*. Only the entries that name one are swaps; a third-choice keeper
+ * names nobody and is a bench player rather than a substitution.
+ *
+ * Sorted by the substitute's own chance of starting, because that is what the
+ * file ranks the bench by and what makes the first row the likeliest change.
+ */
+export function expectedSwaps(
+  lineup: ExpectedLineup,
+): { on: ExpectedPlayer; off: ExpectedCounterpart }[] {
+  return lineup.bench
+    .filter((player) => player.replaces !== undefined)
+    .map((player) => ({
+      on: player,
+      // Narrowed by the filter; the non-null is the price of keeping the two
+      // halves of the swap in one object.
+      off: player.replaces as ExpectedCounterpart,
+    }))
+}

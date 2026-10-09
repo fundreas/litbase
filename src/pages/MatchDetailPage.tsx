@@ -12,6 +12,7 @@ import {
   type MatchdayMatch,
 } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
+import { ExpectedMatchLineup } from '@/components/lineup/ExpectedMatchLineup'
 import { MatchLineupTab } from '@/components/matchday/MatchLineupTab'
 import { MatchRankingTab } from '@/components/matchday/MatchRankingTab'
 import { MatchScoreHeader } from '@/components/matchday/MatchScoreHeader'
@@ -251,6 +252,39 @@ function SquadsView({
         home={lineup.home}
         away={lineup.away}
         leagueId={leagueId}
+      />
+    )
+  }
+
+  /*
+   * **No team sheets yet — so the pitch shows the predicted ones.**
+   *
+   * Kickbase names the elevens about an hour before kick-off and the arrays
+   * are simply empty until then (see [`useTeamSheets`](../api/hooks/useTeamSheets.ts),
+   * which establishes that the sheet itself is the signal and `il` is not).
+   * For the week before that, this tab had a sentence and an empty pitch;
+   * pointcast's [expected lineup](../components/lineup/ExpectedMatchLineup.tsx)
+   * is an answer for exactly that window, and it says on every portrait that
+   * it is a guess.
+   *
+   * **Either sheet is enough to prefer the real thing.** A half-published
+   * fixture has never been observed — the gate upstream requires both — but if
+   * one club has named a team, that is a fact, and a fact beats a prediction
+   * even next to an empty half.
+   */
+  const hasOfficial =
+    detail.home11.starters.length > 0 || detail.away11.starters.length > 0
+
+  if (!hasOfficial) {
+    return (
+      <ExpectedMatchLineup
+        key={matchId}
+        home={detail.home}
+        away={detail.away}
+        day={day}
+        competitionId={competitionId}
+        leagueId={leagueId}
+        summary={summary}
       />
     )
   }

@@ -100,8 +100,32 @@ costs nothing, and it renders in the existing
 fit to screen first, tap to zoom.
 
 It is absent without Membership, in the off-season, and for a club nobody has
-assessed. All three are normal rather than errors, so the strip simply falls
-back to linking at the match.
+assessed. All three are normal rather than errors.
+
+### The second eleven, beside the first
+
+The dialog draws **two projections of the same team**: Ligainsider's poster, and
+[pointcast's own expected lineup](../pointcast.md#expected-lineups) for the same
+fixture, as a pitch in the app's own notation — tier badge, availability mark
+and a start probability under every face, with the bench underneath as the
+substitutions it would produce. Side by side from `lg` up, and one at a time
+under a small segmented control on a phone, which is the only screen that cannot
+hold both.
+
+They are worth putting next to each other because they are made differently: a
+journalist reading the week's press conferences, against a model reading five
+seasons of minutes, market values and points. Where they agree a reader can stop
+thinking about it; where they disagree, that disagreement is the most useful
+thing on the page.
+
+**Either one is enough to open the dialog.** A club Kickbase has no poster for
+still has a prediction, and a club the run could not predict still has a poster.
+Only with neither does the strip fall back to linking at the match.
+
+The prediction is fetched **only while the fixture is still ahead of us**
+([`useExpectedLineup`](../../src/api/hooks/useExpectedLineup.ts)): the run
+publishes the matchday it is predicting and no other, so once the whistle goes
+it would be a 404 for an answer the [Live](#live) tab already holds.
 
 ## Übersicht
 
@@ -551,6 +575,7 @@ cache entries the match page fills, so arriving from there pays nothing.
 | [`useTeamPoints`](../../src/api/hooks/useTeam.ts) | `/leagues/{id}/players/{pid}` ×N | league, 30 min | Übersicht's scorer card, Spiele |
 | [`useMatchLineup`](../../src/api/hooks/useMatchLineup.ts) | several | league | Live |
 | [`useLiveMatches`](../../src/api/hooks/useLiveMatches.ts) | `/matches/{id}/details` | competition | the header's live score |
+| [`useExpectedLineup`](../../src/api/hooks/useExpectedLineup.ts) | pointcast `/v1/lineups/{md}/{tid}.json` | competition, 10 min | the predicted eleven beside the poster |
 
 `useTeamSeason` is the fourth reading of the season payload, alongside the
 current matchday, the schedule and the match lookup — the season's 34 matchdays
