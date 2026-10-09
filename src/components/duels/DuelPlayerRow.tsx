@@ -89,10 +89,16 @@ export function DuelPlayerRow({
   const showStatusWord = showStatus && figure.kind !== 'bench'
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-3">
+    /* `items-stretch` and **no padding at this level**: the portrait is a
+       column of the row rather than an item inside it, so it fills the row's
+       whole height. The vertical padding belongs to the text beside it — here
+       it would inset the picture top and bottom, which was the one thing
+       setting this row apart from every other list in the app. */
+    <div className="flex min-w-0 flex-1 items-stretch">
       {/* **Flush portrait**, the one the [market](../market/MarketRow.tsx), the
-          [Kader](../squad/PlayerListTab.tsx) and a club's roster draw:
-          full-bleed against the row's edge, a wash under it because the
+          [Kader](../squad/PlayerListTab.tsx), the
+          [match ranking](../matchday/MatchRankingTab.tsx) and a club's roster
+          draw: full-bleed against the row's edge, a wash under it because the
           Kickbase cutouts are transparent PNGs, and the inner edge masked so
           the figure dissolves into the row rather than ending on a line.
 
@@ -100,78 +106,88 @@ export function DuelPlayerRow({
           1100×800 landscape and this box cover-crops them, so every pixel of
           both dimensions is a pixel of face — which is what a ranked list of
           twenty-six players is read for: recognising them. */}
-      <Avatar
-        src={player.image}
-        name={player.name}
-        fill
-        className={cn(
-          'w-14 shrink-0 self-stretch bg-transparent',
-          'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
-          '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
-        )}
-      />
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink">{player.name}</p>
-        {/* The fixture as **pictures and a scoreline**, not "MF @ ELF".
-            `FixtureBadge` is the app's wordless fixture — the opponent's
-            crest, recognised faster than a three-letter symbol, wearing a
-            house or an aeroplane in its corner — and `MatchStateBadge` says where that
-            match stands: a faint `–:–` before kick-off, a pulsing dot and the
-            running score while it is on, the final score once it is over.
-            Between them they answer "who against, home or away, and how is it
-            going" in the width the position abbreviation used to take. */}
-        <span className="mt-0.5 flex items-center gap-2">
-          <FixtureBadge fixture={player.fixture} size="sm" />
-          <MatchStateBadge
-            fixture={player.fixture}
-            live={player.live}
-            teamId={player.teamId}
-          />
-          {/* What his **club** named him as, in the hour between the sheet
-              being published and kick-off — the one thing a `–:–` scoreline
-              cannot tell you, and the one that is still worth knowing while
-              the match is open. It sits beside the scoreline because both
-              speak for the match rather than for the manager. */}
-          {player.sheet !== undefined && <TeamSheetMark role={player.sheet} />}
-          {/* What he actually did, from the match's own event feed — the same
-              glyphs the player page draws, since the codes turned out to be
-              the same scale. Goals and cards are the reason a score moved,
-              and they belong on the row that shows the score. */}
-          {player.events?.map((event) => (
-            <MatchEventBadge key={event.kind} event={event} />
-          ))}
-          {showStatusWord && player.status === 'bench' && (
-            <BenchMark size={12} className="text-faint" />
-          )}
-        </span>
-      </div>
-
-      {trailing}
-
-      {/* In front of the figure column, so the column itself stays a column:
-          the kick-off times and points still line up down the right edge
-          however many rows carry a chip. */}
-      {entry !== undefined && (
-        <ExpectedPointsBadge value={entry.value} isForecast={!entry.isOwn} />
-      )}
-
-      {/* The armchair takes the place of the number for a benched player who
-          has no score — a mark where a figure would be, which reads as "there
-          is nothing here that counts". */}
-      {figure.kind === 'bench' ? (
-        <BenchMark size={15} className="text-faint" />
-      ) : (
-        <span
-          aria-label={figureDescription(figure)}
+      <span className="flex w-14 shrink-0 self-stretch">
+        <Avatar
+          src={player.image}
+          name={player.name}
+          fill
           className={cn(
-            'nums shrink-0 text-sm font-semibold',
-            isScore(figure) ? 'text-ink' : 'text-faint',
+            'w-full self-stretch bg-transparent',
+            'bg-linear-to-t from-surface-2/60 to-transparent to-70%',
+            '[mask-image:linear-gradient(to_right,#000_65%,transparent)]',
           )}
-        >
-          {figureLabel(figure)}
-        </span>
-      )}
+        />
+      </span>
+
+      {/* Everything else, carrying the padding the row used to. `pl-1.5`
+          rather than the old `gap-2.5`, the match ranking's own measure: the
+          portrait's inner edge is already fading out, so a full gap on top of
+          it reads as a hole. */}
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pr-3 pl-1.5">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{player.name}</p>
+          {/* The fixture as **pictures and a scoreline**, not "MF @ ELF".
+              `FixtureBadge` is the app's wordless fixture — the opponent's
+              crest, recognised faster than a three-letter symbol, wearing a
+              house or an aeroplane in its corner — and `MatchStateBadge` says where that
+              match stands: a faint `–:–` before kick-off, a pulsing dot and the
+              running score while it is on, the final score once it is over.
+              Between them they answer "who against, home or away, and how is it
+              going" in the width the position abbreviation used to take. */}
+          <span className="mt-0.5 flex items-center gap-2">
+            <FixtureBadge fixture={player.fixture} size="sm" />
+            <MatchStateBadge
+              fixture={player.fixture}
+              live={player.live}
+              teamId={player.teamId}
+            />
+            {/* What his **club** named him as, in the hour between the sheet
+                being published and kick-off — the one thing a `–:–` scoreline
+                cannot tell you, and the one that is still worth knowing while
+                the match is open. It sits beside the scoreline because both
+                speak for the match rather than for the manager. */}
+            {player.sheet !== undefined && (
+              <TeamSheetMark role={player.sheet} />
+            )}
+            {/* What he actually did, from the match's own event feed — the same
+                glyphs the player page draws, since the codes turned out to be
+                the same scale. Goals and cards are the reason a score moved,
+                and they belong on the row that shows the score. */}
+            {player.events?.map((event) => (
+              <MatchEventBadge key={event.kind} event={event} />
+            ))}
+            {showStatusWord && player.status === 'bench' && (
+              <BenchMark size={12} className="text-faint" />
+            )}
+          </span>
+        </div>
+
+        {trailing}
+
+        {/* In front of the figure column, so the column itself stays a column:
+            the kick-off times and points still line up down the right edge
+            however many rows carry a chip. */}
+        {entry !== undefined && (
+          <ExpectedPointsBadge value={entry.value} isForecast={!entry.isOwn} />
+        )}
+
+        {/* The armchair takes the place of the number for a benched player who
+            has no score — a mark where a figure would be, which reads as "there
+            is nothing here that counts". */}
+        {figure.kind === 'bench' ? (
+          <BenchMark size={15} className="text-faint" />
+        ) : (
+          <span
+            aria-label={figureDescription(figure)}
+            className={cn(
+              'nums shrink-0 text-sm font-semibold',
+              isScore(figure) ? 'text-ink' : 'text-faint',
+            )}
+          >
+            {figureLabel(figure)}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

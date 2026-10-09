@@ -795,9 +795,21 @@ type every other ranking in the app gives it — `1.`, bold and quiet, rather
 than the bare 11px `1` it was, which set the one thing the list is ordered by
 in the smallest text on the row. Beside it the **portrait is flush**: full
 height of the row, bleeding to its edge and masked so it dissolves into it, the
-same picture the [market](market.md), the [Kader](squad.md) and a club's roster
-draw. A ranked list of twenty-six players is read to recognise them, and a 34px
-circle with padding round it was the smallest face in the app.
+same picture the [market](market.md), the [Kader](squad.md), the
+[match ranking](match-detail.md#ranking--who-actually-scored) and a club's
+roster draw. A ranked list of twenty-six players is read to recognise them, and
+a 34px circle with padding round it was the smallest face in the app.
+
+Full height means **the row's**, not the row's content box. The portrait was
+the right picture in the wrong box for a while: the row carried its padding on
+the flex container the portrait sat in, so `self-stretch` stretched it to a
+height eight pixels short top and bottom and the one list that was supposed to
+match every other list was the one with a letterboxed face in it. The padding
+now belongs to the text column beside it, which is the arrangement the match
+ranking already had — portrait, then a padded lane — and the gap in front of
+the text is `pl-1.5` rather than the full `gap-2.5`, because the picture's
+inner edge is already fading out and a full gap on top of a fade reads as a
+hole.
 
 **The restarting numbers are the point of the split.** A player carrying `14`
 because thirteen of the *opponent's* outscored him answers a different question
