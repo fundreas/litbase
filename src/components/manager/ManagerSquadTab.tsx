@@ -13,6 +13,8 @@ import { useTeamDirectory, type TeamSummary } from '@/api/hooks/useCompetition'
 import {
   useCurrentMatchday,
   useUpcomingMatchday,
+  useUpcomingMatchdays,
+  type CurrentMatchday,
 } from '@/api/hooks/useMatchday'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
@@ -21,7 +23,12 @@ import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { ClubWatermark } from '@/components/player/ClubWatermark'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
+import {
+  SquadReadingButton,
+  UpcomingFixtures,
+} from '@/components/squad/SquadReading'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
+import { useSquadReading } from '@/components/squad/useSquadReading'
 import { ValueDelta, ValueModeButton } from '@/components/squad/ValueMode'
 import { useValueMode, type ValueMode } from '@/components/squad/useValueMode'
 import { Avatar } from '@/components/ui/Avatar'
@@ -106,6 +113,12 @@ export function ManagerSquadTab({
      being played. See [`useUpcomingMatchday`](../../api/hooks/useMatchday.ts):
      same cache entry, no request of its own. */
   const upcoming = useUpcomingMatchday(competitionId)
+  /* And the three after it, for the list's
+     [Spielplan reading](../squad/SquadReading.tsx). *What has this squad got
+     coming* is a question asked about a rival at least as often as about
+     oneself — it is half of what a duel next month will turn on. Same cache
+     entry, no request of its own. */
+  const nextMatchdays = useUpcomingMatchdays(competitionId, 4)
   /* His club's crest, for the watermark behind each row — out of the season's
      table, which is one request cached ten minutes and the same entry the
      league table, the club pages and the Spieltag already read. A club the
@@ -116,6 +129,10 @@ export function ManagerSquadTab({
      [`useValueMode`](../squad/ValueMode.tsx). A reader who wants profit under
      the price wants it under every price. */
   const [valueMode, setValueMode] = useValueMode()
+  /* The same preference again, and the same reasoning: both Kader lists are
+     the same row, so they are read the same way. */
+  const [reading, setReading] = useSquadReading()
+  const showsFixtures = nextMatchdays.length > 0 && reading === 'fixtures'
   const expected = useExpectedPointsSheet({
     matchday: day,
     resolve: (playerId) => {
@@ -201,8 +218,17 @@ export function ManagerSquadTab({
           edge, above the first position. Alone on its row rather than on the
           heading of the first group — it governs every group, and a control
           sitting on one of them would read as that group's. */}
-      <div className="-mb-1 flex items-center justify-end">
-        <ValueModeButton value={valueMode} onChange={setValueMode} />
+      <div className="-mb-1 flex items-center justify-end gap-2">
+        {!showsFixtures && (
+          <ValueModeButton value={valueMode} onChange={setValueMode} />
+        )}
+        {/* Money or the fixture list, exactly as on one's own
+            [Kader](../squad/PlayerListTab.tsx) and sharing its stored choice.
+            With the crests in the rows there is no price left for the button
+            beside it to switch, so that one steps aside. */}
+        {nextMatchdays.length > 0 && (
+          <SquadReadingButton value={reading} onChange={setReading} />
+        )}
       </div>
 
       {byPosition.map((group) => (
@@ -227,6 +253,7 @@ export function ManagerSquadTab({
                 fixture={upcoming?.fixtureByTeamId.get(player.teamId)}
                 to={`/leagues/${leagueId}/players/${player.id}`}
                 valueMode={valueMode}
+                nextMatchdays={showsFixtures ? nextMatchdays : undefined}
                 expectedPoints={expectedPoints.entry(player.id)}
                 onEditExpected={expected.open}
               />
@@ -262,6 +289,7 @@ function PlayerRow({
   fixture,
   to,
   valueMode,
+  nextMatchdays,
   expectedPoints,
   onEditExpected,
 }: {
@@ -272,6 +300,12 @@ function PlayerRow({
   to: string
   /** Which figure goes under the market value — the tab's own choice. */
   valueMode: ValueMode
+  /**
+   * The matchdays to draw crests for, **and the switch itself**: present
+   * means the row is in its [Spielplan reading](../squad/SquadReading.tsx)
+   * and carries no money.
+   */
+  nextMatchdays: CurrentMatchday[] | undefined
   /**
    * What he is expected to score on the coming matchday — the reader's guess,
    * or the model's prediction standing in for one.
@@ -376,11 +410,22 @@ function PlayerRow({
             )}
           </span>
 
-          <span className="shrink-0 text-right">
-            <span className="nums block text-sm font-semibold text-ink">
-              {money(player.marketValue)}
-            </span>
-            {/* The overnight change or what the player has made his owner,
+          {/* **The four crests in place of the money**, where the list is
+              being read for the fixtures — the swap one's own Kader makes,
+              for the same reason: the strip wants about the width the price
+              and its delta take, so the right-hand end of the row carries one
+              of the two and the toolbar says which. */}
+          {nextMatchdays !== undefined ? (
+            <UpcomingFixtures
+              matchdays={nextMatchdays}
+              teamId={player.teamId}
+            />
+          ) : (
+            <span className="shrink-0 text-right">
+              <span className="nums block text-sm font-semibold text-ink">
+                {money(player.marketValue)}
+              </span>
+              {/* The overnight change or what the player has made his owner,
                 whichever the control above the list is on — `tfhmvt` and
                 `mvgl`, both of which are on this payload after all. The
                 second is the more interesting one here: *what has this squad
@@ -388,12 +433,13 @@ function PlayerRow({
                 more often than about yourself. Drawn by the same
                 [`ValueDelta`](../squad/ValueMode.tsx) one's own Kader uses, so
                 a player reads the same in his owner's squad as in yours. */}
-            <ValueDelta
-              mode={valueMode}
-              changeDay={player.marketValueChangeDay}
-              profitLoss={player.profitLoss}
-            />
-          </span>
+              <ValueDelta
+                mode={valueMode}
+                changeDay={player.marketValueChangeDay}
+                profitLoss={player.profitLoss}
+              />
+            </span>
+          )}
         </span>
       </Link>
 
@@ -402,22 +448,28 @@ function PlayerRow({
           same figures. The panel says who he plays and where, the tap enters
           what you think he will score against them, and the figure itself
           reads up beside the probability. A rival's row and your own are the
-          same row now, which is the point: the two are meant to be compared. */}
-      <button
-        type="button"
-        onClick={() => {
-          onEditExpected(player.id)
-        }}
-        title="Erwartete Punkte eintragen"
-        aria-label={`Erwartete Punkte für ${player.lastName} eintragen`}
-        className={cn(
-          'flex w-14 shrink-0 cursor-pointer flex-col items-center justify-center self-stretch',
-          'border-l border-line bg-canvas/40 px-1 transition-colors hover:bg-surface-2',
-          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
-        )}
-      >
-        <FixtureBadge fixture={fixture} size="lg" />
-      </button>
+          same row now, which is the point: the two are meant to be compared.
+
+          Gone while the row is showing the next four crests, the first of
+          which is this one — and with it the tap, which belongs to the
+          reading that is about this weekend. */}
+      {nextMatchdays === undefined && (
+        <button
+          type="button"
+          onClick={() => {
+            onEditExpected(player.id)
+          }}
+          title="Erwartete Punkte eintragen"
+          aria-label={`Erwartete Punkte für ${player.lastName} eintragen`}
+          className={cn(
+            'flex w-14 shrink-0 cursor-pointer flex-col items-center justify-center self-stretch',
+            'border-l border-line bg-canvas/40 px-1 transition-colors hover:bg-surface-2',
+            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset',
+          )}
+        >
+          <FixtureBadge fixture={fixture} size="lg" />
+        </button>
+      )}
     </li>
   )
 }

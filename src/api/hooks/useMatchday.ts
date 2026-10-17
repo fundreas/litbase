@@ -447,6 +447,41 @@ export function useUpcomingMatchday(
 }
 
 /**
+ * **The next `count` matchdays, fixtures and all** — the same pick
+ * {@link useUpcomingMatchday} makes, continued.
+ *
+ * What a squad list's [Spielplan reading](../../components/squad/SquadReading.tsx)
+ * is drawn from: four crests per row instead of one, so *who does this squad
+ * play next month* is a glance rather than twenty visits to twenty player
+ * pages. The first entry is exactly what `useUpcomingMatchday` returns, which
+ * is what keeps the row's two readings agreeing about the next opponent.
+ *
+ * Short of the end of the season it simply returns fewer — the last matchday
+ * has no four after it, and a list that padded itself with blanks would be
+ * claiming fixtures that do not exist.
+ *
+ * Reads the same hour-cached season payload as every other hook in this file,
+ * so the four crests cost no request of their own.
+ */
+export function useUpcomingMatchdays(
+  competitionId: string | undefined,
+  count: number,
+): CurrentMatchday[] {
+  const { data } = useSeasonFixtures(competitionId)
+
+  return useMemo(() => {
+    const now = nowMs()
+    return (data ?? [])
+      .filter((entry) => entry.startAt > now)
+      .slice(0, count)
+      .map((entry) => ({
+        day: entry.day,
+        fixtureByTeamId: entry.fixtureByTeamId,
+      }))
+  }, [data, count])
+}
+
+/**
  * One specific matchday's fixtures, indexed by team.
  *
  * Like {@link useCurrentMatchday} but for any matchday, and carrying the

@@ -409,7 +409,7 @@ duplicated here.
 | Market value | `marketValue` | Compact euros, tabular figures |
 | Value change | `marketValueChangeDay` (`tfhmvt`) **or** `profitLoss` (`mvgl`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when unknown, grey at zero. [Which of the two](#24-h-oder-seit-kauf) is the toolbar's choice |
 | Club | `useTeamDirectory` | The crest **watermarked behind the row**, 13 %, cropped and faded — the same badge the [market](market.md#two-crests-and-they-mean-different-things) draws, from [`ClubWatermark`](../../src/components/player/ClubWatermark.tsx). It costs the row no width, which is why a Kader row can carry the club at all |
-| Fixture panel | `useUpcomingMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays) — opens the [expected-points sheet](#erwartete-punkte) |
+| Fixture panel | `useUpcomingMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays) — opens the [expected-points sheet](#erwartete-punkte). Replaced, along with the money, by the next four crests in the [Spielplan reading](#werte-oder-spielplan) |
 | Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The crest panel enters it; it does not display it |
 
 The lineup rail is **always rendered** and only tinted when the player is
@@ -501,6 +501,58 @@ under the name until the [player detail page](player-detail.md) gave season
 scoring a whole tab of its own — per matchday, with minutes and events. This
 page is about who is fit, who is likely to start and what they are worth, and
 the row is quieter for keeping to that.
+
+### Werte oder Spielplan
+
+The **right-hand end of a row** answers one of two questions, and the second
+control on the toolbar says which:
+
+| Reading | The row's right end | The question |
+| ------- | ------------------- | ------------ |
+| **Werte** (default) | the market value, the [24 h / seit Kauf](#24-h-oder-seit-kauf) figure under it, and the crest panel with the **next** opponent | what is he worth, and is tonight the night to sell |
+| **Spielplan** | the **next four opponents**, one crest per matchday, each with its matchday number under it | has this squad drawn a kind month |
+
+```
+  Werte                              Spielplan
+ ┌──┬────┬──────────────┬─────┐     ┌──┬────┬────────┬──────────────┐
+ │▮ │ img│ Musiala      │     │     │▮ │ img│Musiala │(S04)(BVB)(RBL│
+ │  │    │ ◆ ⌖141  32,4M│(BVB)│     │  │    │◆ ⌖141  │  12  13   14 │
+ └──┴────┴──────────────┴─────┘     └──┴────┴────────┴──────────────┘
+```
+
+**Why a switch and not another column.** On a phone the four crests want about
+the width the price and its delta take, and a row carrying both would carry
+neither legibly — the same arithmetic that makes
+[what stands under a pitch name](#was-unter-dem-namen-steht) a choice. The name,
+the availability mark, the probability and the expected figure are on the row in
+either reading: those are about *this* player, and nothing about the switch is.
+
+**The fixture list cannot be assembled any other way.** A row has always named
+the next opponent, which answers *this weekend* and nothing beyond it; the
+question a manager actually has in midweek — *who is in for a kind run, who
+hits three top clubs in a row* — would otherwise mean twenty visits to twenty
+player pages. Four crests in a column, read **down** the list, answer it at a
+glance, which is why a club with a bye gets the badge's dash rather than the
+strip closing up: the four columns have to stay aligned across every row.
+
+**What goes while it is on.** The price, so the *24 h / seit Kauf* button has
+nothing left to switch and steps aside with it. And the crest panel at the end
+of the row, whose first crest the strip already carries — which takes the tap
+that enters [an expected figure](#erwartete-punkte) with it. That guess is about
+the coming matchday, which is the other reading, and one tap on the toolbar is
+the way back to it.
+
+The choice is **remembered** through the same safe-localStorage wrapper as the
+layout and the value mode (`litbase.squad.reading`), and shared with
+[a rival's Kader](manager-detail.md) — *what has this squad got coming* is asked
+about a rival at least as often as about oneself. It is **beside the list only**,
+like the value mode: a tile carries neither prices nor crests.
+
+It is **absent where there is nothing to come**: past the last matchday of the
+season `useUpcomingMatchdays` returns nothing and the button is not drawn, and
+it is left off the [scenario](whatif.md)'s Kader altogether — that list is about
+what a squad fetches on a day the reader picked, and four opponents answer none
+of it.
 
 ## The opponent is the next one, not the current matchday's
 

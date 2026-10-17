@@ -13,10 +13,16 @@ import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
+import type { CurrentMatchday } from '@/api/hooks/useMatchday'
 import type { TeamSummary } from '@/api/hooks/useCompetition'
 import { ClubWatermark } from '@/components/player/ClubWatermark'
 import type { LineupEditor } from '@/components/squad/useLineupEditor'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
+import {
+  SquadReadingButton,
+  UpcomingFixtures,
+} from '@/components/squad/SquadReading'
+import { useSquadReading } from '@/components/squad/useSquadReading'
 import { ValueDelta, ValueModeButton } from '@/components/squad/ValueMode'
 import { useValueMode, type ValueMode } from '@/components/squad/useValueMode'
 import { Avatar } from '@/components/ui/Avatar'
@@ -80,6 +86,7 @@ export function PlayerListTab({
   editor,
   leagueId,
   fixtureByTeamId,
+  nextMatchdays,
   teams,
   matchday,
   startProbabilities,
@@ -95,6 +102,16 @@ export function PlayerListTab({
   /** For linking each row to the player's detail page. */
   leagueId: string
   fixtureByTeamId: Map<string, TeamFixture> | undefined
+  /**
+   * The next few matchdays, for the list's
+   * [Spielplan reading](./SquadReading.tsx) — the first of them is the one
+   * `fixtureByTeamId` comes from.
+   *
+   * Left out where that reading would answer nothing: the
+   * [scenario](../../pages/WhatIfPage.tsx)'s Kader is about what a squad
+   * fetches on a day the reader picks, and the button is simply absent there.
+   */
+  nextMatchdays?: CurrentMatchday[]
   /** The season's clubs, for the watermark behind each row. */
   teams: Map<string, TeamSummary> | undefined
   /** The matchday the fixtures belong to, and the guesses are filed under. */
@@ -154,6 +171,12 @@ export function PlayerListTab({
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
   const [view, setView] = useSquadView()
   const [valueMode, setValueMode] = useValueMode()
+  const [reading, setReading] = useSquadReading()
+  /* No schedule, no choice: past the last matchday of the season there are no
+     opponents to come, and a button that switched the rows to four dashes
+     would be offering an answer nobody can use. */
+  const canShowFixtures = (nextMatchdays?.length ?? 0) > 0
+  const showsFixtures = canShowFixtures && reading === 'fixtures'
   const expected = useExpectedPointsView(matchday)
 
   const handleToggle = (player: SquadMember) => {
@@ -194,8 +217,19 @@ export function PlayerListTab({
             picked, the line under every price is that price's distance from
             today, which is the only comparison a future value has — neither of
             this button's two answers is in the rows for it to switch between. */}
-        {view === 'list' && (saleValues?.size ?? 0) === 0 && (
+        {view === 'list' && !showsFixtures && (saleValues?.size ?? 0) === 0 && (
           <ValueModeButton value={valueMode} onChange={setValueMode} />
+        )}
+        {/* **Money or the fixture list**, for the same reason the button to
+            its left exists and in the same shell: the row's right-hand end
+            has room for one of them, and which one depends on whether the
+            question is *sell him before the morning* or *has this squad drawn
+            a kind month*. In the fixture reading the rows carry no price at
+            all, so the delta button above has nothing left to switch and goes
+            with it. Beside the list only, like that one: a tile shows neither
+            figure. */}
+        {view === 'list' && canShowFixtures && (
+          <SquadReadingButton value={reading} onChange={setReading} />
         )}
         <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
       </div>
@@ -257,6 +291,7 @@ export function PlayerListTab({
                     onToggleForSale={onToggleForSale}
                     onToggle={handleToggle}
                     valueMode={valueMode}
+                    nextMatchdays={showsFixtures ? nextMatchdays : undefined}
                     saleValue={saleValues?.get(player.id)}
                     expectedPoints={expected.entry(player.id)}
                     onEditExpected={onEditExpected}
@@ -498,6 +533,7 @@ function PlayerRow({
   onToggleForSale,
   onToggle,
   valueMode,
+  nextMatchdays,
   saleValue,
   expectedPoints,
   onEditExpected,
@@ -519,6 +555,12 @@ function PlayerRow({
   onToggle: (player: SquadMember) => void
   /** Which figure goes under the market value — the toolbar's choice. */
   valueMode: ValueMode
+  /**
+   * The matchdays to draw crests for, **and the switch itself**: present means
+   * the row is in its [Spielplan reading](./SquadReading.tsx) and the money
+   * is not on it.
+   */
+  nextMatchdays: CurrentMatchday[] | undefined
   /**
    * What he would fetch on the scenario's target day, where one is chosen and
    * the forecast reaches it. It replaces both figures on the right — see the
@@ -642,27 +684,40 @@ function PlayerRow({
         )}
       </span>
 
-      <span className="shrink-0 text-right">
-        {/* **The target day's price, where the scenario has picked one.** The
+      {/* **The four crests in place of the money**, where the list is being
+          read for the fixtures. The whole right-hand end swaps rather than
+          the strip being squeezed in beside the price: on a phone those four
+          crests want about the width the price and its delta take, and a row
+          that tried to carry both would end up carrying neither legibly.
+
+          The single crest panel at the end of the row goes with it, since the
+          first crest of the strip *is* the next opponent — and with it the tap
+          that enters an expected figure, which belongs to the reading that is
+          about this weekend. One tap on the toolbar brings both back. */}
+      {nextMatchdays !== undefined ? (
+        <UpcomingFixtures matchdays={nextMatchdays} teamId={player.teamId} />
+      ) : (
+        <span className="shrink-0 text-right">
+          {/* **The target day's price, where the scenario has picked one.** The
               figure keeps the column, the weight and the place it always had —
               a predicted value is still the value this row is being judged on,
               and moving it would make the two kinds of row impossible to
               compare down a list. What marks it is the chip beside it and the
               line underneath, which swaps the toolbar's delta for the one
               question a future price raises: *how far is that from today?* */}
-        {saleValue === undefined ? (
-          <span className="nums block text-sm font-semibold text-ink">
-            {money(player.marketValue)}
-          </span>
-        ) : (
-          <span className="flex items-center justify-end gap-1">
-            <ForecastChip />
-            <span className="nums text-sm font-semibold text-ink">
-              {money(saleValue)}
+          {saleValue === undefined ? (
+            <span className="nums block text-sm font-semibold text-ink">
+              {money(player.marketValue)}
             </span>
-          </span>
-        )}
-        {/* **One line, two questions, and the toolbar picks which.** The
+          ) : (
+            <span className="flex items-center justify-end gap-1">
+              <ForecastChip />
+              <span className="nums text-sm font-semibold text-ink">
+                {money(saleValue)}
+              </span>
+            </span>
+          )}
+          {/* **One line, two questions, and the toolbar picks which.** The
               default is the last 24 hours, because that is what a squad page
               is read for between matchdays — who is climbing, who is bleeding
               value and should go on the market before the morning. The other
@@ -676,27 +731,28 @@ function PlayerRow({
               same place would make the pair a puzzle — so they take turns.
               See [`ValueDelta`](./ValueMode.tsx), which draws whichever is
               showing identically in a rival's Kader. */}
-        {saleValue === undefined ? (
-          <ValueDelta
-            mode={valueMode}
-            changeDay={player.marketValueChangeDay}
-            profitLoss={player.profitLoss}
-          />
-        ) : (
-          <span
-            title="Gegenüber dem aktuellen Marktwert"
-            className={cn(
-              'nums block text-xs',
-              saleValue > player.marketValue && 'text-positive',
-              saleValue < player.marketValue && 'text-negative',
-              saleValue === player.marketValue && 'text-faint',
-            )}
-          >
-            {moneyDelta(saleValue - player.marketValue)}
-            <span className="sr-only"> gegenüber jetzt</span>
-          </span>
-        )}
-      </span>
+          {saleValue === undefined ? (
+            <ValueDelta
+              mode={valueMode}
+              changeDay={player.marketValueChangeDay}
+              profitLoss={player.profitLoss}
+            />
+          ) : (
+            <span
+              title="Gegenüber dem aktuellen Marktwert"
+              className={cn(
+                'nums block text-xs',
+                saleValue > player.marketValue && 'text-positive',
+                saleValue < player.marketValue && 'text-negative',
+                saleValue === player.marketValue && 'text-faint',
+              )}
+            >
+              {moneyDelta(saleValue - player.marketValue)}
+              <span className="sr-only"> gegenüber jetzt</span>
+            </span>
+          )}
+        </span>
+      )}
     </>
   )
 
@@ -719,7 +775,8 @@ function PlayerRow({
 
   /* In calculator mode it goes back to being a picture: the whole row is one
      button then, HTML has no nested buttons, and a tap anywhere on the row
-     means "mark him for sale" — including here. */
+     means "mark him for sale" — including here. Drawn in neither mode while
+     the row is showing the next four crests: the first of them is this one. */
   const fixturePanel = <span className={panelClass}>{panelBody}</span>
 
   const shell = cn(
@@ -757,7 +814,7 @@ function PlayerRow({
           <span className={railClass}>{rail}</span>
           {portrait}
           <span className={bodyClass}>{details}</span>
-          {fixturePanel}
+          {nextMatchdays === undefined && fixturePanel}
         </button>
       </li>
     )
@@ -795,7 +852,7 @@ function PlayerRow({
         {details}
       </Link>
 
-      {onEditExpected === undefined ? (
+      {nextMatchdays !== undefined ? null : onEditExpected === undefined ? (
         fixturePanel
       ) : (
         <button

@@ -246,14 +246,23 @@ amount; the **lineup probability** badge under the name with the
 that second line are estimates about the same coming matchday, and the pair is
 what a rival's eleven is judged on.
 
-**That first figure is night or lifetime**, switched by the one control above
-the list — the [same control, same remembered choice](squad.md#24-h-oder-seit-kauf)
+**That first figure is night or lifetime**, switched by one of the two controls
+above the list — the [same control, same remembered choice](squad.md#24-h-oder-seit-kauf)
 as one's own Kader, because a reader who picked *seit Kauf* over there did not
 mean "only there". *24 h* is `tfhmvt`; *seit Kauf* is `mvgl`, what the player
 has made this manager since he bought him, and the payload carries both. The
 second question is if anything the more interesting one here: *what has this
 squad actually earned him* is asked about a rival far more often than about
 oneself, and until now the answer was nowhere in the app.
+
+**Or there is no money on the row at all.** The second control switches the
+right-hand end of every row to the **next four opponents** — the
+[Spielplan reading](squad.md#werte-oder-spielplan), the same control and the
+same remembered choice as one's own Kader. It is arguably worth more here: *has
+this squad got a kind month* is what a duel four weeks out will turn on, and
+there is no other way to ask it about somebody else's fifteen players. The
+price, the signed figure and the crest panel — the sheet's way in with it — are
+back one tap later.
 
 **The season line is gone.** `p`/`ap` used to sit under the name — "what has
 this cost him all season" — and it was a fact about the past holding the place
