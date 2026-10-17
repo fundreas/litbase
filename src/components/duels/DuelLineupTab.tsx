@@ -25,6 +25,8 @@ import {
   usePitchOrientation,
   type PitchOrientation,
 } from '@/components/squad/pitchMetrics'
+import { PitchSubtitleToggle } from '@/components/squad/PitchSubtitle'
+import { pitchSubtitlePlate } from '@/components/squad/pitchSubtitles'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import {
@@ -39,6 +41,7 @@ import {
   type ProjectedPoints,
 } from '@/lib/expectedPoints'
 import { useHashModal } from '@/lib/useHashModal'
+import { usePreferences } from '@/preferences/usePreferences'
 import { useMemo, type ReactNode } from 'react'
 
 /**
@@ -171,6 +174,13 @@ export function DuelLineupTab({
   }
 
   /**
+   * What the plates say, and so how tall they have to be budgeted: the crests
+   * of `Gegner` need the `full` plate, the two text readings do not — see
+   * [`pitchSubtitlePlate`](../squad/pitchSubtitles.ts).
+   */
+  const subtitle = usePreferences().preferences.pitchSubtitle
+
+  /**
    * The busiest band across **both** halves — five defenders on either side
    * constrains the whole pitch, since every card is drawn at one size.
    */
@@ -181,10 +191,10 @@ export function DuelLineupTab({
     ]
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length * 2,
-      plate: 'named',
+      plate: pitchSubtitlePlate(subtitle, 'named'),
       orientation,
     })
-  }, [box, top.lineup, bottom.lineup, orientation])
+  }, [box, top.lineup, bottom.lineup, orientation, subtitle])
 
   /*
    * One pitch, drawn in whichever of the two places is showing — inline under
@@ -230,6 +240,17 @@ export function DuelLineupTab({
           }}
         />
       )}
+
+      {/* What the plates say — beside the full-screen button, and in its place
+          once that one is gone. Twenty-two plates is where the choice earns
+          most: a pitch of crests says which of the two elevens has the easier
+          weekend, which no column of numbers does. */}
+      <PitchSubtitleToggle
+        className={cn(
+          'absolute top-1',
+          fullscreen.isOpen ? 'right-1' : 'right-10',
+        )}
+      />
 
       <div
         ref={ref}

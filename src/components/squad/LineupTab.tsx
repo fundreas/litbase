@@ -36,6 +36,11 @@ import {
   type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
+import {
+  PitchSubtitleLine,
+  PitchSubtitleToggle,
+} from '@/components/squad/PitchSubtitle'
+import { upcomingFigure } from '@/components/squad/pitchSubtitles'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityCorner } from '@/components/squad/StartProbabilityBadge'
 import {
@@ -389,6 +394,11 @@ export function LineupTab({
       )}
 
       <Pitch orientation={orientation} className="flex-1">
+        {/* The corner, as on every other pitch: what the plates under the
+            names say. This one has no total plate and no full-screen button,
+            so the chip has the corner to itself. */}
+        <PitchSubtitleToggle className="absolute top-1 right-1" />
+
         {/* Four equal bands, one per position, always rendered.
             Distributing rows with `justify-around` instead made the geometry
             depend on how many rows happened to exist, so a lineup missing a
@@ -928,26 +938,22 @@ function PlayerFace({
         >
           {player.lastName}
         </span>
-        <span className="flex max-w-full items-center gap-0.5">
-          <FixtureBadge
+        {/* Whichever of the three readings the reader has the pitches set
+            to — see [`PitchSubtitleLine`](./PitchSubtitle.tsx). This plate
+            carried the crest *and* the figure until the choice existed; it
+            now carries one of the three like every other pitch, and the crest
+            is the chip in the corner away. */}
+        <span
+          style={{ fontSize: metrics.nameFontSize }}
+          className="flex max-w-full items-center gap-0.5 leading-none"
+        >
+          <PitchSubtitleLine
+            figure={upcomingFigure(fixture)}
             fixture={fixture}
-            tone="onPitch"
-            size={metrics.badgeCrest}
+            expected={expected}
+            metrics={metrics}
+            isRunning={false}
           />
-          {expected !== undefined && (
-            <span
-              style={{ fontSize: metrics.nameFontSize }}
-              className={cn(
-                'nums flex min-w-0 items-center gap-0.5 leading-none font-bold',
-                expectedTextClass(expected),
-              )}
-            >
-              <ExpectedPointsFigure
-                value={expected.value}
-                fontSize={metrics.nameFontSize}
-              />
-            </span>
-          )}
         </span>
       </span>
     </>

@@ -15,6 +15,8 @@ import {
   usePitchBox,
   usePitchOrientation,
 } from '@/components/squad/pitchMetrics'
+import { PitchSubtitleToggle } from '@/components/squad/PitchSubtitle'
+import { pitchSubtitlePlate } from '@/components/squad/pitchSubtitles'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import {
@@ -30,6 +32,7 @@ import {
 } from '@/lib/expectedPoints'
 import { points } from '@/lib/format'
 import { useHashModal } from '@/lib/useHashModal'
+import { usePreferences } from '@/preferences/usePreferences'
 
 /**
  * **One manager's eleven for one matchday**, on a pitch, with the rest of the
@@ -121,6 +124,13 @@ export function ManagerLineupTab({
     breakdown.open(player.id)
   }
 
+  /**
+   * What the plates say, and so how tall they have to be budgeted: the crests
+   * of `Gegner` need the `full` plate, the two text readings do not — see
+   * [`pitchSubtitlePlate`](../squad/pitchSubtitles.ts).
+   */
+  const subtitle = usePreferences().preferences.pitchSubtitle
+
   /** The busiest band constrains every card, since all are drawn at one size. */
   const metrics = useMemo(() => {
     const bandSizes = ROW_ORDER.map((position) =>
@@ -128,10 +138,10 @@ export function ManagerLineupTab({
     )
     return fitPitchMetrics(box, Math.max(1, ...bandSizes), {
       rows: ROW_ORDER.length,
-      plate: 'named',
+      plate: pitchSubtitlePlate(subtitle, 'named'),
       orientation,
     })
-  }, [box, roster.lineup, orientation])
+  }, [box, roster.lineup, orientation, subtitle])
 
   /*
    * A player the pitch cannot place: no current squad knows his position and
@@ -172,6 +182,16 @@ export function ManagerLineupTab({
           }}
         />
       )}
+
+      {/* What the plates say. Beside the full-screen button, and in its place
+          once that one is gone — the chip belongs on the big pitch too, where
+          the question it answers is at its most pressing. */}
+      <PitchSubtitleToggle
+        className={cn(
+          'absolute top-1',
+          fullscreen.isOpen ? 'right-1' : 'right-10',
+        )}
+      />
 
       <div
         ref={ref}

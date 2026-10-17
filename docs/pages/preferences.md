@@ -55,6 +55,24 @@ There is **no save button**. Each choice changes the app under the reader's
 finger — the theme repaints, the dots move — and that is the confirmation an
 *Übernehmen* would be asking for a second tap to provide.
 
+### Settings whose control is somewhere else
+
+Two more fields live in the same object and have **no row on this page**,
+deliberately:
+
+| Field | Its control |
+| ----- | ----------- |
+| `liveEventStream` | the bell in the [full-screen match line-up](match-detail.md)'s bar |
+| `pitchSubtitle` | the chip in a [pitch](squad.md#was-unter-dem-namen-steht)'s top-right corner |
+
+Both are questions a reader has *while looking at the screen they are about* —
+"enough passes, thank you", "who are these eleven playing?" — and the answer is
+worth one tap where the question occurs rather than a trip to a settings page
+and back. They are preferences all the same, rather than component state,
+because each should hold across every screen that obeys it and outlive the
+visit. A setting is listed here when it is about **the app**; these two are
+about one surface, and the surface carries them.
+
 ### Menü-Kürzel
 
 One setting for both shapes the [dots menu](../routing-and-layout.md#the-dots-in-the-corner)
@@ -112,8 +130,10 @@ field's *meaning* does.
    values as a `const` tuple and an entry in `DEFAULT_PREFERENCES`.
 2. Read it in `loadPreferences` through `oneOf`, so an unknown value falls
    back rather than reaching the app.
-3. A `<PreferenceChoice>` on this page, wired to
-   `setPreference('yourField', …)`.
+3. A control. A `<PreferenceChoice>` on this page, wired to
+   `setPreference('yourField', …)` — or, for a setting about one screen, a
+   control on that screen; see
+   [Settings whose control is somewhere else](#settings-whose-control-is-somewhere-else).
 4. Read it wherever it applies with `usePreferences()`.
 
 Nothing else — no context method, no new storage key, no migration.

@@ -317,6 +317,13 @@ or the right-hand column of a row — and four things can go in it.
 `playerFigure()` in [`models.ts`](../../src/api/models.ts) decides which, in
 this order:
 
+> On a pitch the figure is only the **default** reading of that slot. The chip
+> in the top-right corner switches all twenty-two plates to the opponents'
+> crests or to the kick-offs instead — see
+> [Was unter dem Namen steht](squad.md#was-unter-dem-namen-steht). The table
+> below is what *Punkte* resolves to, and it still governs the bench rows,
+> which keep their figure in every reading.
+
 | Shown | When | Why this order |
 | ----- | ---- | -------------- |
 | **Points** | they are known | The most informative thing available, benched players included — a bench that outscored the eleven is why benches are on screen at all |

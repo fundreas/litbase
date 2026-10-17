@@ -172,6 +172,13 @@ eight bands and two columns — so the cards are bigger here, and the bench rows
 are **controls**: a benched player's points are exactly as unexplained as a
 fielded one's.
 
+**The chip in the opposite corner is what the plates say**: the points, the
+opponents' crests, or the kick-offs — one reading for every pitch in the app,
+remembered, and switched from the grass because that is where the question
+occurs. A rival's eleven is a good place to ask it: *Gegner* turns the pitch
+into eleven crests and answers whether he has drawn a kind weekend. See
+[Was unter dem Namen steht](squad.md#was-unter-dem-namen-steht).
+
 **The corner plate is the matchday total**, not a name. The header already says
 whose page this is; what the pitch cannot otherwise say is what these eleven are
 worth on the day, and how much of it is still to come (`n laufend · n offen` —

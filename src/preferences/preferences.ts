@@ -33,6 +33,27 @@ export type MenuShortcutPosition = (typeof MENU_SHORTCUT_POSITIONS)[number]
 export const THEME_CHOICES = ['light', 'dark', 'system'] as const
 export type ThemeChoice = (typeof THEME_CHOICES)[number]
 
+/**
+ * What the second line of a player card on a
+ * [pitch](../components/squad/Pitch.tsx) says.
+ *
+ * The plate holds exactly one thing under the name, and there are three
+ * reasonable answers to *what about this player*:
+ *
+ *  - `points` — what he has scored, is scoring, or is expected to score. The
+ *    figure the pitches have always drawn, and the default: a lineup is looked
+ *    at to find out how it is doing.
+ *  - `opponent` — the club he is up against this matchday, as a crest with the
+ *    home-or-away chip on it.
+ *  - `kickoff` — when his match starts: the time if it is today, the weekday
+ *    otherwise.
+ *
+ * See [`PITCH_SUBTITLE`](../components/squad/pitchSubtitles.ts) for the words
+ * and the control.
+ */
+export const PITCH_SUBTITLES = ['points', 'opponent', 'kickoff'] as const
+export type PitchSubtitle = (typeof PITCH_SUBTITLES)[number]
+
 export interface Preferences {
   /**
    * Which corner the app's pages hang in — or `hide` for neither.
@@ -59,6 +80,22 @@ export interface Preferences {
    * should still hold the next time a match is opened.
    */
   liveEventStream: boolean
+  /**
+   * What a player card's second line says on every pitch that holds players
+   * from **more than one club** — the squad's own two views, a duel, and a
+   * manager's matchday.
+   *
+   * **Its control is on the grass, not on the
+   * [preferences page](../pages/PreferencesPage.tsx)**, for the reason the
+   * ticker's bell is on the match screen: it is a question you ask while
+   * looking at a pitch (*who are these eleven playing?*), and the answer is
+   * worth one tap where the question occurs. It lives here all the same
+   * rather than in component state, because the pitches are one reading
+   * surface — switching to the crests on your own lineup and finding points
+   * again on a rival's would make the control feel broken — and because the
+   * choice should survive the tab being left.
+   */
+  pitchSubtitle: PitchSubtitle
 }
 
 /**
@@ -76,6 +113,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   menuShortcut: 'right',
   theme: 'dark',
   liveEventStream: true,
+  // The figure, because that is what every pitch drew before the choice
+  // existed, and because points are what a lineup is read for.
+  pitchSubtitle: 'points',
 }
 
 /**
@@ -115,6 +155,11 @@ export function loadPreferences(): Preferences {
     liveEventStream: boolish(
       candidate.liveEventStream,
       DEFAULT_PREFERENCES.liveEventStream,
+    ),
+    pitchSubtitle: oneOf(
+      PITCH_SUBTITLES,
+      candidate.pitchSubtitle,
+      DEFAULT_PREFERENCES.pitchSubtitle,
     ),
   }
 }

@@ -14,20 +14,15 @@ import {
   TeamSheetCorner,
   TeamSheetMark,
 } from '@/components/player/TeamSheetMark'
-import {
-  ExpectedPointsBadge,
-  ExpectedPointsFigure,
-} from '@/components/squad/ExpectedPointsBadge'
-import {
-  expectedDescription,
-  expectedTextClass,
-} from '@/components/squad/expectedPointsLabels'
+import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
+import { expectedDescription } from '@/components/squad/expectedPointsLabels'
 import {
   cornerBadgeSize,
   PITCH_BAND_CLASS,
   type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
+import { PitchSubtitleLine } from '@/components/squad/PitchSubtitle'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
 import type {
@@ -132,9 +127,14 @@ export function RosterBand({
 }
 
 /**
- * A portrait, **his name**, and one figure: the points, what he is **expected**
- * to score while his match is still to come, or the kick-off time when nothing
- * expects anything of him — see [`playerFigure()`](../../api/models.ts).
+ * A portrait, **his name**, and one line about him — the points, the
+ * opponent's crest or the kick-off, whichever the reader has the pitch set to.
+ * That line is [`PitchSubtitleLine`](../squad/PitchSubtitle.tsx), shared with
+ * the squad's own two pitches; what follows is about its default, the figure.
+ *
+ * The figure is the points, what he is **expected** to score while his match is
+ * still to come, or the kick-off time when nothing expects anything of him —
+ * see [`playerFigure()`](../../api/models.ts).
  *
  * **The expected figure outranks the kick-off time**, because the plate holds
  * exactly one number and the two are answers to different questions: *when*
@@ -262,30 +262,16 @@ export function RosterPortrait({
         <span className="max-w-full truncate font-semibold text-white">
           {player.name}
         </span>
-        <span
-          className={cn(
-            /* A flex row rather than one truncating line, because the expected
-               figure is two things — the target and the number — and the number
-               is the half that may be clipped. */
-            'nums flex max-w-full items-center justify-center gap-0.5 font-bold',
-            isRunning
-              ? 'text-accent'
-              : entry !== undefined
-                ? expectedTextClass(entry)
-                : isScore(figure)
-                  ? 'text-white'
-                  : 'text-white/55',
-          )}
-        >
-          {entry === undefined ? (
-            <span className="min-w-0 truncate">{figureLabel(figure)}</span>
-          ) : (
-            <ExpectedPointsFigure
-              value={entry.value}
-              fontSize={metrics.nameFontSize}
-            />
-          )}
-        </span>
+        {/* Whichever of the three readings the pitch is set to — the figure,
+            the opponent's crest, or the kick-off. Shared with the squad's own
+            two pitches, so one player is the same two lines everywhere. */}
+        <PitchSubtitleLine
+          figure={figure}
+          fixture={player.fixture}
+          expected={entry}
+          metrics={metrics}
+          isRunning={isRunning}
+        />
       </span>
     </Shell>
   )

@@ -660,7 +660,7 @@ afterwards moves it.
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
 | [Live view](#live-tab), [a rival's Aufstellung](manager-detail.md#aufstellung), the [duel pitch](duel-detail.md#layout) and its [ranking](duel-detail.md#the-ranking-tab) | For a player whose match **has not kicked off**: the figure takes the plate on grass — target glyph included, so it cannot be read as a score — and rides beside the kick-off time as a chip in a row. Gone the moment real points exist — see [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets) |
 | Lineup totals — [live header](#live-tab), [a rival's corner plate](manager-detail.md#aufstellung), both [duel corners](duel-detail.md#layout) | `⌖ 1.240`: `SUM(coalesce(real, own guess, prediction))` over the fielded eleven. Where an eleven is **heading**, next to what it has scored; absent once every match is settled |
-| [The lineup editor's pitch and bench](#lineup-tab) | Beside the fixture crest, on the plate under the portrait and on each bench card: glyph and figure, in the same two colours. One line, because the opponent and the figure are one thought — and a third line would have cost every phone pitch its portrait size |
+| [The lineup editor's pitch and bench](#lineup-tab) | On the plate under the portrait and on each bench card: glyph and figure, in the same two colours. On the plate it is the *Punkte* reading of [what stands under the name](#was-unter-dem-namen-steht) — it shared that line with the fixture crest until the three readings became a choice |
 | [The action breakdown](duel-detail.md#the-expected-points-in-the-header-of-the-breakdown) | **Both** figures in the header — the reader's guess *and* the model's prediction — beside the real total. The one screen where the two are worth separating rather than resolved |
 
 A player with **neither** figure shows no chip at all — a bye, a player the
@@ -1352,6 +1352,73 @@ attempts worth recording:
 
 All three were caught by measuring in a real browser at 390×844 and 1280×900,
 including re-measuring after a delay to prove the layout settles.
+
+#### Was unter dem Namen steht
+
+Every plate has two lines: **who he is**, and one thing about him. There are
+three answers worth having and room for one, so the pitch carries a chip in its
+top-right corner that cycles between them — *Punkte · Gegner · Anpfiff*:
+
+| Reading | The plate shows | Answers |
+| ------- | --------------- | ------- |
+| **Punkte** (default) | the score, the running figure, or the [expected points](#erwartete-punkte) with their target glyph | how is this eleven doing |
+| **Gegner** | the [fixture badge](#next-fixture) — the opponent's crest with the home-or-away chip on it | is this a good weekend for them |
+| **Anpfiff** | the kick-off: the time if it is **today**, the weekday otherwise | who is already done, who plays Sunday |
+
+```
+        (Kane)              (Kane)              (Kane)
+       ┌──────┐            ┌──────┐            ┌──────┐
+       │ Kane │            │ Kane │            │ Kane │
+       │  215 │            │ (BVB)│            │  Sa  │
+       └──────┘            └──────┘            └──────┘
+        Punkte              Gegner             Anpfiff
+```
+
+**One reading at a time, because one is what fits.** A plate is about fifty
+pixels wide on a phone's eight-band duel pitch; a crest *and* a number *and* a
+time is not a plate, it is a table. Whatever is not showing is still in the
+card's tooltip and its screen-reader text, as it always was.
+
+**The choice is a [preference](preferences.md)**, not component state, so every
+pitch in the app changes at once and the setting outlives the visit. A reader
+who switched to the crests on his own lineup did not mean "only here" — the
+same reasoning as [24 h oder seit Kauf](#24-h-oder-seit-kauf) on the squad
+rows. Its control is on the grass rather than on the preferences page for the
+reason the ticker's bell is on the match screen: it answers a question you have
+*while looking at an eleven*.
+
+**Where the chip is.** The pitch's top-right corner, as the same smoked disc
+the [full-screen button](duel-detail.md#full-screen) uses — beside that button
+where there is one, and in its place full screen, where the question is at its
+most pressing. Four pitches have it:
+
+| Pitch | |
+| ----- | - |
+| [Aufstellung](#lineup-tab) | the editor, and the [scenario](whatif.md)'s copy of it |
+| [Live](#live-tab) | one's own eleven while it plays |
+| [Duel](duel-detail.md) | both elevens at once — where the crests earn most |
+| [Manager](manager-detail.md#aufstellung) | a rival's eleven for any matchday |
+
+The pitches that are about **one club** do not have it and keep the figure: a
+[match's](match-detail.md) two line-ups, a [club's live eleven](team.md#live),
+and an [expected line-up](../ligainsider.md). Every player there has the same
+opponent and the same kick-off, so two of the three readings would print one
+answer eleven times.
+
+**What it costs the layout.** A crest is taller than a line of text, and the
+card sizing is a search that fits the busiest band exactly — so *Gegner* asks
+for the taller `full` plate budget on the pitches that would otherwise use the
+cheaper one, and their portraits give up a pixel or two for it. It never asks
+for a *smaller* budget: the two squad pitches keep `full` in every reading,
+because lowering the floor they may fall to would mean smaller portraits as the
+reward for choosing a shorter line.
+
+**The editor's plate changed with this.** It used to carry the crest *and* the
+expected figure on one line — *Bayern away, 141* — which is the pairing that
+made it a `full` plate in the first place. It now carries one of the three like
+every other pitch, with the crest a tap away. Bench rows are untouched in all
+three readings: a row has the width for the figure *and* the chips, which is
+the whole reason the bench reads differently from the grass.
 
 #### Landscape from `lg` up
 

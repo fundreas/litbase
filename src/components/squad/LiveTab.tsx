@@ -24,21 +24,11 @@ import {
   type SquadMember,
 } from '@/api/models'
 import { DuelPlayerRow } from '@/components/duels/DuelPlayerRow'
-import {
-  figureDescription,
-  figureLabel,
-  isScore,
-} from '@/components/player/playerFigure'
+import { figureDescription } from '@/components/player/playerFigure'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { TeamSheetCorner } from '@/components/player/TeamSheetMark'
-import {
-  ExpectedPointsFigure,
-  ProjectedPointsFigure,
-} from '@/components/squad/ExpectedPointsBadge'
-import {
-  expectedDescription,
-  expectedTextClass,
-} from '@/components/squad/expectedPointsLabels'
+import { ProjectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
+import { expectedDescription } from '@/components/squad/expectedPointsLabels'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
@@ -53,6 +43,10 @@ import {
   type PitchOrientation,
   type PlayerMetrics,
 } from '@/components/squad/pitchMetrics'
+import {
+  PitchSubtitleLine,
+  PitchSubtitleToggle,
+} from '@/components/squad/PitchSubtitle'
 import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
@@ -590,6 +584,11 @@ function LivePitch({
 
   return (
     <Pitch orientation={orientation} className="flex-1">
+      {/* The corner this pitch has free — it carries no total plate and no
+          full-screen button, so the chip sits where every other pitch puts
+          it. */}
+      <PitchSubtitleToggle className="absolute top-1 right-1" />
+
       <div
         ref={ref}
         className={cn(
@@ -757,30 +756,20 @@ function LivePitchPlayer({
         >
           {player.name}
         </span>
+        {/* The figure, the opponent's crest or the kick-off — whichever the
+            reader has the pitches set to. Shared with the editor's pitch and
+            with both read-only rosters. */}
         <span
           style={{ fontSize: metrics.nameFontSize }}
-          className={cn(
-            // A flex row for the same reason the duel plate is one: the
-            // expected figure is a glyph and a number, and the number is the
-            // half that may be clipped.
-            'nums flex max-w-full items-center justify-center gap-0.5 font-bold',
-            isRunning
-              ? 'text-accent'
-              : entry !== undefined
-                ? expectedTextClass(entry)
-                : isScore(figure)
-                  ? 'text-white'
-                  : 'text-white/55',
-          )}
+          className="flex max-w-full items-center justify-center leading-none"
         >
-          {entry === undefined ? (
-            <span className="min-w-0 truncate">{figureLabel(figure)}</span>
-          ) : (
-            <ExpectedPointsFigure
-              value={entry.value}
-              fontSize={metrics.nameFontSize}
-            />
-          )}
+          <PitchSubtitleLine
+            figure={figure}
+            fixture={player.fixture}
+            expected={entry}
+            metrics={metrics}
+            isRunning={isRunning}
+          />
         </span>
       </span>
     </Shell>
