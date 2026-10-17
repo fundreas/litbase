@@ -268,6 +268,7 @@ function avatarFloor(plate: PlateContent): number {
     case 'points':
       return AVATAR_MIN_COMPACT
     case 'named':
+    case 'crested':
       return AVATAR_MIN_NAMED
     case 'full':
       return AVATAR_MIN
@@ -309,22 +310,27 @@ export type PlayerMetrics = ReturnType<typeof playerMetrics>
 /**
  * What a card's plate holds, which is what decides how tall the card is.
  *
- *  - `full` — a name over a fixture badge, as the squad's own pitches draw it.
- *    The [expected points](./ExpectedPointsBadge.tsx) share that second line
- *    with the badge rather than taking a third, which is what keeps this plate
- *    — and so the portrait above it — the size it has always been.
- *  - `named` — a name over one figure, no badge. What the read-only pitches
- *    draw: a matchday roster, a club's eleven, and both halves of a duel or a
- *    real match. Two lines of text are shorter than a line of text and a
- *    crest, so these cards stay smaller than a `full` one while still saying
- *    who each portrait is — which on a pitch of twenty-two strangers is the
- *    first thing a reader needs.
+ *  - `full` — a name over the fixture badge and a figure, as the squad's own
+ *    two pitches draw it. The [expected points](./ExpectedPointsBadge.tsx) and
+ *    the kick-off share that second line with the badge rather than taking a
+ *    third, which is what keeps this plate — and so the portrait above it —
+ *    the size it has always been.
+ *  - `crested` — the same two lines on a pitch that **cannot afford the `full`
+ *    floor**: the eight-band duel pitch and a rival's eleven. Identical in
+ *    height; it differs only in how small the portrait may go, and 30px is the
+ *    floor those pitches have always had. A 42px plate still holds a 14px
+ *    crest beside three digits, so the crest costs them nothing they had.
+ *  - `named` — a name over one figure, no badge. What the **single-club**
+ *    pitches draw: a real match, a club's live eleven, an expected line-up.
+ *    Two lines of text are shorter than a line of text and a crest, and those
+ *    pitches have no crest to draw — every player on them has the same
+ *    opponent, which the header has already named.
  *  - `points` — one line, a points figure and nothing else. Nothing draws this
  *    today; it is what the eight-band pitches were before they carried names,
  *    and the sizing keeps it because a pitch tight enough to want it is a
  *    change of one word.
  */
-export type PlateContent = 'full' | 'named' | 'points'
+export type PlateContent = 'full' | 'crested' | 'named' | 'points'
 
 /**
  * Total height a card occupies.
@@ -333,12 +339,13 @@ export type PlateContent = 'full' | 'named' | 'points'
  * its own height — that overlap has to come out of the budget or the sizing
  * search would leave a gap under every player.
  *
- * A `full` plate is measured with the **fixture badge**, the tallest thing its
- * second line can hold: the live view's points figure and the editor's
- * expected figure are both text, and text at this font is shorter than the
- * crest at every size — so both fit inside a budget solved for a badge rather
- * than needing one of their own. A `named` plate is the same two lines with
- * the badge's place taken by text, which is why it is the cheaper of the two.
+ * A plate with a badge on it — `full` and `crested` — is measured with the
+ * **fixture badge**, the tallest thing its second line can hold: the points
+ * figure, the expected figure and the kick-off are all text, and text at this
+ * font is shorter than the crest at every size, so whichever of them rides
+ * beside the crest fits inside a budget solved for the crest alone. A `named`
+ * plate is the same two lines with the badge's place taken by text, which is
+ * why it is the cheaper one.
  */
 function playerHeight(metrics: PlayerMetrics, plate: PlateContent): number {
   const textLine = Math.round(metrics.nameFontSize * 1.25)

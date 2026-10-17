@@ -262,8 +262,8 @@ export function RosterPortrait({
         <span className="max-w-full truncate font-semibold text-white">
           {player.name}
         </span>
-        {/* Whichever of the three readings the pitch is set to — the figure,
-            the opponent's crest, or the kick-off. Shared with the squad's own
+        {/* The opponent's crest, and beside it whichever reading the pitch is
+            set to — the figure or the kick-off. Shared with the squad's own
             two pitches, so one player is the same two lines everywhere. */}
         <PitchSubtitleLine
           figure={figure}

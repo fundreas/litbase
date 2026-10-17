@@ -34,24 +34,29 @@ export const THEME_CHOICES = ['light', 'dark', 'system'] as const
 export type ThemeChoice = (typeof THEME_CHOICES)[number]
 
 /**
- * What the second line of a player card on a
- * [pitch](../components/squad/Pitch.tsx) says.
+ * What rides **beside the opponent's crest** on the second line of a player
+ * card on a [pitch](../components/squad/Pitch.tsx).
  *
- * The plate holds exactly one thing under the name, and there are three
- * reasonable answers to *what about this player*:
+ * The crest itself is not a choice: *who is he playing* is the question a
+ * pitch of eleven different clubs raises on every card, and an answer that
+ * has to be switched on is an answer nobody reads. What the crest shares its
+ * line with is the choice, and there are two candidates:
  *
  *  - `points` — what he has scored, is scoring, or is expected to score. The
  *    figure the pitches have always drawn, and the default: a lineup is looked
  *    at to find out how it is doing.
- *  - `opponent` — the club he is up against this matchday, as a crest with the
- *    home-or-away chip on it.
  *  - `kickoff` — when his match starts: the time if it is today, the weekday
  *    otherwise.
+ *
+ * **A real score overrules `kickoff`.** Once a player has points, the
+ * kick-off he has already had is the least interesting thing about him, so his
+ * plate shows the points whichever way the chip is set — the setting is about
+ * the matches still to come, which is the only place the two readings differ.
  *
  * See [`PITCH_SUBTITLE`](../components/squad/pitchSubtitles.ts) for the words
  * and the control.
  */
-export const PITCH_SUBTITLES = ['points', 'opponent', 'kickoff'] as const
+export const PITCH_SUBTITLES = ['points', 'kickoff'] as const
 export type PitchSubtitle = (typeof PITCH_SUBTITLES)[number]
 
 export interface Preferences {
@@ -81,19 +86,19 @@ export interface Preferences {
    */
   liveEventStream: boolean
   /**
-   * What a player card's second line says on every pitch that holds players
-   * from **more than one club** — the squad's own two views, a duel, and a
-   * manager's matchday.
+   * What a player card's second line says beside the opponent's crest, on
+   * every pitch that holds players from **more than one club** — the squad's
+   * own two views, a duel, and a manager's matchday.
    *
    * **Its control is on the grass, not on the
    * [preferences page](../pages/PreferencesPage.tsx)**, for the reason the
    * ticker's bell is on the match screen: it is a question you ask while
-   * looking at a pitch (*who are these eleven playing?*), and the answer is
-   * worth one tap where the question occurs. It lives here all the same
-   * rather than in component state, because the pitches are one reading
-   * surface — switching to the crests on your own lineup and finding points
-   * again on a rival's would make the control feel broken — and because the
-   * choice should survive the tab being left.
+   * looking at a pitch (*when does this lot play?*), and the answer is worth
+   * one tap where the question occurs. It lives here all the same rather than
+   * in component state, because the pitches are one reading surface —
+   * switching to the kick-offs on your own lineup and finding points again on
+   * a rival's would make the control feel broken — and because the choice
+   * should survive the tab being left.
    */
   pitchSubtitle: PitchSubtitle
 }
@@ -114,7 +119,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'dark',
   liveEventStream: true,
   // The figure, because that is what every pitch drew before the choice
-  // existed, and because points are what a lineup is read for.
+  // existed, and because points are what a lineup is read for. An unknown
+  // stored value lands here too, which is how the retired `opponent` reading
+  // resolves for anyone who left the chip on it.
   pitchSubtitle: 'points',
 }
 

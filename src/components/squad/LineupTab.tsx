@@ -913,7 +913,8 @@ function PlayerFace({
           line is about 13px of card, and the cards are sized by a search that
           fits the busiest band, so every pitch on a phone would have shrunk to
           carry it. The crest is the tallest thing on the line either way, so
-          the figure rides along inside a budget that was already solved. */}
+          whatever rides beside it fits inside a budget that was already
+          solved. */}
       {/* The plate scales with the portrait, spans its full width, and rides
           up over its lower edge so the two read as one object rather than a
           caption floating beneath a circle. `relative` puts it above the
@@ -938,23 +939,18 @@ function PlayerFace({
         >
           {player.lastName}
         </span>
-        {/* Whichever of the three readings the reader has the pitches set
-            to — see [`PitchSubtitleLine`](./PitchSubtitle.tsx). This plate
-            carried the crest *and* the figure until the choice existed; it
-            now carries one of the three like every other pitch, and the crest
-            is the chip in the corner away. */}
-        <span
-          style={{ fontSize: metrics.nameFontSize }}
-          className="flex max-w-full items-center gap-0.5 leading-none"
-        >
-          <PitchSubtitleLine
-            figure={upcomingFigure(fixture)}
-            fixture={fixture}
-            expected={expected}
-            metrics={metrics}
-            isRunning={false}
-          />
-        </span>
+        {/* The crest, and beside it either what he is expected to score or
+            when he kicks off — see
+            [`PitchSubtitleLine`](./PitchSubtitle.tsx). This plate has drawn
+            that pair since long before the chip existed; the chip only
+            decides which half of it the second slot holds. */}
+        <PitchSubtitleLine
+          figure={upcomingFigure(fixture)}
+          fixture={fixture}
+          expected={expected}
+          metrics={metrics}
+          isRunning={false}
+        />
       </span>
     </>
   )

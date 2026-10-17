@@ -756,21 +756,16 @@ function LivePitchPlayer({
         >
           {player.name}
         </span>
-        {/* The figure, the opponent's crest or the kick-off — whichever the
-            reader has the pitches set to. Shared with the editor's pitch and
-            with both read-only rosters. */}
-        <span
-          style={{ fontSize: metrics.nameFontSize }}
-          className="flex max-w-full items-center justify-center leading-none"
-        >
-          <PitchSubtitleLine
-            figure={figure}
-            fixture={player.fixture}
-            expected={entry}
-            metrics={metrics}
-            isRunning={isRunning}
-          />
-        </span>
+        {/* The opponent's crest, and beside it the figure or the kick-off —
+            whichever the reader has the pitches set to. Shared with the
+            editor's pitch and with both read-only rosters. */}
+        <PitchSubtitleLine
+          figure={figure}
+          fixture={player.fixture}
+          expected={entry}
+          metrics={metrics}
+          isRunning={isRunning}
+        />
       </span>
     </Shell>
   )

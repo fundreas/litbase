@@ -1,7 +1,6 @@
-import { Clock3, Hash, Shield } from 'lucide-react'
+import { Clock3, Hash } from 'lucide-react'
 
 import type { PlayerFigure, TeamFixture } from '@/api/models'
-import type { PlateContent } from '@/components/squad/pitchMetrics'
 import { PITCH_SUBTITLES, type PitchSubtitle } from '@/preferences/preferences'
 
 /**
@@ -11,19 +10,14 @@ import { PITCH_SUBTITLES, type PitchSubtitle } from '@/preferences/preferences'
  * [`VALUE_MODE`](./useValueMode.ts) uses for the squad list's two figures.
  *
  * The labels are nouns rather than sentences because the button is the size of
- * a chip on grass: *Punkte*, *Gegner*, *Anpfiff* name the three answers, and
- * the full question lives in the tooltip.
+ * a chip on grass: *Punkte* and *Anpfiff* name the two answers that can share
+ * the line with the crest, and the full question lives in the tooltip.
  */
 export const PITCH_SUBTITLE = {
   points: {
     icon: Hash,
     label: 'Punkte',
     title: 'Punkte — erzielt, laufend oder erwartet',
-  },
-  opponent: {
-    icon: Shield,
-    label: 'Gegner',
-    title: 'Gegner dieses Spieltags, mit Heim- oder Auswärtszeichen',
   },
   kickoff: {
     icon: Clock3,
@@ -38,37 +32,14 @@ export const PITCH_SUBTITLE = {
 /**
  * The next mode in the ring.
  *
- * A **cycle**, not three buttons: the pitch's corner has room for one chip,
- * and the chip already names the state it is in — so a tap means "the next
- * answer" and three taps come back where you started. Three is about the
- * limit for that; a fourth would want a menu.
+ * Two readings, so this is a plain toggle — written as a cycle all the same,
+ * because the corner has room for one chip either way and the chip names the
+ * state it is in. A third reading would slot in here without touching the
+ * button; it is the *plate* that has no room for one, not this.
  */
 export function nextPitchSubtitle(current: PitchSubtitle): PitchSubtitle {
   const index = PITCH_SUBTITLES.indexOf(current)
   return PITCH_SUBTITLES[(index + 1) % PITCH_SUBTITLES.length] as PitchSubtitle
-}
-
-/**
- * How tall a card's plate has to be budgeted for in this mode — see
- * {@link PlateContent}.
- *
- * **A crest is taller than a line of text**, and the card sizing is a search
- * that fits the busiest band exactly: a pitch budgeted for two text lines that
- * then drew a crest would push every band and clip the lot. So `opponent` asks
- * for the `full` budget wherever the pitch would otherwise have used the
- * cheaper one.
- *
- * It only ever raises the budget, never lowers it — the two squad pitches pass
- * `full` as their base and keep it in every mode. Lowering it would shrink the
- * floor those pitches are allowed to fall to (40px against 30px), so a cramped
- * screen could end up with *smaller* portraits for having switched to a
- * shorter line, which is nobody's idea of what that tap does.
- */
-export function pitchSubtitlePlate(
-  subtitle: PitchSubtitle,
-  base: PlateContent,
-): PlateContent {
-  return subtitle === 'opponent' ? 'full' : base
 }
 
 /**

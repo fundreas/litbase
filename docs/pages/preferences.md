@@ -66,7 +66,7 @@ deliberately:
 | `pitchSubtitle` | the chip in a [pitch](squad.md#was-unter-dem-namen-steht)'s top-right corner |
 
 Both are questions a reader has *while looking at the screen they are about* —
-"enough passes, thank you", "who are these eleven playing?" — and the answer is
+"enough passes, thank you", "when does this lot play?" — and the answer is
 worth one tap where the question occurs rather than a trip to a settings page
 and back. They are preferences all the same, rather than component state,
 because each should hold across every screen that obeys it and outlive the

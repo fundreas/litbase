@@ -1355,33 +1355,50 @@ including re-measuring after a delay to prove the layout settles.
 
 #### Was unter dem Namen steht
 
-Every plate has two lines: **who he is**, and one thing about him. There are
-three answers worth having and room for one, so the pitch carries a chip in its
-top-right corner that cycles between them — *Punkte · Gegner · Anpfiff*:
+Every plate has two lines: **who he is**, and one line about his matchday. That
+second line always starts with the **opponent's crest** — the
+[fixture badge](#next-fixture), with the home-or-away chip on it — and a chip in
+the pitch's top-right corner decides what stands beside it, *Punkte* or
+*Anpfiff*:
 
-| Reading | The plate shows | Answers |
-| ------- | --------------- | ------- |
+| Reading | Beside the crest | Answers |
+| ------- | ---------------- | ------- |
 | **Punkte** (default) | the score, the running figure, or the [expected points](#erwartete-punkte) with their target glyph | how is this eleven doing |
-| **Gegner** | the [fixture badge](#next-fixture) — the opponent's crest with the home-or-away chip on it | is this a good weekend for them |
 | **Anpfiff** | the kick-off: the time if it is **today**, the weekday otherwise | who is already done, who plays Sunday |
 
 ```
-        (Kane)              (Kane)              (Kane)
-       ┌──────┐            ┌──────┐            ┌──────┐
-       │ Kane │            │ Kane │            │ Kane │
-       │  215 │            │ (BVB)│            │  Sa  │
-       └──────┘            └──────┘            └──────┘
-        Punkte              Gegner             Anpfiff
+         (Kane)                  (Kane)
+       ┌─────────┐             ┌─────────┐
+       │  Kane   │             │  Kane   │
+       │ (BVB)215│             │ (BVB) Sa│
+       └─────────┘             └─────────┘
+         Punkte                  Anpfiff
 ```
 
-**One reading at a time, because one is what fits.** A plate is about fifty
-pixels wide on a phone's eight-band duel pitch; a crest *and* a number *and* a
-time is not a plate, it is a table. Whatever is not showing is still in the
-card's tooltip and its screen-reader text, as it always was.
+**The crest is not part of the choice.** *Who is he playing* is the question a
+pitch of eleven different clubs raises on every card, and nothing else on the
+screen answers it — so it is always there, and the chip only spends the slot
+next to it. It was briefly a third reading you had to switch to, which was the
+wrong shape: a pitch of crests answered *is this a good weekend* and took the
+points away to do it, when both fit side by side at every size the sizing search
+produces. The editor's plate had been drawing exactly this pair — *Bayern away,
+141* — since long before the chip existed.
+
+**Points beat the whistle.** A player who already has points has already kicked
+off, so his plate shows the points whichever way the chip is set: printing the
+whistle he has been through would spend the line on the one fact about him that
+has stopped mattering. The setting is really about the matches still to come,
+and a half-played matchday sorts itself — the finished men show what they
+scored, the rest show when they start.
+
+**One thing beside the crest, because one is what fits.** A plate is about fifty
+pixels wide on a phone's eight-band duel pitch; a crest, a number *and* a time
+is not a plate, it is a table. Whatever is not showing is still in the card's
+tooltip and its screen-reader text, as it always was.
 
 **The choice is a [preference](preferences.md)**, not component state, so every
 pitch in the app changes at once and the setting outlives the visit. A reader
-who switched to the crests on his own lineup did not mean "only here" — the
+who switched to the kick-offs on his own lineup did not mean "only here" — the
 same reasoning as [24 h oder seit Kauf](#24-h-oder-seit-kauf) on the squad
 rows. Its control is on the grass rather than on the preferences page for the
 reason the ticker's bell is on the match screen: it answers a question you have
@@ -1396,29 +1413,27 @@ most pressing. Four pitches have it:
 | ----- | - |
 | [Aufstellung](#lineup-tab) | the editor, and the [scenario](whatif.md)'s copy of it |
 | [Live](#live-tab) | one's own eleven while it plays |
-| [Duel](duel-detail.md) | both elevens at once — where the crests earn most |
+| [Duel](duel-detail.md) | both elevens at once — twenty-two crests and twenty-two figures |
 | [Manager](manager-detail.md#aufstellung) | a rival's eleven for any matchday |
 
-The pitches that are about **one club** do not have it and keep the figure: a
+The pitches that are about **one club** have neither the chip nor the crest: a
 [match's](match-detail.md) two line-ups, a [club's live eleven](team.md#live),
 and an [expected line-up](../ligainsider.md). Every player there has the same
-opponent and the same kick-off, so two of the three readings would print one
-answer eleven times.
+opponent and the same kick-off, so both readings would print one answer eleven
+times — those plates keep the plain `named` budget and spend their second line
+on the figure.
 
 **What it costs the layout.** A crest is taller than a line of text, and the
-card sizing is a search that fits the busiest band exactly — so *Gegner* asks
-for the taller `full` plate budget on the pitches that would otherwise use the
-cheaper one, and their portraits give up a pixel or two for it. It never asks
-for a *smaller* budget: the two squad pitches keep `full` in every reading,
-because lowering the floor they may fall to would mean smaller portraits as the
-reward for choosing a shorter line.
+card sizing is a search that fits the busiest band exactly — so every pitch with
+a crest on it is budgeted for one. The squad's two keep the `full` plate they
+have always had. The duel's and the manager's take `crested`: the same height,
+but the 30px portrait floor those eight-band pitches need rather than `full`'s
+40px, because a 42px plate still holds a 14px crest beside three digits and
+there is no reason a phone should lose portrait size for a mark that fits.
 
-**The editor's plate changed with this.** It used to carry the crest *and* the
-expected figure on one line — *Bayern away, 141* — which is the pairing that
-made it a `full` plate in the first place. It now carries one of the three like
-every other pitch, with the crest a tap away. Bench rows are untouched in all
-three readings: a row has the width for the figure *and* the chips, which is
-the whole reason the bench reads differently from the grass.
+Bench rows are untouched by any of this: a row has the width for the crest, the
+figure *and* the chips, which is the whole reason the bench reads differently
+from the grass.
 
 #### Landscape from `lg` up
 
