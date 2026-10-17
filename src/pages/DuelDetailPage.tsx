@@ -13,6 +13,7 @@ import {
 import { useAuth } from '@/auth/useAuth'
 import { DuelLineupTab } from '@/components/duels/DuelLineupTab'
 import { DuelRankingTab } from '@/components/duels/DuelRankingTab'
+import { DuelSwitchBar } from '@/components/duels/DuelSwitchBar'
 import { Avatar } from '@/components/ui/Avatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -164,6 +165,22 @@ export function DuelDetailPage() {
        whole content wants to be a pitch, to duplicate what the browser's back
        gesture and the drawer already do. */
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {/* **The rest of the matchday's duels, one tap away.** The tab and the
+          `?day=` ride along, so switching pairings keeps both the view you
+          were reading and the matchday you were reading it for. A league of
+          two has only this duel, and gets no bar. */}
+      {duels.data !== undefined && duels.data.duels.length > 1 && (
+        <DuelSwitchBar
+          duels={duels.data.duels}
+          activeDuelId={duel.id}
+          hasStarted={hasStarted}
+          viewerId={user?.id}
+          to={(id) =>
+            `/leagues/${leagueId}/duels/${id}${tab === TABS.ranking ? `/${TABS.ranking}` : ''}${day}`
+          }
+        />
+      )}
+
       <div>
         <div className="flex items-start gap-3">
           <Scoreline

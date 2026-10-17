@@ -728,6 +728,7 @@ based.
 | `ConfirmDialog` | Radix Dialog — bottom sheet on phones, centred from `sm` |
 | `Tabs` | Styled Radix Tabs with equal-width segments |
 | `FilterChip`, `FilterChipRow` | Toggleable filters in a sideways-scrolling row |
+| `SwitchBar`, `SWITCH_CHIP` | The strip of siblings above a detail page — [match](pages/match-detail.md#the-switch-bar), [duel](pages/duel-detail.md#the-switch-bar) |
 | `Card`, `CardHeader`, `StatTile` | Panels and the label-over-value tile |
 | `PlacementChange` | Up/down mark for a table movement; nothing at all when it held |
 | `Skeleton`, `SkeletonList` | Loading placeholders |

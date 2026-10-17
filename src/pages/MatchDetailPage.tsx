@@ -3,7 +3,11 @@ import type { ReactNode } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 
 import { useMatchDetails } from '@/api/hooks/useMatchDetails'
-import { useMatchdayFixtures, useSeasonMatch } from '@/api/hooks/useMatchday'
+import {
+  useMatchdayFixtures,
+  useMatchdayMatches,
+  useSeasonMatch,
+} from '@/api/hooks/useMatchday'
 import { useMatchLineup } from '@/api/hooks/useMatchLineup'
 import {
   fixtureState,
@@ -16,6 +20,7 @@ import { ExpectedMatchLineup } from '@/components/lineup/ExpectedMatchLineup'
 import { MatchLineupTab } from '@/components/matchday/MatchLineupTab'
 import { MatchRankingTab } from '@/components/matchday/MatchRankingTab'
 import { MatchScoreHeader } from '@/components/matchday/MatchScoreHeader'
+import { MatchSwitchBar } from '@/components/matchday/MatchSwitchBar'
 import { MatchTimelineTab } from '@/components/matchday/MatchTimelineTab'
 import { Avatar } from '@/components/ui/Avatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
@@ -71,6 +76,13 @@ export function MatchDetailPage() {
 
   const match = useSeasonMatch(competitionId, matchId)
   const detail = useMatchDetails(match.data)
+
+  /* The matchday around this fixture, for the
+     [switch bar](../components/matchday/MatchSwitchBar.tsx) at the top. The
+     fifth `select` on the season payload this page already holds, so it costs
+     nothing — and it is `undefined`-safe while the fixture is still being
+     resolved, which is what lets it sit above the early returns below. */
+  const siblings = useMatchdayMatches(competitionId, match.data?.day)
 
   const view: ViewValue = location.pathname.endsWith(`/${VIEWS.lineup}`)
     ? VIEWS.lineup
@@ -143,6 +155,19 @@ export function MatchDetailPage() {
        height the page has left — and so the bottom bar stays *at the bottom*
        on the timeline too, where the content is short. */
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {/* **The rest of the matchday, one tap away.** The tab rides along: a
+          reader comparing two lineups should not be dropped back on the
+          events of the next match. A matchday of one — a rescheduled fixture
+          on its own — has nothing to switch to and gets no bar. */}
+      {siblings.data !== undefined && siblings.data.length > 1 && (
+        <MatchSwitchBar
+          matches={siblings.data}
+          activeMatchId={match.data.matchId}
+          detail={detail.data}
+          to={(id) => `${base}/${id}${view === VIEWS.events ? '' : `/${view}`}`}
+        />
+      )}
+
       {/* No separate live query: `useMatchDetails` reads the very same cache
           entry `useLiveMatches` fills, with the same polling, so `detail` *is*
           the live source here — score, minute and events from one request. */}

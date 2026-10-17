@@ -124,6 +124,51 @@ while the app is deliberately treating it as live. So `fixtureState(match)`
 decides the state and the match payload supplies the minute, which the fixture
 list has no notion of.
 
+## The switch bar
+
+[`MatchSwitchBar`](../../src/components/matchday/MatchSwitchBar.tsx), above the
+scoreline: **every fixture of the matchday as a pill** — home crest, score,
+away crest — in a row that scrolls sideways.
+
+```
+  ┌─────────────────────────────────────────────────┐
+  │ (FCB) 2:1 (BVB) │(RBL) 0:0 (SGE)│ (SCF) Sa (M05) │ →
+  └─────────────────────────────────────────────────┘
+        ringed = the match you are on
+```
+
+A detail page reached from a list is a page you leave by going *back*, and the
+next thing most people do with a matchday is look at the next game in it. The
+bar turns that round trip into one tap, and the
+[duel page](duel-detail.md#the-switch-bar) carries the same control over its
+own matchday's pairings.
+
+**The match on screen is in the bar too**, ringed in the accent and carrying
+`aria-current="page"`. It is the anchor: without it the row's order would say
+nothing about where you are, and tapping along it would shuffle the chips under
+the finger. The ringed chip is scrolled into the middle of the row whenever it
+changes — navigating between fixtures does not remount the page, so an effect
+on the active id is the only moment the row hears about it.
+
+**The tab rides along.** `…/lineup` on one match opens `…/lineup` on the next;
+a reader comparing two team sheets is not dropped back onto the events.
+
+**It costs no request.** `useMatchdayMatches(cid, day)` is one more `select` on
+the season payload this page already read its own fixture from.
+
+**Where the score comes from, and the one place it may lag.** The chip you are
+on takes the match payload the page is already polling, so it and the scoreline
+below it cannot disagree. The others take the fixture list's goals, which
+refresh once a minute while the matchday is live
+([`MATCHDAY_STATE_POLL_MS`](../../src/api/polling.ts)) — a goal elsewhere can
+be up to a minute old in the bar. The alternative was `useLiveMatches` fanning
+out eight more requests every ten seconds on the page that already runs the
+heaviest fan-out in the app, which is a lot to pay for a signpost whose real
+score is one tap away.
+
+A matchday with a single fixture — a rescheduled game on its own — has nothing
+to switch to and gets no bar.
+
 ## The header
 
 [`MatchScoreHeader`](../../src/components/matchday/MatchScoreHeader.tsx). Crests

@@ -10,6 +10,7 @@ player ranking.
 ## Layout
 
 ```
+  (D) 834:824 (G) │ (M) 712:903 (K) │ ⋯   ← the matchday's other duels
   (A) Danger du        :        GOATstaller (A)
       834                              824
       4 laufend · 2 offen      3 laufend · 1 offen
@@ -212,6 +213,44 @@ inside itself rather than squeezing the pitch.
 **Upright they stay behind:** they are rows of names, which the page underneath
 already does well, and eight bands plus two columns in a portrait window is that
 page again.
+
+## The switch bar
+
+[`DuelSwitchBar`](../../src/components/duels/DuelSwitchBar.tsx), above the
+scoreline: **every pairing of the matchday as a pill** — one face, both totals,
+the other face — in a row that scrolls sideways.
+
+```
+  ┌───────────────────────────────────────────────────┐
+  │ (D) 834:824 (G) │ (M) 712:903 (K) │ (S) 666:701 (T)│ →
+  └───────────────────────────────────────────────────┘
+        ringed = the duel you are on
+```
+
+The [match page](match-detail.md#the-switch-bar)'s twin, and deliberately the
+same control: same pill, same accent ring on the one you are on, same sideways
+scroll. A league reads its duels the way it reads a matchday — one after
+another — and that round trip through the [list](duels.md) is what both bars
+remove.
+
+**Your own duel keeps the half-accent border** the list's card wears, so it can
+be found in a strip of ten faces. The duel on screen takes the full ring and
+`aria-current="page"`, and is scrolled into the middle of the row when it
+changes.
+
+**The tab and the `?day=` ride along**, the same rule the bottom tabs follow:
+switching pairings keeps both the view you were reading and the matchday you
+were reading it for.
+
+**It costs no request, and the totals are live.** `useDuels(leagueId, day)` is
+the query this page already ran to find its own pairing — every other duel came
+with it, live poll included, so a chip cannot disagree with the scoreline below
+it. Before the first whistle every total is `0`, so the bar shows `–:–` rather
+than ten pairs of zeroes.
+
+The avatars are plain rather than [starred](../../src/components/manager/ManagerAvatar.tsx):
+at 18px a crown of gold stars is a smudge, and the titles are on every face one
+tap away. A league of two has only this duel and gets no bar.
 
 ## The routes are the views
 
