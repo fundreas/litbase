@@ -36,7 +36,7 @@ Defined in [`routes/router.tsx`](../src/routes/router.tsx) using
          │     └─ lineup        second tab of the same component
          ├─ table       the Bundesliga table's old URL, kept as a redirect
          ├─ managers
-         │  └─ :managerId       one manager; four tabs from the segment
+         │  └─ :managerId       one manager; five tabs from the segment
          │                      ?day=N — the matchday the lineup tab shows
          ├─ preferences the reader's own settings; no drawer entry
          ├─ players
@@ -491,7 +491,8 @@ corner](#the-dots-in-the-corner) below.
 Several pages dock a bar **of their own**, which is a different thing:
 [`BottomTabBar`](../src/components/ui/BottomTabBar.tsx) switches between views
 of the page you are already on — Kader ⇄ Aufstellung ⇄ Live, the player page's
-four tabs, the match page's three, the [team page](pages/team.md)'s four, and
+four tabs, the match page's three, the [team page](pages/team.md)'s four, the
+[manager page](pages/manager-detail.md)'s five in a duel league, and
 the [market](pages/market.md#the-bar-and-which-tabs-it-has)'s Markt ⇄ Manager ⇄
 Gebote, the [Rangliste](pages/ranking.md#two-views)'s Rangliste ⇄ Battles —
 rather than between pages, and exists only while that page is open. Two of those bars have a **conditional last tab**, appearing only while
@@ -499,6 +500,20 @@ something is being played: the squad page's *Live* while a matchday runs, and
 the team page's while that club's own fixture does. Both are **appended**
 rather than inserted, so the permanent tabs never move under a thumb that had
 learned where they are.
+
+The manager page's *Duelle* is conditional on the **league** rather than on the
+clock — it is there in a duel league and nowhere else, since outside one the
+tab could only ever explain its own absence. Its route stays registered either
+way, so a link shared out of a duel league resolves to that explanation instead
+of a 404; see [Manager](pages/manager-detail.md#duelle).
+
+**Five tabs are the most a bar holds.** The row divides its width evenly, so
+each tab takes a slice off every other one, and past five items — the manager
+page in a duel league, counting the dots — a label like *Aufstellung* no longer
+fits on one line, which at a fixed row height means it is pushed out of the
+row. So the bar **tightens** at that point rather than breaking: less padding
+between the tabs, a slightly smaller label, and a label that truncates in every
+arrangement. A sixth would want a different control, not a tighter one.
 
 The market's bar is conditional as a **whole**, and so is each of its two
 last tabs: *Manager* appears while the league is selling something, *Gebote*

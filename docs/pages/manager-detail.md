@@ -3,19 +3,26 @@
 [← Back to index](../README.md) · Route `/leagues/:leagueId/managers/:managerId` ·
 [`src/pages/ManagerDetailPage.tsx`](../../src/pages/ManagerDetailPage.tsx)
 
-One manager of the league, in four views — in the bar's order, **Details ·
-Kader · Aufstellung · Verlauf** (rearranged 2026-09-08: the manager first, then
-their squad, then one matchday of it, then the season's events):
+One manager of the league, in five views — in the bar's order, **Details ·
+Kader · Aufstellung · Duelle · Verlauf** (rearranged 2026-09-08: the manager
+first, then their squad, then one matchday of it, then the season of duels that
+matchday is one of, then the season's events):
 
 | Route | View | Costs |
 | ----- | ---- | ----- |
 | `…/details` | Details | the manager's performance history — one request |
 | `…/squad` | Kader | one request, shared with the Aufstellung's squad lookup, plus a per-player detail fan-out for the lineup probability |
 | `/leagues/:leagueId/managers/:managerId` | Aufstellung, `?day=N` | the matchday snapshot + the per-player points fan-out |
+| `…/performance` | Duelle — **duel leagues only** | the performance history (shared with Details) + one request per matchday played, each shared with the [Duels](duels.md) page |
 | `…/events` | Verlauf | the league's event feed, paged |
 
 The bare route is still the Aufstellung — the order is how the bar reads, not
 where a tapped name lands; see [`managerTabs`](../../src/components/manager/managerTabs.ts).
+
+*Duelle* is the one tab that is not in every league: outside a duel league
+there are no duels to list, so it is left out of the bar and its route — still
+registered, so a shared link resolves — renders the view's own explanation. See
+[Duelle](#duelle).
 
 The page itself is **three requests**, all of them shared: the season standings
 (the same entry the [Rangliste](ranking.md), the [event feed](events.md) and the
@@ -24,7 +31,7 @@ filled), and the selected matchday's standings (the entry the
 [Duels](duels.md) page fills for the same `?day=`). The Verlauf adds only the
 feed most readers already have; the other three each fetch, as the table says.
 
-Four routes, one component, the tab read out of the segment — the arrangement
+Five routes, one component, the tab read out of the segment — the arrangement
 [Squad](squad.md), [Player detail](player-detail.md), [Club](team.md),
 [Duel detail](duel-detail.md) and [Match detail](match-detail.md) all use, and
 for the same reasons: every view is linkable and survives a refresh.
@@ -95,7 +102,7 @@ keeps opening the accept dialog. The row exists to be accepted, and it is a
 
 ## The header
 
-Above all four tabs, so switching them never moves it:
+Above all five tabs, so switching them never moves it:
 
 ```
   ┌──────────────────────────────────────────────┐
@@ -322,6 +329,111 @@ night is the one after the one being played. Every list of players in the app
 names its opponents by that rule; see
 [the squad page](squad.md#the-opponent-is-the-next-one-not-the-current-matchdays).
 
+## Duelle
+
+**Every duel of the season, newest first** — the tab a duel league makes
+obvious and which, until it existed, had no address anywhere in the app. The
+standings carry the running duel total (`hhsp`) and *this* matchday's opponent;
+nothing could step back through the rest and say who a manager had beaten to
+get there.
+
+```
+  ┌────────────┬────────────┬────────────┐
+  │ BILANZ     │ DUELLPUNKTE│ Ø PUNKTE   │
+  │ 5 · 1 · 2  │ 16         │ 331        │
+  │ S · R · N  │ 8 Spieltage│ Gegner Ø 298│
+  └────────────┴────────────┴────────────┘
+  ┌──────────────────────────────────────┐
+  │ 8. (A) Danger            410:120  ✓ │  → /duels/<id>?day=8
+  │        Gewonnen · 3 Duellpkt         │
+  ├──────────────▌───────────────────────┤     the margin, as a bar
+  └──────────────────────────────────────┘
+  ┌──────────────────────────────────────┐
+  │ 7. (A) GOATstaller       220:390  ✗ │
+  │        Verloren · 0 Duellpkt         │
+  ├──────▌───────────────────────────────┤
+  └──────────────────────────────────────┘
+```
+
+It is the counterpart of a club's [Spiele](team.md#spiele) and a player's
+[Leistung](player-detail.md), for the competition a duel league is actually
+played for — which is why the route segment is `performance` while the label is
+*Duelle*; a segment and a label have never been the same word here (`matches`
+is *Spiele*).
+
+**Every row opens that duel** — both elevens and every point behind the
+scoreline, on [Duel detail](duel-detail.md), with the matchday in `?day=`. It
+is the same move the [Details](#details) tab's matchday rows make into the
+Aufstellung: a figure, and its explanation one tap behind it.
+
+**The scoreline reads from this manager's side**, as the header's duel strip
+does. `410:120` under somebody's own name has to mean they are ahead, or the
+row lies about who won.
+
+**The bar along the bottom edge is the margin**, not a points total — this
+manager's share of the two scores. The treatment is the club page's, where a
+column of filled edges reads as a bar chart on its side without anything
+drawing a chart; what it measures is different because the question is. A
+club's matchday asks *how big*, a duel asks *how close*: a bar at the halfway
+mark is a duel decided by nothing, one at the far end a rout. That is the one
+thing a scoreline of four-digit numbers does not say at a glance — and it is
+why the bar is coloured by the **result** rather than by the shared
+[points scale](player-detail.md), since on this tab 410 points is neither good
+nor bad, only more or less than what the other manager scored.
+
+The three tiles are the season in one line. *Bilanz* counts only the duels that
+are **over**, written Siege · Remis · Niederlagen the way a league table writes
+a record. *Ø Punkte* against *Gegner Ø* is the tab's one genuinely new figure:
+a season of narrow wins and a season of routs have identical duel points, and
+nothing else in the app says which one this was. Both averages skip the
+matchday being played for the reason the record does — 20:15 from the third
+minute is a pair of part-scores, and averaging it in would halve a figure that
+is supposed to describe a season.
+
+**An unfinished duel claims nothing.** While the matchday runs the row is
+accent-tinted, says *Läuft*, and carries no mark — level at `0` in the third
+minute is not a draw, the same gate the header's strip and the standings'
+[outcome line](ranking.md#duel-outcome) apply. The outcome itself is decided by
+comparing the two managers' matchday points through the same `duelResultOf`
+the standings use, never by reading `hhmp` against an assumed 3/1/0 scale.
+
+**A bye is a row, not a gap.** An odd-sized league leaves somebody without an
+opponent each matchday; their points still counted towards the Kickbase table,
+so the row shows them and says *spielfrei* rather than inventing an opponent.
+It is dashed and it is **not** a link — there is no duel to open.
+
+### What it costs, and why it is affordable
+
+There is **no endpoint for a season of duels**. `ranking?dayNumber=` carries the
+pairing for one matchday, `/managers/{id}/performance` carries points with no
+opponent, so the tab is the first fanned out over the second —
+[`useManagerSeasonDuels`](../../src/api/hooks/useManagerDuels.ts).
+
+The fan-out is over **the matchdays this manager played**, not the
+competition's 34: the performance history starts where they joined and scores a
+sat-out matchday `0`, so only the future is missing from it. The matchday
+*being played* is unioned in, because that is the one the history may not carry
+yet — a matchday whose first whistle has gone but which has scored nobody
+anything has no `mdp`, and it is the duel a reader is most likely watching.
+
+Both halves are shared cache entries, which is most of what makes it cheap:
+
+- the history is the **same entry the Details tab reads**, so opening the two
+  tabs in either order costs one request between them;
+- each matchday is the **same entry the [Duels](duels.md) page fills** for that
+  `?day=`, through `rankingDayQueryOptions` — so a season walked here leaves
+  every matchday loaded for the duels page, and the duel a row opens is already
+  in hand when it gets there.
+
+The rows **land one at a time**: `useQueries` reports per matchday, so the list
+shows what has arrived with a line saying how much is still coming, rather than
+a skeleton until the last one. One matchday that fails is a row that is not
+there; the error state is reserved for the history failing or *every* matchday
+failing, which is the only case where retrying is the reader's move.
+
+The whole thing is gated on the tab, like the roster and the squad: the other
+four views hand the hook `undefined` and it issues nothing.
+
 ## Verlauf
 
 The league's [event feed](events.md), narrowed to this manager — their
@@ -423,6 +535,8 @@ Details tab carries the one link across.
 | Roster loading | `SkeletonList rows={8}` |
 | No snapshot for the matchday | `EmptyState` — "vermutlich lag er vor seinem Beitritt" |
 | Squad empty | `EmptyState` — a manager who has left keeps a season but not a squad |
+| Duelle in a league without duels | `EmptyState` — pointing at the Details tab, which has the matchday points |
+| Duelle before the first scored matchday | `EmptyState` — "Noch keine Duelle" |
 
 A manager who has **left the league** disappears from the standings, so their
 page becomes the not-found state. Their name still appears in the feed's history,
@@ -437,6 +551,7 @@ name with no numbers behind it.
 | [`useManagerPerformance`](../../src/api/hooks/useManagerPerformance.ts) | `managers/{uid}/performance` | the Details tab's matchdays and season tiles |
 | [`useSeasonSchedule`](../../src/api/hooks/useMatchday.ts) | `competitions/{id}/matchdays` | the matchday picker and the clock |
 | [`useMatchdayStandings`](../../src/api/hooks/useDuels.ts) | `ranking?dayNumber=` | the day's points, and the day's duel |
+| [`useManagerSeasonDuels`](../../src/api/hooks/useManagerDuels.ts) | `managers/{uid}/performance`, `ranking?dayNumber=` | the Duelle tab — one request per matchday played |
 | [`useManagerRoster`](../../src/api/hooks/useManagerRoster.ts) | `users/{uid}/teamcenter`, `managers/{uid}/squad`, `playercenter`, `players/{pid}` | the eleven and its points |
 | [`useManagerSquadMembers`](../../src/api/hooks/useManagerRoster.ts) | `managers/{uid}/squad` | the Kader — same cache entry as above |
 | [`useStartProbabilities`](../../src/api/hooks/useStartProbabilities.ts) | `players/{pid}` | the Kader's lineup-probability badges, one request per player |

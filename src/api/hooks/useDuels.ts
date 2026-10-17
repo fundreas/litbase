@@ -142,17 +142,39 @@ function useRankingDayQuery<T>(
   isLive: boolean,
   select: (data: RankingResponse) => T,
 ): UseQueryResult<T> {
-  return useQuery({
+  return useQuery({ ...rankingDayQueryOptions(leagueId, day, isLive), select })
+}
+
+/**
+ * **The cache entry one matchday's standings live in** — key, freshness and
+ * request, in one place.
+ *
+ * Split out of {@link useRankingDayQuery} because a third reader wants the
+ * same entry without being one query: the manager page's
+ * [Duelle tab](./useManagerDuels.ts) fans this out over a whole season through
+ * `useQueries`. Written twice, the two copies would be one `staleTime` edit
+ * away from a season of rows that poll while the duels page's do not — and
+ * worse, one `queryKey` typo away from fetching every matchday *twice*, once
+ * per spelling.
+ *
+ * `isLive` is still the caller's to decide, for the reason given above: the
+ * endpoint says nothing about whether the matchday is under way.
+ */
+export function rankingDayQueryOptions(
+  leagueId: string | undefined,
+  day: number | undefined,
+  isLive: boolean,
+) {
+  return {
     queryKey: qk.rankingDay(leagueId ?? 'none', day ?? 0),
     enabled: leagueId !== undefined && day !== undefined,
     staleTime: isLive ? 0 : SETTLED_STALE_MS,
-    refetchInterval: isLive ? LIVE_POLL_MS : false,
-    select,
+    refetchInterval: isLive ? LIVE_POLL_MS : (false as const),
     queryFn: () =>
       get<RankingResponse>(endpoints.leagues.ranking(leagueId as string), {
         params: { dayNumber: day },
       }),
-  })
+  }
 }
 
 /**

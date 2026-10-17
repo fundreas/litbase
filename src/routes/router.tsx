@@ -73,7 +73,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
  *   /leagues/:leagueId/matchday/:matchId   one match, three tabs
  *   /leagues/:leagueId/preferences         the reader's own settings
  *   /leagues/:leagueId/players/:playerId   one player, four tabs
- *   /leagues/:leagueId/managers/:managerId one manager, four tabs
+ *   /leagues/:leagueId/managers/:managerId one manager, five tabs
  *   /leagues/:leagueId/teams               the season: every club, as a table
  *   /leagues/:leagueId/teams/ranking       the season's 25 best players
  *   /leagues/:leagueId/teams/:teamId       one club, four tabs
@@ -267,7 +267,7 @@ export const router = createBrowserRouter(
                   loader: ({ params }) =>
                     redirect(`/leagues/${params.leagueId ?? ''}/teams`),
                 },
-                // One manager, four routes, one component — the tab comes
+                // One manager, five routes, one component — the tab comes
                 // from the segment, as everywhere else. Reached by tapping a
                 // manager's name or face: a row of either standings, a duel's
                 // scoreline, a player's owner, a transfer in the feed. No
@@ -276,11 +276,21 @@ export const router = createBrowserRouter(
                 // manager on the page came out of.
                 //
                 // `?day=` selects the matchday the Aufstellung tab shows and
-                // rides along on all four tab links, exactly as on the duel
+                // rides along on every tab link, exactly as on the duel
                 // detail page.
+                //
+                // `…/performance` is the manager's season of duels. Registered
+                // unconditionally, like `duels` and `squad/live` above: whether
+                // a league plays duels is in a payload no route can see, so the
+                // page renders the view's own "this league plays no duels"
+                // rather than bouncing a URL whose tab is simply missing.
                 { path: 'managers/:managerId', element: <ManagerDetailPage /> },
                 {
                   path: 'managers/:managerId/squad',
+                  element: <ManagerDetailPage />,
+                },
+                {
+                  path: 'managers/:managerId/performance',
                   element: <ManagerDetailPage />,
                 },
                 {

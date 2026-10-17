@@ -93,6 +93,21 @@ const BADGE_MAX = 99
  * bar is exactly where a thumb already is, and a page that had to remember to
  * opt in would be the page where the reach comes back.
  *
+ * ## Five tabs still fit
+ *
+ * The bar divides its width evenly, so each tab added takes a slice off every
+ * other one. At four plus the dots a label like *Aufstellung* has room; at
+ * five — which the [manager page](../../pages/ManagerDetailPage.tsx) in a duel
+ * league is — it does not, and a label that wraps to a second line pushes
+ * itself out of a row fixed at `h-12`.
+ *
+ * So past five items the bar **tightens** rather than breaking: less padding
+ * between the tabs, and a label a step smaller and a shade narrower — together
+ * about the ten per cent *Aufstellung* is over by at phone width. And the
+ * label truncates in
+ * every arrangement — a belt-and-braces guarantee that whatever a page calls
+ * its views, the row stays one line tall and the icons stay on their baseline.
+ *
  * **Which end it takes is the reader's**, and so is whether it is there at
  * all — [`menuShortcut`](../../preferences/preferences.ts), the same setting
  * that decides the corner the floating button uses on the pages with no bar.
@@ -141,6 +156,9 @@ export function BottomTabBar({
       />
     )
 
+  // Counting the dots, which take a slice of the row exactly like a tab does.
+  const isDense = tabs.length + (moreTab === null ? 0 : 1) > 5
+
   return (
     <>
       {/*
@@ -171,7 +189,12 @@ export function BottomTabBar({
       >
         {/* Centred and capped like the content well, so the tabs sit under the
             page rather than under the window. */}
-        <ul className="mx-auto flex w-full max-w-3xl gap-1 px-3 pt-2">
+        <ul
+          className={cn(
+            'mx-auto flex w-full max-w-3xl pt-2',
+            isDense ? 'gap-0.5 px-2' : 'gap-1 px-3',
+          )}
+        >
           {shortcut === 'left' && moreTab}
 
           {tabs.map((tab) => {
@@ -179,7 +202,10 @@ export function BottomTabBar({
             const Icon = tab.icon
 
             return (
-              <li key={tab.value} className="flex-1">
+              // `min-w-0` so the label below may actually truncate: a flex
+              // item's floor is its content otherwise, and the row would widen
+              // past the screen rather than shorten a word.
+              <li key={tab.value} className="min-w-0 flex-1">
                 <Link
                   to={tab.to}
                   replace
@@ -216,7 +242,14 @@ export function BottomTabBar({
                       </span>
                     )}
                   </span>
-                  {tab.label}
+                  <span
+                    className={cn(
+                      'max-w-full truncate',
+                      isDense && 'text-[0.625rem] tracking-tight',
+                    )}
+                  >
+                    {tab.label}
+                  </span>
                 </Link>
               </li>
             )

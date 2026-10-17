@@ -47,6 +47,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | `/leagues/:leagueId/whatif/:playerId` | [Was wäre wenn — a purchase](pages/whatif.md) | Implemented |
 | `/leagues/:leagueId/managers/:managerId` | [Manager](pages/manager-detail.md) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/squad` | [Manager — Kader](pages/manager-detail.md#kader) | Implemented |
+| `/leagues/:leagueId/managers/:managerId/performance` | [Manager — Duelle](pages/manager-detail.md#duelle) | Implemented — duel leagues only |
 | `/leagues/:leagueId/managers/:managerId/events` | [Manager — Verlauf](pages/manager-detail.md#verlauf) | Implemented |
 | `/leagues/:leagueId/managers/:managerId/details` | [Manager — Details](pages/manager-detail.md#details) | Implemented |
 | `/leagues/:leagueId/preferences` | [Einstellungen](pages/preferences.md) | Implemented |

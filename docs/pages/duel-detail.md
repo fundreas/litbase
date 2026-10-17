@@ -255,6 +255,12 @@ resolves for anyone in the league. `?day=` rides along exactly as on the list;
 the pairing is read from the very same `useDuels` query the list ran, so
 arriving here costs nothing for the duel itself.
 
+That id being derivable from two manager ids is what lets a second screen link
+straight in: a row of a manager's [season of duels](manager-detail.md#duelle)
+builds it from the page's manager and the opponent on that matchday, and lands
+on the duel with `?day=` already set. It costs nothing there either — the tab
+filled that matchday's cache entry to draw the row.
+
 A duelId whose pairing does not exist on the selected matchday — a link kept
 from another week, where the two managers are not drawn against each other —
 renders an `EmptyState` with a way back, not an error.

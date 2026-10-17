@@ -830,6 +830,66 @@ export function duelLeader(duel: Duel): DuelSide | undefined {
   return undefined
 }
 
+/**
+ * **One matchday's duel, read from one manager's side.**
+ *
+ * The row the manager page's
+ * [Duelle tab](../components/manager/ManagerPerformanceTab.tsx) draws, and the
+ * reason it is a *side* rather than a {@link Duel}: a season of duels is about
+ * one manager, so "their points" and "the opponent's" are the two columns, and
+ * a pair of symmetrical sides would make every row ask which half is yours.
+ *
+ * Built per matchday from `ranking?dayNumber=`, the only payload that carries
+ * a pairing — see [`useManagerDuels`](./hooks/useManagerDuels.ts).
+ */
+export interface ManagerSeasonDuel {
+  day: number
+  /** What this manager scored on the matchday. */
+  points: number
+  /**
+   * Who they were drawn against. **Absent for a bye** — an odd-sized league
+   * leaves one manager out each matchday, and that is a row with a score and
+   * no duel rather than a row to drop.
+   */
+  opponent?: DuelSide
+  /** What the opponent scored, `0` before kick-off and for a bye. */
+  opponentPoints: number
+  /** Duel points earned on the day (`hhmp`) — 3 for a win, 0 for a loss. */
+  duelPoints?: number
+  /**
+   * How it went. `undefined` until the matchday is **over**: level at `0` in
+   * the third minute is not a draw, which is the same gate the header's duel
+   * strip and the standings' outcome line apply.
+   */
+  result?: DuelResult
+  /** Is the matchday being played right now? Tints the scoreline. */
+  isLive: boolean
+}
+
+/** Won, drawn and lost over a run of duels. */
+export interface DuelRecord {
+  won: number
+  drawn: number
+  lost: number
+}
+
+/**
+ * A manager's record over the duels they have **finished**.
+ *
+ * A duel still being played has no result yet ({@link ManagerSeasonDuel.result}
+ * is `undefined`) and is counted in none of the three — a tally that moved
+ * while a matchday ran would claim a win nobody has.
+ */
+export function duelRecordOf(duels: ManagerSeasonDuel[]): DuelRecord {
+  const record: DuelRecord = { won: 0, drawn: 0, lost: 0 }
+  for (const duel of duels) {
+    if (duel.result === 'won') record.won += 1
+    else if (duel.result === 'drawn') record.drawn += 1
+    else if (duel.result === 'lost') record.lost += 1
+  }
+  return record
+}
+
 /* -------------------------------------------------------------------------- */
 /* One matchday's rosters — duel detail, and the squad's live view             */
 /* -------------------------------------------------------------------------- */

@@ -1,13 +1,6 @@
-import { CircleCheck, CircleMinus, CircleX } from 'lucide-react'
-
 import type { DuelResult } from '@/api/models'
+import { DUEL_RESULT } from '@/components/ranking/duelResult'
 import { cn } from '@/lib/cn'
-
-const DUEL_RESULT = {
-  won: { Icon: CircleCheck, className: 'text-positive', text: 'Gewonnen' },
-  drawn: { Icon: CircleMinus, className: 'text-muted', text: 'Remis' },
-  lost: { Icon: CircleX, className: 'text-negative', text: 'Verloren' },
-} as const
 
 /**
  * How a manager's duel went, and against whom.
@@ -19,7 +12,10 @@ const DUEL_RESULT = {
  * Shared by the [season standings](../../pages/RankingPage.tsx) and the duels
  * page's [matchday standings](./ManagerRankingTab.tsx), which show the same
  * sentence about two different matchdays — the season table's is the current
- * duel, the duels page's is the duel of whichever matchday is selected.
+ * duel, the duels page's is the duel of whichever matchday is selected. The
+ * mark and the colour come from [`DUEL_RESULT`](./duelResult.ts), which a
+ * manager's [season of duels](../manager/ManagerPerformanceTab.tsx) draws from
+ * too.
  *
  * Renders nothing at all outside duel leagues, where there is no duel and no
  * opponent to name.

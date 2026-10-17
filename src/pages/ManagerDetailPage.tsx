@@ -1,4 +1,4 @@
-import { History, Info, Shirt, Users } from 'lucide-react'
+import { History, Info, Shirt, Swords, Users } from 'lucide-react'
 import { useMemo } from 'react'
 import {
   Link,
@@ -9,6 +9,7 @@ import {
 } from 'react-router'
 
 import { useMatchdayStandings } from '@/api/hooks/useDuels'
+import { useManagerSeasonDuels } from '@/api/hooks/useManagerDuels'
 import { useManagerPerformance } from '@/api/hooks/useManagerPerformance'
 import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import {
@@ -25,6 +26,7 @@ import {
   type ManagerDuel,
 } from '@/components/manager/ManagerHeader'
 import { ManagerLineupTab } from '@/components/manager/ManagerLineupTab'
+import { ManagerPerformanceTab } from '@/components/manager/ManagerPerformanceTab'
 import { ManagerSquadTab } from '@/components/manager/ManagerSquadTab'
 import {
   MANAGER_TABS,
@@ -37,14 +39,15 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 
 /**
- * One manager of the league, in four views.
+ * One manager of the league, in five views.
  *
- *   /leagues/:leagueId/managers/:managerId          → Aufstellung, `?day=N`
- *   /leagues/:leagueId/managers/:managerId/squad    → Kader
- *   /leagues/:leagueId/managers/:managerId/events   → Verlauf
- *   /leagues/:leagueId/managers/:managerId/details  → Details
+ *   /leagues/:leagueId/managers/:managerId              → Aufstellung, `?day=N`
+ *   /leagues/:leagueId/managers/:managerId/squad        → Kader
+ *   /leagues/:leagueId/managers/:managerId/performance  → Duelle
+ *   /leagues/:leagueId/managers/:managerId/events       → Verlauf
+ *   /leagues/:leagueId/managers/:managerId/details      → Details
  *
- * Four routes, one component, with the active tab read out of the URL — the
+ * Five routes, one component, with the active tab read out of the URL — the
  * arrangement the squad, player, duel, match and club pages all use, and for
  * the same reasons: every view is linkable and survives a refresh.
  *
@@ -78,6 +81,12 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  *    because the snapshot carries the running scores for the whole squad.
  *  - **Kader — one request**, and the *same cache entry* the roster's squad
  *    lookup fills, so whichever of the two tabs is opened second is free.
+ *  - **Duelle — one request per matchday the manager has played**, because no
+ *    endpoint answers for a season of them; see
+ *    [`useManagerSeasonDuels`](../api/hooks/useManagerDuels.ts). Every one is a
+ *    cache entry the duels page shares for that `?day=`, and the matchdays it
+ *    asks about come from the same performance history the Details tab reads.
+ *    **Duel leagues only** — elsewhere the tab is not in the bar at all.
  *  - **Verlauf — the league's event feed**, paged, which the events page has
  *    usually already loaded the first page of.
  *  - **Details — one request**, the manager's
@@ -195,6 +204,20 @@ export function ManagerDetailPage() {
   const isDuelMode = ranking.data?.isDuelMode === true
 
   /*
+   * The season of duels the Duelle tab lists. Gated to that tab *and* to a
+   * league that plays duels, which is what keeps a fan-out the size of a
+   * season off every other view — and off every league that has no duels to
+   * fan out over. See the hook for what it costs and what it shares.
+   */
+  const seasonDuels = useManagerSeasonDuels(
+    leagueId,
+    managerId,
+    tab === MANAGER_TABS.performance && isDuelMode
+      ? schedule.data?.matchdays
+      : undefined,
+  )
+
+  /*
    * The duel the manager was in on the matchday in view. Only in a duel league,
    * and only when the day actually paired them with somebody — an odd-sized
    * league leaves one manager out, and a strip about a duel that does not exist
@@ -227,10 +250,19 @@ export function ManagerDetailPage() {
   })()
 
   const day = `?day=${String(selectedDay ?? '')}`
-  // Details, Kader, Aufstellung, Verlauf — the manager first, then their
-  // squad, then one matchday of it, then what they did over the season. The
-  // bare route stays the Aufstellung: the order is how the bar reads, not
-  // where a tapped name lands.
+  /*
+   * Details, Kader, Aufstellung, Duelle, Verlauf — the manager first, then
+   * their squad, then one matchday of it, then the season of duels that
+   * matchday is one of, then what they did over it. The bare route stays the
+   * Aufstellung: the order is how the bar reads, not where a tapped name
+   * lands.
+   *
+   * **Duelle only in a duel league.** A tab that could only ever say "this
+   * league plays no duels" is a fifth of the bar spent on nothing, and the
+   * other four pages are the same either way. The route stays registered, so a
+   * link shared out of a duel league still resolves to the view's own
+   * explanation rather than to a 404.
+   */
   const tabs: BottomTab[] = [
     {
       value: MANAGER_TABS.details,
@@ -250,6 +282,16 @@ export function ManagerDetailPage() {
       icon: Shirt,
       to: `${base}${day}`,
     },
+    ...(isDuelMode
+      ? [
+          {
+            value: MANAGER_TABS.performance,
+            label: 'Duelle',
+            icon: Swords,
+            to: `${base}/${MANAGER_TABS.performance}${day}`,
+          },
+        ]
+      : []),
     {
       value: MANAGER_TABS.events,
       label: 'Verlauf',
@@ -371,6 +413,15 @@ export function ManagerDetailPage() {
               competitionId={competitionId}
             />
           ))}
+
+        {tab === MANAGER_TABS.performance && (
+          <ManagerPerformanceTab
+            season={seasonDuels}
+            managerId={manager.id}
+            leagueId={leagueId}
+            isDuelMode={isDuelMode}
+          />
+        )}
 
         {tab === MANAGER_TABS.events && (
           <ActivityFeed
