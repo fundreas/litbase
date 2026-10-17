@@ -4,8 +4,8 @@
 [`src/pages/ManagerDetailPage.tsx`](../../src/pages/ManagerDetailPage.tsx)
 
 One manager of the league, in five views — in the bar's order, **Details ·
-Kader · Aufstellung · Duelle · Verlauf** (rearranged 2026-09-08: the manager
-first, then their squad, then one matchday of it, then the season of duels that
+Kader · Aufstellung · Duelle/Leistung · Verlauf** (rearranged 2026-09-08: the
+manager first, then their squad, then one matchday of it, then the season that
 matchday is one of, then the season's events):
 
 | Route | View | Costs |
@@ -13,16 +13,17 @@ matchday is one of, then the season's events):
 | `…/details` | Details | the manager's performance history — one request |
 | `…/squad` | Kader | one request, shared with the Aufstellung's squad lookup, plus a per-player detail fan-out for the lineup probability |
 | `/leagues/:leagueId/managers/:managerId` | Aufstellung, `?day=N` | the matchday snapshot + the per-player points fan-out |
-| `…/performance` | Duelle — **duel leagues only** | the performance history (shared with Details) + one request per matchday played, each shared with the [Duels](duels.md) page |
+| `…/performance` | Duelle, in a duel league | the performance history (shared with Details) + one request per matchday played, each shared with the [Duels](duels.md) page |
+| `…/performance` | Leistung, everywhere else | the performance history alone — nothing further to fetch |
 | `…/events` | Verlauf | the league's event feed, paged |
 
 The bare route is still the Aufstellung — the order is how the bar reads, not
 where a tapped name lands; see [`managerTabs`](../../src/components/manager/managerTabs.ts).
 
-*Duelle* is the one tab that is not in every league: outside a duel league
-there are no duels to list, so it is left out of the bar and its route — still
-registered, so a shared link resolves — renders the view's own explanation. See
-[Duelle](#duelle).
+That fourth tab is **one route named after what the league makes of it**: a
+season of duels where the league plays them, a season of matchdays where it
+does not, labelled *Duelle* or *Leistung* accordingly. See
+[Duelle / Leistung](#duelle--leistung).
 
 The page itself is **three requests**, all of them shared: the season standings
 (the same entry the [Rangliste](ranking.md), the [event feed](events.md) and the
@@ -329,7 +330,28 @@ night is the one after the one being played. Every list of players in the app
 names its opponents by that rule; see
 [the squad page](squad.md#the-opponent-is-the-next-one-not-the-current-matchdays).
 
-## Duelle
+## Duelle / Leistung
+
+The manager's **season as a list** — the counterpart of a club's
+[Spiele](team.md#spiele) and a player's [Leistung](player-detail.md), and the
+only screen that reads a manager's season as a run of weekends rather than as a
+total. Which list it is depends on how the league is played, and so does the
+label on the bar:
+
+| League | Label | Rows | Each row opens |
+| ------ | ----- | ---- | -------------- |
+| Duell | *Duelle* | opponent, scoreline, outcome | [that duel](duel-detail.md) |
+| Any other | *Leistung* | date, points, matchday wins | [that matchday](matchday.md) |
+
+The route is `…/performance` either way, spelled the way the
+[player page](player-detail.md) spells its own season tab rather than after
+what it draws — a segment and a label have never been the same word here
+(`matches` is *Spiele*). Hiding the tab in a league without duels was the
+obvious alternative and the wrong one: those leagues have no *other* season
+view, so it would have taken the list away from exactly the readers with
+nothing to put in its place.
+
+### Duelle
 
 **Every duel of the season, newest first** — the tab a duel league makes
 obvious and which, until it existed, had no address anywhere in the app. The
@@ -354,12 +376,6 @@ get there.
   ├──────▌───────────────────────────────┤
   └──────────────────────────────────────┘
 ```
-
-It is the counterpart of a club's [Spiele](team.md#spiele) and a player's
-[Leistung](player-detail.md), for the competition a duel league is actually
-played for — which is why the route segment is `performance` while the label is
-*Duelle*; a segment and a label have never been the same word here (`matches`
-is *Spiele*).
 
 **Every row opens that duel** — both elevens and every point behind the
 scoreline, on [Duel detail](duel-detail.md), with the matchday in `?day=`. It
@@ -402,7 +418,7 @@ opponent each matchday; their points still counted towards the Kickbase table,
 so the row shows them and says *spielfrei* rather than inventing an opponent.
 It is dashed and it is **not** a link — there is no duel to open.
 
-### What it costs, and why it is affordable
+#### What it costs, and why it is affordable
 
 There is **no endpoint for a season of duels**. `ranking?dayNumber=` carries the
 pairing for one matchday, `/managers/{id}/performance` carries points with no
@@ -433,6 +449,39 @@ failing, which is the only case where retrying is the reader's move.
 
 The whole thing is gated on the tab, like the roster and the squad: the other
 four views hand the hook `undefined` and it issues nothing.
+
+### Leistung
+
+Without duels a matchday is a number, so the list is the numbers — **one row
+per matchday the manager has played**, newest first:
+
+```
+  ┌──────────────────────────────────────┐
+  │ 8.  8. Spieltag            🏆   410 │  → /matchday?day=8
+  │     Fr, 4. Sep. – So, 6. Sep.        │
+  ├───────────────────────────▌──────────┤
+  └──────────────────────────────────────┘
+```
+
+**One request, usually none.** The matchday history is the *same cache entry*
+the Details tab reads, and there is nothing to fan out over: an opponent is the
+only thing `/performance` does not carry, and without duels there is no
+opponent. A league without duels therefore gets this view for free, where a
+duel league pays a request a matchday for the pairings.
+
+**Each row opens that matchday** — `/matchday?day=N`, the nine fixtures those
+points came out of. That destination is what keeps the list from being the
+Details tab's *Spieltage* card again: the two carry the same rows and answer
+different questions, *what did he field* (and stay on this page) against *what
+was the football* (and leave it).
+
+The **date** comes from the competition's schedule rather than from the
+history, which carries none — the whole Friday-to-Sunday span, through the same
+`dateRange` the [matchday picker](../../src/components/MatchdayPicker.tsx)
+labels a matchday with, and on the matchday being played it gives way to
+*Läuft*. The bar is scaled to the manager's own best matchday and the gold
+trophy is `tw`, both exactly as on the Details tab — it is the same season, and
+drawing it two ways would be two seasons.
 
 ## Verlauf
 
@@ -535,8 +584,7 @@ Details tab carries the one link across.
 | Roster loading | `SkeletonList rows={8}` |
 | No snapshot for the matchday | `EmptyState` — "vermutlich lag er vor seinem Beitritt" |
 | Squad empty | `EmptyState` — a manager who has left keeps a season but not a squad |
-| Duelle in a league without duels | `EmptyState` — pointing at the Details tab, which has the matchday points |
-| Duelle before the first scored matchday | `EmptyState` — "Noch keine Duelle" |
+| Duelle/Leistung before the first scored matchday | `EmptyState` — "Noch keine Duelle" / "Noch keine Spieltage" |
 
 A manager who has **left the league** disappears from the standings, so their
 page becomes the not-found state. Their name still appears in the feed's history,

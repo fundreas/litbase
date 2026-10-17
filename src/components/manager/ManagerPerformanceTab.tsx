@@ -1,8 +1,15 @@
-import { Swords } from 'lucide-react'
+import { Swords, Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 
 import type { ManagerSeasonDuels } from '@/api/hooks/useManagerDuels'
-import { duelIdOf, type ManagerSeasonDuel } from '@/api/models'
+import type { ManagerHistoryQuery } from '@/api/hooks/useManagerPerformance'
+import {
+  duelIdOf,
+  matchdayState,
+  type ManagerMatchday,
+  type ManagerSeasonDuel,
+  type SeasonMatchday,
+} from '@/api/models'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { DUEL_RESULT } from '@/components/ranking/duelResult'
 import { StatTile } from '@/components/ui/Card'
@@ -10,22 +17,37 @@ import { SkeletonList } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { points } from '@/lib/format'
+import { dateRange, points } from '@/lib/format'
 
 /**
- * **A manager's whole season of duels** — one row per matchday, newest first.
+ * **A manager's season, matchday by matchday** — newest first.
  *
  * The counterpart of a club's [season of fixtures](../team/TeamMatchesTab.tsx)
- * and of a player's [season of matches](../player/PlayerPerformanceTab.tsx),
- * for the competition a duel league is actually played for. It answers the
- * question the [header's duel strip](./ManagerHeader.tsx) raises one matchday
- * at a time — *who have they beaten to get there* — and until it existed the
- * answer was nowhere in the app: the standings carry the running duel total and
- * **this** matchday's opponent, and no screen could step back through the rest.
+ * and of a player's [season of matches](../player/PlayerPerformanceTab.tsx):
+ * the one screen that reads a manager's whole season as a list rather than as
+ * a total.
  *
- * Every row **opens that duel**, both elevens and all the points behind the
- * scoreline, which is the same move the Details tab's matchday rows make into
- * the Aufstellung — a figure, and its explanation one tap behind it.
+ * ## Two lists, because a league is played one of two ways
+ *
+ * **In a duel league it is the season of duels** — the competition such a
+ * league is actually played for. It answers the question the
+ * [header's duel strip](./ManagerHeader.tsx) raises one matchday at a time —
+ * *who have they beaten to get there* — and until it existed the answer was
+ * nowhere in the app: the standings carry the running duel total and **this**
+ * matchday's opponent, and no screen could step back through the rest. Every
+ * row opens [that duel](../../pages/DuelDetailPage.tsx), both elevens and all
+ * the points behind the scoreline.
+ *
+ * **Everywhere else it is the season of matchdays**, which is all a league
+ * without duels has: the date, what the manager scored, and the matchdays they
+ * won outright. Every row opens the [matchday](../../pages/MatchdayPage.tsx)
+ * itself — the nine fixtures those points came out of. That is the honest
+ * destination here, and it is what keeps the list from being the Details tab's
+ * *Spieltage* card again: that one answers *what did he field* and stays on
+ * this page, this one answers *what was the football* and leaves it.
+ *
+ * Both are one tap from a figure to its explanation, which is the move the
+ * whole page is built out of.
  *
  * ## The row
  *
@@ -68,22 +90,32 @@ import { points } from '@/lib/format'
  */
 export function ManagerPerformanceTab({
   season,
+  history,
+  matchdays,
   managerId,
   leagueId,
   isDuelMode,
 }: {
+  /** The season of duels. Only ever filled in a duel league. */
   season: ManagerSeasonDuels
+  /**
+   * The manager's matchday history — what a league **without** duels has
+   * instead, and the same cache entry the Details tab reads.
+   */
+  history: ManagerHistoryQuery
+  /** The season's matchdays, for each row's date and for the live one. */
+  matchdays: SeasonMatchday[] | undefined
   managerId: string
   leagueId: string
-  /** False outside a duel league, where the tab has nothing to be about. */
+  /** Which of the two lists this league gets. */
   isDuelMode: boolean
 }) {
   if (!isDuelMode) {
     return (
-      <EmptyState
-        icon={<Swords size={20} aria-hidden="true" />}
-        title="Diese Liga spielt keine Duelle"
-        description="Duelle gibt es nur im Spielmodus „Duell“. Die Spieltagspunkte dieses Managers stehen auf dem Details-Tab."
+      <MatchdaySeason
+        history={history}
+        matchdays={matchdays}
+        leagueId={leagueId}
       />
     )
   }
@@ -162,6 +194,190 @@ export function ManagerPerformanceTab({
   )
 }
 
+/* -------------------------------------------------------------------------- */
+/* The season without duels                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * **Every matchday the manager has played**, in a league that plays no duels.
+ *
+ * ```
+ *   ┌──────────────────────────────────────┐
+ *   │ 8.  Sa., 5. Sep.            🏆  410 │  → /matchday?day=8
+ *   ├───────────────────────────▌──────────┤
+ *   └──────────────────────────────────────┘
+ * ```
+ *
+ * **One request**, and usually none: the matchday history is the same cache
+ * entry the [Details tab](./ManagerDetailsTab.tsx) reads. There is no fan-out
+ * here and nothing to fan out over — without duels a matchday is a number, and
+ * the number is already on that payload. (The duel list costs a request per
+ * matchday precisely because an opponent is *not*.)
+ *
+ * **The date is the row's second line**, taken from the competition's schedule
+ * rather than from the history, which carries none. It is what turns a column
+ * of matchday numbers into a season somebody lived through — and on the one row
+ * the schedule says is being played, it gives way to *Läuft*. The span rather
+ * than the first kick-off, through the same `dateRange` the
+ * [matchday picker](../MatchdayPicker.tsx) labels a matchday with, because a
+ * Bundesliga matchday is a Friday-to-Sunday and the picker already taught the
+ * reader to see one that way.
+ *
+ * The bar is scaled against this manager's **own best** matchday, as the
+ * Details tab's is and for the same reason: the tab is a portrait of one
+ * season, and the comparison against the rest of the league already exists in
+ * the [Rangliste](../../pages/RankingPage.tsx). A matchday won outright carries
+ * the gold trophy `tw` earns on the Details tab too; a negative matchday draws
+ * no bar, an axis being worth more than one row in a season.
+ */
+function MatchdaySeason({
+  history,
+  matchdays,
+  leagueId,
+}: {
+  history: ManagerHistoryQuery
+  matchdays: SeasonMatchday[] | undefined
+  leagueId: string
+}) {
+  if (history.isPending) return <SkeletonList rows={6} />
+
+  if (history.isError) {
+    return (
+      <ErrorState
+        error={history.error}
+        onRetry={() => {
+          void history.refetch()
+        }}
+      />
+    )
+  }
+
+  // Played only, oldest first — the hook drops the matchdays still to come.
+  const played = history.data?.current?.matchdays ?? []
+
+  if (played.length === 0) {
+    return (
+      <EmptyState
+        title="Noch keine Spieltage"
+        description="Für diesen Manager hat Kickbase in dieser Saison noch keinen Spieltag gewertet."
+      />
+    )
+  }
+
+  const best = played.reduce((top, entry) =>
+    entry.points > top.points ? entry : top,
+  )
+  const byDay = new Map((matchdays ?? []).map((entry) => [entry.day, entry]))
+
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {[...played].reverse().map((matchday) => (
+        <li key={matchday.day}>
+          <MatchdayRow
+            matchday={matchday}
+            best={best}
+            scheduled={byDay.get(matchday.day)}
+            leagueId={leagueId}
+          />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function MatchdayRow({
+  matchday,
+  best,
+  scheduled,
+  leagueId,
+}: {
+  matchday: ManagerMatchday
+  /** The manager's own best matchday, which scales every bar. */
+  best: ManagerMatchday
+  /** The same matchday on the competition's schedule — its date and its clock. */
+  scheduled: SeasonMatchday | undefined
+  leagueId: string
+}) {
+  const isLive = scheduled !== undefined && matchdayState(scheduled) === 'live'
+  const share =
+    best.points <= 0 || matchday.points <= 0
+      ? 0
+      : Math.max(0.02, matchday.points / best.points)
+
+  return (
+    <Link
+      to={`/leagues/${leagueId}/matchday?day=${String(matchday.day)}`}
+      className={cn(
+        'flex flex-col overflow-hidden rounded-card border bg-surface',
+        'transition-colors hover:bg-surface-2/60',
+        isLive ? 'border-accent/50' : 'border-line',
+      )}
+    >
+      <span className="flex items-center gap-2.5 px-3 py-2.5">
+        <span className="nums w-7 shrink-0 text-[0.6875rem] text-faint">
+          {matchday.day}.
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm text-ink">
+            {matchday.day}. Spieltag
+          </span>
+          <span className="nums block truncate text-[0.625rem]">
+            {isLive ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-accent">
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent"
+                />
+                Läuft
+              </span>
+            ) : (
+              <span className="text-faint">
+                {scheduled === undefined
+                  ? ''
+                  : dateRange(scheduled.start, scheduled.end)}
+              </span>
+            )}
+          </span>
+        </span>
+
+        <span className="flex w-[4.5rem] shrink-0 items-center justify-end gap-1">
+          {matchday.isMatchdayWin && (
+            <Trophy
+              size={12}
+              aria-label="Spieltagssieg"
+              className="shrink-0 text-gold"
+            />
+          )}
+          <span
+            className={cn(
+              'nums text-right text-sm font-semibold',
+              matchday.points < 0 ? 'text-negative' : 'text-ink',
+            )}
+          >
+            {points(matchday.points)}
+          </span>
+        </span>
+      </span>
+
+      {/* Flush against the bottom edge, so a column of these reads as a bar
+          chart on its side — the club page's treatment, and the duel rows'
+          below. Scaled to this manager's best matchday. */}
+      <span aria-hidden="true" className="block h-1 w-full bg-surface-2">
+        <span
+          style={{ width: `${String(share * 100)}%` }}
+          className={cn(
+            'block h-full rounded-r-full transition-[width]',
+            matchday.day === best.day ? 'bg-accent' : 'bg-accent/45',
+          )}
+        />
+      </span>
+    </Link>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* The season of duels                                                        */
 /* -------------------------------------------------------------------------- */
 
 /**

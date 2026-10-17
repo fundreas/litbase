@@ -48,6 +48,11 @@ The requested day is **validated against the real schedule** before it is used.
 A hand-edited `?day=99` falls back to the competition's current matchday rather
 than selecting nothing and rendering as an empty page.
 
+That is also how another page links **into** a particular weekend: a row of a
+manager's [Leistung](manager-detail.md#leistung) list — their season, in a
+league that plays no duels — carries `?day=N` for the matchday the points were
+scored on, so a figure on a manager's page opens the nine fixtures behind it.
+
 > The picker moved out of `components/duels/` when this page was built. It was
 > never duel-specific; it just had one caller.
 

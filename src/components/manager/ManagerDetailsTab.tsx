@@ -1,11 +1,8 @@
 import { ArrowRight, Trophy } from 'lucide-react'
 import { Link } from 'react-router'
 
-import type {
-  ManagerHistory,
-  ManagerMatchday,
-  RankedManager,
-} from '@/api/models'
+import type { ManagerHistoryQuery } from '@/api/hooks/useManagerPerformance'
+import type { ManagerMatchday, RankedManager } from '@/api/models'
 import { Card, CardHeader, StatTile } from '@/components/ui/Card'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { ErrorState } from '@/components/ui/States'
@@ -51,13 +48,7 @@ export function ManagerDetailsTab({
 }: {
   manager: RankedManager
   /** The matchday history, `undefined` while it loads or if it failed. */
-  history: {
-    data: ManagerHistory | undefined
-    isPending: boolean
-    isError: boolean
-    error: unknown
-    refetch: () => unknown
-  }
+  history: ManagerHistoryQuery
   isDuelMode: boolean
   isViewer: boolean
   leagueId: string

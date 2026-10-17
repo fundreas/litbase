@@ -501,15 +501,17 @@ the team page's while that club's own fixture does. Both are **appended**
 rather than inserted, so the permanent tabs never move under a thumb that had
 learned where they are.
 
-The manager page's *Duelle* is conditional on the **league** rather than on the
-clock — it is there in a duel league and nowhere else, since outside one the
-tab could only ever explain its own absence. Its route stays registered either
-way, so a link shared out of a duel league resolves to that explanation instead
-of a 404; see [Manager](pages/manager-detail.md#duelle).
+The manager page's fourth tab is a third case: always there, but **named after
+what the league makes of it**. One route, one component, and a label that reads
+*Duelle* where the league plays them and *Leistung* where it does not — because
+the list underneath is a season of duels in the first case and a season of
+matchdays in the second. Hiding the tab outside a duel league, the alternative,
+would have taken a whole season view away from the leagues that have no other
+one; see [Manager](pages/manager-detail.md#duelle--leistung).
 
 **Five tabs are the most a bar holds.** The row divides its width evenly, so
 each tab takes a slice off every other one, and past five items — the manager
-page in a duel league, counting the dots — a label like *Aufstellung* no longer
+page, counting the dots — a label like *Aufstellung* no longer
 fits on one line, which at a fixed row height means it is pushed out of the
 row. So the bar **tightens** at that point rather than breaking: less padding
 between the tabs, a slightly smaller label, and a label that truncates in every

@@ -58,6 +58,27 @@ export function toManagerHistory(
 }
 
 /**
+ * What a view needs of this hook's result.
+ *
+ * The matchday history is drawn by two tabs — the manager page's
+ * [Details](../../components/manager/ManagerDetailsTab.tsx) and, in a league
+ * without duels, its
+ * [season list](../../components/manager/ManagerPerformanceTab.tsx) — and both
+ * take it as a prop rather than calling the hook themselves, so the page keeps
+ * one notion of which tabs pay for it. A narrow structural type rather than
+ * `UseQueryResult<ManagerHistory>`: these components want four fields, and
+ * demanding the whole discriminated union would make them impossible to hand a
+ * stub.
+ */
+export interface ManagerHistoryQuery {
+  data: ManagerHistory | undefined
+  isPending: boolean
+  isError: boolean
+  error: unknown
+  refetch: () => unknown
+}
+
+/**
  * **One manager's every season in the league, matchday by matchday.**
  *
  * The per-matchday points behind the manager page's

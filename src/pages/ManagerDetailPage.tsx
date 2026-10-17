@@ -1,4 +1,4 @@
-import { History, Info, Shirt, Swords, Users } from 'lucide-react'
+import { BarChart3, History, Info, Shirt, Swords, Users } from 'lucide-react'
 import { useMemo } from 'react'
 import {
   Link,
@@ -43,7 +43,7 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  *
  *   /leagues/:leagueId/managers/:managerId              → Aufstellung, `?day=N`
  *   /leagues/:leagueId/managers/:managerId/squad        → Kader
- *   /leagues/:leagueId/managers/:managerId/performance  → Duelle
+ *   /leagues/:leagueId/managers/:managerId/performance  → Duelle / Leistung
  *   /leagues/:leagueId/managers/:managerId/events       → Verlauf
  *   /leagues/:leagueId/managers/:managerId/details      → Details
  *
@@ -86,7 +86,9 @@ import { useActiveLeague } from '@/league/useActiveLeague'
  *    [`useManagerSeasonDuels`](../api/hooks/useManagerDuels.ts). Every one is a
  *    cache entry the duels page shares for that `?day=`, and the matchdays it
  *    asks about come from the same performance history the Details tab reads.
- *    **Duel leagues only** — elsewhere the tab is not in the bar at all.
+ *    **In a league without duels the same tab is *Leistung*** and costs
+ *    nothing beyond that history: a matchday with no opponent is a number the
+ *    payload already carries, so there is nothing to fan out over.
  *  - **Verlauf — the league's event feed**, paged, which the events page has
  *    usually already loaded the first page of.
  *  - **Details — one request**, the manager's
@@ -193,12 +195,19 @@ export function ManagerDetailPage() {
   )
 
   /*
-   * The matchday-by-matchday history the Details tab draws. Gated to that tab
-   * like the squad is to its own: the other three have no use for it.
+   * The matchday-by-matchday history. **Two tabs draw it**: the Details tab's
+   * season card, and — in a league without duels — the Leistung tab's whole
+   * list. Gated to those two like the squad is to its own, and one cache entry
+   * between them, so switching costs nothing.
+   *
+   * The duel fan-out below reads the very same entry to decide which matchdays
+   * to ask about, which is why a duel league does not need it named here.
    */
   const history = useManagerPerformance(
     leagueId,
-    tab === MANAGER_TABS.details ? managerId : undefined,
+    tab === MANAGER_TABS.details || tab === MANAGER_TABS.performance
+      ? managerId
+      : undefined,
   )
 
   const isDuelMode = ranking.data?.isDuelMode === true
@@ -252,16 +261,17 @@ export function ManagerDetailPage() {
   const day = `?day=${String(selectedDay ?? '')}`
   /*
    * Details, Kader, Aufstellung, Duelle, Verlauf — the manager first, then
-   * their squad, then one matchday of it, then the season of duels that
-   * matchday is one of, then what they did over it. The bare route stays the
-   * Aufstellung: the order is how the bar reads, not where a tapped name
-   * lands.
+   * their squad, then one matchday of it, then the season that matchday is one
+   * of, then what they did over it. The bare route stays the Aufstellung: the
+   * order is how the bar reads, not where a tapped name lands.
    *
-   * **Duelle only in a duel league.** A tab that could only ever say "this
-   * league plays no duels" is a fifth of the bar spent on nothing, and the
-   * other four pages are the same either way. The route stays registered, so a
-   * link shared out of a duel league still resolves to the view's own
-   * explanation rather than to a 404.
+   * **The fourth tab is named after what it shows.** In a duel league that is
+   * the season of duels, *Duelle*, crossed swords. Elsewhere there are no
+   * duels and the same route lists the matchdays themselves, so it is
+   * *Leistung* under the bars the [player page](./PlayerDetailPage.tsx) gives
+   * its own season tab — the two are the same kind of list, and naming this
+   * one *Duelle* in a league that has none would promise a view that cannot
+   * exist.
    */
   const tabs: BottomTab[] = [
     {
@@ -282,16 +292,12 @@ export function ManagerDetailPage() {
       icon: Shirt,
       to: `${base}${day}`,
     },
-    ...(isDuelMode
-      ? [
-          {
-            value: MANAGER_TABS.performance,
-            label: 'Duelle',
-            icon: Swords,
-            to: `${base}/${MANAGER_TABS.performance}${day}`,
-          },
-        ]
-      : []),
+    {
+      value: MANAGER_TABS.performance,
+      label: isDuelMode ? 'Duelle' : 'Leistung',
+      icon: isDuelMode ? Swords : BarChart3,
+      to: `${base}/${MANAGER_TABS.performance}${day}`,
+    },
     {
       value: MANAGER_TABS.events,
       label: 'Verlauf',
@@ -417,6 +423,8 @@ export function ManagerDetailPage() {
         {tab === MANAGER_TABS.performance && (
           <ManagerPerformanceTab
             season={seasonDuels}
+            history={history}
+            matchdays={schedule.data?.matchdays}
             managerId={manager.id}
             leagueId={leagueId}
             isDuelMode={isDuelMode}
