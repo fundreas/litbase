@@ -4,6 +4,7 @@ import { rankingDayQueryOptions } from '@/api/hooks/useDuels'
 import { useManagerPerformance } from '@/api/hooks/useManagerPerformance'
 import { duelResultOf, toRankedManager } from '@/api/hooks/useRanking'
 import {
+  chicagoPointsOf,
   duelRecordOf,
   duelSideOf,
   matchdayState,
@@ -22,6 +23,13 @@ export interface ManagerSeasonDuels {
   record: DuelRecord
   /** Duel points over the season, summed from the matchdays that have landed. */
   duelPoints: number
+  /**
+   * **Chicago points over the season** — the margin of every duel this manager
+   * won, added up; see [`chicagoPointsOf`](../models.ts). The app's own
+   * scoring, not Kickbase's, and the same figure the standings'
+   * [Chicago table](../../pages/RankingPage.tsx) ranks the league by.
+   */
+  chicagoPoints: number
   /**
    * What this manager has averaged per duel **that is over** — `undefined`
    * before the first one is.
@@ -230,6 +238,14 @@ export function useManagerSeasonDuels(
     duels,
     record: duelRecordOf(duels),
     duelPoints: duels.reduce((sum, duel) => sum + (duel.duelPoints ?? 0), 0),
+    /*
+     * Over the duels that are **over**, like the record and the averages: a
+     * margin taken from a matchday still being played is a lead, not a result.
+     */
+    chicagoPoints: played.reduce(
+      (sum, duel) => sum + chicagoPointsOf(duel.points, duel.opponentPoints),
+      0,
+    ),
     averagePoints: average(played.reduce((sum, duel) => sum + duel.points, 0)),
     averageOpponentPoints: average(
       played.reduce((sum, duel) => sum + duel.opponentPoints, 0),

@@ -11,7 +11,7 @@ same field re-sorted by one of the league's side competitions.
 
 | View | Segment | What it ranks |
 | ---- | ------- | ------------- |
-| *Rangliste* | `ranking` | the league as it stands — points, or the duel table |
+| *Rangliste* | `ranking` | the league as it stands — points, the duel table, or [Chicago](#chicago-mode) |
 | *Battles* | `ranking/battles` | one of Kickbase's side competitions, `?battle=<type>` — [Battles](#battles) |
 
 Switched by a [`BottomTabBar`](../../src/components/ui/BottomTabBar.tsx), the
@@ -24,14 +24,15 @@ rather than having its tab quietly appear and disappear.
 
 The **sort toggle belongs to the table**, not to the page — it sorts the
 season standings and means nothing over a battle's own ranking, so it is not
-drawn in the battles view.
+drawn in the battles view. It offers three tables in a duel league: Kickbase's
+two, and [Chicago](#chicago-mode).
 
 ## Layout
 
 ```
-  Rangliste                          ┌───┬───┐
-  4 Manager · Duell-Modus            │ ⚔ │ Σ │   ← sort toggle
-                                     └───┴───┘
+  Rangliste                        ┌───┬───┬───┐
+  4 Manager · Duell-Modus          │ ⚔ │ Σ │ ± │   ← sort toggle
+                                   └───┴───┴───┘
   ┌────────────────────────────────────────────┐
   │ 1. (A)  robidfl                         9  │
   │         410 Pkt am Spieltag        612 Pkt │
@@ -112,22 +113,30 @@ In a normal league those would be the same number, so only the total is shown.
 
 ### The sort toggle
 
-A duel league has **two legitimate tables**, so the heading carries a toggle on
-the right: **Duell** (the default) or **Punkte**.
+A duel league has **three legitimate tables**, so the heading carries a toggle
+on the right: **Duell** (the default), **Punkte**, or
+**[Chicago](#chicago-mode)**.
 
 It switches the whole view at once — order, placement number *and* headline
 figure. Listing duel placements in points order would look broken, so the
 points view renumbers the rows by `spl` and promotes `sp` to the bold figure,
 with the duel total moving to the muted line. The toggle is not rendered
-outside duel mode, where both options would mean the same thing.
+outside duel mode, where all three options would mean the same thing.
 
-The two buttons are **icon-only**: crossed swords (`Swords`) for the
-head-to-head table, a summation sign (`Sigma`) for the points total. Labels
-would need truncating next to the heading on a phone, so the meaning rides on
-`title` plus `sr-only` text instead.
+The buttons are **icon-only**: crossed swords (`Swords`) for the head-to-head
+table, a summation sign (`Sigma`) for the points total, a difference sign
+(`Diff`) for Chicago — where a win is worth exactly the difference between the
+two scores. Labels would need truncating next to the heading on a phone, so
+the meaning rides on `title` plus `sr-only` text instead.
 
-Only the non-default view re-sorts: the hook already returns the league's own
+Only the non-default views re-sort: the hook already returns the league's own
 table.
+
+| Toggle | Order | Place | Bold figure | Muted figure |
+| ------ | ----- | ----- | ----------- | ------------ |
+| ⚔ Duell | `hhpl` | `hhpl` | `hhsp` | `sp` |
+| Σ Punkte | `spl` | `spl` | `sp` | `hhsp` |
+| ± Chicago | computed | the row's position | Chicago points | `hhsp` |
 
 ### Duel outcome
 
@@ -161,6 +170,79 @@ leagues; a normal league carries no `hhpl` at all. The response's top-level
 classic/arena/beginner/high-management and says nothing about duels. `hhsp`
 alone is not enough either: it appears as `0` in normal leagues.
 
+### Chicago mode
+
+**The same duels, scored by their margin.** A duel league gives three points
+for a win however narrow, so a season of one-pointers and a season of routs
+can finish level. Chicago scores each duel the other way:
+
+> The winner takes **the difference between the two scores**. The loser takes
+> nothing. A draw is worth nothing to either — the difference is nought anyway.
+
+A 410:120 is worth **290** to the winner; a 410:409 is worth **1**. Nobody ever
+goes backwards, so a Chicago total is never negative whatever a manager's
+points did. The rule is one function,
+[`chicagoPointsOf`](../../src/api/models.ts), because two screens add it up —
+this table over a whole league, and a manager's
+[season of duels](manager-detail.md#duelle) over one manager. Written twice,
+the two could disagree about what a draw is worth.
+
+**It is the app's table, not Kickbase's.** There is no `hh`-style field for it
+on any payload and no endpoint that answers for it, so every figure here is
+computed from the two `mdp` of each pairing — the same ground truth the
+[outcome](#duel-outcome) is read from, and for the same reason: it assumes
+nothing about how a league scores a duel.
+
+So the row differs from the other two tables in one more place: **the place
+number is the row's own position**, counted here, and the
+[placement change](#placement-change) is **not drawn at all**. `ppc` is
+movement in Kickbase's table; an arrow beside a placement it does not describe
+would be the row's one outright lie. Ties — every manager before the first
+matchday lands, say — fall back to the duel table and then to the points
+table, so an unscored Chicago table is the league's own order rather than a
+random one.
+
+#### What it costs
+
+**One request per finished matchday**, plus the competition's calendar to know
+which those are:
+[`useLeagueChicagoPoints`](../../src/api/hooks/useChicagoRanking.ts). It is the
+same fan-out the manager page's [Duelle tab](manager-detail.md#duelle) makes
+and over the same **shared cache entries** (`rankingDayQueryOptions`), so a
+season already walked on the [duels](duels.md) page or on a manager's tab
+makes this table instant, and this table leaves all of them loaded.
+
+Unlike that tab there is no history to narrow the list with — this is about
+every manager at once — so the fan-out is the competition's finished
+matchdays, and each response is read for the whole league in one pass.
+
+It is still a season of requests, which is why **nothing is fetched until the
+Chicago table is the one on screen**: both the calendar and the fan-out are
+handed `undefined` on the other two tables, on the battles view and in every
+league that plays no duels.
+
+#### Only matchdays that are over
+
+A live matchday is a pair of part-scores. A 20:15 in the third minute would
+hand somebody five Chicago points the final whistle may well take back, and
+the table would churn all afternoon — so an unfinished matchday contributes
+nothing, the same gate the [outcome](#duel-outcome) marks, the record and the
+averages apply.
+
+#### States, while it sums
+
+| State | Rendering |
+| ----- | --------- |
+| Calendar loading | the table, with *Spieltage werden geladen …* above it |
+| Matchdays landing | the table as summed so far, with *Noch N Spieltage werden ausgewertet …* above it |
+| One matchday failed | a margin missing from the totals — no state of its own |
+| Calendar failed, or **every** matchday failed | `ErrorState` with retry, in place of the table |
+
+The rows **do move** while matchdays land, which is why the line above the
+card says so: a table reordering itself under the reader has to explain
+itself. The partial order is honest — it is the Chicago table over the
+matchdays that have arrived.
+
 ### Which field is the duel points
 
 `hhsp` is treated as the headline and `hhmp` as the matchday figure, following
@@ -184,8 +266,8 @@ inverted reading would be visible immediately rather than silent.
 | Admin | not here — the crown is on the [manager page](manager-detail.md#the-header)'s header, from `isAdmin` |
 | Subtitle 1 | Matchday Kickbase points (`mdp`) |
 | Subtitle 2 | Duel outcome + opponent name — omitted outside duel leagues |
-| Points | `seasonPoints`, bold, right-aligned |
-| Change | `placementChange` (`ppc`) |
+| Points | the figure the table is sorted by, bold, right-aligned — see [the toggle](#the-sort-toggle) |
+| Change | `placementChange` (`ppc`) — not in [Chicago](#chicago-mode), where it would describe another table |
 
 **Your own row is outlined** in `border-accent/50` instead of the usual
 `border-line`, which makes it findable by scanning rather than reading — the
@@ -406,6 +488,7 @@ The table's states, that is — the battles view has
 | ----- | --------- |
 | Loading | `SkeletonList rows={8}`, under the heading and above the tab bar |
 | Error | `ErrorState` with retry |
+| Chicago still summing, or failed | [its own four](#states-while-it-sums) — the standings themselves are unaffected |
 
 There is no empty state. A league always has at least the signed-in manager,
 so an empty ranking would mean something is broken — and the error state is
@@ -424,12 +507,17 @@ on its transfer rows and to decide whether the league plays duels. Arriving
 here from it is therefore free: the cache is already warm and the list renders
 instantly.
 
-The battles view adds two more, neither of them on the critical path:
+The battles view adds two more, neither of them on the critical path, and the
+[Chicago](#chicago-mode) table two of its own:
 
 | Hook | Endpoint | staleTime |
 | ---- | -------- | --------- |
 | [`useLeagueDetails(leagueId)`](../../src/api/hooks/useLeague.ts) | `/overview?includeManagersAndBattles=true` | 10 min — the chips, shared with [Liga](league.md) and [Transfermarkt](market.md) |
 | [`useBattleRanking(leagueId, type)`](../../src/api/hooks/useBattleRanking.ts) | [`/battles/{type}/users`](../api/leagues.md#get-v4leaguesleagueidbattlestypeusers) | 5 min — one entry per battle |
+| [`useSeasonSchedule(competitionId)`](../../src/api/hooks/useMatchday.ts) | `/competitions/{id}/matchdays` | 1 h — which matchdays are over, shared with half the app |
+| [`useLeagueChicagoPoints(…)`](../../src/api/hooks/useChicagoRanking.ts) | `ranking?dayNumber=` × finished matchdays | 5 min each — the entries [Duels](duels.md) and the [manager page](manager-detail.md) fill |
+
+The last two are **off unless the Chicago toggle is active**.
 
 `useRanking` stays unconditional in both views: the battles view reads it for
 the [title stars](#row-anatomy-and-the-unit), and it is the cache entry half
@@ -454,7 +542,8 @@ page shows:
   unused — the matchday snapshot is the better source of a lineup.
 - `hhmp` — the duel points awarded this matchday (3 for a win, 0 for a loss).
   Mapped, but unused now that the result is derived from the matchday
-  comparison.
+  comparison — and the premise of [Chicago](#chicago-mode), which scores those
+  same duels by their margin instead.
 - `mdpl` — matchday placement, mapped as `matchdayPlacement`, displayed only
   as points today.
 - `adm` — league admin flag, mapped as `isAdmin`, not rendered.

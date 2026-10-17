@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import type { ManagerSeasonDuels } from '@/api/hooks/useManagerDuels'
 import type { ManagerHistoryQuery } from '@/api/hooks/useManagerPerformance'
 import {
+  chicagoPointsOf,
   duelIdOf,
   matchdayState,
   type ManagerMatchday,
@@ -17,7 +18,7 @@ import { SkeletonList } from '@/components/ui/Skeleton'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { dateRange, points } from '@/lib/format'
+import { dateRange, delta, points } from '@/lib/format'
 
 /**
  * **A manager's season, matchday by matchday** — newest first.
@@ -52,12 +53,21 @@ import { dateRange, points } from '@/lib/format'
  * ## The row
  *
  * ```
- *   ┌──────────────────────────────────────┐
- *   │ 8. (A) Danger            410:120  ✓ │
- *   │        Gewonnen · 3 Duellpkt         │
- *   ├─────────────▌────────────────────────┤  ← the margin, as a bar
- *   └──────────────────────────────────────┘
+ *   ┌─────────────────────────────────────────────┐
+ *   │ 8. (A) Danger                    410:120  ✓ │
+ *   │        Gewonnen · 3 Duellpkt · +290 Chicago │
+ *   ├──────────────▌──────────────────────────────┤  ← the margin, as a bar
+ *   └─────────────────────────────────────────────┘
  * ```
+ *
+ * **The margin is also a score of its own.** Beside Kickbase's three points
+ * the row says what the duel was worth in *Chicago* — the winner takes the
+ * difference, the loser nothing
+ * ([`chicagoPointsOf`](../../api/models.ts)) — which is the scoring the
+ * [standings](../../pages/RankingPage.tsx) can rank the whole league by. It is
+ * printed **only on a duel that was won**, because a loss and a draw are both
+ * nought there and a column of zeroes would be a figure on every row saying
+ * nothing. The season's total is the fourth tile.
  *
  * **The scoreline reads from this manager's side**, as the header's strip
  * does: `410:120` under somebody's own name has to mean they are ahead, or the
@@ -140,7 +150,7 @@ export function ManagerPerformanceTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {/* Siege–Remis–Niederlagen, the way a league table writes a record,
             and in that order whatever the three counts are. Tinted only when
             the season actually leans one way: a 3–1–3 is neither. */}
@@ -167,6 +177,15 @@ export function ManagerPerformanceTab({
               ? undefined
               : `Gegner Ø ${points(season.averageOpponentPoints)}`
           }
+        />
+        {/* The same season scored the other way — see `chicagoPointsOf`. It is
+            the app's own table, not Kickbase's, so it is labelled by its name
+            and sits last of the four: a reader who has never heard of it can
+            read the first three and stop. */}
+        <StatTile
+          label="Chicago"
+          value={points(season.chicagoPoints)}
+          hint={`Differenz aus ${String(won)} ${won === 1 ? 'Sieg' : 'Siegen'}`}
         />
       </div>
 
@@ -456,6 +475,22 @@ function DuelRow({
                 </span>
                 <span className="truncate text-faint">
                   {points(duel.duelPoints)} Duellpkt
+                </span>
+              </>
+            )}
+            {/* What the same duel was worth in Chicago — the margin, and only
+                on a duel that was *won*: a loss and a draw are both nought
+                there, and a column of "+0 Chicago" would say nothing on every
+                row that was not a win. Signed, so it reads as something
+                gained rather than as a second scoreline. */}
+            {duel.result === 'won' && (
+              <>
+                <span aria-hidden="true" className="text-faint">
+                  ·
+                </span>
+                <span className="truncate text-positive">
+                  {delta(chicagoPointsOf(duel.points, duel.opponentPoints))}{' '}
+                  Chicago
                 </span>
               </>
             )}

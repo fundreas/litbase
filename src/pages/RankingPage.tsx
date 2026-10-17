@@ -1,5 +1,6 @@
 import {
   Award,
+  Diff,
   ListOrdered,
   Sigma,
   Swords,
@@ -8,6 +9,8 @@ import {
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 
+import { useLeagueChicagoPoints } from '@/api/hooks/useChicagoRanking'
+import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import { duelResultOf, useRanking } from '@/api/hooks/useRanking'
 import type { DuelResult, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
@@ -19,13 +22,21 @@ import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { Card } from '@/components/ui/Card'
 import { PlacementChange } from '@/components/ui/PlacementChange'
 import { SkeletonList } from '@/components/ui/Skeleton'
+import { Spinner } from '@/components/ui/Spinner'
 import { ErrorState } from '@/components/ui/States'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
 import { placement, points } from '@/lib/format'
 
-/** Which of the two tables the list is showing. */
-type SortKey = 'duel' | 'total'
+/**
+ * Which of the three tables the list is showing.
+ *
+ * `duel` and `total` are Kickbase's own — the head-to-head table and the raw
+ * points table, both of which arrive ranked on the payload. `chicago` is the
+ * app's: the same duels scored by their margin, computed here over a season of
+ * matchdays. See [Ranking](../../docs/pages/ranking.md#chicago-mode).
+ */
+type SortKey = 'duel' | 'total' | 'chicago'
 
 /**
  * The page's two views, and the URL segment each one is reached by.
@@ -64,7 +75,7 @@ type View = (typeof VIEWS)[keyof typeof VIEWS]
  * says so itself rather than having its tab quietly disappear.
  */
 export function RankingPage() {
-  const { leagueId } = useActiveLeague()
+  const { leagueId, competitionId } = useActiveLeague()
   const { user } = useAuth()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -74,22 +85,52 @@ export function RankingPage() {
   const { data, isPending, isError, error, refetch } = useRanking(leagueId)
   const [sortBy, setSortBy] = useState<SortKey>('duel')
 
-  // In a duel league the two tables genuinely disagree, so the toggle switches
-  // the whole view at once — order, placement number and headline figure.
-  // Listing duel placements in points order would just look broken.
+  // In a duel league the tables genuinely disagree, so the toggle switches the
+  // whole view at once — order, placement number and headline figure. Listing
+  // duel placements in points order would just look broken.
   const isDuelView = data?.isDuelMode === true && sortBy === 'duel'
+  const isChicagoView =
+    data?.isDuelMode === true && sortBy === 'chicago' && view === VIEWS.ranking
+
+  /*
+   * Chicago is the one table Kickbase does not send: it is every finished
+   * matchday's pairings, scored by their margin, which costs the competition's
+   * calendar plus one request per matchday — see
+   * [`useLeagueChicagoPoints`](../api/hooks/useChicagoRanking.ts). Both are
+   * handed `undefined` unless that table is the one actually on screen, which
+   * is what keeps a season of requests off the other two tables, off the
+   * battles view and off every league that plays no duels.
+   */
+  const schedule = useSeasonSchedule(isChicagoView ? competitionId : undefined)
+  const chicago = useLeagueChicagoPoints(
+    leagueId,
+    isChicagoView ? schedule.data?.matchdays : undefined,
+  )
 
   const managers = useMemo(() => {
     const list = data?.managers ?? []
     // The hook already sorted by the league's own table, so only the
-    // non-default view needs re-sorting.
+    // non-default views need re-sorting.
     if (data?.isDuelMode !== true || sortBy === 'duel') return list
+    if (sortBy === 'chicago') {
+      const chicagoOf = (manager: RankedManager) =>
+        chicago.byManagerId.get(manager.id) ?? 0
+      // Ties fall back to the league's own table rather than to the array
+      // order: before the first matchday lands every manager is on nought,
+      // and a random order would read as a ranking.
+      return [...list].sort(
+        (a, b) =>
+          chicagoOf(b) - chicagoOf(a) ||
+          (b.duelPoints ?? 0) - (a.duelPoints ?? 0) ||
+          b.seasonPoints - a.seasonPoints,
+      )
+    }
     return [...list].sort(
       (a, b) =>
         a.seasonPlacement - b.seasonPlacement ||
         b.seasonPoints - a.seasonPoints,
     )
-  }, [data, sortBy])
+  }, [data, sortBy, chicago.byManagerId])
 
   // Duel results are resolved against the opponent named in `hhoui`, so the
   // whole field has to be addressable by id.
@@ -135,7 +176,9 @@ export function RankingPage() {
         data === undefined
           ? undefined
           : data.isDuelMode && view === VIEWS.ranking
-            ? `${String(managers.length)} Manager · Duell-Modus`
+            ? `${String(managers.length)} Manager · ${
+                isChicagoView ? 'Chicago-Modus' : 'Duell-Modus'
+              }`
             : `${String(managers.length)} Manager`
       }
       action={
@@ -147,6 +190,28 @@ export function RankingPage() {
       }
     />
   )
+
+  /* The Chicago table's own two states. A single matchday that failed is a
+     margin missing from one row, which the totals absorb; it is only *every*
+     matchday failing — or the calendar they are read from — that leaves
+     nothing to rank by. */
+  const chicagoError = !isChicagoView
+    ? undefined
+    : schedule.isError
+      ? schedule.error
+      : chicago.isError
+        ? chicago.error
+        : undefined
+
+  const chicagoPending = !isChicagoView
+    ? undefined
+    : schedule.isPending
+      ? 'Spieltage werden geladen …'
+      : chicago.pendingCount === 0
+        ? undefined
+        : chicago.pendingCount === 1
+          ? 'Noch ein Spieltag wird ausgewertet …'
+          : `Noch ${String(chicago.pendingCount)} Spieltage werden ausgewertet …`
 
   /* The standings' own states gate the **table only**. The battles view reads
      a different endpoint and carries its own states, so a failed table must
@@ -179,6 +244,18 @@ export function RankingPage() {
           void refetch()
         }}
       />
+    ) : isChicagoView && chicagoError !== undefined ? (
+      /* Every matchday failed, or the calendar did — so there is no margin for
+         anybody. The table would be the whole league on nought, which looks
+         like a season nobody has won a duel in rather than like a request that
+         did not land. */
+      <ErrorState
+        error={chicagoError}
+        onRetry={() => {
+          void schedule.refetch()
+          chicago.refetch()
+        }}
+      />
     ) : (
       /* One card, rows flush inside it — the shape the
          [market](./MarketPage.tsx), the Kader and the
@@ -186,27 +263,49 @@ export function RankingPage() {
          standings table wants most: these rows are a single ranked sequence,
          and 8px of page between two placements said they were separate
          things. */
-      <Card className="overflow-hidden">
-        <ul className="divide-y divide-line">
-          {managers.map((manager) => (
-            <ManagerRow
-              key={manager.id}
-              manager={manager}
-              leagueId={leagueId}
-              isMe={manager.id === user?.id}
-              isDuelView={isDuelView}
-              duelResult={
-                data.isDuelMode ? duelResultOf(manager, byId) : undefined
-              }
-              duelOpponentName={
-                manager.duelOpponentId === undefined
-                  ? undefined
-                  : byId.get(manager.duelOpponentId)?.name
-              }
-            />
-          ))}
-        </ul>
-      </Card>
+      <div className="flex flex-col gap-2">
+        {/* The Chicago table is summed from matchdays that arrive one at a
+            time, so rows do move while they land — the same line the manager
+            page's season of duels draws, and for the same reason: a table
+            reordering itself under the reader has to say why. */}
+        {isChicagoView && chicagoPending !== undefined && (
+          <p className="flex items-center gap-2 px-0.5 text-xs text-muted">
+            <Spinner size={12} />
+            <span>{chicagoPending}</span>
+          </p>
+        )}
+        <Card className="overflow-hidden">
+          <ul className="divide-y divide-line">
+            {managers.map((manager, index) => (
+              <ManagerRow
+                key={manager.id}
+                manager={manager}
+                leagueId={leagueId}
+                isMe={manager.id === user?.id}
+                mode={data.isDuelMode ? sortBy : 'total'}
+                /* Chicago is ranked here rather than by Kickbase, so the
+                   number down the left is the row's own position. */
+                place={
+                  isChicagoView
+                    ? index + 1
+                    : isDuelView
+                      ? (manager.duelPlacement ?? index + 1)
+                      : manager.seasonPlacement
+                }
+                chicagoPoints={chicago.byManagerId.get(manager.id) ?? 0}
+                duelResult={
+                  data.isDuelMode ? duelResultOf(manager, byId) : undefined
+                }
+                duelOpponentName={
+                  manager.duelOpponentId === undefined
+                    ? undefined
+                    : byId.get(manager.duelOpponentId)?.name
+                }
+              />
+            ))}
+          </ul>
+        </Card>
+      </div>
     )
 
   return (
@@ -220,7 +319,7 @@ export function RankingPage() {
 
 /* -------------------------------------------------------------------------- */
 
-/** Only rendered for duel leagues — elsewhere both options mean the same. */
+/** Only rendered for duel leagues — elsewhere all three mean the same. */
 function SortToggle({
   value,
   onChange,
@@ -229,12 +328,18 @@ function SortToggle({
   onChange: (next: SortKey) => void
 }) {
   // Crossed swords for the head-to-head table, a summation sign for the
-  // points total. Icon-only keeps the control out of the heading's way; the
-  // meaning rides on `title` plus screen-reader text rather than a label that
-  // would need truncating on a phone.
+  // points total, a difference sign for Chicago — where a win is worth the
+  // difference between the two scores. Icon-only keeps the control out of the
+  // heading's way; the meaning rides on `title` plus screen-reader text rather
+  // than labels that would need truncating on a phone.
   const options: Array<{ key: SortKey; Icon: LucideIcon; label: string }> = [
     { key: 'duel', Icon: Swords, label: 'Nach Duellpunkten sortieren' },
     { key: 'total', Icon: Sigma, label: 'Nach Kickbase-Punkten sortieren' },
+    {
+      key: 'chicago',
+      Icon: Diff,
+      label: 'Chicago-Modus: nach Siegdifferenz sortieren',
+    },
   ]
 
   return (
@@ -283,17 +388,50 @@ function ManagerRow({
   manager,
   leagueId,
   isMe,
-  isDuelView,
+  mode,
+  place,
+  chicagoPoints,
   duelResult,
   duelOpponentName,
 }: {
   manager: RankedManager
   leagueId: string
   isMe: boolean
-  isDuelView: boolean
+  /** Which table this row is part of — it decides both figures on the right. */
+  mode: SortKey
+  /** The number down the left, already resolved for the table in view. */
+  place: number
+  /** The margin of every duel this manager has won, `0` until they win one. */
+  chicagoPoints: number
   duelResult: DuelResult | undefined
   duelOpponentName: string | undefined
 }) {
+  /*
+   * The bold figure is what the table is sorted by and the muted one is a
+   * total that does not decide it — which is what makes the ordering
+   * self-explaining. Chicago's companion is the duel table it argues with: a
+   * manager who leads on margin while sitting third on duel points is the
+   * whole reason the mode exists, and the row says so without being opened.
+   */
+  const headline =
+    mode === 'chicago'
+      ? chicagoPoints
+      : mode === 'duel'
+        ? manager.duelPoints
+        : manager.seasonPoints
+  const companion =
+    manager.duelPoints === undefined
+      ? undefined
+      : mode === 'duel'
+        ? {
+            text: `${points(manager.seasonPoints)} Pkt`,
+            title: 'Kickbase-Punkte insgesamt',
+          }
+        : {
+            text: `${points(manager.duelPoints)} Duell`,
+            title: 'Duellpunkte insgesamt',
+          }
+
   return (
     <li>
       <Link
@@ -315,13 +453,15 @@ function ManagerRow({
         <span className="flex shrink-0 items-center gap-1.5">
           <span className="w-6 text-center">
             <span className="nums block text-base font-bold text-faint">
-              {placement(
-                isDuelView ? manager.duelPlacement : manager.seasonPlacement,
-              )}
+              {placement(place)}
             </span>
             {/* Only when it actually moved — a lone dash was a line saying
-              nothing. */}
-            <PlacementChange value={manager.placementChange} />
+              nothing. And never in Chicago, where `ppc` is movement in
+              Kickbase's table, not in this one: an arrow beside a placement it
+              does not describe would be the row's one outright lie. */}
+            {mode !== 'chicago' && (
+              <PlacementChange value={manager.placementChange} />
+            )}
           </span>
           <ManagerAvatar manager={manager} size={48} />
         </span>
@@ -344,24 +484,14 @@ function ManagerRow({
           />
         </div>
 
-        {/* Two figures stacked, so the ordering is self-explaining: the bold one
-          is what the table is sorted by, the muted one is the other total. */}
+        {/* Two figures stacked — see the note above where they are chosen. */}
         <div className="shrink-0 text-right">
           <p className="nums text-sm font-semibold text-ink">
-            {points(isDuelView ? manager.duelPoints : manager.seasonPoints)}
+            {points(headline)}
           </p>
-          {manager.duelPoints !== undefined && (
-            <p
-              className="nums text-xs text-muted"
-              title={
-                isDuelView
-                  ? 'Kickbase-Punkte insgesamt'
-                  : 'Duellpunkte insgesamt'
-              }
-            >
-              {isDuelView
-                ? `${points(manager.seasonPoints)} Pkt`
-                : `${points(manager.duelPoints)} Duell`}
+          {companion !== undefined && (
+            <p className="nums text-xs text-muted" title={companion.title}>
+              {companion.text}
             </p>
           )}
         </div>

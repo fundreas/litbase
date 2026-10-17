@@ -890,6 +890,28 @@ export function duelRecordOf(duels: ManagerSeasonDuel[]): DuelRecord {
   return record
 }
 
+/**
+ * **Chicago scoring: the winner takes the margin, the loser takes nothing.**
+ *
+ * An alternative way of scoring the very same duels Kickbase awards 3/1/0 for
+ * — a win is worth *how much* it was won by, so a 410:120 is worth 290 and a
+ * 410:409 is worth 1. Nothing is awarded for a draw (the margin is nought
+ * anyway) and nothing for a loss; a manager's Chicago total is therefore never
+ * negative, whatever their points did.
+ *
+ * It is **the app's own scoring, not Kickbase's** — there is no field for it on
+ * any payload, so it is computed from the two matchday totals the same way the
+ * [outcome](../api/hooks/useRanking.ts) is. One function because two screens
+ * add it up: the standings'
+ * [Chicago table](../pages/RankingPage.tsx) over a whole league, and a
+ * manager's [season of duels](../components/manager/ManagerPerformanceTab.tsx)
+ * over one manager. Written twice, the two could disagree about what a draw is
+ * worth. See [Ranking](../../docs/pages/ranking.md#chicago-mode).
+ */
+export function chicagoPointsOf(own: number, opponent: number): number {
+  return own > opponent ? own - opponent : 0
+}
+
 /* -------------------------------------------------------------------------- */
 /* One matchday's rosters — duel detail, and the squad's live view             */
 /* -------------------------------------------------------------------------- */

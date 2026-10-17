@@ -376,21 +376,21 @@ nothing could step back through the rest and say who a manager had beaten to
 get there.
 
 ```
-  ┌────────────┬────────────┬────────────┐
-  │ BILANZ     │ DUELLPUNKTE│ Ø PUNKTE   │
-  │ 5 · 1 · 2  │ 16         │ 331        │
-  │ S · R · N  │ 8 Spieltage│ Gegner Ø 298│
-  └────────────┴────────────┴────────────┘
-  ┌──────────────────────────────────────┐
-  │ 8. (A) Danger            410:120  ✓ │  → /duels/<id>?day=8
-  │        Gewonnen · 3 Duellpkt         │
-  ├──────────────▌───────────────────────┤     the margin, as a bar
-  └──────────────────────────────────────┘
-  ┌──────────────────────────────────────┐
-  │ 7. (A) GOATstaller       220:390  ✗ │
-  │        Verloren · 0 Duellpkt         │
-  ├──────▌───────────────────────────────┤
-  └──────────────────────────────────────┘
+  ┌───────────┬────────────┬─────────────┬──────────────┐
+  │ BILANZ    │ DUELLPUNKTE│ Ø PUNKTE    │ CHICAGO      │
+  │ 5 · 1 · 2 │ 16         │ 331         │ 742          │
+  │ S · R · N │ 8 Spieltage│ Gegner Ø 298│ Diff. aus 5 S│
+  └───────────┴────────────┴─────────────┴──────────────┘
+  ┌─────────────────────────────────────────────┐
+  │ 8. (A) Danger                    410:120  ✓ │  → /duels/<id>?day=8
+  │        Gewonnen · 3 Duellpkt · +290 Chicago │
+  ├──────────────▌──────────────────────────────┤     the margin, as a bar
+  └─────────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────┐
+  │ 7. (A) GOATstaller               220:390  ✗ │
+  │        Verloren · 0 Duellpkt                │
+  ├───────▌─────────────────────────────────────┤
+  └─────────────────────────────────────────────┘
 ```
 
 **Every row opens that duel** — both elevens and every point behind the
@@ -413,7 +413,7 @@ why the bar is coloured by the **result** rather than by the shared
 [points scale](player-detail.md), since on this tab 410 points is neither good
 nor bad, only more or less than what the other manager scored.
 
-The three tiles are the season in one line. *Bilanz* counts only the duels that
+The four tiles are the season in one line. *Bilanz* counts only the duels that
 are **over**, written Siege · Remis · Niederlagen the way a league table writes
 a record. *Ø Punkte* against *Gegner Ø* is the tab's one genuinely new figure:
 a season of narrow wins and a season of routs have identical duel points, and
@@ -421,6 +421,17 @@ nothing else in the app says which one this was. Both averages skip the
 matchday being played for the reason the record does — 20:15 from the third
 minute is a pair of part-scores, and averaging it in would halve a figure that
 is supposed to describe a season.
+
+**The margin is also a score of its own.** *Chicago* is the season under the
+[other scoring the standings offer](ranking.md#chicago-mode) — the winner takes
+the difference between the two scores, the loser nothing — and the row says
+what each duel was worth there beside what Kickbase paid for it:
+*Gewonnen · 3 Duellpkt · +290 Chicago*. It is printed **only on a duel that was
+won**, because a loss and a draw are both nought in that scoring and a column
+of `+0` would be a figure on every other row saying nothing. The tile is the
+same sum over the duels that are over, and it is the figure the
+[Rangliste](ranking.md#chicago-mode)'s Chicago table ranks the league by — so
+the two screens agree by construction: both call `chicagoPointsOf`.
 
 **An unfinished duel claims nothing.** While the matchday runs the row is
 accent-tinted, says *Läuft*, and carries no mark — level at `0` in the third
