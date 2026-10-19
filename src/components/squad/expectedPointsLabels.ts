@@ -1,5 +1,5 @@
 import type { ExpectedPointsEntry, ProjectedPoints } from '@/lib/expectedPoints'
-import { points } from '@/lib/format'
+import { delta, points } from '@/lib/format'
 
 /**
  * **The colours and the wording for an expected figure drawn as bare text.**
@@ -38,6 +38,26 @@ export function expectedDescription(entry: ExpectedPointsEntry): string {
   return entry.isOwn
     ? `Erwartete Punkte: ${points(entry.value)} (deine Schätzung)`
     : `Erwartete Punkte: ${points(entry.value)} (Prognose)`
+}
+
+/**
+ * **The model, marked** — what it predicted for a player whose match is over,
+ * and by how much he beat it or missed it.
+ *
+ * The plate itself draws the two bare numbers side by side and has room for
+ * nothing else (see [`PitchSubtitleLine`](./PitchSubtitle.tsx)), so the
+ * arithmetic nobody should have to do in their head lives here, in the
+ * tooltip and the screen-reader label: *141 Punkte · Prognose 118 (+23)*.
+ *
+ * The sign is from the **player's** side, not the model's: `+23` means he
+ * scored more than he was predicted to. That is the direction every other
+ * delta in the app runs in, and the one a reader looking at a pitch of his own
+ * players is asking about.
+ */
+export function forecastComparison(scored: number, forecast: number): string {
+  return `${points(scored)} Punkte · Prognose ${points(forecast)} (${delta(
+    scored - forecast,
+  )})`
 }
 
 /**

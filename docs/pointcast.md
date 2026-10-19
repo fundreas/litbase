@@ -31,7 +31,7 @@ against.
 
 | Group | File | Used by |
 | ----- | ---- | ------- |
-| Predictions | `/v1/matchday/{md}.json` | [Erwartete Punkte](pages/squad.md#erwartete-punkte) — [`usePointcast`](../src/api/hooks/usePointcast.ts) |
+| Predictions | `/v1/matchday/{md}.json` | [Erwartete Punkte](pages/squad.md#erwartete-punkte) before kick-off and [the prediction marked](pages/squad.md#die-prognose-nachgerechnet) after the whistle — [`usePointcast`](../src/api/hooks/usePointcast.ts) |
 | [Rankings](#rankings) | `/v1/rankings/matchday/{md}.json` | [Spieltag — Rangliste](pages/matchday.md#rangliste) |
 | [Rankings](#rankings) | `/v1/rankings/season/{md\|current}.json` | [Saison — Rangliste](pages/season.md#rangliste) |
 | [Rankings](#rankings) | `/v1/rankings/index.json` | The Saison picker — which matchdays it may offer |
@@ -48,6 +48,18 @@ is a **stopping point** for a cumulative total, so the picker has to know which
 matchdays have a file *before* it offers them — the fixture list cannot say,
 because the run is nightly and a matchday played on Sunday has no file until
 that night.
+
+### The file is the coming matchday, and only that one
+
+`/v1/matchday/{md}.json` exists for the matchday the run is currently
+predicting; every matchday behind it is a plain 404 once the nightly rebuild
+moves on. That is fine for the feature the file was added for — a prediction is
+only a prediction before kick-off — and it is the whole reason the
+[marked pair](pages/squad.md#die-prognose-nachgerechnet) on a settled plate can
+be missing: the window in which the app can hold the model to a result runs
+from the final whistle to the next night's run. Nothing is cached locally to
+widen it; the pitch simply goes back to drawing plain scores, which is what it
+drew before the model existed.
 
 ## Expected lineups
 

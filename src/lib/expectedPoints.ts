@@ -240,6 +240,16 @@ export interface ExpectedPointsEntry {
 export interface ExpectedPointsView {
   /** The figure that stands for a player, or `undefined` if none does. */
   entry: (playerId: string) => ExpectedPointsEntry | undefined
+  /**
+   * **The model's own figure, whatever the reader thinks** — the pointcast
+   * prediction for a player, or `undefined` where there is none.
+   *
+   * Deliberately not {@link entry}, which a guess overrules. The one reader of
+   * this is the settled matchday, where the question is *how good was the
+   * model* — and a guess standing in for the prediction there would mark the
+   * model's homework with the reader's own answer and call it accurate.
+   */
+  forecast: (playerId: string) => number | undefined
 }
 
 /**
@@ -266,6 +276,7 @@ export function expectedPointsView(
       if (predicted === undefined) return undefined
       return { value: predicted.expected, isOwn: false }
     },
+    forecast: (playerId) => predictions?.get(playerId)?.expected,
   }
 }
 

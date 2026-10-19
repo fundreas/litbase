@@ -1415,7 +1415,7 @@ the pitch's top-right corner decides what stands beside it, *Punkte* or
 
 | Reading | Beside the crest | Answers |
 | ------- | ---------------- | ------- |
-| **Punkte** (default) | the score, the running figure, or the [expected points](#erwartete-punkte) with their target glyph | how is this eleven doing |
+| **Punkte** (default) | the score — with the [Prognose](#die-prognose-nachgerechnet) beside it once the match is over — the running figure, or the [expected points](#erwartete-punkte) with their target glyph | how is this eleven doing, and how right was the model |
 | **Anpfiff** | the kick-off: the time if it is **today**, the weekday otherwise | who is already done, who plays Sunday |
 
 ```
@@ -1443,10 +1443,57 @@ has stopped mattering. The setting is really about the matches still to come,
 and a half-played matchday sorts itself — the finished men show what they
 scored, the rest show when they start.
 
+#### Die Prognose, nachgerechnet
+
+**Once a player's match is over, his plate carries both numbers** — what he
+scored, and what the [Prognose](../pointcast.md) said he would:
+
+```
+       ┌─────────┐
+       │  Kane   │
+       │(BVB)215·118
+       └─────────┘
+        erzielt · Prognose
+```
+
+The score keeps the white it has always had; the prediction stands beside it in
+the model's orange, the same colour it wears on a squad row and over a pitch
+before kick-off. A forecast is a claim, and a claim nobody ever checks is
+decoration — this is the one moment in the week where checking it costs a
+glance instead of a trip to another screen, and a matchday of eleven such pairs
+says more about the model than any single number could.
+
+Three rules keep the pair honest:
+
+- **The model's own figure, never yours.** Where you have typed an
+  [expected-points guess](#erwartete-punkte) of your own, it still beats the
+  prediction *before* kick-off — but it never stands in for it here. The point
+  of the pair is marking the model against a result it could not see coming,
+  and your guess marking its homework would say nothing.
+- **Only after the whistle.** A running match is a tally still climbing, and
+  the prediction is for ninety minutes; putting them side by side at minute 20
+  would flatter or damn the model by the clock. The plate waits for the match
+  to be finished *and* the points to be in.
+- **It can simply be absent.** The [pointcast run](../pointcast.md) publishes
+  the **coming** matchday and drops the ones behind it, so a matchday older
+  than the current file is a pitch of plain scores again. Nothing announces
+  that: the second figure is an extra on a line that was complete without it.
+
+The tooltip and the screen-reader text spell the comparison out with the
+deviation the plate has no room for — *215 Punkte · Prognose 118 (+97)* —
+signed from the **player's** side, so `+` means he beat what was predicted of
+him.
+
 **One thing beside the crest, because one is what fits.** A plate is about fifty
 pixels wide on a phone's eight-band duel pitch; a crest, a number *and* a time
 is not a plate, it is a table. Whatever is not showing is still in the card's
 tooltip and its screen-reader text, as it always was.
+
+The settled pair is the one exception, and it is paid for rather than wished
+away: it drops the target glyph the expected figure carries (the score next to
+it already says which of the two is real), separates the numbers with a
+hairline `·`, and lets the **prediction** be the half that truncates where the
+plate is tightest. The number you came for is never the one that gets clipped.
 
 **The choice is a [preference](preferences.md)**, not component state, so every
 pitch in the app changes at once and the setting outlives the visit. A reader

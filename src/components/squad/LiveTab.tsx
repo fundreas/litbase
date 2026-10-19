@@ -16,6 +16,7 @@ import {
   duelPlayerStatus,
   fixtureState,
   isBeforeKickoff,
+  isSettled,
   playerFigure,
   TEAM_SHEET_ROLE_LABEL,
   type DuelPlayer,
@@ -28,7 +29,10 @@ import { figureDescription } from '@/components/player/playerFigure'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { TeamSheetCorner } from '@/components/player/TeamSheetMark'
 import { ProjectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
-import { expectedDescription } from '@/components/squad/expectedPointsLabels'
+import {
+  expectedDescription,
+  forecastComparison,
+} from '@/components/squad/expectedPointsLabels'
 import { Pitch } from '@/components/squad/Pitch'
 import {
   cornerBadgeSize,
@@ -699,6 +703,11 @@ function LivePitchPlayer({
   const entry: ExpectedPointsEntry | undefined = isBeforeKickoff(player)
     ? expected.entry(player.id)
     : undefined
+  /* And at the other end of the match, the model marked: what it predicted,
+     beside what he actually scored — see
+     [`PitchSubtitleLine`](./PitchSubtitle.tsx). The two windows never
+     overlap. */
+  const forecast = isSettled(player) ? expected.forecast(player.id) : undefined
   // Nothing to open without a fixture: no match that matchday, no actions.
   const canOpen = player.fixture !== undefined
   const Shell = canOpen ? 'button' : 'span'
@@ -717,7 +726,11 @@ function LivePitchPlayer({
       // Spelled out rather than left to the two lines of the plate, which read
       // as "Kane 215" — a number with no unit and no idea whether the match is
       // over.
-      aria-label={`${player.name}: ${entry === undefined ? '' : `${expectedDescription(entry)}, `}${figureDescription(figure)}, ${DUEL_PLAYER_STATUS_LABEL[player.status]}${player.sheet === undefined ? '' : `, ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
+      aria-label={`${player.name}: ${entry === undefined ? '' : `${expectedDescription(entry)}, `}${
+        forecast !== undefined && figure.kind === 'points'
+          ? forecastComparison(figure.points, forecast)
+          : figureDescription(figure)
+      }, ${DUEL_PLAYER_STATUS_LABEL[player.status]}${player.sheet === undefined ? '' : `, ${TEAM_SHEET_ROLE_LABEL[player.sheet]}`}`}
       style={{ width: metrics.width }}
       className={cn(
         'flex shrink-0 flex-col items-center rounded-lg p-1',
@@ -763,6 +776,7 @@ function LivePitchPlayer({
           figure={figure}
           fixture={player.fixture}
           expected={entry}
+          forecast={forecast}
           metrics={metrics}
           isRunning={isRunning}
         />

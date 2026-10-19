@@ -5,7 +5,10 @@ import {
   isScore,
 } from '@/components/player/playerFigure'
 import { ExpectedPointsFigure } from '@/components/squad/ExpectedPointsBadge'
-import { expectedTextClass } from '@/components/squad/expectedPointsLabels'
+import {
+  expectedTextClass,
+  forecastComparison,
+} from '@/components/squad/expectedPointsLabels'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import type { PlayerMetrics } from '@/components/squad/pitchMetrics'
 import {
@@ -13,7 +16,7 @@ import {
   PITCH_SUBTITLE,
 } from '@/components/squad/pitchSubtitles'
 import { cn } from '@/lib/cn'
-import { kickoff, kickoffShort } from '@/lib/format'
+import { kickoff, kickoffShort, points } from '@/lib/format'
 import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
 import { usePreferences } from '@/preferences/usePreferences'
 
@@ -64,11 +67,43 @@ import { usePreferences } from '@/preferences/usePreferences'
  * Only the running figure is tinted, as before. A real score is drawn at full
  * contrast and anything standing in for one — a time, a weekday, a dash —
  * stays quiet, so the eye finds the numbers first on the pitch that has them.
+ *
+ * ## Once the match is over, the model is marked
+ *
+ * A settled player's plate carries **both numbers**: what he scored, and what
+ * the [pointcast](../../api/hooks/usePointcast.ts) predicted he would — `141·118`,
+ * the score in white and the prediction in the orange the model has
+ * everywhere else. A prediction is a claim, and a claim nobody ever checks is
+ * decoration; this is the one moment in a player's week where the check costs
+ * a glance rather than a trip to another screen.
+ *
+ * **Strictly the model's own figure**, never the reader's guess standing in
+ * for it — see [`forecast`](../../lib/expectedPoints.ts). The whole value of
+ * the pair is that one half of it was written down before kick-off by
+ * something that cannot change its mind afterwards.
+ *
+ * **Only between the final whistle and the score**, which is what
+ * [`isSettled`](../../api/models.ts) decides: a running match would be
+ * comparing a half-finished tally against a ninety-minute prediction.
+ *
+ * It costs width, and the tightest plate in the app — a phone's eight-band
+ * duel pitch, 42 pixels — cannot hold all of it. That is why the pair is
+ * drawn bare: no target glyph, a hairline `·` between, and the **prediction**
+ * is the half that truncates, because it is the half the reader can live
+ * without. The tooltip and the label spell the comparison out in full,
+ * deviation included.
+ *
+ * **It is also the one reading that can simply be missing**, where the model
+ * has no file for the matchday on screen — the run publishes the coming
+ * matchday and drops the ones behind it, so an old matchday is a plate of
+ * plain scores again. Nothing says so, because nothing is wrong: this is a
+ * second figure on a line that was complete without it.
  */
 export function PitchSubtitleLine({
   figure,
   fixture,
   expected,
+  forecast,
   metrics,
   isRunning,
 }: {
@@ -78,6 +113,12 @@ export function PitchSubtitleLine({
   fixture: TeamFixture | undefined
   /** What he is expected to score, where that applies. */
   expected: ExpectedPointsEntry | undefined
+  /**
+   * What the **model** predicted, for a player whose match is settled — the
+   * other half of the pair above. `undefined` everywhere else, which is every
+   * match still to come and every matchday the run no longer publishes.
+   */
+  forecast?: number | undefined
   metrics: PlayerMetrics
   /** Is his match being played right now? Tints the figure. */
   isRunning: boolean
@@ -93,6 +134,14 @@ export function PitchSubtitleLine({
   const isBare =
     fixture === undefined ||
     (!showsKickoff && expected === undefined && figure.kind === 'unknown')
+  /* The marked model — only ever beside a real score, and only where the
+     caller found one (every caller asks `isSettled` first). `expected` cannot
+     be set at the same time: one is the window before kick-off, the other the
+     window after the whistle. */
+  const marked =
+    forecast !== undefined && figure.kind === 'points'
+      ? { scored: figure.points, forecast }
+      : undefined
 
   return (
     <span
@@ -114,7 +163,11 @@ export function PitchSubtitleLine({
         </span>
       ) : (
         <span
-          title={figureDescription(figure)}
+          title={
+            marked === undefined
+              ? figureDescription(figure)
+              : forecastComparison(marked.scored, marked.forecast)
+          }
           className={cn(
             /* A flex row rather than one truncating line, because the expected
                figure is two things — the target and the number — and the
@@ -129,13 +182,39 @@ export function PitchSubtitleLine({
                   : 'text-white/55',
           )}
         >
-          {expected === undefined ? (
-            <span className="min-w-0 truncate">{figureLabel(figure)}</span>
-          ) : (
+          {expected !== undefined ? (
             <ExpectedPointsFigure
               value={expected.value}
               fontSize={metrics.nameFontSize}
             />
+          ) : (
+            <>
+              {/* The score never gives way: `shrink-0` on the half that is a
+                  fact, so a narrow plate eats the prediction from the right
+                  rather than clipping the number the reader came for. */}
+              <span
+                className={cn(
+                  'min-w-0 truncate',
+                  marked !== undefined && 'shrink-0',
+                )}
+              >
+                {figureLabel(figure)}
+              </span>
+              {/* Separator and prediction as **one** shrinking unit, so the
+                  pair costs a single gap rather than two — four pixels of a
+                  42px plate are a whole digit. The model's orange, and no
+                  target glyph: the target is what tells a prediction from a
+                  score *before* a match, and after one the score is standing
+                  right beside it saying the same thing in half the width. */}
+              {marked !== undefined && (
+                <span className="min-w-0 truncate text-warning">
+                  <span aria-hidden="true" className="text-white/35">
+                    ·
+                  </span>
+                  {points(marked.forecast)}
+                </span>
+              )}
+            </>
           )}
         </span>
       )}

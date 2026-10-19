@@ -1679,6 +1679,35 @@ export function isBeforeKickoff(
 }
 
 /**
+ * **Is his match over and his score in?** — the window in which a prediction
+ * about him stops being a forecast and becomes something that can be marked.
+ *
+ * The exact complement of {@link isBeforeKickoff} at the other end of the
+ * match: that one asks whether a figure about the future is still worth
+ * drawing, this one whether the past is settled enough to hold the model to
+ * it. Everything between the two — a running match, a half-arrived score — is
+ * neither: the prediction is for ninety minutes, so putting it beside a figure
+ * that is still climbing would compare two different things and flatter or
+ * damn the model by the clock.
+ *
+ * Both halves are required. `isFinished` without points is a match the API has
+ * closed and not yet scored, and points without `isFinished` is a running
+ * tally.
+ *
+ * True for a **benched** player too, for the reason the bench is on screen at
+ * all: *the model said 240 and he got 60, on my bench* is the same question as
+ * on the grass, asked about a choice that was already made.
+ */
+export function isSettled(
+  player: Pick<DuelPlayer, 'points' | 'fixture'>,
+  now: number = nowMs(),
+): boolean {
+  if (player.points === undefined) return false
+  if (player.fixture === undefined) return false
+  return fixtureState(player.fixture, now) === 'finished'
+}
+
+/**
  * Sort comparator: **best first**, and a player with no points yet sorts
  * **last** rather than as zero — not knowing is not the same as nothing.
  *

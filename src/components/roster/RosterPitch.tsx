@@ -1,5 +1,6 @@
 import {
   isBeforeKickoff,
+  isSettled,
   playerFigure,
   TEAM_SHEET_ROLE_LABEL,
   type DuelPlayer,
@@ -15,7 +16,10 @@ import {
   TeamSheetMark,
 } from '@/components/player/TeamSheetMark'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
-import { expectedDescription } from '@/components/squad/expectedPointsLabels'
+import {
+  expectedDescription,
+  forecastComparison,
+} from '@/components/squad/expectedPointsLabels'
 import {
   cornerBadgeSize,
   PITCH_BAND_CLASS,
@@ -46,6 +50,23 @@ function expectedFor(
 ): ExpectedPointsEntry | undefined {
   if (expected === undefined || !isBeforeKickoff(player)) return undefined
   return expected.entry(player.id)
+}
+
+/**
+ * **What the model predicted for him, now that the match is over.**
+ *
+ * The same shape as {@link expectedFor} at the other end of the match, and the
+ * same reason for existing: the pitch and the bench must agree about when the
+ * figure appears. Strictly the model's own number — a guess the reader typed
+ * cannot stand in for it here, because the point of the pair is marking the
+ * model against a result it could not see coming.
+ */
+function forecastFor(
+  player: DuelPlayer,
+  expected: ExpectedPointsView | undefined,
+): number | undefined {
+  if (expected === undefined || !isSettled(player)) return undefined
+  return expected.forecast(player.id)
 }
 
 /**
@@ -195,17 +216,21 @@ export function RosterPortrait({
   const isRunning = player.status === 'playing'
   const figure = playerFigure(player)
   const entry = expectedFor(player, expected)
+  const forecast = forecastFor(player, expected)
   const canOpen = player.fixture !== undefined
 
   const Shell = canOpen ? 'button' : 'span'
 
   /* Both halves when the expected figure has taken the plate: what it is, and
      the kick-off it displaced. A tooltip is the one place on a pitch with room
-     to say both. */
+     to say both — and the one place with room to spell the settled player's
+     pair out as a comparison rather than two numbers and a dot. */
   const title =
-    entry === undefined
-      ? `${player.name}: ${figureDescription(figure)}`
-      : `${player.name}: ${expectedDescription(entry)} · ${figureDescription(figure)}`
+    entry !== undefined
+      ? `${player.name}: ${expectedDescription(entry)} · ${figureDescription(figure)}`
+      : forecast !== undefined && figure.kind === 'points'
+        ? `${player.name}: ${forecastComparison(figure.points, forecast)}`
+        : `${player.name}: ${figureDescription(figure)}`
 
   return (
     <Shell
@@ -269,6 +294,7 @@ export function RosterPortrait({
           figure={figure}
           fixture={player.fixture}
           expected={entry}
+          forecast={forecast}
           metrics={metrics}
           isRunning={isRunning}
         />
