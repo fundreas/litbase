@@ -208,16 +208,24 @@ export function MarketRow({
         // the next row was part of the same group, and the hairline answers it
         // for free.
         'flex min-h-19 items-stretch overflow-hidden bg-surface',
-        // A standing bid marks the **whole row** — the same idea as the
-        // outline the squad page uses for a player marked for sale, in the
-        // notation a flush list allows: a tinted ground and an accent edge
-        // down the left. The edge is **2px on every row**, transparent where
-        // there is no bid, so a marked row does not shift its contents against
-        // its neighbours.
+        // **The edge and the ground say the row concerns you**, and the
+        // colour says how — the same idea as the outline the squad page uses
+        // for a player marked for sale, in the notation a flush list allows.
+        // The edge is **2px on every row**, transparent where there is
+        // neither, so a marked row does not shift its contents against its
+        // neighbours.
+        //
+        // Two things can mark a row and only one edge can be drawn, so a
+        // **standing bid wins it**: it is the fact with a deadline on it, and
+        // it is about money. A scouted row you have also bid on keeps its
+        // badge beside the name, which is the half of the notation that does
+        // not compete for the same pixels.
         'border-l-2',
-        ownOffer === undefined
-          ? 'border-l-transparent'
-          : 'border-l-accent bg-accent/5',
+        ownOffer !== undefined
+          ? 'border-l-accent bg-accent/5'
+          : isScouted
+            ? 'border-l-gold bg-gold/10'
+            : 'border-l-transparent',
       )}
     >
       {portrait}
@@ -255,7 +263,11 @@ export function MarketRow({
                 match, and the name is what the eye lands on while scanning a
                 list for somebody it already has in mind. It takes the room the
                 name was going to truncate at, which is the cheapest width on
-                the row — and only on the handful of rows that carry it. */}
+                the row — and only on the handful of rows that carry it.
+
+                It is the half of the mark that survives a bid: when both are
+                true the edge and the ground go to the bid, and this badge is
+                what still says you were watching him. */}
             {isScouted && <ScoutMark />}
           </span>
 

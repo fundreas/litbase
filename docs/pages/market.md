@@ -86,28 +86,45 @@ competition and matchday, the same one the Kader reads.
 
 ### The scout mark
 
-A player on the viewer's [scout list](../api/players.md#the-scout-list) wears a
-**binoculars glyph in gold, right after his name** — on both buying views, the
-*Markt* list and *Manager*. It is how the page answers the question somebody
-scrolling twenty listings is actually asking: *is this one of the players I
-already decided to watch?*
+A player on the viewer's [scout list](../api/players.md#the-scout-list) marks
+the **whole row** — a gold edge down the left, a gold ground behind it, and a
+filled gold badge with the binoculars right after his name — on both buying
+views, the *Markt* list and *Manager*. It is how the page answers the question
+somebody scrolling twenty listings is actually asking: *is this one of the
+players I already decided to watch?*
 
-**Against the name, not down among the matchday marks.** It is a fact about
-*him*, not about the coming match, and the name is where the eye lands while
-scanning a list for somebody it has in mind. It takes the room the name was
-going to truncate at — the cheapest width on the row, and only on the handful
-of rows that carry it.
+**The row, not just the name**, because that question is asked while
+*scrolling*. A glyph beside the name is read once the row has already been
+stopped at, which is exactly the work the mark was supposed to save; the tinted
+ground is what carries down a long list at speed. It is the notation a standing
+bid already uses — the edge and the ground say *this row concerns you*, the
+colour and the glyph say how — so the page gains no new vocabulary, only a
+second word in the one it has.
 
-**Binoculars rather than a star, gold rather than a tint.** Every other mark on
-this row is spoken for, and the one thing a scout mark must not do is read as
-one of them: the **accent** edge and tint mean *you have bid on him*, **amber**
-under a price means *above the market value*, and **gold stars** are league
-titles, worn by managers' avatars. So the glyph is what names it, not the
-colour — the same rule [the probability
-badge](#the-third-line-is-the-matchday-line) follows, and the one the app keeps
-for anything a reader who cannot separate red from green has to tell apart.
-Gold because this is the only mark on the row the reader *put there
-themselves*.
+**The badge stays against the name.** Being scouted is a fact about *him*, not
+about the coming match, so it sits with his name rather than down among the
+matchday marks, and it takes the room the name was going to truncate at — the
+cheapest width on the row, and only on the handful of rows that carry it.
+
+### When a row is both scouted and bid on
+
+Only one edge can be drawn, and the **bid takes it**: it is the fact with a
+deadline on it and the one about money. The ground goes with it, so such a row
+is accent like any other row you have bid on — and the gold badge beside the
+name is what still says you were watching him. That is why the badge is filled
+and ringed rather than a bare glyph: it has to hold its own against a tinted
+row.
+
+**Binoculars rather than a star.** Every other mark on this row is spoken for,
+and the one thing a scout mark must not do is read as one of them: the
+**accent** edge and tint mean *you have bid on him*, **amber** under a price
+means *above the market value*, and **gold stars** are league titles, worn by
+managers' avatars. A tint alone could therefore not carry this, however loud it
+is — so the glyph is what names the mark and the colour only reinforces it, the
+same rule [the probability badge](#the-third-line-is-the-matchday-line) follows,
+and the one the app keeps for anything a reader who cannot separate red from
+green has to tell apart. Gold because this is the only mark on the row the
+reader *put there themselves*.
 
 **It is not a control.** Scouting is done on the player's own page
 ([the toggle](player-detail.md#the-scout-toggle)), where the decision is made

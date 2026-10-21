@@ -5,8 +5,17 @@ import { cn } from '@/lib/cn'
 const LABEL = 'Auf deiner Scoutliste'
 
 /**
- * **He is on your scout list** — the mark a listing wears so the player you
+ * **He is on your scout list** — the badge a listing wears so the player you
  * have already decided to watch is found without reading twenty names.
+ *
+ * ## A filled badge, not a bare glyph
+ *
+ * It rides on a row that also carries a gold edge and a gold ground (see
+ * [`MarketRow`](../market/MarketRow.tsx)), and the three are one mark: the
+ * ground is what is seen while scrolling, the badge is what says *which* mark
+ * it is. The badge is also the half that survives a **bid** on the same
+ * player, where the edge and the ground go to the accent — so it has to read
+ * on its own, against a tinted row, at a glance. A 14px outline glyph did not.
  *
  * ## Why binoculars and not a star
  *
@@ -34,16 +43,20 @@ export function ScoutMark({
   size?: number
   className?: string
 }) {
-  // The label rides on a wrapper rather than the icon: lucide's components
+  // The label rides on the wrapper rather than the icon: lucide's components
   // take no `title`, and a tooltip is half of what this mark is for.
   return (
     <span
       role="img"
       aria-label={LABEL}
       title={LABEL}
-      className={cn('flex shrink-0 text-gold', className)}
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-full',
+        'bg-gold/20 p-1 text-gold ring-1 ring-gold/40 ring-inset',
+        className,
+      )}
     >
-      <Binoculars size={size} aria-hidden="true" />
+      <Binoculars size={size} aria-hidden="true" className="fill-gold/25" />
     </span>
   )
 }
