@@ -54,6 +54,7 @@ tab that needs them.
 | `/v4/leagues/{lid}/players/{pid}/transfers` | on Transfers, **for one's own player** | Whether he is listed, at what, and the bids standing on him — polled at 30 s while a listing stands |
 | `/v4/leagues/{lid}/playercenter/{pid}?dayNumber=&seasonId=` | on opening a [match breakdown](#the-match-breakdown) | Every scoring action of one match, and what each was worth |
 | `/v4/live/eventtypes` | with the first breakdown | Names for all 621 event types. One shared entry, cached for a day |
+| `/v4/leagues/{lid}/scoutedplayers` | always | The ids on the viewer's [scout list](#the-scout-toggle), for the toggle in the header. Keyed under the **league**, not the page, and shared with the [market](market.md#the-scout-mark) |
 
 One more request is **not** Kickbase's and not keyed under the page:
 `https://fundreas.github.io/litbase-foresight/data/{pid}.json`, the
@@ -103,6 +104,55 @@ The **position is the abbreviation** — `MF`, not `Mittelfeldspieler` — in a 
 on the given-name line, `POSITION_LABEL` being the form every squad row and pitch
 tile already uses. The spelled-out name was long enough to push the given name
 off a phone-width line; it stays as the chip's `title`.
+
+### The scout toggle
+
+At the end of the chip line under the name, pushed to the far right: *Scouten*,
+or *Gescoutet* with the binoculars filled in once he is on the list. It is the
+header's **only control**, and the only write in the app that happens on a bare
+tap — see [the scout list](../api/players.md#the-scout-list) for the two verbs
+behind it.
+
+**No dialog, because there is nothing to confirm.** Every other Kickbase write
+the app makes moves money: bidding, listing, selling back. A scout mark costs
+nothing, is invisible to the rest of the league, and is undone by tapping the
+same chip again, so a confirmation step would be ceremony around a bookmark.
+
+**In the header rather than on a tab.** Marking a player is a judgement about
+the whole of him, made as readily off his market chart as off his points — a
+control that disappeared when the tab changed would be hunted for. It is also
+why the chip line is now rendered on every player, where it used to appear only
+when there was a warning or a probability to show: the row below the name has a
+fixed meaning, *what is true of him and the one thing you can do about him from
+here*, with the statements at the left and the action at the right.
+
+**It says its state in words**, where the mark on a market row is a bare glyph.
+A glyph is only unambiguous once you have been told what it means, and this is
+where that is learned; a control that changes state on a tap should also say
+which state it is in rather than leaving it to be inferred from a tint.
+`aria-pressed` carries the same thing to a screen reader, which is what lets one
+chip do the work of two buttons.
+
+**It waits for the list before claiming he is not on it.** Until the scout list
+lands, *nicht gescoutet* would be a guess, and a guess that is acted on sends
+the wrong verb — so the chip is disabled while that query is in flight. A list
+that fails to load leaves it usable: adding is what the control is for, and a
+`POST` on an already-marked player is at worst a no-op.
+
+**A refused write is said out loud**, in one line of `negative` beside the chip.
+The star is the whole feedback of this control, so rolling it back silently
+would read as a tap that missed.
+
+The tap writes the cache **before** the request and puts the old list back if
+the server refuses — see
+[`useScoutPlayer`](../../src/api/hooks/useScoutedPlayers.ts). A toggle that
+waits a round trip to fill in feels broken on a phone.
+
+> **The wire here is unverified.** The published spec documents none of the
+> scout endpoints' responses, so the reader is written to survive whatever
+> arrives; the [API page](../api/players.md#the-response-is-unverified-) says
+> exactly what is and is not known, and what to tighten once a real payload has
+> been seen.
 
 ### The lineup poster
 

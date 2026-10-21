@@ -58,6 +58,7 @@ export function ManagerListingsTab({
   teams,
   startProbabilities,
   expected,
+  scouted,
   onOffer,
 }: {
   /** Other managers' listings, in any order — this view imposes its own. */
@@ -77,6 +78,12 @@ export function ManagerListingsTab({
   startProbabilities: Map<string, StartProbability>
   /** What each player is expected to score this matchday — the page's view. */
   expected: ExpectedPointsView
+  /**
+   * The ids on the viewer's scout list, for the mark beside the name. One
+   * request for the whole page, shared with the *Markt* list — see
+   * [`useScoutedPlayers`](../../api/hooks/useScoutedPlayers.ts).
+   */
+  scouted: Set<string>
   onOffer: (playerId: string) => void
 }) {
   if (listings.length === 0) {
@@ -114,6 +121,7 @@ export function ManagerListingsTab({
               team={teams?.get(listing.teamId)}
               startProbability={startProbabilities.get(listing.id)}
               expectedPoints={expected.entry(listing.id)}
+              isScouted={scouted.has(listing.id)}
               // No 24-hour move and no countdown: on a manager's listing the
               // row prints the premium under the price and his face at the
               // end, so neither the overnight figure nor the clock is read.

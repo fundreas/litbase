@@ -17,7 +17,7 @@ instance, the query hooks, the domain models — is
 | [Leagues](leagues.md) | 9 | Membership, metadata, standings, joining, the activity feed |
 | [Squad and lineup](squad-and-lineup.md) | 9 | Who you own, who you field, historical snapshots |
 | [Transfer market](market.md) | 6 | Listings, bids, selling — both sides of a deal |
-| [Players](players.md) | 4 | One player: detail, history, market value, owners |
+| [Players](players.md) | 8 | One player: detail, history, market value, owners — and the scout list he is marked on |
 | [Competitions](competitions.md) | 6 | Bundesliga & co: table, fixtures, player search, one club's whole squad |
 | [Matches](matches.md) | 2 | One match live, and the scoring-event catalogue |
 | [Codes and enums](codes.md) | — | Every numeric code the payloads use, in one place |
@@ -67,6 +67,10 @@ the two marked *none*.
 | `GET` | `/v4/leagues/{leagueId}/players/{playerId}/performance` | ✔ | [Players](players.md#get-v4leaguesleagueidplayersplayeridperformance) |
 | `GET` | `/v4/leagues/{leagueId}/players/{playerId}/marketvalue/{timeframe}` | ✔ | [Players](players.md#get-v4leaguesleagueidplayersplayeridmarketvaluetimeframe) |
 | `GET` | `/v4/leagues/{leagueId}/players/{playerId}/transferHistory` | ✔ | [Players](players.md#get-v4leaguesleagueidplayersplayeridtransferhistory) |
+| `GET` | `/v4/leagues/{leagueId}/scoutedplayers` | ✔ | [Players](players.md#the-scout-list) |
+| `POST` | `/v4/leagues/{leagueId}/scoutedplayers/{playerId}` | ✔ | [Players](players.md#the-scout-list) |
+| `DELETE` | `/v4/leagues/{leagueId}/scoutedplayers/{playerId}` | ✔ | [Players](players.md#the-scout-list) |
+| `DELETE` | `/v4/leagues/{leagueId}/scoutedplayers` | | [Players](players.md#the-scout-list) |
 | `GET` | `/v4/competitions` | ✔ | [Competitions](competitions.md#get-v4competitions) |
 | `GET` | `/v4/competitions/{competitionId}/players` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidplayers) |
 | `GET` | `/v4/competitions/{competitionId}/players/search` | ✔ | [Competitions](competitions.md#get-v4competitionscompetitionidplayerssearch) |
@@ -207,15 +211,16 @@ Money is in **euros as an integer**. Dates are **ISO 8601 with a `Z`**, except
 
 ## What the app does not use
 
-The published spec lists **149 paths**. This reference documents **42** — the
-30 the app actually calls, plus twelve neighbours that are declared, adjacent
+The published spec lists **149 paths**. This reference documents **46** — the
+33 the app actually calls, plus thirteen neighbours that are declared, adjacent
 or too useful to leave undescribed (each is marked *Used: no* on its page). The
 rest are whole
 product areas the app does not implement — `/v4/challenges/*` (Kickbase's
-solo/ladder mode, ~40 paths), `/v4/onboarding/*`, `/v4/products/*` and
+solo/ladder mode, ~40 paths, including a *favorites* surface that marks
+**managers**, not players), `/v4/onboarding/*`, `/v4/products/*` and
 `/v4/promotion` (purchases), `/v4/chat/*`,
 `/v4/leagues/{id}/activitiesFeed/{id}/comments` (the feed's comment threads),
-`/v4/leagues/{id}/scoutedplayers`, `/v4/leagues/{id}/settings` (admin only),
+`/v4/leagues/{id}/settings` (admin only),
 `/v4/base/news/*` — plus a few that would fit and are
 simply unbuilt:
 

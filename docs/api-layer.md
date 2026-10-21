@@ -146,6 +146,7 @@ is what makes them safe to call before context has resolved.
 | `useActivities(id)` | `/leagues/{id}/activitiesFeed?start=&max=&filter=` | 1 min — an **infinite query**, see below |
 | `useAchievement(id, type)` | `/leagues/{id}/user/achievements/{type}` | 1 hour |
 | `usePlayerOffers(id, pid)` | `/leagues/{id}/players/{pid}/transfers` | 5 min — the viewer's own bid on one player |
+| `useScoutedPlayers(id)` | `/leagues/{id}/scoutedplayers` | 10 min — the ids on the viewer's scout list; `useScoutedSet` is the same entry as a `Set` |
 | `useCompetitionTable(cid)` | `/competitions/{cid}/table` | 10 min |
 | `useCompetitionPlayers(cid)` | `/competitions/{cid}/players` | 1 hour — 0 + 10 s poll while a matchday runs |
 | `useRecommendedLeagues()` | `/leagues/recommended` | 5 min |
@@ -299,13 +300,21 @@ Mutations:
 | `useSaveLineup(id)` | `POST /leagues/{id}/lineup` or `…/lineup/clear` | `qk.squad(id)` |
 | `usePlaceOffer(id)` | `POST /leagues/{id}/market/{pid}/offers` | `qk.market(id)` |
 | `useWithdrawOffer(id)` | `DELETE /leagues/{id}/market/{pid}/offers/{oid}` | `qk.market(id)` |
+| `useScoutPlayer(id)` | `POST`/`DELETE /leagues/{id}/scoutedplayers/{pid}` | `qk.scoutedPlayers(id)` — **written optimistically first** |
 
 See [Join a league](pages/join-league.md),
 [Squad](pages/squad.md#persistence) and [Market](pages/market.md).
 
-`useWithdrawOffer` is the app's only **`DELETE`**, so it calls the axios
-instance directly rather than growing a `del()` helper beside `get()` and
-`post()` for a single caller.
+`useWithdrawOffer` and `useScoutPlayer` are the app's only **`DELETE`s**, so
+they call the axios instance directly rather than growing a `del()` helper
+beside `get()` and `post()` for two callers.
+
+`useScoutPlayer` is also the only mutation that **writes the cache before the
+request** and rolls it back on failure. It is the one write that costs nothing,
+changes nothing anybody else sees and is undone by repeating it — and its
+entire feedback is a glyph changing state, which a round trip would make feel
+broken. Everything else that writes moves money, so it waits for the server and
+invalidates. See [the toggle](pages/player-detail.md#the-scout-toggle).
 
 The market is the shortest because prices and expiry countdowns are the most
 time-sensitive data in the app. The competition player list is the longest

@@ -154,6 +154,17 @@ export const qk = {
   eventTypes: () => ['eventTypes'] as const,
   market: (leagueId: string) => [...qk.league(leagueId), 'market'] as const,
   /**
+   * **The scout list** — one entry per league, holding the ids of the players
+   * this account has marked there.
+   *
+   * A sibling of {@link market} rather than a child of it: the mark outlives
+   * the listing it was made from, and the market's thirty-second poll has no
+   * business dropping it. Every row that draws a star reads this one entry,
+   * and the toggle on a player's page writes it.
+   */
+  scoutedPlayers: (leagueId: string) =>
+    [...qk.league(leagueId), 'scoutedPlayers'] as const,
+  /**
    * The league's event log, as an infinite query — one entry holds every page
    * fetched so far. Not keyed by page: the pages are the entry's own
    * structure, and `?start=` is the page parameter.

@@ -14,6 +14,7 @@ import {
   type StartProbability,
 } from '@/api/models'
 import { LineupPosterDialog } from '@/components/player/LineupPosterDialog'
+import { ScoutToggle } from '@/components/player/ScoutToggle'
 import { MatchEventBadge } from '@/components/player/MatchEventBadge'
 import { Scoreline } from '@/components/player/PlayerMatchRow'
 import { MatchRoleMark } from '@/components/player/statGlyphs'
@@ -38,6 +39,12 @@ import { useHashModal } from '@/lib/useHashModal'
  * The availability chip is only rendered when there is something to say. A
  * "Fit" pill on 90% of players is decoration that trains people to ignore the
  * spot where the real warning appears.
+ *
+ * **The scout toggle sits at the end of that chip line** and is the header's
+ * only control — see [`ScoutToggle`](./ScoutToggle.tsx). It belongs above the
+ * tabs rather than inside Details: marking a player is a judgement about the
+ * whole of him, made as readily off his market chart as off his points, and a
+ * control that disappeared when the tab changed would be hunted for.
  */
 export function PlayerHeader({
   player,
@@ -70,7 +77,10 @@ export function PlayerHeader({
    * which is where someone goes to ask "does he play?".
    */
   showStartProbability: boolean
-  /** For the crest's link to the club's own page. */
+  /**
+   * For the crest's link to the club's own page — and for the scout toggle,
+   * whose list is per league.
+   */
   leagueId: string
 }) {
   const isFit = player.status === 0
@@ -154,23 +164,35 @@ export function PlayerHeader({
         </Link>
       </div>
 
-      {(!isFit || probability !== undefined) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {!isFit && (
-            <span className="rounded-full bg-negative/15 px-2.5 py-1 text-xs font-semibold text-negative">
-              {availabilityLabel(player.status)}
-            </span>
-          )}
-          {probability !== undefined &&
-            player.startProbability !== undefined && (
-              <ProbabilityChip
-                tier={player.startProbability}
-                label={probability.label}
-                player={player}
-              />
-            )}
-        </div>
-      )}
+      {/* The line of chips, which is now never empty: the scout toggle lives
+          here on every player, so the row below the name has a fixed meaning
+          — *what is true of him, and the one thing you can do about him from
+          here*. The chips that are only sometimes true keep their old rule and
+          appear only when there is something to say; the toggle is pushed to
+          the far end, where an action belongs and where it stops reading as a
+          third statement about his fitness. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {!isFit && (
+          <span className="rounded-full bg-negative/15 px-2.5 py-1 text-xs font-semibold text-negative">
+            {availabilityLabel(player.status)}
+          </span>
+        )}
+        {probability !== undefined && player.startProbability !== undefined && (
+          <ProbabilityChip
+            tier={player.startProbability}
+            label={probability.label}
+            player={player}
+          />
+        )}
+
+        <span className="ml-auto">
+          <ScoutToggle
+            leagueId={leagueId}
+            playerId={player.id}
+            playerName={player.lastName}
+          />
+        </span>
+      </div>
 
       {currentFixture !== undefined && (
         <CurrentMatchday

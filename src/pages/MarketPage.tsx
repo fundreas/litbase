@@ -13,6 +13,7 @@ import { useTeamDirectory } from '@/api/hooks/useCompetition'
 import { useLeagueDetails } from '@/api/hooks/useLeague'
 import { useMarket } from '@/api/hooks/useMarket'
 import { useMarketValueChanges } from '@/api/hooks/useMarketValueChanges'
+import { useScoutedSet } from '@/api/hooks/useScoutedPlayers'
 import { useCurrentMatchday, useSeasonFixtures } from '@/api/hooks/useMatchday'
 import { useStartProbabilities } from '@/api/hooks/useStartProbabilities'
 import {
@@ -183,6 +184,12 @@ export function MarketPage() {
      read. A club the current table does not hold simply has no crest, which is
      how every other consumer of the directory treats it. */
   const teams = useTeamDirectory(competitionId)
+  /* The viewer's scout list, for the mark beside a marked player's name —
+     one request for the page, cached ten minutes and written straight by the
+     toggle on a player's own page, so coming back from marking somebody finds
+     the list already right. A failure draws no marks and says nothing: the
+     page is about what is for sale, not about this. */
+  const scouted = useScoutedSet(leagueId)
 
   // The list is sorted by expiry, so the first listing that has one is the
   // soonest — no scan needed. Everything speeds up together: one interval
@@ -387,6 +394,7 @@ export function MarketPage() {
         teams={teams.data}
         startProbabilities={startProbabilities}
         expected={expected}
+        scouted={scouted}
         onOffer={offer.open}
       />
     ) : houseListings.length === 0 ? (
@@ -438,6 +446,7 @@ export function MarketPage() {
                       marketValueChange={marketValueChanges.get(listing.id)}
                       startProbability={startProbabilities.get(listing.id)}
                       expectedPoints={expected.entry(listing.id)}
+                      isScouted={scouted.has(listing.id)}
                       now={now}
                       onOffer={() => {
                         offer.open(listing.id)

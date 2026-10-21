@@ -216,6 +216,34 @@ export const endpoints = {
     marketOfferDecline: (leagueId: string, playerId: string, offerId: string) =>
       `/v4/leagues/${leagueId}/market/${playerId}/offers/${offerId}/decline`,
     /**
+     * **The scout list** — the players this account has marked in this league,
+     * Kickbase's own wishlist. `GET` reads it; `DELETE` **clears the whole
+     * list**, which is why nothing in the app calls that verb.
+     *
+     * Note the spelling: `scoutedplayers`, all lower case, where the
+     * neighbouring `transferHistory` is camel-cased.
+     *
+     * **The published spec carries no response example for it** — the four
+     * paths are declared, the schemas are empty objects and the prose on them
+     * is Apidog's auto-generated boilerplate — so what the list looks like on
+     * the wire is read defensively; see
+     * [`useScoutedPlayers`](./hooks/useScoutedPlayers.ts). The list is scoped
+     * to the **league**, not to the account: the same player marked in two
+     * leagues is two entries.
+     */
+    scoutedPlayers: (leagueId: string) =>
+      `/v4/leagues/${leagueId}/scoutedplayers`,
+    /**
+     * One player on that list. `POST` marks him — **no body at all**, the id
+     * is the path — and `DELETE` takes him off again.
+     *
+     * Both are writes the app can make freely: marking a player costs nothing,
+     * changes no money and is undone by the other verb, which is what makes
+     * this the one Kickbase write behind a plain toggle rather than a dialog.
+     */
+    scoutedPlayer: (leagueId: string, playerId: string) =>
+      `/v4/leagues/${leagueId}/scoutedplayers/${playerId}`,
+    /**
      * One player, in the context of a league.
      *
      * Carries two things nothing else does:

@@ -9,6 +9,7 @@ import {
   type TeamFixture,
 } from '@/api/models'
 import { ClubWatermark } from '@/components/player/ClubWatermark'
+import { ScoutMark } from '@/components/player/ScoutMark'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
@@ -89,6 +90,7 @@ export function MarketRow({
   marketValueChange,
   startProbability,
   expectedPoints,
+  isScouted,
   now,
   onOffer,
 }: {
@@ -138,6 +140,17 @@ export function MarketRow({
    * question about which one was meant.
    */
   expectedPoints: ExpectedPointsEntry | undefined
+  /**
+   * Whether he is on the viewer's scout list — the mark beside his name. The
+   * whole list is one request for the page, so this is a set lookup per row;
+   * see [`useScoutedPlayers`](../../api/hooks/useScoutedPlayers.ts).
+   *
+   * `false` while that request is in flight and after it fails, which is also
+   * what an un-scouted player looks like. A mark that arrives a moment late is
+   * the right failure for a decoration; a row that waited for it would hold up
+   * the price and the clock, which are what the page is for.
+   */
+  isScouted: boolean
   /**
    * The page's shared clock, in epoch millis. Only read by the countdown, so a
    * list of manager listings — which have none — can pass anything.
@@ -237,6 +250,13 @@ export function MarketRow({
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
               {listing.lastName}
             </span>
+            {/* **Scouted**, against the name rather than down among the
+                matchday marks: it is a fact about *him*, not about the coming
+                match, and the name is what the eye lands on while scanning a
+                list for somebody it already has in mind. It takes the room the
+                name was going to truncate at, which is the cheapest width on
+                the row — and only on the handful of rows that carry it. */}
+            {isScouted && <ScoutMark />}
           </span>
 
           <span className="flex items-baseline justify-between gap-2">

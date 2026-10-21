@@ -2,11 +2,14 @@
 
 [← API index](README.md)
 
-One player, five endpoints, all league-scoped. Four of the five have an
-identical competition-scoped twin under `/v4/competitions/{competitionId}/…`;
-the league-scoped spelling is used throughout so the whole detail page caches
-under one league key — and because only the league-scoped detail carries `oui`,
-the owning manager.
+One player, nine endpoints, all league-scoped. Four of them have an identical
+competition-scoped twin under `/v4/competitions/{competitionId}/…`; the
+league-scoped spelling is used throughout so the whole detail page caches under
+one league key — and because only the league-scoped detail carries `oui`, the
+owning manager.
+
+The last four are a different thing from the rest: not a *reading* of a player
+but a **mark on him**, the scout list the viewer keeps per league.
 
 | Method | Path | Auth | Used |
 | ------ | ---- | ---- | ---- |
@@ -15,6 +18,10 @@ the owning manager.
 | `GET` | [`/v4/leagues/{leagueId}/players/{playerId}/performance`](#get-v4leaguesleagueidplayersplayeridperformance) | Bearer | yes |
 | `GET` | [`/v4/leagues/{leagueId}/players/{playerId}/marketvalue/{timeframe}`](#get-v4leaguesleagueidplayersplayeridmarketvaluetimeframe) | Bearer | yes |
 | `GET` | [`/v4/leagues/{leagueId}/players/{playerId}/transferHistory`](#get-v4leaguesleagueidplayersplayeridtransferhistory) | Bearer | yes |
+| `GET` | [`/v4/leagues/{leagueId}/scoutedplayers`](#the-scout-list) | Bearer | yes |
+| `POST` | [`/v4/leagues/{leagueId}/scoutedplayers/{playerId}`](#the-scout-list) | Bearer | yes |
+| `DELETE` | [`/v4/leagues/{leagueId}/scoutedplayers/{playerId}`](#the-scout-list) | Bearer | yes |
+| `DELETE` | [`/v4/leagues/{leagueId}/scoutedplayers`](#the-scout-list) | Bearer | no |
 
 > **Note the spelling of the live one**: `playercenter/{playerId}`, with the
 > player id *after* a singular segment — not `players/{playerId}/center`. It is
@@ -617,6 +624,72 @@ instead. What this endpoint has that `/marketvalue` does not is every deal
 [`usePlayerTransfers`](../../src/api/hooks/usePlayer.ts) for the whole chain →
 [Player detail](../pages/player-detail.md#transfers). One cache entry serves
 both.
+
+---
+
+## The scout list
+
+**The players this account has marked in one league** — Kickbase's own
+wishlist, and the thing the app calls *Scoutliste*. Four paths, one list:
+
+| Method | Path | Does | Used |
+| ------ | ---- | ---- | ---- |
+| `GET` | `/v4/leagues/{leagueId}/scoutedplayers` | Reads the list | yes |
+| `POST` | `/v4/leagues/{leagueId}/scoutedplayers/{playerId}` | Marks one player. **No body** | yes |
+| `DELETE` | `/v4/leagues/{leagueId}/scoutedplayers/{playerId}` | Takes the mark off | yes |
+| `DELETE` | `/v4/leagues/{leagueId}/scoutedplayers` | **Clears the whole list** | no |
+
+**Auth** Bearer on all four.
+
+**Note the spelling.** `scoutedplayers`, all lower case, where its neighbour
+`transferHistory` is camel-cased. The list is scoped to the **league**, not to
+the account: the same player marked in two leagues is two entries, which is why
+the query key hangs under the league.
+
+The bulk `DELETE` is declared here and deliberately **not** called anywhere: it
+empties the list in one request with nothing to undo it, and no screen in the
+app asks for that.
+
+### The response is unverified (**?**)
+
+This is the one surface in this reference written **without a live response**.
+The published spec declares all four paths, and documents none of them: the
+response schemas are empty objects, there is no captured example, and the prose
+on each — including its table of status codes — is Apidog's auto-generated
+boilerplate rather than anything observed. So:
+
+- **What `GET` returns is unknown.** A list of bare player ids, an `it[]` of
+  player objects (the house envelope every other collection uses), something
+  else — all are open.
+- **What the writes answer is unknown.** `{}` like the rest of the market
+  writes, `204`, or a body; and whether a second `POST` on an already-marked
+  player is a no-op or a `409` is likewise a guess. The app treats any 2xx as
+  success and re-reads the list afterwards, so it does not depend on the
+  answer.
+
+[`scoutedIds`](../../src/api/hooks/useScoutedPlayers.ts) is written to that
+uncertainty: it takes the payload as `unknown`, finds the first array in it
+under any key, and reads an id off each entry whether the entry *is* the id or
+carries one as `i`/`pi`/`id`/`playerId`. Anything unreadable becomes an empty
+list — a market page without marks, which is what the page looked like before.
+
+**When a real payload is captured, type it in
+[`types.ts`](../../src/api/types.ts) and replace that mapper with a plain one.**
+It is a tolerant reader standing in for a spec, not a pattern to copy.
+
+### `sl` on the player detail may be the same fact
+
+The [detail response](#unknown) carries an unmapped boolean **`sl`**. *Scouted
+list* fits both the name and the type, and if it is that, a row could draw the
+mark from a payload it already has instead of from this list. Unproven — it
+needs one probe: mark a player, re-read his detail, see whether `sl` flips.
+
+### Used by
+
+[`useScoutedPlayers`](../../src/api/hooks/useScoutedPlayers.ts) — the list, as
+ids — and `useScoutPlayer`, the toggle's write. Drawn by the
+[player page](../pages/player-detail.md#the-scout-toggle)'s chip and by every
+[market](../pages/market.md#the-scout-mark) row.
 
 ---
 

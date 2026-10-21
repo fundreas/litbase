@@ -2029,6 +2029,58 @@ export interface TeamcenterPlayer {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Scout list                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `GET /v4/leagues/{leagueId}/scoutedplayers` — **the players this account has
+ * marked in this league**.
+ *
+ * Unlike every other type in this file, this one is **not read off a live
+ * response**. The published spec declares the four scout paths and documents
+ * nothing about them: the response schema is an empty object, there is no
+ * captured example, and the prose is Apidog's auto-generated boilerplate. So
+ * the shape below is the *house style* — `it`, the envelope every other
+ * collection on this API uses — and everything about it is **?** until a
+ * response is read.
+ *
+ * That is why the reader
+ * ([`useScoutedPlayers`](./hooks/useScoutedPlayers.ts)) does not trust this
+ * type: it takes the response as `unknown` and digs the player ids out of
+ * whatever arrived, so a list of bare id strings, a differently named array,
+ * or full player objects all answer the only question the app asks of this
+ * endpoint — *is he on the list?*. When a live payload has been seen, type it
+ * here properly and let the mapper narrow.
+ */
+export interface ScoutedPlayersResponse {
+  /** The marked players, in whatever order the server keeps them (**?**). */
+  it?: ScoutedPlayer[]
+}
+
+/**
+ * One entry of the scout list (**?** — unobserved, see
+ * {@link ScoutedPlayersResponse}). Only `i` is read; the rest is what a player
+ * in a list payload normally carries, and is typed so a future scout page has
+ * a place to start rather than as a claim about the wire.
+ */
+export interface ScoutedPlayer {
+  /** Player id. */
+  i: string
+  /** Last name. */
+  n?: string
+  /** First name. */
+  fn?: string
+  /** Club id. */
+  tid?: string
+  /** Position code, see POSITION. */
+  pos?: number
+  /** Market value, in €. */
+  mv?: number
+  /** Portrait, CDN-relative. */
+  pim?: string
+}
+
+/* -------------------------------------------------------------------------- */
 /* Activities feed                                                            */
 /* -------------------------------------------------------------------------- */
 

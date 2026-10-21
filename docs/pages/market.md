@@ -84,6 +84,43 @@ cache entries [the 24-hour move](#the-24-hour-change-costs-a-fan-out) has
 already fetched for every listing. The expected points are one static file per
 competition and matchday, the same one the Kader reads.
 
+### The scout mark
+
+A player on the viewer's [scout list](../api/players.md#the-scout-list) wears a
+**binoculars glyph in gold, right after his name** — on both buying views, the
+*Markt* list and *Manager*. It is how the page answers the question somebody
+scrolling twenty listings is actually asking: *is this one of the players I
+already decided to watch?*
+
+**Against the name, not down among the matchday marks.** It is a fact about
+*him*, not about the coming match, and the name is where the eye lands while
+scanning a list for somebody it has in mind. It takes the room the name was
+going to truncate at — the cheapest width on the row, and only on the handful
+of rows that carry it.
+
+**Binoculars rather than a star, gold rather than a tint.** Every other mark on
+this row is spoken for, and the one thing a scout mark must not do is read as
+one of them: the **accent** edge and tint mean *you have bid on him*, **amber**
+under a price means *above the market value*, and **gold stars** are league
+titles, worn by managers' avatars. So the glyph is what names it, not the
+colour — the same rule [the probability
+badge](#the-third-line-is-the-matchday-line) follows, and the one the app keeps
+for anything a reader who cannot separate red from green has to tell apart.
+Gold because this is the only mark on the row the reader *put there
+themselves*.
+
+**It is not a control.** Scouting is done on the player's own page
+([the toggle](player-detail.md#the-scout-toggle)), where the decision is made
+with his history in front of you; a row that toggled it would be a fourth tap
+target on a row that already has two.
+
+**It costs the page one request**, `/v4/leagues/{lid}/scoutedplayers`, cached
+ten minutes and shared with the player page — which writes the cache itself, so
+coming back from marking somebody finds the list already right. A failure draws
+no marks and says nothing: this page is about what is for sale, and a missing
+mark looks exactly like an unmarked player. Your own listings in *Gebote* carry
+no mark — a player you own is not one you are watching for.
+
 ### Two crests, and they mean different things
 
 **His own club is the watermark behind the row's text**; the crest in the
@@ -474,6 +511,12 @@ plus `marketValueUpdateAt`, `matchdayStartAt` and `day` — the response's own
 against a listing's `expiresAt`. Those are what the milestone rules are drawn
 from. `teamValue` (`tv`) rides along too: it is the base of the 33 % ceiling,
 and this is the one response the page already fetches that carries it.
+
+The scout marks come from
+[`useScoutedSet(leagueId)`](../../src/api/hooks/useScoutedPlayers.ts) →
+`/v4/leagues/{leagueId}/scoutedplayers`, read as a set of player ids — one
+request for the page, one set lookup per row. Its response shape is
+**unverified**; see [the API page](../api/players.md#the-scout-list).
 
 The club crests come from a third,
 [`useTeamDirectory`](../../src/api/hooks/useCompetition.ts) →
