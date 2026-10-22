@@ -43,7 +43,7 @@ They do not offer the **same** matchdays — see
   ┌────────────────────────────────────────────┐
   │ (A) Peterpan007    ⚔     Danger du     (A) │  ← accent border: your duel
   │     978 Pkt                    834 Pkt     │
-  │     ● 8 im Einsatz        ● 3 im Einsatz   │  ← only while a match runs
+  │     ● 8 · 2 offen         ● 3 · 4 offen    │  ← only while the day runs
   ├────────────────────────────────────────────┤
   │ (A) Max            ⚔          Olaf     (A) │
   │     ✓ 948 Pkt                  906 Pkt     │
@@ -115,37 +115,66 @@ as `duelResultOf()` does on the ranking page — not by reading `hhmp`. See
 Before kick-off both sides are level at `0`, so `duelLeader()` returns nothing
 and the card must gate on `hasStarted` before reading "level" as a draw.
 
-## Players on the pitch
+## Players on the pitch, and players still to come
 
-While a match is actually being played, each manager gets a third line under
-their score: **`● 8 im Einsatz`**, in accent, behind the same pulsing dot every
-live surface in the app uses.
+While the matchday is being played, each manager gets a third line under their
+score: **`● 3 · 4 offen`** — how many of their fielded eleven are on a pitch
+right now, behind the same pulsing dot every live surface in the app uses, and
+how many have not kicked off.
 
-It answers the question a live duel list raises and the score alone cannot: 40
-points behind with eight players still on the pitch is not the same position as
-40 behind with none. The [detail page](duel-detail.md) says the same thing
-about *matches* (`n laufend · n offen`); here it is about **players**, because
-that is the finer-grained figure and the list has room for exactly one line of
-it.
+It answers the question a live duel list raises and the score alone cannot. 40
+points behind with eight players on the pitch is not the same position as 40
+behind with none — and 40 behind with four clubs still to kick off is a third
+thing again: the first number says what is *happening*, the second says what is
+still *coming*, and the scoreline says neither. The
+[detail page](duel-detail.md) makes the same distinction about *matches*
+(`n laufend · n offen`); here it is about **players**, which is the finer
+figure.
 
-**Only managers with somebody playing get the line.** A `0` is not news, and a
-column of zeroes between the blocks would be noise — which is also why the
-line disappears entirely once every match of the moment has finished.
+**Finished players are not counted.** They are already in the score above, and
+a third number for them would be the one figure on the card that says nothing
+the figure above it does not.
 
-It sits *under* the points rather than beside them: at 360px a card leaves
-roughly 110px per side, and `978 Pkt · 8 im Einsatz` does not fit in that.
+### Two numbers in 86px
+
+That is what a 360px card leaves per side once the 44px avatar is out, and it
+is the whole design problem — `978 Pkt · 8 im Einsatz` never fit beside the
+points, which is why the line sits under them in the first place.
+
+So the pulsing dot does the work a word would: it says *playing*, and the count
+beside it needs no label. The open count keeps one, because nothing else on the
+card would say what it is. The words come back when a number is alone on the
+line and can afford them:
+
+| What is true | The line |
+| ------------ | -------- |
+| Some playing, some to come | `● 3 · 4 offen` |
+| Some playing, nothing left | `● 3 im Einsatz` |
+| Nothing playing, some to come | `4 offen` |
+| Neither | nothing at all |
+
+The dot **pulses only while somebody is actually on a pitch** — between the
+Saturday blocks the line is a quiet `4 offen`. Colour carries nothing on its
+own: the accent marks the playing count and the muted grey the open one, and a
+screen reader gets the sentence — *3 Spieler in laufenden Spielen, 4 Spieler
+noch nicht angepfiffen* — because two numbers and a dot are not one.
 
 ### What it costs
 
-[`useActivePlayerCounts(leagueId, competitionId, day, userIds)`](../../src/api/hooks/useActivePlayerCounts.ts)
+[`useMatchdayPlayerCounts(leagueId, competitionId, day, userIds, isLive)`](../../src/api/hooks/useMatchdayPlayerCounts.ts)
 → one `managers/{userId}/squad` per manager. There is no bulk source of who is
 fielded, so a page of five duels is ten requests — and the gate is what makes
 that acceptable:
 
-- **Nothing is fetched unless a fixture is actually running.** Not "the
-  matchday is live": between the Saturday blocks every match is either
-  finished or still to come, nothing is on the pitch, and the answer is zero
-  for everybody without asking.
+- **Nothing is fetched unless the matchday is live.** Before the first whistle
+  every fielded player is open, which is eleven for everybody and not news —
+  the card shows the standings instead. After the last one there is nothing
+  left to say.
+- That gate used to be narrower: *a fixture actually running*, on the
+  reasoning that between the Saturday blocks nobody is on a pitch. True of the
+  playing count and wrong about the open one — the gap between the 15:30 block
+  and the 18:30 kick-off is exactly when *who has somebody left* is the whole
+  question, and the old gate answered it with silence.
 - **The squads are held, not polled.** Kickbase locks a lineup at the first
   kick-off, so `lo` cannot change while the matchday runs. Five minutes, the
   same as [`useManagerSquad`](../../src/api/hooks/useDuelRosters.ts) — and the
@@ -153,14 +182,18 @@ that acceptable:
   squads in cache already.
 
 A player counts when he is **fielded** (`lo !== undefined`, tested against
-`undefined` because `0` is the goalkeeper) and his club is in a running
-fixture. Bench players are in the stadium too but cannot move the duel. Which
-fixtures are running comes from the matchday list the picker already loaded,
-via `fixtureState()` against the clock — so a match kicking off starts counting
-at the next of the page's once-a-minute renders, with no extra request.
+`undefined` because `0` is the goalkeeper) and his club has a fixture on this
+matchday — running for the first number, not yet kicked off for the second.
+Bench players are in the stadium too but cannot move the duel, and a fielded
+player whose club has no fixture at all (a bye, a rescheduled game) counts in
+neither: he is not playing and he is not going to. Which fixtures are where
+comes from the matchday list the picker already loaded, via `fixtureState()`
+against the clock — so a match kicking off moves a player from one column to
+the other at the next of the page's once-a-minute renders, with no extra
+request.
 
 A manager whose squad has not arrived yet is **absent from the map**, not zero,
-so the card shows nothing rather than briefly claiming he has nobody playing.
+so the card shows nothing rather than briefly claiming he has nobody left.
 
 The "Ohne Gegner" managers do not get the line — they have no duel for the
 number to qualify.
@@ -375,9 +408,9 @@ One request builds **both views**:
 [`useDuels(leagueId, day, { isLive })`](../../src/api/hooks/useDuels.ts) →
 `/v4/leagues/{leagueId}/ranking?dayNumber={day}`. The only thing on top of it
 is the per-manager squad fan-out behind
-[`n im Einsatz`](#players-on-the-pitch), which stays asleep unless a match is
-being played — and which the Rangliste asks for **nobody**, since the line it
-feeds is on the duel card.
+[the player counts](#players-on-the-pitch-and-players-still-to-come), which
+stays asleep unless the matchday is being played — and which the Rangliste asks
+for **nobody**, since the line it feeds is on the duel card.
 
 ### One response, two readings
 

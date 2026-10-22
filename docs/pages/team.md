@@ -157,6 +157,11 @@ result where a phone runs out of width.
 A letter **and** a colour, never colour alone, with the score underneath so the
 strip is not a row of verdicts with no evidence.
 
+The [league table](season.md#the-second-line-form-and-the-next-opponent) draws
+the same five under every club name — same letters, same window, same
+direction, shrunk to 10px with a fade over them and no scorelines. This card is
+the one that has room for the evidence and the links.
+
 ### Nächste Spiele — the fixture ticker
 
 The card a manager actually came for. "Heidenheim (H)" and "Bayern (A)" are the

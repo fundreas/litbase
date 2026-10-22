@@ -17,6 +17,7 @@ import {
 import { MATCHDAY_STATE_POLL_MS } from '@/api/polling'
 import { qk } from '@/api/queryKeys'
 import type { FixtureItem, MatchdaysResponse } from '@/api/types'
+import { FORM_LENGTH } from '@/components/ui/formDepth'
 import { simulateMatchdays } from '@/dev/simulation'
 import { nowMs } from '@/lib/clock'
 
@@ -310,6 +311,89 @@ function selectSeasonRecords(data: MatchdaysResponse): Map<string, TeamRecord> {
     records.set(teamId, teamRecord(fixtures))
   }
   return records
+}
+
+/**
+ * **Every club's last few results**, keyed by club id — the sixth reading of
+ * the one season payload.
+ *
+ * What the [league table](../../pages/SeasonPage.tsx) draws as a
+ * [form strip](../../components/team/ClubFormStrip.tsx) under each club name,
+ * and the compact cousin of the [club page](../../components/team/TeamOverviewTab.tsx)'s
+ * form card — same window, same notation, one of them per row instead of one
+ * per page.
+ *
+ * **Newest first and cut to {@link FORM_LENGTH}** here rather than in the
+ * component, so the strip cannot be handed a sixth mark the fade has no step
+ * for. Only *finished* fixtures: a 1:0 in the 30th minute is not a win, which
+ * is {@link teamResult}'s rule and the reason it is asked rather than the
+ * goals being compared here.
+ *
+ * A club with nothing played yet is **absent** rather than an empty array —
+ * read it through `?? []`, as with every other map in this file.
+ *
+ * One pass over the season, memoised by `select` on a payload that moves once
+ * a week; the same cache entry the other five readings use, so the table pays
+ * nothing for it.
+ */
+function selectSeasonForm(
+  data: MatchdaysResponse,
+): Map<string, TeamSeasonFixture[]> {
+  const form = new Map<string, TeamSeasonFixture[]>()
+
+  const add = (teamId: string, fixture: TeamSeasonFixture) => {
+    if (!fixture.isFinished) return
+    const existing = form.get(teamId)
+    if (existing === undefined) form.set(teamId, [fixture])
+    else existing.push(fixture)
+  }
+
+  for (const matchday of data.it ?? []) {
+    for (const fixture of matchday.it ?? []) {
+      const isFinished = fixture.st === FIXTURE_FINISHED
+
+      // Both sides, each from its own perspective — the inversion
+      // `selectSeasonRecords` does, for the same reason.
+      add(fixture.t1, {
+        day: fixture.day,
+        matchId: fixture.mi,
+        kickoff: fixture.dt,
+        isHome: true,
+        opponentId: fixture.t2,
+        opponentSymbol: fixture.t2sy ?? fixture.t2,
+        opponentImage: fixture.t2im,
+        isFinished,
+        goalsFor: fixture.t1g,
+        goalsAgainst: fixture.t2g,
+      })
+      add(fixture.t2, {
+        day: fixture.day,
+        matchId: fixture.mi,
+        kickoff: fixture.dt,
+        isHome: false,
+        opponentId: fixture.t1,
+        opponentSymbol: fixture.t1sy ?? fixture.t1,
+        opponentImage: fixture.t1im,
+        isFinished,
+        goalsFor: fixture.t2g,
+        goalsAgainst: fixture.t1g,
+      })
+    }
+  }
+
+  /* The payload is matchday-ascending, so each club's list is oldest first:
+     reversing the tail is what puts the most recent result at the head. */
+  for (const [teamId, fixtures] of form) {
+    form.set(
+      teamId,
+      fixtures
+        .sort((a, b) => a.day - b.day)
+        .slice(-FORM_LENGTH)
+        .reverse(),
+    )
+  }
+
+  return form
 }
 
 /**
@@ -640,6 +724,18 @@ export function useSeasonRecords(
   competitionId: string | undefined,
 ): UseQueryResult<Map<string, TeamRecord>> {
   return useMatchdaysQuery(competitionId, selectSeasonRecords)
+}
+
+/**
+ * **Every club's last few results**, keyed by club id, newest first.
+ *
+ * See {@link selectSeasonForm}. Another reading of the same cache entry, so
+ * the league table's eighteen form strips cost no request of their own.
+ */
+export function useSeasonForm(
+  competitionId: string | undefined,
+): UseQueryResult<Map<string, TeamSeasonFixture[]>> {
+  return useMatchdaysQuery(competitionId, selectSeasonForm)
 }
 
 /**

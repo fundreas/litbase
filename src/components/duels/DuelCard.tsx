@@ -1,6 +1,7 @@
 import { ChevronRight, CircleCheck, Swords } from 'lucide-react'
 import { Link } from 'react-router'
 
+import type { MatchdayPlayerCount } from '@/api/hooks/useMatchdayPlayerCounts'
 import { duelLeader, type Duel, type DuelSide } from '@/api/models'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { cn } from '@/lib/cn'
@@ -19,8 +20,9 @@ import { placement, points } from '@/lib/format'
  * manager's standing before that, when every score is still `0` and printing
  * "0 Pkt" ten times would say nothing.
  *
- * While a match is being played a third line appears under the score, saying
- * how many of that manager's players are on the pitch — see {@link Side}.
+ * While the matchday is being played a third line appears under the score,
+ * saying how many of that manager's players are on the pitch and how many have
+ * yet to kick off — see {@link Side}.
  */
 export function DuelCard({
   duel,
@@ -28,7 +30,7 @@ export function DuelCard({
   hasStarted,
   isFinished,
   viewerId,
-  activePlayers,
+  playerCounts,
 }: {
   duel: Duel
   /** Detail route for this duel, matchday included. */
@@ -37,10 +39,11 @@ export function DuelCard({
   isFinished: boolean
   viewerId?: string
   /**
-   * Fielded players currently on the pitch, per manager id. Empty unless a
-   * match is running; a manager whose squad has not loaded is absent from it.
+   * Fielded players on the pitch and still to kick off, per manager id. Empty
+   * unless the matchday is live; a manager whose squad has not loaded is
+   * absent from it.
    */
-  activePlayers?: Map<string, number>
+  playerCounts?: Map<string, MatchdayPlayerCount>
 }) {
   // Before kick-off both sides are level at zero, so there is no leader to
   // mark — only a started matchday can have one.
@@ -67,7 +70,7 @@ export function DuelCard({
           isFinished={isFinished}
           isLeader={leader?.id === duel.sides[0].id}
           isViewer={duel.sides[0].id === viewerId}
-          activePlayers={activePlayers?.get(duel.sides[0].id)}
+          count={playerCounts?.get(duel.sides[0].id)}
         />
 
         <Swords
@@ -86,7 +89,7 @@ export function DuelCard({
           isFinished={isFinished}
           isLeader={leader?.id === duel.sides[1].id}
           isViewer={duel.sides[1].id === viewerId}
-          activePlayers={activePlayers?.get(duel.sides[1].id)}
+          count={playerCounts?.get(duel.sides[1].id)}
         />
 
         <ChevronRight size={16} className="-mr-1 shrink-0 text-faint" />
@@ -98,15 +101,17 @@ export function DuelCard({
 /**
  * One manager's half of the card.
  *
- * **`n im Einsatz` is the third line**, and only ever appears while a match is
- * being played and this manager has somebody in it. It answers the question a
- * live duel list raises and the score alone cannot: 40 points behind with
- * eight players still on the pitch is not the same position as 40 behind with
- * none. Managers with nobody playing get nothing rather than a `0` — the line
- * is news, and a row of zeroes is noise.
+ * **The player count is the third line**, and only ever appears while the
+ * matchday is being played and this manager has somebody left in it. It
+ * answers the question a live duel list raises and the score alone cannot: 40
+ * points behind with eight players on the pitch is not the same position as 40
+ * behind with none, and 40 behind with four clubs still to kick off is a third
+ * thing again. Managers with nothing of either get nothing rather than a pair
+ * of zeroes — the line is news, and a row of noughts is noise.
  *
  * It sits *under* the points rather than beside them: at 360px a card leaves
- * roughly 110px per side, and "978 Pkt · 8 im Einsatz" does not fit in it.
+ * roughly 86px per side after the 44px avatar, and "978 Pkt · 8 im Einsatz"
+ * does not fit in it. See {@link PlayerCountLine} for what does.
  */
 function Side({
   side,
@@ -115,7 +120,7 @@ function Side({
   isFinished,
   isLeader,
   isViewer,
-  activePlayers,
+  count,
 }: {
   side: DuelSide
   align: 'left' | 'right'
@@ -123,8 +128,8 @@ function Side({
   isFinished: boolean
   isLeader: boolean
   isViewer: boolean
-  /** On the pitch right now. Absent while unknown, `0` when nobody is. */
-  activePlayers?: number
+  /** Playing and still to come. Absent while unknown or outside a live day. */
+  count?: MatchdayPlayerCount
 }) {
   const isRight = align === 'right'
 
@@ -148,27 +153,90 @@ function Side({
           isFinished={isFinished}
           isLeader={isLeader}
         />
-        {activePlayers !== undefined && activePlayers > 0 && (
-          <p
-            className={cn(
-              'flex items-center gap-1 text-[0.6875rem] text-accent',
-              isRight && 'flex-row-reverse',
-            )}
-          >
-            <span
-              aria-hidden="true"
-              className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent"
-            />
-            <span aria-hidden="true" className="nums truncate">
-              {activePlayers} im Einsatz
-            </span>
-            <span className="sr-only">
-              {activePlayers} Spieler in laufenden Spielen
-            </span>
-          </p>
-        )}
+        <PlayerCountLine count={count} isRight={isRight} />
       </div>
     </div>
+  )
+}
+
+/**
+ * **`● 3 · 4 offen`** — what this manager still has in a matchday being played.
+ *
+ * Two numbers in about 86px, which is the whole design problem. The pulsing
+ * accent dot is what says *playing*, so the count beside it needs no word; the
+ * open count keeps one, because nothing else on the card would say what it is.
+ * The words come back when a number is alone on the line and can afford them:
+ *
+ * | What is true | The line |
+ * | ------------ | -------- |
+ * | Some playing, some to come | `● 3 · 4 offen` |
+ * | Some playing, nothing left | `● 3 im Einsatz` |
+ * | Nothing playing, some to come | `4 offen` |
+ * | Neither | nothing at all |
+ *
+ * **Finished players are not counted.** They are already in the score above,
+ * and a third number for them would be the one figure on the card that says
+ * nothing the figure above it does not.
+ *
+ * The dot **pulses only while somebody is actually on a pitch**, which is the
+ * half of this that is genuinely live; between the Saturday blocks the line is
+ * a quiet `4 offen`. Colour carries nothing on its own — the accent marks the
+ * playing count and the muted grey the open one, and the sr-only sentence
+ * underneath spells both out, because two numbers and a dot are not a sentence.
+ *
+ * Mirrored with the rest of the half: on the right-hand side the row reverses,
+ * so the dot stays on the outside edge where the eye arrives.
+ */
+function PlayerCountLine({
+  count,
+  isRight,
+}: {
+  count: MatchdayPlayerCount | undefined
+  isRight: boolean
+}) {
+  if (count === undefined) return null
+  const { playing, open } = count
+  if (playing === 0 && open === 0) return null
+
+  const spoken = [
+    playing > 0 ? `${String(playing)} Spieler in laufenden Spielen` : undefined,
+    open > 0 ? `${String(open)} Spieler noch nicht angepfiffen` : undefined,
+  ]
+    .filter(Boolean)
+    .join(', ')
+
+  return (
+    <p
+      title={spoken}
+      className={cn(
+        'flex items-center gap-1 text-[0.6875rem]',
+        isRight && 'flex-row-reverse',
+      )}
+    >
+      {playing > 0 && (
+        <>
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent"
+          />
+          <span aria-hidden="true" className="nums shrink-0 text-accent">
+            {playing}
+            {open === 0 && ' im Einsatz'}
+          </span>
+        </>
+      )}
+      {playing > 0 && open > 0 && (
+        <span aria-hidden="true" className="shrink-0 text-faint">
+          ·
+        </span>
+      )}
+      {open > 0 && (
+        <span aria-hidden="true" className="nums truncate text-muted">
+          {open} offen
+        </span>
+      )}
+      <span className="sr-only">{spoken}</span>
+    </p>
   )
 }
 

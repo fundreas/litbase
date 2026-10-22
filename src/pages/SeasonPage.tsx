@@ -6,7 +6,12 @@ import {
   useCompetitionTable,
   useTeamDirectory,
 } from '@/api/hooks/useCompetition'
-import { useSeasonRecords, useSeasonSchedule } from '@/api/hooks/useMatchday'
+import {
+  useSeasonForm,
+  useSeasonRecords,
+  useSeasonSchedule,
+  useUpcomingMatchday,
+} from '@/api/hooks/useMatchday'
 import {
   usePlayerRanking,
   useRankingsIndex,
@@ -17,6 +22,8 @@ import {
   type ClubStanding,
   type PositionKey,
   type StandingsMode,
+  type TeamFixture,
+  type TeamSeasonFixture,
 } from '@/api/models'
 import { MatchdayPicker } from '@/components/MatchdayPicker'
 import { PageHeading } from '@/components/PageHeading'
@@ -24,6 +31,8 @@ import {
   PlayerRankingTab,
   type OwnershipFilter,
 } from '@/components/ranking/PlayerRankingTab'
+import { FixtureBadge } from '@/components/squad/FixtureBadge'
+import { ClubFormStrip } from '@/components/team/ClubFormStrip'
 import { Avatar } from '@/components/ui/Avatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
 import { Card } from '@/components/ui/Card'
@@ -119,6 +128,13 @@ export function SeasonPage() {
   // print `5:1` instead of `–:–` is the wrong trade. Its error is ignored for
   // the same reason — see `goalsFor` on `ClubStanding`.
   const records = useSeasonRecords(competitionId)
+  /* Two more readings of that very same cache entry, for the second line of
+     every row: what each club has just done, and who it plays next. Neither
+     costs a request, and neither gates the page — a table whose form strips
+     and fixture badges land a beat after the placements is a table, not a
+     half-drawn one. */
+  const form = useSeasonForm(competitionId)
+  const upcoming = useUpcomingMatchday(competitionId)
 
   const standings = useMemo(
     () => clubStandings(table.data, records.data, mode),
@@ -382,7 +398,14 @@ export function SeasonPage() {
             <ul className="divide-y divide-line">
               {standings.map((club) => (
                 <li key={club.teamId}>
-                  <ClubRow club={club} mode={mode} leagueId={leagueId} />
+                  <ClubRow
+                    club={club}
+                    mode={mode}
+                    leagueId={leagueId}
+                    form={form.data?.get(club.teamId) ?? []}
+                    nextFixture={upcoming?.fixtureByTeamId.get(club.teamId)}
+                    nextDay={upcoming?.day}
+                  />
                 </li>
               ))}
             </ul>
@@ -396,6 +419,16 @@ export function SeasonPage() {
 }
 
 /* -------------------------------------------------------------------------- */
+
+/**
+ * The next opponent's crest on a table row, in px.
+ *
+ * Small for a [fixture badge](../components/squad/FixtureBadge.tsx) — the
+ * squad's strip draws 24 and its panel 38 — because here it rides on a 10px
+ * line under a club name rather than in a column of its own. Its home/away
+ * chip clamps at 10px, which is most of what sets the floor.
+ */
+const NEXT_FIXTURE_CREST = 20
 
 const MODE_OPTIONS = [
   // A trophy for the competition anyone means by "the table", a summation sign
@@ -481,10 +514,22 @@ function ClubRow({
   club,
   mode,
   leagueId,
+  form,
+  nextFixture,
+  nextDay,
 }: {
   club: ClubStanding
   mode: StandingsMode
   leagueId: string
+  /** The last five results, newest first — see `useSeasonForm`. */
+  form: TeamSeasonFixture[]
+  /**
+   * The club's fixture on the **next** matchday, or `undefined` on a bye and
+   * past the last matchday of the season.
+   */
+  nextFixture: TeamFixture | undefined
+  /** Which matchday that is, for the badge's label. */
+  nextDay: number | undefined
 }) {
   return (
     <Link
@@ -516,8 +561,44 @@ function ClubRow({
         className="bg-transparent"
       />
 
-      <span className="truncate text-sm font-semibold text-ink">
-        {club.teamName}
+      {/* **Name over its own second line**, which is where both of the row's
+          new facts went. Neither would fit as a column: the table already
+          spends two thirds of a phone's width on six fixed ones, and the name
+          cell is the only `1fr` there is — taking 60px out of it left
+          *Mönchengladbach* as four letters and an ellipsis.
+
+          The line reads *what they have just done, and who is next*: the form
+          strip, then the crest of the coming fixture. Past and future of the
+          same club, which is what a table position cannot say either way. */}
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-ink">
+          {club.teamName}
+        </span>
+        {(form.length > 0 || nextFixture !== undefined) && (
+          <span className="mt-0.5 flex items-center gap-1.5">
+            <ClubFormStrip form={form} />
+            {nextFixture !== undefined && (
+              <>
+                {/* Only as a separator between the two, and only when both
+                    are there — a lone dot in front of a crest would be a mark
+                    standing for nothing. */}
+                {form.length > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="text-[0.625rem] text-faint"
+                  >
+                    ·
+                  </span>
+                )}
+                <FixtureBadge
+                  fixture={nextFixture}
+                  size={NEXT_FIXTURE_CREST}
+                  day={nextDay}
+                />
+              </>
+            )}
+          </span>
+        )}
       </span>
 
       <span className="nums text-right text-xs text-muted">

@@ -8,15 +8,17 @@ import {
   type SeasonMatchday,
 } from '@/api/models'
 import type { RankingResponse } from '@/api/types'
+import { FORM_LENGTH } from '@/components/ui/formDepth'
 
 /**
- * How many matchdays back the form strip looks.
+ * How many matchdays back the form strip looks — the strip's own length, so the
+ * fade cannot run out of steps.
  *
- * Five is the length a football table's form guide has settled on, and it is
- * about as many marks as fit beside a name on a phone. It is also the cost:
- * one request per matchday, so the number is the bill.
+ * Five is what a football table's form guide has settled on, and about as many
+ * marks as fit beside a name on a phone. Here it is also the bill: one request
+ * per matchday.
  */
-export const DUEL_FORM_LENGTH = 5
+export const DUEL_FORM_LENGTH = FORM_LENGTH
 
 /** One mark on the strip. */
 export interface DuelFormEntry {

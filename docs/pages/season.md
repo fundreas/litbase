@@ -87,7 +87,9 @@ competition share one cached table, which is correct.
 
 ## Where each column comes from
 
-Two queries, and the second one is free — see below.
+Two queries, and the second one is free — see below. It is read three times
+over: once for the goals column and twice for
+[the line under each club name](#the-second-line-form-and-the-next-opponent).
 
 [`useCompetitionTable(competitionId)`](../../src/api/hooks/useCompetition.ts) →
 `/v4/competitions/{competitionId}/table`, mapped to `TableRow[]`:
@@ -107,7 +109,10 @@ Two queries, and the second one is free — see below.
 
 [`useSeasonRecords(competitionId)`](../../src/api/hooks/useMatchday.ts) →
 `/v4/competitions/{competitionId}/matchdays`, for the one column the table
-cannot serve.
+cannot serve — joined by
+[`useSeasonForm`](../../src/api/hooks/useMatchday.ts) and
+[`useUpcomingMatchday`](../../src/api/hooks/useMatchday.ts) over the very same
+cache entry, for the second line of every row.
 
 ### The goals column is derived, and why it has to be
 
@@ -136,14 +141,15 @@ the authority.
 
 `/matchdays` is the whole season in one response, cached for an hour, and
 [Matchday](matchday.md), [Match detail](match-detail.md), [Squad](squad.md),
-[Market](market.md) and the [club page](team.md) all already read it. This is
-the fifth `select` over that one cache entry, so in any session that has opened
-another page it costs no request at all.
+[Market](market.md) and the [club page](team.md) all already read it. The
+records, the [form strips](#the-second-line-form-and-the-next-opponent) and the
+next opponent are three more `select`s over that one cache entry, so in any
+session that has opened another page they cost no request at all.
 
-It is also **not gated on**: the page renders as soon as the table arrives, and
-the goals column shows `–:–` until the fixture list does. A complete league
-table bar one column beats a spinner, and the query's error is ignored for the
-same reason.
+They are also **not gated on**: the page renders as soon as the table arrives,
+and the goals column shows `–:–` until the fixture list does — a form strip and
+a fixture badge simply appear a beat later. A complete league table bar one
+column beats a spinner, and the query's error is ignored for the same reason.
 
 `–:–`, never `0:0` — a goalless draw is a scoreline, and a column that cannot
 tell "not loaded" from "nobody scored" is worse than one that admits it.
@@ -216,6 +222,59 @@ content rather than a decorative header row.
 
 **The whole row is the link**, not just the name: the row is what a reader aims
 at, and on a phone a tap target the width of a club name is a target you miss.
+
+### The second line: form, and the next opponent
+
+Under each club's name, in both modes:
+
+```
+  #  ⬛  Klub                   Sp   Tore   Pkt
+ ─────────────────────────────────────────────
+  1  🔴  Bayern München          7   21:6    19
+         S S U S N · ⬛🏠
+         ↑       ↑    ↑
+      last week  five  next opponent, 20. Spieltag
+      opacity 1  0.26
+```
+
+**Form: the last five results, newest first**, as S / U / N in the app's own
+three colours — the compact cousin of the club page's
+[form card](team.md#form), with the same window, the same letters and the same
+direction, shrunk from 32px discs with scorelines under them to something that
+fits in a table row. A table position six matchdays old says nothing about who
+is climbing, which is the question a reader opens a table with; until this
+existed the answer was eighteen visits to eighteen club pages.
+
+It shares its fade with the standings'
+[duel form strip](ranking.md#the-form-strip) —
+[`FORM_DEPTH`](../../src/components/ui/formDepth.ts), one table for both, so a
+reader who learns the fade on one does not meet a second version of it on the
+other. The letters differ because the subjects do: a club's results are S/U/N
+in every printed Bundesliga table, while a manager's duel is won or lost
+against one named opponent and draws the ✓/–/✗ those screens already use.
+
+**Then the next opponent**, as the same wordless
+[fixture badge](squad.md#the-opponent-is-the-next-one-not-the-current-matchdays)
+every player row in the app ends with — the crest with a house or an aeroplane
+on it, at 20px, carrying the matchday number in its label since this page names
+no matchday of its own. Absent on a bye and past the last matchday of the
+season.
+
+**Why a second line and not two more columns.** The table already spends two
+thirds of a phone's width on six fixed columns, and the club name is the only
+`minmax(0,1fr)` there is. A 40px form column plus a 24px fixture column plus
+their gaps take 80px out of it — on a 360px screen that is `Mönchengladbach`
+cut to four letters and an ellipsis. The second line has the width to spare and
+costs 14px of row height, which a list that already scrolls can afford.
+
+The two sit together because they are the same subject from both sides: what
+this club has just done, and who it plays next. A middot separates them, and
+only when both are there — a lone dot in front of a crest would be a mark
+standing for nothing.
+
+Neither is drawn before there is anything to draw: a club with no match played
+gets no strip, and the whole line is absent before the season's first whistle
+rather than appearing as an empty row.
 
 ## Rangliste
 

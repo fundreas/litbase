@@ -1,22 +1,7 @@
 import type { DuelFormEntry } from '@/api/hooks/useDuelForm'
 import { DUEL_RESULT } from '@/components/ranking/duelResult'
+import { FORM_DEPTH } from '@/components/ui/formDepth'
 import { cn } from '@/lib/cn'
-
-/**
- * How far back each mark is, as opacity.
- *
- * Indexed by place in the strip, newest first. The last duel is at full
- * strength because it is the one that still means something; the fifth is at a
- * quarter because it is a month ago and the row is making a point about *now*.
- * The curve is steep early and flat late — the difference between last week and
- * the week before matters more than the difference between four weeks ago and
- * five.
- *
- * The same device the Kader row's
- * [fixture track](../squad/FixtureTrack.tsx) uses for the opposite direction of
- * travel: there the future recedes to the right, here the past does.
- */
-const DEPTH = [1, 0.74, 0.54, 0.38, 0.26]
 
 /** How big each mark is drawn, in px. */
 const MARK = 12
@@ -87,7 +72,7 @@ export function DuelFormStrip({
             key={entry.day}
             size={MARK}
             aria-hidden="true"
-            style={{ opacity: DEPTH[index] }}
+            style={{ opacity: FORM_DEPTH[index] }}
             className={cn('shrink-0', outcome.className)}
           />
         )

@@ -2,7 +2,7 @@ import { ListOrdered, Swords } from 'lucide-react'
 import { useMemo } from 'react'
 import { Navigate, useLocation, useSearchParams } from 'react-router'
 
-import { useActivePlayerCounts } from '@/api/hooks/useActivePlayerCounts'
+import { useMatchdayPlayerCounts } from '@/api/hooks/useMatchdayPlayerCounts'
 import { useDuels, useMatchdayStandings } from '@/api/hooks/useDuels'
 import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import { matchdayState, type Duel } from '@/api/models'
@@ -162,13 +162,14 @@ export function DuelsPage() {
   }, [duels.data, user])
 
   /**
-   * How many players each manager has on the pitch **right now**.
+   * How many players each manager has **on the pitch**, and how many have
+   * **not kicked off**.
    *
-   * Asked for every manager on the page at once, and only while a match is
-   * actually running — see
-   * [`useActivePlayerCounts`](../api/hooks/useActivePlayerCounts.ts), which is
-   * where the cost of that is reasoned about. `ordered` is memoised, so the id
-   * list is stable between the once-a-minute polls.
+   * Asked for every manager on the page at once, and only while the matchday
+   * is being played — see
+   * [`useMatchdayPlayerCounts`](../api/hooks/useMatchdayPlayerCounts.ts),
+   * which is where the cost of that is reasoned about. `ordered` is memoised,
+   * so the id list is stable between the once-a-minute polls.
    *
    * **The Rangliste asks for nobody.** The line it would feed is on the duel
    * card, so a fan-out of one request per manager while the other tab is open
@@ -181,11 +182,12 @@ export function DuelsPage() {
         : [],
     [ordered, view],
   )
-  const activePlayers = useActivePlayerCounts(
+  const playerCounts = useMatchdayPlayerCounts(
     leagueId,
     competitionId,
     activeDay,
     managerIds,
+    isLive,
   )
 
   if (schedule.isPending || duels.isPending) {
@@ -323,7 +325,7 @@ export function DuelsPage() {
                   hasStarted={hasStarted}
                   isFinished={state === 'finished'}
                   viewerId={user?.id}
-                  activePlayers={activePlayers}
+                  playerCounts={playerCounts}
                 />
               ))}
             </ul>
