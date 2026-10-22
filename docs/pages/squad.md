@@ -9,7 +9,7 @@ switched by a [bottom tab bar](#the-bottom-bar):
 
 | Route | View | Content |
 | ----- | ---- | ------- |
-| `/squad` | **Kader** | The full squad, as a grouped list or a grid (below) |
+| `/squad` | **Kader** | The full squad, as a grouped list (below) |
 | `/squad/lineup` | **Aufstellung** | The interactive lineup on a pitch ([see below](#lineup-tab)) |
 | `/squad/live` | **Live** | The running matchday, scoring as it happens ([see below](#live-tab)) — **only while one is being played** |
 
@@ -246,9 +246,9 @@ error — so an empty body at least reaches that far. Anything more precise cost
 a real player. If Kickbase turns out to want a price in there, this is the first
 place to look.
 
-Selection is an accent **border and ring**, no fill and no checkbox: the row
-and the tile are already dense, tinting the whole surface would fight
-everything on them, and a checkbox would add a second target to a card that is
+Selection is a tinted ground and an accent edge down the left, no fill and no
+checkbox: the row is already dense, tinting the whole surface would fight
+everything on it, and a checkbox would add a second target to a row that is
 itself the target.
 
 State is one `ReadonlySet<string> | null` — `null` is "off" — so the mode and
@@ -256,39 +256,37 @@ the selection cannot disagree, and leaving drops the selection by
 construction. Switching to the lineup view clears it: that view has no header
 to show the total in.
 
-## Kader — two layouts
+## Kader — one grouped list
 
-A **list** or a **grid**, chosen by a single icon-only toggle above them, with
-the [what-if scenario](#was-wäre-wenn--the-sale-scenario)'s flask beside it.
+The squad as rows, grouped by position, with the
+[what-if scenario](#was-wäre-wenn--the-sale-scenario)'s flask and the two
+reading switches above them.
 
 ```
   Mannschaft                    [51,0 Mio. €] [i]
   20 Spieler · 194,4 Mio. € Gesamtwert
 
-  [⚗ Szenario]                       [≡] [▦]
-  TW · 2                     ┌─────┬─────┬─────┐
-  ┌────────────────────────┐ │ ✚[] │  [] │  []★│
-  │▮[img] Nübel  10,5 Mio.€│ │ img │ img │ img │
-  │       ★        +2,2 Mio│ │Nübel│Atu. │Bau. │
-  └────────────────────────┘ └─────┴─────┴─────┘
+  [⚗ Szenario]              [⏱ 24 Std.] [📅 Werte]
+  TW · 2
+  ┌──────────────────────────────────┐
+  │▮[img] Nübel          10,5 Mio. € │▣▫▫│
+  │       ★  ◆12            +2,2 Mio │🏠 │
+  └──────────────────────────────────┘
 ```
 
-The choice is remembered in `localStorage` through the app's safe wrapper, so
-it survives a reload and silently falls back to the list where storage is
-blocked. It is deliberately **not** in the URL: a layout is a preference, not a
-place, and a shared link should open in the reader's own.
+**There was a grid, and it is gone.** A second layout put every player's
+portrait on a third of a screen and took away the three things the row is read
+for — the lineup rail, the market value and its overnight move — leaving a wall
+of faces that answered nothing a manager opens this page to ask. One layout
+means the toolbar's remaining controls are never about something that is not on
+screen, and the stored `litbase.squad.view` preference is gone with it.
 
-The toggle is **one button carrying both symbols**. Two buttons said the same
-thing with twice the target area and an `aria-pressed` state each, for a choice
-with two outcomes and no cost to getting wrong. Keeping both glyphs on the one
-button is what makes it legible: a lone icon has to answer "is this where I am
-or where I would go?", which a single glyph cannot. The lit one is the current
-view, the faint one is a tap away.
-
-It lives in [`PairToggle`](../../src/components/ui/PairToggle.tsx), shared with
-the [match ranking](match-detail.md#ranking--who-actually-scored)'s
-combined/per-club switch — one notation for "two views of the same thing",
-learned once.
+What is left on that line are two switches over **what the rows say**, not over
+how they are arranged: [24 h or seit Kauf](#24-h-oder-seit-kauf) and
+[Werte or Spielplan](#werte-oder-spielplan). The line is drawn only when it
+holds one of them — on the [scenario](whatif.md)'s own Kader, where every row is
+already priced for a chosen day and there is no schedule to switch to, it has
+nothing left to carry and the page gets the height back.
 
 ### Was wäre wenn — the sale scenario
 
@@ -311,45 +309,22 @@ calculator bar are already the arithmetic on this page, and a third one beside
 them would say "one of these does sums" and nothing more. This one is an
 experiment — nothing inside it is real.
 
-It is **named**, unlike the pair toggle across the row. A destination has to be
-guessed at from a lone glyph; the toggle changes the page you are already on
-and shows you both of its states, so it can afford to stay mute. Everything
-else about the two is the same — height, border, rounding — so they read as one
-toolbar held apart at its two ends: where the squad can be *taken* on the left,
-how it is *laid out* on the right.
+It is **named**, unlike the two switches across the row. A destination has to
+be guessed at from a lone glyph; each switch names the state it is in and
+changes the page you are already on, so neither needs a word for where it goes.
+Everything else about the three is the same — height, border, rounding — so
+they read as one toolbar held apart at its two ends: where the squad can be
+*taken* on the left, what the rows are *saying* on the right.
 
 The link pushes itself left with `mr-auto` rather than the row being
-`justify-between`. The toggle's place is the right edge and it has to keep it
-on the what-if page's own Kader tab, where there is no link beside it to be
-spread away from.
+`justify-between`. The switches' place is the right edge and they have to keep
+it on the what-if page's own Kader tab, where there is no link beside them to
+be spread away from.
 
 The flask is **hidden while the sale calculator is on**. In that mode a tap on
 a row already means "sell him"; a second, quieter door to a *hypothetical*
 version of the same word would be the same verb with two meanings on one
 screen.
-
-### Tiles
-
-Portrait, last name, position abbreviation, and the two marks that say whether
-you can count on the player this week — availability top-left, lineup
-probability top-right, as on the pitch portraits.
-
-The portrait is **square**, which is both shorter and better framed than the
-4:5 box it started as. The source images are 1100×800 **landscape** (checked
-across three players), so a portrait box has to scale them by height and throw
-the sides away: 4:5 discarded about 42% of the width, a square discards about
-27%. Shortening the tile therefore costs no crop — it buys some back, and saves
-roughly 30px a row on a phone.
-
-They are **inset rather than straddling the frame**: the pitch's
-`StartProbabilityCorner` hangs slightly outside its circle, which reads well on
-a portrait floating over grass but not here, because the tile clips its
-overflow to keep its rounded corners and was cutting the badge in half.
-
-No lineup rail and no money: the grid is for taking in a whole squad at once,
-and a third-of-a-screen tile cannot hold a market value, its change *and* a shirt
-rail without becoming a worse version of the row. Tapping opens the player; the
-list is where the lineup gets edited.
 
 ### A card per position, rows flush inside it
 
@@ -370,18 +345,7 @@ to its corners and is what lets a row bleed its portrait to its own edge. And a
 player marked for sale in the [calculator](#sale-calculator) is marked by a
 tinted ground plus a 2px accent edge down the left rather than by a ring around
 the card he no longer has; the edge is drawn transparent on every other row, so
-a marked row does not shift its contents against its neighbours. The **tiles**
-keep the ring, since a tile is still a card.
-
-### Grouping differs between the two
-
-The **list keeps its position headings**; the **grid is one flat run**. Once a
-tile names its own position, four headings across a three-column grid buy
-little and cost a lot — ragged part-rows, and twenty players turned into a page
-you scroll. The order is unchanged either way (keeper → defence → midfield →
-attack, most valuable first within each), so the grid reads as it always did
-with the headings simply gone. A row carries no position of its own and rows
-stack in one column, where a heading costs nothing.
+a marked row does not shift its contents against its neighbours.
 
 ## Grouping and ordering
 
@@ -409,7 +373,7 @@ duplicated here.
 | Market value | `marketValue` | Compact euros, tabular figures |
 | Value change | `marketValueChangeDay` (`tfhmvt`) **or** `profitLoss` (`mvgl`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when unknown, grey at zero. [Which of the two](#24-h-oder-seit-kauf) is the toolbar's choice |
 | Club | `useTeamDirectory` | The crest **watermarked behind the row**, 13 %, cropped and faded — the same badge the [market](market.md#two-crests-and-they-mean-different-things) draws, from [`ClubWatermark`](../../src/components/player/ClubWatermark.tsx). It costs the row no width, which is why a Kader row can carry the club at all |
-| Fixture panel | `useUpcomingMatchday` | Full-height **button** on the right, house/aeroplane + opponent crest — the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays) — opens the [expected-points sheet](#erwartete-punkte). Replaced, along with the money, by the next four crests in the [Spielplan reading](#werte-oder-spielplan) |
+| Fixture panel | `useUpcomingMatchdays` | Full-height **button** on the right carrying the [opponent track](#the-fixture-track--three-deep-five-on-a-hold): the next **three** opponents stacked back to front, each a crest with its house/aeroplane chip. The leading one is the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays). Tap opens the [expected-points sheet](#erwartete-punkte), **hold** reveals five. Replaced, along with the money, by the four-crest strip in the [Spielplan reading](#werte-oder-spielplan) |
 | Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The crest panel enters it; it does not display it |
 
 The lineup rail is **always rendered** and only tinted when the player is
@@ -449,24 +413,21 @@ sign, and both are drawn by [`ValueDelta`](../../src/components/squad/ValueMode.
 which is also what a rival's [Kader](manager-detail.md) uses — so a player
 reads the same wherever he is met.
 
-**Not a pair toggle.** The [list/grid control](#kader--two-layouts) beside it shows
-both its glyphs with the live one lit, which works because a layout's two
-states *look like* what they do. These two are both a signed amount of money in
-the same place: a clock and a coin side by side would say nothing about which
+**Not a [pair toggle](../../src/components/ui/PairToggle.tsx)**, the two-glyph
+control the app uses where a choice's two states *look like* what they do.
+These two are both a signed amount of money in the same place: a clock and a coin side by side would say nothing about which
 figure is in the rows, because neither glyph is the figure. So this one names
 its state — `⏱ 24 h` / `🪙 seit Kauf` — and a tap swaps the label and every row
 at once. It is the same shell as its two neighbours, so the three read as one
 toolbar.
 
-The choice is **remembered**, through the same safe-localStorage wrapper as the
-layout (`litbase.squad.valueMode`), and shared with the manager page: a reader
+The choice is **remembered**, through the app's safe-localStorage wrapper
+(`litbase.squad.valueMode`), and shared with the manager page: a reader
 who picked *seit Kauf* on his own Kader did not mean "only here". It is not in
 the URL — a preference, not a place.
 
-It is **only beside the list**. The tiles carry no money at all, so a control
-over which figure they would show would be a control over nothing. It is also
-gone from the [scenario](whatif.md#the-day-the-sales-happen-on)'s Kader
-whenever a sale day is picked: every row there is then showing a *forecast*
+It is **gone from the [scenario](whatif.md#the-day-the-sales-happen-on)'s
+Kader** whenever a sale day is picked: every row there is then showing a *forecast*
 price and its distance from the value standing now, and neither of this
 control's two answers is among them.
 
@@ -509,7 +470,7 @@ control on the toolbar says which:
 
 | Reading | The row's right end | The question |
 | ------- | ------------------- | ------------ |
-| **Werte** (default) | the market value, the [24 h / seit Kauf](#24-h-oder-seit-kauf) figure under it, and the crest panel with the **next** opponent | what is he worth, and is tonight the night to sell |
+| **Werte** (default) | the market value, the [24 h / seit Kauf](#24-h-oder-seit-kauf) figure under it, and the panel's [three-deep opponent track](#the-fixture-track--three-deep-five-on-a-hold) | what is he worth, and is tonight the night to sell |
 | **Spielplan** | the **next four opponents**, one crest per matchday, each with its matchday number under it | has this squad drawn a kind month |
 
 ```
@@ -527,32 +488,119 @@ neither legibly — the same arithmetic that makes
 the availability mark, the probability and the expected figure are on the row in
 either reading: those are about *this* player, and nothing about the switch is.
 
-**The fixture list cannot be assembled any other way.** A row has always named
-the next opponent, which answers *this weekend* and nothing beyond it; the
-question a manager actually has in midweek — *who is in for a kind run, who
-hits three top clubs in a row* — would otherwise mean twenty visits to twenty
-player pages. Four crests in a column, read **down** the list, answer it at a
-glance, which is why a club with a bye gets the badge's dash rather than the
-strip closing up: the four columns have to stay aligned across every row.
+**Four here, three on the panel, five under a hold.** The strip is the only one
+of the three readings of `useUpcomingMatchdays` with a whole row's width to
+spend, and it still stops at four: a fifth column costs about 28px and every
+one of them comes out of the name beside it. The page fetches **five** anyway —
+one cache entry, no extra request — because the
+[panel's hold](#the-fixture-track--three-deep-five-on-a-hold) reveals that many.
+
+**The strip is read down, not across.** *Who is in for a kind run, who hits
+three top clubs in a row* is a question about the whole squad, and four crests
+in a fixed column answer it at a glance — which is why a club with a bye gets
+the badge's dash rather than the strip closing up: the columns have to stay
+aligned across every row.
 
 **What goes while it is on.** The price, so the *24 h / seit Kauf* button has
-nothing left to switch and steps aside with it. And the crest panel at the end
-of the row, whose first crest the strip already carries — which takes the tap
+nothing left to switch and steps aside with it. And the fixture panel at the end
+of the row, whose first crests the strip already carries — which takes the tap
 that enters [an expected figure](#erwartete-punkte) with it. That guess is about
 the coming matchday, which is the other reading, and one tap on the toolbar is
 the way back to it.
 
 The choice is **remembered** through the same safe-localStorage wrapper as the
-layout and the value mode (`litbase.squad.reading`), and shared with
+value mode (`litbase.squad.reading`), and shared with
 [a rival's Kader](manager-detail.md) — *what has this squad got coming* is asked
-about a rival at least as often as about oneself. It is **beside the list only**,
-like the value mode: a tile carries neither prices nor crests.
+about a rival at least as often as about oneself.
 
 It is **absent where there is nothing to come**: past the last matchday of the
 season `useUpcomingMatchdays` returns nothing and the button is not drawn, and
 it is left off the [scenario](whatif.md)'s Kader altogether — that list is about
 what a squad fetches on a day the reader picked, and four opponents answer none
 of it.
+
+## The fixture track — three deep, five on a hold
+
+The panel at the end of a Kader row used to be **one crest**: the next
+opponent, with the house or aeroplane chip on it. It is now a **track of
+three**, each crest offset 7px to the right of the one in front and faded as it
+recedes.
+
+```
+          ┌──────┐
+  … 32,4M │▣▒░   │   ▣  next opponent, whole
+          │🏠    │   ▒  the one after, 50%
+          └──────┘   ░  and the one after that, 28%
+```
+
+A single crest answered *who on Saturday*. The track answers *and then what*,
+which between matchdays is the question the list is actually read for — and it
+answers it **without a reading of its own to switch into** and without taking a
+pixel from the row. The [Spielplan reading](#werte-oder-spielplan) is still
+there for reading a run **down** the whole squad; the track is for reading one
+player across.
+
+| | Drawn | Width |
+| --- | ----- | ----- |
+| Leading crest | 34px | `34` |
+| Two behind it | 34px, `left: 7` / `14`, opacity `0.5` / `0.28` | `+14` |
+| | | **48px** — exactly `w-14` minus its `px-1` |
+
+The 34px crest is four pixels under the fixture badge's own `lg`, and those
+four pixels are what buy the two shifts. Keeping the panel at `w-14` was worth
+them: every other column of the row is measured off it.
+
+The crests are stacked **back to front** — `z-index` descending — so the
+leading one keeps its venue chip unobscured while each crest behind it shows
+its own chip in the sliver sticking out to the right.
+
+### Hold it for five
+
+A press of [`LONG_PRESS_MS`](../../src/lib/useLongPress.ts) on the panel opens
+a layer over it with the **next five** opponents, drawn as the Spielplan
+reading's own crest-over-matchday-number columns — so what the hold reveals is
+a notation the reader has already learned somewhere else, not a new one.
+
+The gesture is the one the pitch's own portraits already use on this screen
+(see [`useLineupDrag`](../../src/components/squad/useLineupDrag.ts), which
+shares the duration), and it costs the row no pixels and no second target: a tap still
+opens the [expected-points sheet](#erwartete-punkte), and in the
+[sale calculator](#sale-calculator) a tap still marks the player — the hold
+works there too, because *which clubs has he still got to play* is exactly what
+is being weighed up while deciding to sell him.
+
+**Mechanics worth knowing:**
+
+- The layer is **portalled to `body` and `fixed`**, measured off the panel's
+  `getBoundingClientRect()`. The rows sit in a card with `overflow-hidden` —
+  that clip is what gives a position its rounded ends — so anything positioned
+  inside a row is cut off at its edge.
+- It is pinned by its **right** edge to the panel's, above where there is room
+  and below where there is not. The panel is the row's last column; a centred
+  layer would hang off a phone screen, and clamping it would leave it pointing
+  at nothing.
+- It **cannot close on the release**: the finger that opened it is still down.
+  The next `pointerdown` anywhere closes it, as do Escape, a scroll and a
+  resize — the layer is anchored to a box that scrolling moves.
+- The layer takes **no pointer events**, so the dismissing tap lands on
+  whatever is underneath it; the `click` that follows is therefore **swallowed
+  in the capture phase**, or a tap meant to put the tooltip away would open the
+  player it happened to land on.
+- Travel past 8px cancels the hold. The one thing a list of rows does
+  constantly is scroll, and a scroll begins as a press that stays down.
+- `contextmenu` is suppressed on the panel — on Android a long press raises the
+  browser's own menu over the layer, on iOS the image callout.
+
+**The gesture is a pointer's, so it is not the only place the answer lives.**
+The two crests behind the leading one are `aria-hidden` as pictures — two more
+"Auswärtsspiel gegen FCB" in the middle of a row is noise — and read instead as
+one sentence after it (*"Danach: 13. Spieltag auswärts gegen FCB, …"*) covering
+all five.
+
+**Where there is no track.** The [scenario](whatif.md)'s Kader is handed no
+schedule at all, so its panel is the single crest it always was, and the hold
+has nothing to open. Past the last matchday of the season the list runs short
+and the track simply draws fewer.
 
 ## The opponent is the next one, not the current matchday's
 
@@ -706,7 +754,6 @@ afterwards moves it.
 | ----- | --------- |
 | Squad row | [`ExpectedPointsBadge`](../../src/components/squad/ExpectedPointsBadge.tsx) beside the lineup-probability glyph, under the name — target glyph plus the figure. **Orange** while it is the model's, **accent green** once it is the reader's. The two belong together: *will he play* and *what will he bring* are the same question asked twice |
 | Pitch header | `⊙ 840 · 11/11` beside `11/11 aufgestellt`, the fielded players' figures summed. **Orange while every figure in it is the model's, accent green from the first guess entered over one** — a pure prediction must not wear the colour of the reader's own decisions. How many of them are his own is in the tooltip, not on the chip: a third figure in a pill that size is unreadable |
-| Grid tiles | Nothing — a tile shows no fixture either, so there is nothing to hang it on |
 | [Rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The badge inside the row's target, and a fourth tile totalling **his** fielded eleven |
 | [Club's roster](team.md#expected-points-a-club-at-a-time) | The badge inside the row's target. No total — a roster is not an eleven |
 | [What-if](whatif.md) | Badges and the total both, read-only: that list runs permanently in calculator mode, where a tap means "sell him in this scenario" |
@@ -1844,8 +1891,9 @@ The **penalty chip** appears when fewer than eleven are fielded, because that
 is the one way this sum and Kickbase's official total legitimately differ —
 every empty slot costs 100 points, and the standings subtract them.
 
-The two layouts are switched by the same **one-button, two-glyph** toggle the
-Kader view uses for list/grid, and the choice is remembered in `localStorage`
+The two layouts are switched by the app's **one-button, two-glyph**
+[pair toggle](../../src/components/ui/PairToggle.tsx), and the choice is
+remembered in `localStorage`
 (`litbase.squad.live.view`, default the pitch) through the app's safe wrapper.
 Not in the URL: a layout is a preference, not a place.
 

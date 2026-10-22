@@ -1,4 +1,4 @@
-import { FlaskConical, LayoutGrid, List, Shirt } from 'lucide-react'
+import { FlaskConical, Shirt } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
@@ -11,6 +11,8 @@ import {
 } from '@/api/models'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
+import { FixtureTrack, TRACK_LENGTH } from '@/components/squad/FixtureTrack'
+import { useFixtureHold } from '@/components/squad/useFixtureHold'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { CurrentMatchday } from '@/api/hooks/useMatchday'
@@ -29,32 +31,23 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ForecastChip } from '@/components/ui/ForecastChip'
-import { PairToggle } from '@/components/ui/PairToggle'
 import { cn } from '@/lib/cn'
 import type { ExpectedPointsEntry } from '@/lib/expectedPoints'
 import { money, moneyDelta } from '@/lib/format'
-import { readString, writeString } from '@/lib/storage'
 
 const POSITION_ORDER: PositionKey[] = ['gk', 'def', 'mid', 'fwd']
 
-/** How the squad is laid out. */
-type SquadView = 'list' | 'grid'
-
-const VIEW_STORAGE_KEY = 'litbase.squad.view'
-
 /**
- * How a player marked for sale is drawn **on a tile**.
+ * How many matchdays the Spielplan reading spreads across a row.
  *
- * Border and a ring, not a fill or a tick. The tile is already dense — a
- * portrait, marks, money — and tinting the whole surface would fight every one
- * of them; a checkbox would add a second target to a card that is itself the
- * target. An accent outline says "this one" and changes nothing else, which is
- * what a reversible, consequence-free selection deserves.
+ * The page fetches more than this — the fixture panel's hold reveals five
+ * — but the strip stops at four: a fifth column is about 28px, and every one
+ * of them comes out of the name beside it.
  */
-const SELECTED_CLASS = 'border-accent ring-1 ring-accent bg-accent/5'
+const FIXTURE_STRIP = 4
 
 /**
- * The same thing **on a row**, which has no card of its own to outline.
+ * How a player marked for sale is drawn **on a row**.
  *
  * Rows sit flush inside one card per position, so the mark is a tinted ground
  * and an accent edge down the left — the notation the
@@ -169,7 +162,6 @@ export function PlayerListTab({
 }) {
   // The player awaiting a removal confirmation, if any.
   const [pendingRemoval, setPendingRemoval] = useState<SquadMember | null>(null)
-  const [view, setView] = useSquadView()
   const [valueMode, setValueMode] = useValueMode()
   const [reading, setReading] = useSquadReading()
   /* No schedule, no choice: past the last matchday of the season there are no
@@ -177,6 +169,18 @@ export function PlayerListTab({
      would be offering an answer nobody can use. */
   const canShowFixtures = (nextMatchdays?.length ?? 0) > 0
   const showsFixtures = canShowFixtures && reading === 'fixtures'
+  /* The money's own switch has nothing to offer in the fixture reading — there
+     is no price on the row for it to put a second line under — and nothing to
+     offer a scenario either, where that line is already the distance from
+     today's value. */
+  const canSwitchValue = !showsFixtures && (saleValues?.size ?? 0) === 0
+  /* The row of controls is drawn only when it holds one. With the layout
+     toggle gone there is no longer a control that is always there, and an
+     empty flex row still costs the well's `gap-4` — which is exactly what the
+     [scenario](../../pages/WhatIfPage.tsx)'s own Kader would have paid, having
+     neither button nor link. */
+  const hasToolbar =
+    scenarioTo !== undefined || canSwitchValue || canShowFixtures
   const expected = useExpectedPointsView(matchday)
 
   const handleToggle = (player: SquadMember) => {
@@ -199,109 +203,83 @@ export function PlayerListTab({
   return (
     <div className="flex flex-col gap-4">
       {/* The list's own toolbar, read from the two ends: where the squad can
-          be *taken* on the left, how it is *laid out* on the right. The two
-          are different kinds of thing — one leaves the page, one rearranges
-          it — and a gap between them says so better than a gap-2 would.
+          be *taken* on the left, what the rows are *saying* on the right. The
+          two are different kinds of thing — one leaves the page, one changes
+          what is printed on it — and a gap between them says so better than a
+          gap-2 would.
 
-          The toggle keeps the right edge whether or not the link is there: it
-          is the row's `justify-end` that holds it, and the link pushes itself
-          to the other side with `mr-auto` rather than the row switching to
-          `justify-between`, which would drag a lone toggle left with it. */}
-      <div className="flex items-center justify-end gap-2">
-        {scenarioTo !== undefined && <ScenarioLink to={scenarioTo} />}
-        {/* Only beside the list. The tiles carry no money at all — see
-            [`PlayerTile`](#PlayerTile) — so a control over which figure they
-            would show would be a control over nothing.
-
-            And only while the rows are showing today's money. With a sale day
-            picked, the line under every price is that price's distance from
-            today, which is the only comparison a future value has — neither of
-            this button's two answers is in the rows for it to switch between. */}
-        {view === 'list' && !showsFixtures && (saleValues?.size ?? 0) === 0 && (
-          <ValueModeButton value={valueMode} onChange={setValueMode} />
-        )}
-        {/* **Money or the fixture list**, for the same reason the button to
-            its left exists and in the same shell: the row's right-hand end
-            has room for one of them, and which one depends on whether the
-            question is *sell him before the morning* or *has this squad drawn
-            a kind month*. In the fixture reading the rows carry no price at
-            all, so the delta button above has nothing left to switch and goes
-            with it. Beside the list only, like that one: a tile shows neither
-            figure. */}
-        {view === 'list' && canShowFixtures && (
-          <SquadReadingButton value={reading} onChange={setReading} />
-        )}
-        <PairToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
-      </div>
-
-      {/* The grid is **one flat run**, not four grouped ones. Position
-          headings buy little once each tile names its own position, and four
-          of them across a three-column grid leave ragged part-rows and turn
-          twenty players into a page you scroll. The order is still keeper →
-          defence → midfield → attack, most valuable first inside each, so the
-          squad reads the way it always did — the headings are simply gone.
-
-          The list keeps its groups: a row carries no position of its own, and
-          rows stack in one column where a heading costs nothing. */}
-      {view === 'grid' ? (
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {byPosition
-            .flatMap((group) => group.players)
-            .map((player) => (
-              <PlayerTile
-                key={player.id}
-                player={player}
-                startProbability={startProbabilities.get(player.id)}
-                statusReason={statusReasons.get(player.id)}
-                to={`/leagues/${leagueId}/players/${player.id}`}
-                isForSale={forSale?.has(player.id)}
-                onToggleForSale={onToggleForSale}
-              />
-            ))}
-        </ul>
-      ) : (
-        byPosition.map(({ position, players }) => (
-          /* **A card per position, rows flush inside it.** The heading stays
-             outside it, on the page, so each position is an independent block
-             with its own opened *and closed* edges rather than a section of
-             one endless list — the same shape the
-             [market](../../pages/MarketPage.tsx) groups its listings in.
-
-             `overflow-hidden` on the card, not the rows: the first and last
-             rows are clipped to its corners, which is what lets a row bleed
-             its portrait to its own edge and carry no rounding. */
-          <section key={position} className="flex flex-col gap-2">
-            <h2 className="px-1 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
-              {POSITION_LABEL[position]} · {players.length}
-            </h2>
-
-            <Card className="overflow-hidden">
-              <ul className="divide-y divide-line">
-                {players.map((player) => (
-                  <PlayerRow
-                    key={player.id}
-                    player={player}
-                    team={teams?.get(player.teamId)}
-                    isFielded={editor.isFielded(player.id)}
-                    fixture={fixtureByTeamId?.get(player.teamId)}
-                    startProbability={startProbabilities.get(player.id)}
-                    statusReason={statusReasons.get(player.id)}
-                    to={`/leagues/${leagueId}/players/${player.id}`}
-                    isForSale={forSale?.has(player.id)}
-                    onToggleForSale={onToggleForSale}
-                    onToggle={handleToggle}
-                    valueMode={valueMode}
-                    nextMatchdays={showsFixtures ? nextMatchdays : undefined}
-                    saleValue={saleValues?.get(player.id)}
-                    expectedPoints={expected.entry(player.id)}
-                    onEditExpected={onEditExpected}
-                  />
-                ))}
-              </ul>
-            </Card>
-          </section>
-        ))
+          The buttons keep the right edge whether or not the link is there: it
+          is the row's `justify-end` that holds them, and the link pushes
+          itself to the other side with `mr-auto` rather than the row switching
+          to `justify-between`, which would drag a lone button left with it. */}
+      {hasToolbar && (
+        <div className="flex items-center justify-end gap-2">
+          {scenarioTo !== undefined && <ScenarioLink to={scenarioTo} />}
+          {/* Only while the rows are showing today's money. With a sale day
+              picked, the line under every price is that price's distance from
+              today, which is the only comparison a future value has — neither
+              of this button's two answers is in the rows for it to switch
+              between. */}
+          {canSwitchValue && (
+            <ValueModeButton value={valueMode} onChange={setValueMode} />
+          )}
+          {/* **Money or the fixture list**, for the same reason the button to
+              its left exists and in the same shell: the row's right-hand end
+              has room for one of them, and which one depends on whether the
+              question is *sell him before the morning* or *has this squad drawn
+              a kind month*. In the fixture reading the rows carry no price at
+              all, so the delta button above has nothing left to switch and goes
+              with it. */}
+          {canShowFixtures && (
+            <SquadReadingButton value={reading} onChange={setReading} />
+          )}
+        </div>
       )}
+
+      {/* **One card per position, rows flush inside it** — a row carries no
+          position of its own, and rows stack in one column where a heading
+          costs nothing. */}
+      {byPosition.map(({ position, players }) => (
+        /* The heading stays outside the card, on the page, so each position
+           is an independent block with its own opened *and closed* edges
+           rather than a section of one endless list — the same shape the
+           [market](../../pages/MarketPage.tsx) groups its listings in.
+
+           `overflow-hidden` on the card, not the rows: the first and last
+           rows are clipped to its corners, which is what lets a row bleed
+           its portrait to its own edge and carry no rounding. */
+        <section key={position} className="flex flex-col gap-2">
+          <h2 className="px-1 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
+            {POSITION_LABEL[position]} · {players.length}
+          </h2>
+
+          <Card className="overflow-hidden">
+            <ul className="divide-y divide-line">
+              {players.map((player) => (
+                <PlayerRow
+                  key={player.id}
+                  player={player}
+                  team={teams?.get(player.teamId)}
+                  isFielded={editor.isFielded(player.id)}
+                  fixture={fixtureByTeamId?.get(player.teamId)}
+                  startProbability={startProbabilities.get(player.id)}
+                  statusReason={statusReasons.get(player.id)}
+                  to={`/leagues/${leagueId}/players/${player.id}`}
+                  isForSale={forSale?.has(player.id)}
+                  onToggleForSale={onToggleForSale}
+                  onToggle={handleToggle}
+                  valueMode={valueMode}
+                  nextMatchdays={nextMatchdays ?? []}
+                  showsFixtures={showsFixtures}
+                  saleValue={saleValues?.get(player.id)}
+                  expectedPoints={expected.entry(player.id)}
+                  onEditExpected={onEditExpected}
+                />
+              ))}
+            </ul>
+          </Card>
+        </section>
+      ))}
 
       <ConfirmDialog
         open={pendingRemoval !== null}
@@ -351,17 +329,17 @@ export function PlayerListTab({
  * them would say "one of these three does sums" and nothing more. This one is
  * an experiment — nothing inside it is real.
  *
- * **Named, unlike the toggle across the row.** *Szenario* is a destination,
- * and a lone glyph that takes you somewhere has to be guessed at; the pair
- * toggle changes the page you are already on and shows you both of its states,
- * so it can afford to stay mute. Otherwise it is the same control — same
- * height, same border, same rounding — so the two read as one toolbar rather
- * than as two unrelated things.
+ * **Named, unlike the buttons across the row.** *Szenario* is a destination,
+ * and a lone glyph that takes you somewhere has to be guessed at; the two
+ * switches beside it change what the page you are already on is printing, and
+ * each names the state it is in, so neither needs a word for where it goes.
+ * Otherwise it is the same control — same height, same border, same rounding —
+ * so the row reads as one toolbar rather than as unrelated things.
  *
  * It takes the **left** end of that row, by `mr-auto` rather than by the row
- * being `justify-between`: the toggle's place is the right edge, and it has to
- * keep it on the [what-if page](../../pages/WhatIfPage.tsx)'s own Kader tab,
- * where there is no link to push away from.
+ * being `justify-between`: the switches' place is the right edge, and they
+ * have to keep it on the [what-if page](../../pages/WhatIfPage.tsx)'s own
+ * Kader tab, where there is no link to push away from.
  */
 function ScenarioLink({ to }: { to: string }) {
   return (
@@ -381,146 +359,6 @@ function ScenarioLink({ to }: { to: string }) {
   )
 }
 
-/**
- * Which way the squad is laid out, remembered across visits.
- *
- * A view preference is not something anyone wants to re-pick every time they
- * open the page, and it is exactly the kind of value that may not be writable
- * — private mode, blocked storage — so it goes through the app's safe
- * localStorage wrapper and silently stays in memory when that fails.
- *
- * Not in the URL: it is a preference, not a place. A shared link should open
- * the reader's own layout, not the sender's.
- */
-function useSquadView(): [SquadView, (view: SquadView) => void] {
-  const [view, setViewState] = useState<SquadView>(
-    () => (readString(VIEW_STORAGE_KEY) as SquadView | null) ?? 'list',
-  )
-
-  const setView = (next: SquadView) => {
-    setViewState(next)
-    writeString(VIEW_STORAGE_KEY, next)
-  }
-
-  return [view, setView]
-}
-
-/** The two layouts, as the shared toggle draws them. */
-const VIEW_OPTIONS = [
-  { value: 'list', icon: List, label: 'Listenansicht' },
-  { value: 'grid', icon: LayoutGrid, label: 'Kachelansicht' },
-] as const satisfies readonly [
-  { value: SquadView; icon: typeof List; label: string },
-  { value: SquadView; icon: typeof List; label: string },
-]
-
-/**
- * A player as a tile: portrait, name, position, and the two marks that say
- * whether you can count on him this week.
- *
- * **No lineup control and no money.** The grid is for taking in a whole squad
- * at once — who is fit, who is likely to start — and a third-of-a-screen tile
- * cannot hold a market value, its change and a shirt rail without becoming a
- * worse version of the row. Tapping opens the player — or marks him for sale
- * while the calculator is on; the list view is where the lineup gets edited.
- *
- * The badges sit in opposite corners of the portrait, availability left and
- * probability right, as on the pitch. They are **inset rather than straddling
- * the edge**: the pitch's `StartProbabilityCorner` hangs a little outside its
- * circle, which works on a portrait floating over grass and does not here —
- * the tile clips its overflow to keep the rounded corners, so half the badge
- * was being cut off by the frame.
- */
-function PlayerTile({
-  player,
-  startProbability,
-  statusReason,
-  to,
-  isForSale,
-  onToggleForSale,
-}: {
-  player: SquadMember
-  startProbability: StartProbability | undefined
-  statusReason: string | undefined
-  to: string
-  /** `undefined` when the calculator is off; a boolean when it is on. */
-  isForSale: boolean | undefined
-  onToggleForSale: (playerId: string) => void
-}) {
-  const body = (
-    <>
-      {/* Square, which is both shorter *and* better framed than the 4:5 box
-            this used to be. The source images are **1100×800 landscape**
-            (checked across three players), so a portrait box has to scale them
-            by height and throw away the sides: 4:5 discarded ~42% of the
-            width, a square discards ~27%. Shortening the tile therefore costs
-            no crop at all — it buys some back, and saves about 30px a row on a
-            phone. */}
-      <span className="relative block aspect-square bg-surface-2/60">
-        <Avatar
-          src={player.image}
-          name={player.lastName}
-          fill
-          className="h-full w-full bg-transparent"
-        />
-        <PlayerStatusBadge
-          status={player.status}
-          reason={statusReason}
-          size={14}
-          onImage
-          className="absolute top-1 left-1"
-        />
-        {startProbability !== undefined && (
-          <StartProbabilityBadge
-            tier={startProbability}
-            size={15}
-            onImage
-            className="absolute top-1 right-1"
-          />
-        )}
-      </span>
-
-      <span className="block px-1.5 py-1 text-center">
-        <span className="block truncate text-xs leading-tight font-semibold text-ink">
-          {player.lastName}
-        </span>
-        {/* The position, which the grid no longer says with a heading. */}
-        <span className="block text-[0.625rem] leading-tight tracking-wide text-faint uppercase">
-          {POSITION_LABEL[player.position]}
-        </span>
-      </span>
-    </>
-  )
-
-  const shell = cn(
-    'flex w-full flex-col overflow-hidden rounded-card border bg-surface transition-colors',
-    isForSale === true
-      ? SELECTED_CLASS
-      : 'border-line hover:border-accent/40 hover:bg-surface-2',
-  )
-
-  return (
-    <li>
-      {isForSale === undefined ? (
-        <Link to={to} className={shell}>
-          {body}
-        </Link>
-      ) : (
-        <button
-          type="button"
-          aria-pressed={isForSale}
-          onClick={() => {
-            onToggleForSale(player.id)
-          }}
-          className={shell}
-        >
-          {body}
-        </button>
-      )}
-    </li>
-  )
-}
-
 function PlayerRow({
   player,
   team,
@@ -534,6 +372,7 @@ function PlayerRow({
   onToggle,
   valueMode,
   nextMatchdays,
+  showsFixtures,
   saleValue,
   expectedPoints,
   onEditExpected,
@@ -556,11 +395,21 @@ function PlayerRow({
   /** Which figure goes under the market value — the toolbar's choice. */
   valueMode: ValueMode
   /**
-   * The matchdays to draw crests for, **and the switch itself**: present means
-   * the row is in its [Spielplan reading](./SquadReading.tsx) and the money
-   * is not on it.
+   * The next few matchdays, in order — empty where the page has no schedule
+   * to offer, as the [scenario](../../pages/WhatIfPage.tsx) does not.
+   *
+   * Read twice over: the row's fixture panel draws the first three as a
+   * [track](./FixtureTrack.tsx) and reveals five on a hold, and the
+   * [Spielplan reading](./SquadReading.tsx) spreads the first four across the
+   * right-hand end of the row.
    */
-  nextMatchdays: CurrentMatchday[] | undefined
+  nextMatchdays: CurrentMatchday[]
+  /**
+   * Whether the row is in its Spielplan reading — the fixture strip in place
+   * of the money, and with it no fixture panel, since the strip's first crest
+   * is the panel's.
+   */
+  showsFixtures: boolean
   /**
    * What he would fetch on the scenario's target day, where one is chosen and
    * the forecast reaches it. It replaces both figures on the right — see the
@@ -690,12 +539,20 @@ function PlayerRow({
           crests want about the width the price and its delta take, and a row
           that tried to carry both would end up carrying neither legibly.
 
-          The single crest panel at the end of the row goes with it, since the
-          first crest of the strip *is* the next opponent — and with it the tap
-          that enters an expected figure, which belongs to the reading that is
-          about this weekend. One tap on the toolbar brings both back. */}
-      {nextMatchdays !== undefined ? (
-        <UpcomingFixtures matchdays={nextMatchdays} teamId={player.teamId} />
+          The fixture panel at the end of the row goes with it, since the first
+          crests of the strip *are* its track — and with it the tap that enters
+          an expected figure, which belongs to the reading that is about this
+          weekend. One tap on the toolbar brings both back.
+
+          **Four here, three on the panel, five under a hold.** The strip is
+          the only one of the three with a whole row's width to spend, and it
+          still stops at four: a fifth column costs about 28px, all of it taken
+          from the name. */}
+      {showsFixtures ? (
+        <UpcomingFixtures
+          matchdays={nextMatchdays.slice(0, FIXTURE_STRIP)}
+          teamId={player.teamId}
+        />
       ) : (
         <span className="shrink-0 text-right">
           {/* **The target day's price, where the scenario has picked one.** The
@@ -765,19 +622,59 @@ function PlayerRow({
      than behind a button of its own; a row this dense has no room for one.
      The figure it enters now reads beside the probability badge up in the
      row — the crest kept the tap and gave up the number, so this panel says
-     one thing (*who, and where*) and says it at full size. */
+     one thing (*who, and where next*) and says it at full size. */
   const panelClass =
     /* `w-14`, near enough the 58px the crest plus its old padding took, so
-       the row's other columns keep the width they had. */
-    'flex w-14 shrink-0 flex-col items-center justify-center self-stretch border-l border-line bg-canvas/40 px-1'
+       the row's other columns keep the width they had — and exactly what the
+       [track](./FixtureTrack.tsx) is sized to fill. `select-none`, because a
+       hold on a phone otherwise starts selecting the row's text under it. */
+    'flex w-14 shrink-0 select-none flex-col items-center justify-center self-stretch border-l border-line bg-canvas/40 px-1'
 
-  const panelBody = <FixtureBadge fixture={fixture} size="lg" />
+  /* The next three where the page knows them, the one next fixture where it
+     does not — the [scenario](../../pages/WhatIfPage.tsx) has no schedule, and
+     a track of one is just the badge it always was. */
+  const panelBody =
+    nextMatchdays.length > 0 ? (
+      <FixtureTrack matchdays={nextMatchdays} teamId={player.teamId} />
+    ) : (
+      <FixtureBadge fixture={fixture} size="lg" />
+    )
 
-  /* In calculator mode it goes back to being a picture: the whole row is one
-     button then, HTML has no nested buttons, and a tap anywhere on the row
-     means "mark him for sale" — including here. Drawn in neither mode while
-     the row is showing the next four crests: the first of them is this one. */
-  const fixturePanel = <span className={panelClass}>{panelBody}</span>
+  /* The hold, on every rendering of the panel below — including the inert one
+     in calculator mode, where the row is one big button and the handlers' job
+     is also to keep the hold's own click from reaching it. */
+  const hold = useFixtureHold({
+    matchdays: nextMatchdays,
+    teamId: player.teamId,
+    onTap:
+      onEditExpected === undefined
+        ? undefined
+        : () => {
+            onEditExpected(player)
+          },
+  })
+
+  /* The hold has to be discoverable, and a tooltip on the thing it works on
+     is the only room this row has to say so. Absent where there is nothing
+     past the three on the track to reveal. */
+  const canHold = nextMatchdays.length > TRACK_LENGTH
+  const holdHint = 'gedrückt halten für die nächsten fünf Spiele'
+
+  /* In calculator mode it is not a control: the whole row is one button then,
+     HTML has no nested buttons, and a tap anywhere on the row means "mark him
+     for sale" — including here. The hold still works, because *which three
+     clubs does he still have to play* is exactly what is being weighed up.
+     Drawn in neither mode while the row is showing the fixture strip: its
+     first crests are this panel's. */
+  const fixturePanel = (
+    <span
+      className={panelClass}
+      title={canHold ? `Nächste Spiele · ${holdHint}` : undefined}
+      {...hold.handlers}
+    >
+      {panelBody}
+    </span>
+  )
 
   const shell = cn(
     // **No card of its own.** The rows sit flush in a divided list inside one
@@ -814,8 +711,9 @@ function PlayerRow({
           <span className={railClass}>{rail}</span>
           {portrait}
           <span className={bodyClass}>{details}</span>
-          {nextMatchdays === undefined && fixturePanel}
+          {!showsFixtures && fixturePanel}
         </button>
+        {hold.layer}
       </li>
     )
   }
@@ -852,15 +750,17 @@ function PlayerRow({
         {details}
       </Link>
 
-      {nextMatchdays !== undefined ? null : onEditExpected === undefined ? (
+      {showsFixtures ? null : onEditExpected === undefined ? (
         fixturePanel
       ) : (
         <button
           type="button"
-          onClick={() => {
-            onEditExpected(player)
-          }}
-          title="Erwartete Punkte eintragen"
+          {...hold.handlers}
+          title={
+            canHold
+              ? `Erwartete Punkte eintragen · ${holdHint}`
+              : 'Erwartete Punkte eintragen'
+          }
           aria-label={`Erwartete Punkte für ${player.lastName} eintragen`}
           className={cn(
             panelClass,
@@ -871,6 +771,8 @@ function PlayerRow({
           {panelBody}
         </button>
       )}
+
+      {hold.layer}
     </li>
   )
 }

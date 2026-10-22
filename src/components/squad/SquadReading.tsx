@@ -11,11 +11,11 @@ import { cn } from '@/lib/cn'
  * the reasoning of [`ValueModeButton`](./ValueMode.tsx), which it stands next
  * to.
  *
- * It names its state rather than showing both glyphs with one lit, the way the
- * [list/grid toggle](../ui/PairToggle.tsx) at the end of the row does: a coin
- * and a calendar side by side would say nothing about which of them is in the
- * rows, because neither glyph *is* the thing the rows show. The label is the
- * answer, and a tap swaps the label and every row at once.
+ * It names its state rather than showing both glyphs with one lit, the way a
+ * [pair toggle](../ui/PairToggle.tsx) does: a coin and a calendar side by side
+ * would say nothing about which of them is in the rows, because neither glyph
+ * *is* the thing the rows show. The label is the answer, and a tap swaps the
+ * label and every row at once.
  */
 export function SquadReadingButton({
   value,

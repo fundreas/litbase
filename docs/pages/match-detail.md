@@ -918,8 +918,9 @@ as the fan-out arrives — extracted so the two tabs cannot disagree about the
 same club in the same match.
 
 The control is [`PairToggle`](../../src/components/ui/PairToggle.tsx) — the
-same one-button, two-glyph control the [squad](squad.md#kader--two-layouts) uses
-for list/grid, sitting right-aligned above the list. The choice is remembered
+app's one-button, two-glyph control, also the
+[live view](squad.md#live-tab)'s pitch/list switch — sitting right-aligned
+above the list. The choice is remembered
 in `localStorage` (`litbase.matchRanking.view`) and deliberately **not** in the
 URL: it is a preference, not a place, so a link to a match opens in the
 reader's own reading rather than the sender's.

@@ -7,18 +7,17 @@ import { moneyDelta } from '@/lib/format'
 /**
  * **The switch, as one labelled glyph that swaps when tapped.**
  *
- * Not the [pair toggle](../ui/PairToggle.tsx) the list/grid choice next to it
- * uses, and the difference is what each choice *is*. A layout has two states
- * that look like what they do, so two glyphs side by side with the live one lit
- * is readable at a glance. These two are both *a signed amount of money in the
- * same place*: a clock and a coin shown together would say nothing about which
- * figure is in the rows, because neither glyph is the figure. So this one names
- * its state instead — the label under the prices is the label on the button —
- * and a tap swaps both at once.
+ * Not a [pair toggle](../ui/PairToggle.tsx), the two-glyph control the app uses
+ * where a choice has two states that look like what they do. These two are both
+ * *a signed amount of money in the same place*: a clock and a coin shown
+ * together would say nothing about which figure is in the rows, because neither
+ * glyph is the figure. So this one names its state instead — the label under
+ * the prices is the label on the button — and a tap swaps both at once.
  *
  * It takes the same shell as its neighbours — same height, border and rounding
- * as the [scenario link](./PlayerListTab.tsx) and the pair toggle — so the
- * three read as one toolbar rather than three unrelated controls.
+ * as the [scenario link](./PlayerListTab.tsx) and the
+ * [Spielplan switch](./SquadReading.tsx) — so the three read as one toolbar
+ * rather than three unrelated controls.
  */
 export function ValueModeButton({
   value,

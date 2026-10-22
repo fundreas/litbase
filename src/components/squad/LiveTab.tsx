@@ -377,7 +377,7 @@ export function LiveTab({
 /**
  * Which live layout is on screen, remembered across visits.
  *
- * Same treatment as the Kader view's list/grid choice: through the app's safe
+ * Same treatment as every other reading the app remembers: through its safe
  * localStorage wrapper, so a blocked store degrades to the default instead of
  * throwing, and deliberately **not** in the URL — a layout is a preference,
  * not a place.
@@ -490,8 +490,8 @@ function LiveHeader({
 }
 
 /**
- * Pitch or ranked list, as **one button showing both symbols** — the same
- * control the Kader view uses for list/grid, for the same reasons: two buttons
+ * Pitch or ranked list, as **one button showing both symbols** — the
+ * [pair toggle](../ui/PairToggle.tsx)'s notation, for its reasons: two buttons
  * would double the target area to say one thing, and a lone glyph cannot
  * answer "is this where I am or where I would go?". The lit symbol is the
  * current view.

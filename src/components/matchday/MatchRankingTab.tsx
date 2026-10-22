@@ -62,8 +62,8 @@ type RankingView = 'combined' | 'perTeam'
  * splits it, home above away, each numbered from 1: that is the reading for
  * "who was this club's best today", a question the combined list buries when
  * the other side has run away with the match. The control is the app's
- * [`PairToggle`](../ui/PairToggle.tsx), the same one the squad uses for
- * list/grid, and the choice is remembered.
+ * [`PairToggle`](../ui/PairToggle.tsx), the app's two-glyph switch, and the
+ * choice is remembered.
  *
  * Each row carries the **owning manager** next to the score. On the pitch that
  * badge is the whole reason the screen exists; here it is what distinguishes
@@ -175,7 +175,7 @@ const VIEW_STORAGE_KEY = 'litbase.matchRanking.view'
  * Combined or per club, remembered across matches.
  *
  * A preference, not a place: it is stored the way the
- * [squad's list/grid](../squad/PlayerListTab.tsx) is — through the app's safe
+ * [squad's readings](../squad/useSquadReading.ts) are — through the app's safe
  * `localStorage` wrapper, and **not** in the URL, so a shared link to a match
  * opens in the reader's own reading rather than the sender's.
  */

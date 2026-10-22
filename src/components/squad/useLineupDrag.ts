@@ -11,6 +11,12 @@ import {
 } from 'react'
 
 import type { PositionKey } from '@/api/models'
+import { LONG_PRESS_MS } from '@/lib/useLongPress'
+
+/* Re-exported because the pitch times its press ring from it — see
+   [`LineupTab`](./LineupTab.tsx) — and that file has no other reason to know
+   where the gesture's clock lives. */
+export { LONG_PRESS_MS }
 
 /**
  * How far the pointer has to travel before a tap becomes a drag.
@@ -22,18 +28,6 @@ import type { PositionKey } from '@/api/models'
  * still a press, and the click that follows still runs as before.
  */
 const DRAG_THRESHOLD_PX = 6
-
-/**
- * How long the portrait has to be held before the player is benched.
- *
- * Long enough that no tap reaches it — a deliberate tap is well under 200ms,
- * and taking a player off the pitch is the destructive half of this control.
- * Short enough that the hold does not feel stuck: the ring that fills over
- * exactly this duration is what makes the wait legible, so the number is
- * exported and the animation is timed from it rather than from a CSS literal
- * that could drift away from it.
- */
-export const LONG_PRESS_MS = 420
 
 /**
  * How long a completed hold keeps swallowing clicks.

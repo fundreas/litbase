@@ -566,11 +566,13 @@ function SquadViews({
      [`useUpcomingMatchday`](../api/hooks/useMatchday.ts); it reads the same
      cache entry as the line above, so it costs no request. */
   const fixtureByTeamId = useUpcomingMatchday(competitionId)?.fixtureByTeamId
-  /* And the three after it, for the Kader list's
-     [Spielplan reading](../components/squad/SquadReading.tsx) — four crests
-     on a row instead of one. Same cache entry again; the first of the four is
-     the fixture above. */
-  const nextMatchdays = useUpcomingMatchdays(competitionId, 4)
+  /* And the four after it, for the Kader list's two readings of the schedule:
+     the [Spielplan strip](../components/squad/SquadReading.tsx)'s four crests
+     across a row, and the fixture panel's
+     [track](../components/squad/FixtureTrack.tsx) of three — which opens to
+     all five when the panel is held. Same cache entry again, so the longest
+     of the three costs no request; the first of them is the fixture above. */
+  const nextMatchdays = useUpcomingMatchdays(competitionId, 5)
   /* Each club's crest, for the watermark behind a Kader row — out of the
      season's table, which is one request cached ten minutes and the same entry
      the league table, the club pages and the Spieltag already read. A club the

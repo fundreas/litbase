@@ -24,9 +24,10 @@ export interface PairOption<T extends string> {
  * Right-aligned and icon-only: these are preferences set once, not primary
  * actions, and they should not pull the eye away from the content they arrange.
  *
- * The same control in both places it appears — the squad's list/grid and the
- * [match ranking](../matchday/MatchRankingTab.tsx)'s combined/per-club — so a
- * reader who learns the notation once does not meet a second version of it.
+ * The same control everywhere it appears — the
+ * [match ranking](../matchday/MatchRankingTab.tsx)'s combined/per-club, the
+ * duel ranking's, the season's — so a reader who learns the notation once does
+ * not meet a second version of it.
  */
 export function PairToggle<T extends string>({
   value,

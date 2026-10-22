@@ -40,7 +40,7 @@ type RankingView = 'combined' | 'perManager'
  *    answers a different question.
  *
  * The control is the app's [`PairToggle`](../ui/PairToggle.tsx), the same one
- * the match ranking and the squad's list/grid use, and the choice is remembered.
+ * the match ranking uses, and the choice is remembered.
  *
  * Bench players are in both readings. They scored what they scored and it did
  * not count, and a bench outscoring the eleven is the most interesting thing a

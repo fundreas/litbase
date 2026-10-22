@@ -154,8 +154,8 @@ export const router = createBrowserRouter(
                 // `whatif/:playerId` below with the purchase taken out of it,
                 // so it has two tabs rather than three. It lives **under**
                 // `/squad` because that is what it is about and where it is
-                // reached from: the Kader's own toolbar, beside the list/grid
-                // toggle. Nesting it there also keeps the drawer's prefix
+                // reached from: the Kader's own toolbar, at the left end of
+                // it. Nesting it there also keeps the drawer's prefix
                 // match lighting *Mannschaft* without a special case.
                 { path: 'squad/whatif', element: <WhatIfPage /> },
                 // `/lineup` was the pitch's own route until it moved under

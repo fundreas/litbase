@@ -27,7 +27,8 @@ const STORAGE_KEY = 'litbase.squad.valueMode'
  * "only here".
  *
  * Through the app's safe localStorage wrapper, like the
- * [list/grid view](./PlayerListTab.tsx): it is exactly the kind of value that
+ * [Spielplan reading](./useSquadReading.ts) beside it: it is exactly the kind
+ * of value that
  * may not be writable — private mode, blocked storage — and failing to
  * remember a preference must never be worse than not having one.
  *
