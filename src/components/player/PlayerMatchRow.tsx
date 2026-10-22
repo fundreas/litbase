@@ -55,7 +55,9 @@ const OUTCOME_NAME: Record<MatchOutcome, string> = {
  * column where the dash would be. That column is the row's answer to *what is
  * this match worth to me*, and for a match that has not happened the honest
  * answer is an estimate rather than a dash — the chip says whose estimate it
- * is, orange for the model's and accent green for the reader's own.
+ * is, orange for the model's and accent green for the reader's own. Tapping
+ * such a row opens the same breakdown sheet a played one does, on the empty
+ * state that carries the ⌖ the figure is entered behind.
  */
 export function PlayerMatchRow({
   match,
@@ -63,7 +65,6 @@ export function PlayerMatchRow({
   pointsScale,
   expected,
   onOpen,
-  onOpenExpected,
 }: {
   match: PlayerMatch
   /** Team id → name. Only this season's clubs resolve; the crest always does. */
@@ -76,24 +77,16 @@ export function PlayerMatchRow({
    */
   expected?: ExpectedPointsEntry
   /**
-   * Open the [action breakdown](./PlayerMatchEventsDialog.tsx) for this match.
+   * Open the [breakdown sheet](./PlayerMatchEventsDialog.tsx) for this match.
    *
-   * Given, the row becomes a button — but **only for a match he actually
-   * played**. One he sat out has nothing but the match's own structure, so a
-   * tappable row there would promise a list and deliver an empty state.
+   * Given, the row becomes a button — but **not for a match he sat out**. One
+   * he played is explained action by action; one still to come opens the same
+   * sheet on its empty state, where the ⌖ in the header is how an
+   * [expected figure](../squad/ExpectedPointsDialog.tsx) gets entered. A
+   * finished match he took no part in is the only one with nothing behind it:
+   * a tappable row there would promise a list and deliver nothing.
    */
   onOpen?: () => void
-  /**
-   * Open the [expected-points sheet](../squad/ExpectedPointsDialog.tsx) for a
-   * match still to come.
-   *
-   * A **separate** prop rather than `onOpen` widened, because the two open
-   * different things and the caller has to mean one of them: the
-   * [Details tab](./PlayerDetailsTab.tsx) lists upcoming fixtures too and
-   * wants them inert, and a row that decided for itself would have made them
-   * tappable there the day this arrived.
-   */
-  onOpenExpected?: () => void
 }) {
   const opponent = teams?.get(match.opponentId)
   const Venue = match.isHome ? House : PlaneTakeoff
@@ -103,15 +96,13 @@ export function PlayerMatchRow({
       ? undefined
       : pointsColor(match.points, PLAYER_POINTS_BANDS)
 
-  const canOpenBreakdown = onOpen !== undefined && match.isFinished && played
-  const canOpenExpected = onOpenExpected !== undefined && !match.isFinished
-  const canOpen = canOpenBreakdown || canOpenExpected
+  const canOpen = onOpen !== undefined && (!match.isFinished || played)
   /*
    * A button when there is something behind it, a plain block otherwise. The
    * card is the target rather than an added chevron: the whole row is about
-   * this one match, so there is nothing on it a tap could mean instead — which
-   * is also why the two openers can share it. Before the match it enters what
-   * you expect, after it, it explains what happened.
+   * this one match, so there is nothing on it a tap could mean instead. One
+   * sheet either way — before the match it is where the guess is entered,
+   * after it, it explains what happened.
    */
   const Shell = canOpen ? 'button' : 'div'
 
@@ -120,10 +111,10 @@ export function PlayerMatchRow({
       {...(canOpen
         ? {
             type: 'button' as const,
-            onClick: canOpenBreakdown ? onOpen : onOpenExpected,
-            title: canOpenBreakdown
+            onClick: onOpen,
+            title: match.isFinished
               ? 'Aktionen dieses Spiels ansehen'
-              : 'Erwartete Punkte eintragen',
+              : 'Spiel öffnen · erwartete Punkte eintragen',
           }
         : {})}
       className={cn(

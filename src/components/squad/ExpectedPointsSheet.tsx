@@ -32,11 +32,18 @@ export interface ExpectedPointsSubject {
 /**
  * **The expected-points sheet, wherever a list of players is shown.**
  *
- * One hook rather than three copies of the same twelve lines: the sheet is
- * addressed as `#expected:<playerId>` through
- * [`useHashModal`](../../lib/useHashModal.ts), so opening it is a navigation
- * and every list that has players can offer it — one's own squad, a rival's
- * Kader, a club's roster.
+ * The sheet is addressed as `#expected:<playerId>` through
+ * [`useHashModal`](../../lib/useHashModal.ts), so opening it is a navigation —
+ * it survives a refresh and the back gesture closes it.
+ *
+ * **One caller left**: a [rival's Kader](../manager/ManagerSquadTab.tsx),
+ * whose rows end in a target mark because they have no fixture crest to hang
+ * anything on. One's own Kader used to be the other, and its crest now belongs
+ * to the schedule — the guess is entered from the
+ * [match breakdown](../player/PlayerMatchEventsDialog.tsx), beside the actions
+ * it is a guess about. The hook stays a hook because the resolve-from-a-hash
+ * pattern is the whole of what it is for, and a second list asking for it is a
+ * matter of time.
  *
  * The caller supplies **`resolve`**, which turns the id in the hash back into
  * a player. That is what makes the URL survive a refresh: the sheet reopens

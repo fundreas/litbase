@@ -51,6 +51,18 @@ export interface BreakdownFixture {
   isHome: boolean
   opponentName?: string
   opponentImage?: string
+  /**
+   * The opponent's id and short symbol, where the caller has them.
+   *
+   * Not needed to draw the sheet — `opponentName` and the crest are what the
+   * header prints. They are here for the one thing the sheet does besides
+   * explain a total: before kick-off it offers the
+   * [expected-points dialog](../../components/squad/ExpectedPointsDialog.tsx),
+   * which wants a real `TeamFixture` so that its summary line can link to the
+   * club. A caller that has neither simply gets a sheet with no such line.
+   */
+  opponentId?: string
+  opponentSymbol?: string
   /** Goals, already resolved to this player's side. */
   goalsFor?: number
   goalsAgainst?: number
@@ -79,6 +91,11 @@ export function breakdownFixture(
     isHome: match.isHome,
     opponentName: teams?.get(match.opponentId)?.name ?? match.opponentId,
     opponentImage: match.opponentImage,
+    opponentId: match.opponentId,
+    // `PlayerMatch` carries no symbol, and the directory holds names rather
+    // than abbreviations — so the id stands in, which is what the name above
+    // falls back to as well.
+    opponentSymbol: teams?.get(match.opponentId)?.name ?? match.opponentId,
     goalsFor: match.goalsFor,
     goalsAgainst: match.goalsAgainst,
     isFinished: match.isFinished,
@@ -120,6 +137,8 @@ export function breakdownFixtureFrom(
     isHome: fixture.isHome,
     opponentName: fixture.opponentSymbol,
     opponentImage: fixture.opponentImage,
+    opponentId: fixture.opponentId,
+    opponentSymbol: fixture.opponentSymbol,
     goalsFor: goals.for,
     goalsAgainst: goals.against,
     isFinished: fixture.isFinished,

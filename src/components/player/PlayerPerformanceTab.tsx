@@ -7,11 +7,9 @@ import {
   pointsScaleFor,
   type PlayerMatch,
   type PlayerSeason,
-  type TeamFixture,
 } from '@/api/models'
 import { PlayerMatchEventsDialog } from '@/components/player/PlayerMatchEventsDialog'
 import { PlayerMatchRow } from '@/components/player/PlayerMatchRow'
-import { ExpectedPointsDialog } from '@/components/squad/ExpectedPointsDialog'
 import { usePointcastPrediction } from '@/components/squad/useExpectedPointsView'
 import { Drawer } from '@/components/ui/Drawer'
 import { StepButton } from '@/components/ui/StepButton'
@@ -96,14 +94,6 @@ export function PlayerPerformanceTab({
    * same answer this tab gives for any match it cannot find a row for.
    */
   const breakdown = useHashModal('match')
-  /**
-   * Which matchday's expected-points sheet is open — `#expected:<matchday>`,
-   * a sibling of the breakdown's hash and keyed by the matchday rather than by
-   * a player, because on this page the player is the page and the matchdays
-   * are the rows. (The Kader's sheet is `#expected:<playerId>` for the mirror
-   * reason; the two never share a screen.)
-   */
-  const expectedSheet = useHashModal('expected')
   // Across every season, so switching seasons does not rescale the bars.
   const pointsScale = pointsScaleFor(seasons)
 
@@ -154,15 +144,6 @@ export function PlayerPerformanceTab({
   const openMatch = selected.matches.find(
     (match) => match.matchId === breakdown.id,
   )
-  /* Only a match still to come has a guess worth entering, and only in the
-     running season: the store is keyed by matchday alone, so a matchday 3 in
-     2019 is this season's matchday 3 as far as it is concerned. */
-  const openExpected = isRunningSeason
-    ? selected.matches.find(
-        (match) => !match.isFinished && String(match.day) === expectedSheet.id,
-      )
-    : undefined
-
   /**
    * What stands in the points column of a fixture still to come: the reader's
    * own guess for that matchday, else the model's prediction where it reaches,
@@ -202,13 +183,6 @@ export function PlayerPerformanceTab({
               onOpen={() => {
                 breakdown.open(match.matchId)
               }}
-              onOpenExpected={
-                isRunningSeason
-                  ? () => {
-                      expectedSheet.open(String(match.day))
-                    }
-                  : undefined
-              }
             />
           </li>
         ))}
@@ -225,6 +199,11 @@ export function PlayerPerformanceTab({
           playerImage={playerImage}
           leagueId={leagueId}
           seasonId={isRunningSeason ? undefined : selected.id}
+          /* What the sheet's expected-points dialog calibrates a guess
+             against — this season's, so only for the season a guess can
+             belong to. */
+          averagePoints={isRunningSeason ? seasonAverage(selected) : undefined}
+          totalPoints={isRunningSeason ? selected.totalPoints : undefined}
           /* `matchTo`, not `to`: this sheet was opened *on* his page, so the
              header's own link would lead to the page underneath it. The line
              about the fixture takes the target instead — and only for the
@@ -236,23 +215,6 @@ export function PlayerPerformanceTab({
               : undefined
           }
           onClose={breakdown.close}
-        />
-      )}
-
-      {/* Keyed by the matchday, so opening a second fixture seeds its field
-          from that matchday's figures rather than the last one's. */}
-      {openExpected !== undefined && (
-        <ExpectedPointsDialog
-          key={openExpected.day}
-          player={{
-            id: playerId,
-            name: playerName,
-            averagePoints: seasonAverage(selected),
-            totalPoints: selected.totalPoints,
-            fixture: toFixture(openExpected, teams),
-          }}
-          matchday={openExpected.day}
-          onClose={expectedSheet.close}
         />
       )}
     </div>
@@ -272,32 +234,6 @@ export function PlayerPerformanceTab({
 function seasonAverage(season: PlayerSeason): number | undefined {
   if (season.appearances === 0) return undefined
   return Math.round(season.totalPoints / season.appearances)
-}
-
-/**
- * A season's fixture as the sheet's header reads it.
- *
- * [`TeamFixture`](../../api/models.ts) is the shape every other caller passes,
- * and the two payloads overlap on everything but the opponent's short symbol —
- * which this one does not carry, so the club's name stands in. The header
- * spells the fixture out anyway ("Auswärts bei Bayern München"), and its link
- * needs only the id.
- */
-function toFixture(
-  match: PlayerMatch,
-  teams: Map<string, TeamSummary> | undefined,
-): TeamFixture {
-  const fixture: TeamFixture = {
-    matchId: match.matchId,
-    kickoff: match.kickoff,
-    isHome: match.isHome,
-    opponentId: match.opponentId,
-    opponentSymbol: teams?.get(match.opponentId)?.name ?? match.opponentId,
-  }
-  if (match.opponentImage !== undefined) {
-    fixture.opponentImage = match.opponentImage
-  }
-  return fixture
 }
 
 function SeasonPicker({

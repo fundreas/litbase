@@ -25,7 +25,6 @@ import { useStatusReasons } from '@/api/hooks/useStatusReasons'
 import { liveMatchday, type SquadMember } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
-import { useExpectedPointsSheet } from '@/components/squad/ExpectedPointsSheet'
 import { LineupTab } from '@/components/squad/LineupTab'
 import { LiveTab } from '@/components/squad/LiveTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
@@ -578,31 +577,6 @@ function SquadViews({
      the league table, the club pages and the Spieltag already read. A club the
      current table does not hold simply has no watermark. */
   const teams = useTeamDirectory(competitionId)
-  /**
-   * The expected-points sheet — `#expected:<playerId>`, the same one a
-   * rival's Kader and a club's roster open. It lives here, above both views,
-   * because the pitch has to be able to close it as well: switching to the
-   * lineup with the sheet open would otherwise leave a hash naming a modal
-   * nothing renders.
-   *
-   * The squad is the only list on this page, so resolving an id is a lookup
-   * in it — and a link to a player who has since been sold quietly opens
-   * nothing.
-   */
-  const expected = useExpectedPointsSheet({
-    matchday: day,
-    resolve: (playerId) => {
-      const player = squad.find((member) => member.id === playerId)
-      if (player === undefined) return undefined
-      return {
-        id: player.id,
-        name: [player.firstName, player.lastName].filter(Boolean).join(' '),
-        averagePoints: player.averagePoints,
-        totalPoints: player.totalPoints,
-        fixture: fixtureByTeamId?.get(player.teamId),
-      }
-    },
-  })
   // Held here rather than in each view so the two share one set of requests:
   // switching to the pitch must not re-fetch what the list already knows.
   const startProbabilities = useStartProbabilities(leagueId, squad)
@@ -632,9 +606,6 @@ function SquadViews({
               ? `/leagues/${leagueId}/${VIEWS.squad}/whatif`
               : undefined
           }
-          onEditExpected={(player) => {
-            expected.open(player.id)
-          }}
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -650,8 +621,6 @@ function SquadViews({
           />
         </div>
       )}
-
-      {expected.sheet}
 
       <SwapDialog
         incoming={editor.incoming}

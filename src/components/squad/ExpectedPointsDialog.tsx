@@ -23,12 +23,13 @@ import { kickoff, points } from '@/lib/format'
  * **What do you think he will score?** — the guess, the match it is about, and
  * what the model thinks.
  *
- * Opened from the fixture crest at the end of one's own squad row — the one
- * part of that row already about the coming matchday — and from the target
- * mark at the end of a row in a [rival's](../manager/ManagerSquadTab.tsx) or a
- * [club's](../team/TeamSquadTab.tsx) squad, which have no crest to hang it on.
- * Which list a player was tapped in changes nothing here: a guess is filed
- * against a player and a matchday, not against a screen.
+ * Opened from the ⌖ in the header of a
+ * [match breakdown](../player/PlayerMatchEventsDialog.tsx) whose match has not
+ * kicked off — the one screen that is already about exactly one player in
+ * exactly one fixture — and from the target mark at the end of a row in a
+ * [rival's squad](../manager/ManagerSquadTab.tsx), which has no match sheet
+ * of its own to reach. Where a player was tapped changes nothing here: a guess
+ * is filed against a player and a matchday, not against a screen.
  *
  * The guess is stored per matchday in
  * [`expectedPoints`](../../lib/expectedPoints.ts) and goes nowhere near

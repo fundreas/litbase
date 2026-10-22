@@ -292,10 +292,14 @@ trade it is not. A player the payload says nothing about gets a faint `–`.
 
 ### Expected points, on somebody else's players
 
-The **fixture crest at the end of each row** opens the same
-[expected-points sheet](squad.md#erwartete-punkte) one's own Kader opens from
-its own crest, and files the guess under the same
-`matchday → playerId → points` map on this device. The figure it enters reads
+The **fixture crest at the end of each row** opens the
+[expected-points sheet](squad.md#where-it-is-entered) and files the guess under
+the same `matchday → playerId → points` map on this device. It is the last list
+that opens it from a row: one's own Kader entered the guess from its crest
+until 2026-10-22 and now enters it from the
+[match breakdown](player-detail.md#and-before-kick-off-where-the-guess-is-entered),
+which these rows have no way to reach — they are a rival's squad, not a run of
+one player's fixtures. The figure it enters reads
 beside the probability up in the row — his own guess, or the
 [model's prediction](squad.md#woher-die-prognose-kommt) in orange until he
 makes one, off the same cached file the Kader reads. A rival's squad is one of

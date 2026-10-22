@@ -306,19 +306,20 @@ fixture — the reader's own guess if he has made one, the model's
 [prediction](squad.md#woher-die-prognose-kommt) otherwise — as the same chip
 every Kader draws, accent green for his and orange for the model's.
 
-**A tap enters it.** An upcoming row opens the
-[expected-points sheet](squad.md#erwartete-punkte) against *that matchday*,
-which is what makes this page the place the feature belongs: it is the only
-screen in the app that shows one player's whole run of fixtures, so a run of
-three away trips can be priced in one sitting. The hash is
-`#expected:<matchday>` — the player is the page, so the matchday is what varies
-— and the sheet is the one the squad rows open, writing to the same
-`matchday → playerId → points` store.
+**A tap enters it** — one step further along than it used to. An upcoming row
+opens [the breakdown](#the-match-breakdown), the same sheet a played row opens,
+on the one line it can honestly show for a match that has not begun; the **⌖**
+in that sheet's header is what opens the
+[expected-points dialog](squad.md#where-it-is-entered). It went through this
+page's own `#expected:<matchday>` hash until the guess moved into the
+breakdown, and this page keeps its part of why the feature belongs here: it is
+the only screen in the app that shows one player's whole run of fixtures, so a
+run of three away trips can still be priced in one sitting.
 
 | Row | Tap opens | Why |
 | --- | --------- | --- |
 | Played | [the breakdown](#the-match-breakdown) | The actions behind the number |
-| Still to come | the expected-points sheet | There are no actions yet; there is a decision |
+| Still to come | the breakdown, and the **⌖** in it | There are no actions yet; there is a decision |
 | Sat out, finished | nothing | Neither applies |
 
 **The model reaches exactly one row.** The pointcast publishes the *coming*
@@ -582,10 +583,12 @@ building: `?seasonId=` alongside `dayNumber` serves any season the player has
 appeared in, back to 2017/2018 in the squad probed. So a breakdown opens on a
 2018 fixture as readily as on last Saturday's.
 
-**Only rows he played.** A fixture still to come has no actions in it, and one
-he sat out has nothing but the match's own structure — a tappable row there
-would promise a list and deliver an empty state. A substitute who came on and
-never touched the score *is* a real empty case, and says so in words.
+**Every row but one he sat out.** A finished match he took no part in has
+nothing but the match's own structure, so a tappable row there would promise a
+list and deliver an empty state. A fixture still to come has no actions either
+and *is* tappable — see below, where that empty state has a job. A substitute
+who came on and never touched the score is the third real empty case, and says
+so in words.
 
 The same rows appear on the [Details tab](#details-tab)'s *Spiele* card and
 behave identically there, because they are the same component and a match should
@@ -603,6 +606,57 @@ whatever the screen has not already answered:
 | ----------- | ----------- | ------- |
 | Player page | the **match line** | you are on the man; the fixture is the unknown |
 | Any pitch | the **header**, to the player | the match is the screen you are standing on |
+
+#### And before kick-off, where the guess is entered
+
+A match that has not begun has nothing to explain, so the body is one line —
+*Das Spiel hat noch nicht begonnen.* What the header has instead is a **⌖**,
+which opens the
+[expected-points dialog](squad.md#where-it-is-entered) for this player on this
+matchday.
+
+```
+┌───────────────────────────────────────────┐
+│ (face) Musiala             – Punkte  ⌖  ✗ │  ← ⌖ opens the guess
+│        ✈ (BVB) · 12. Spieltag   ⌖120      │
+├───────────────────────────────────────────┤
+│       Das Spiel hat noch nicht begonnen.   │
+└───────────────────────────────────────────┘
+```
+
+**Why here.** A guess is about one player in one match. This sheet already *is*
+one player in one match, already knows the matchday, and already prints the
+reader's guess and the model's prediction on the line under the name — so
+putting the way in beside them makes those three figures one screen. It was
+reached from the fixture crest at the end of a Kader row until 2026-10-22; that
+crest is about the *schedule*, and it now carries
+[two opponents and a tap that shows five](squad.md#the-fixture-track--two-deep-five-on-a-tap).
+
+**When the ⌖ is drawn**: the match has not kicked off, and the season is the
+running one. After kick-off the question has started answering itself; an
+archived season has no guess to file at all, because guesses are keyed by
+matchday with no season beside them.
+
+It is **lit accent when a guess is already stored** and muted when the field
+would open empty — the same rule, and the same 36px square, as the
+[event filter](#the-event-filter-and-the-two-thresholds) beside it. The two can
+share that square because they never appear together: a match with no actions
+in it has nothing to filter.
+
+**It opens over this sheet rather than instead of it.** Radix nests dialogs, so
+the guess is the dismissable layer on top and Escape or a tap outside closes it
+and leaves the breakdown standing behind — the match the guess is about is
+still on screen. The nested dialog is plain `useState` rather than a second
+hash: one hash inside another has to be unwound in the right order to get back.
+
+**What it is handed.** `playerId`, `playerName` and the matchday come from the
+sheet's own props. The fixture is rebuilt from
+[`BreakdownFixture`](../../src/api/hooks/usePlayerMatchEvents.ts), which gained
+`opponentId` and `opponentSymbol` for the purpose — the dialog's summary line
+links to the opponent's club page and needs the id. The season average and
+total ride down as optional props from the two callers that know them (this
+page's two tabs); a pitch knows neither, and the dialog drops its calibration
+line rather than inventing one.
 
 ### The season picker
 

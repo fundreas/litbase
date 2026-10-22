@@ -373,8 +373,8 @@ duplicated here.
 | Market value | `marketValue` | Compact euros, tabular figures |
 | Value change | `marketValueChangeDay` (`tfhmvt`) **or** `profitLoss` (`mvgl`) | Signed, coloured green/red, with a ↗/↘ mark; `–` when unknown, grey at zero. [Which of the two](#24-h-oder-seit-kauf) is the toolbar's choice |
 | Club | `useTeamDirectory` | The crest **watermarked behind the row**, 13 %, cropped and faded — the same badge the [market](market.md#two-crests-and-they-mean-different-things) draws, from [`ClubWatermark`](../../src/components/player/ClubWatermark.tsx). It costs the row no width, which is why a Kader row can carry the club at all |
-| Fixture panel | `useUpcomingMatchdays` | Full-height **button** on the right carrying the [opponent track](#the-fixture-track--three-deep-five-on-a-hold): the next **three** opponents stacked back to front, each a crest with its house/aeroplane chip. The leading one is the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays). Tap opens the [expected-points sheet](#erwartete-punkte), **hold** reveals five. Replaced, along with the money, by the four-crest strip in the [Spielplan reading](#werte-oder-spielplan) |
-| Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The crest panel enters it; it does not display it |
+| Fixture panel | `useUpcomingMatchdays` | Full-height **button** on the right carrying the [opponent track](#the-fixture-track--two-deep-five-on-a-tap): the next **two** opponents, one behind the other, each a crest with its house/aeroplane chip. The leading one is the **next** opponent, see [below](#the-opponent-is-the-next-one-not-the-current-matchdays). A tap brings up five. Replaced, along with the money, by the four-crest strip in the [Spielplan reading](#werte-oder-spielplan) |
+| Expected points | `localStorage` + [pointcast](#woher-die-prognose-kommt) | Chip **beside the probability glyph**, under the name — **orange** for the model's prediction, **accent green** once the reader has entered his own figure. The row only shows it; it is [entered elsewhere](#where-it-is-entered) |
 
 The lineup rail is **always rendered** and only tinted when the player is
 fielded, so rows stay aligned either way. It is also the row's lineup control:
@@ -470,7 +470,7 @@ control on the toolbar says which:
 
 | Reading | The row's right end | The question |
 | ------- | ------------------- | ------------ |
-| **Werte** (default) | the market value, the [24 h / seit Kauf](#24-h-oder-seit-kauf) figure under it, and the panel's [three-deep opponent track](#the-fixture-track--three-deep-five-on-a-hold) | what is he worth, and is tonight the night to sell |
+| **Werte** (default) | the market value, the [24 h / seit Kauf](#24-h-oder-seit-kauf) figure under it, and the panel's [two-deep opponent track](#the-fixture-track--two-deep-five-on-a-tap) | what is he worth, and is tonight the night to sell |
 | **Spielplan** | the **next four opponents**, one crest per matchday, each with its matchday number under it | has this squad drawn a kind month |
 
 ```
@@ -488,12 +488,12 @@ neither legibly — the same arithmetic that makes
 the availability mark, the probability and the expected figure are on the row in
 either reading: those are about *this* player, and nothing about the switch is.
 
-**Four here, three on the panel, five under a hold.** The strip is the only one
-of the three readings of `useUpcomingMatchdays` with a whole row's width to
-spend, and it still stops at four: a fifth column costs about 28px and every
-one of them comes out of the name beside it. The page fetches **five** anyway —
-one cache entry, no extra request — because the
-[panel's hold](#the-fixture-track--three-deep-five-on-a-hold) reveals that many.
+**Four here, two on the panel, five on a tap.** The strip is the only one of
+the three readings of `useUpcomingMatchdays` with a whole row's width to spend,
+and it still stops at four: a fifth column costs about 28px and every one of
+them comes out of the name beside it. The page fetches **five** anyway — one
+cache entry, no extra request — because the
+[panel's tap](#the-fixture-track--two-deep-five-on-a-tap) brings up that many.
 
 **The strip is read down, not across.** *Who is in for a kind run, who hits
 three top clubs in a row* is a question about the whole squad, and four crests
@@ -502,11 +502,9 @@ the badge's dash rather than the strip closing up: the columns have to stay
 aligned across every row.
 
 **What goes while it is on.** The price, so the *24 h / seit Kauf* button has
-nothing left to switch and steps aside with it. And the fixture panel at the end
-of the row, whose first crests the strip already carries — which takes the tap
-that enters [an expected figure](#erwartete-punkte) with it. That guess is about
-the coming matchday, which is the other reading, and one tap on the toolbar is
-the way back to it.
+nothing left to switch and steps aside with it. And the fixture panel at the
+end of the row, whose first crests the strip already carries — and with it the
+tap that brings up five, which the strip has made redundant for four of them.
 
 The choice is **remembered** through the same safe-localStorage wrapper as the
 value mode (`litbase.squad.reading`), and shared with
@@ -519,21 +517,20 @@ it is left off the [scenario](whatif.md)'s Kader altogether — that list is abo
 what a squad fetches on a day the reader picked, and four opponents answer none
 of it.
 
-## The fixture track — three deep, five on a hold
+## The fixture track — two deep, five on a tap
 
 The panel at the end of a Kader row used to be **one crest**: the next
-opponent, with the house or aeroplane chip on it. It is now a **track of
-three**, each crest offset 7px to the right of the one in front and faded as it
-recedes.
+opponent, with the house or aeroplane chip on it. It is now a **track of two**,
+the second offset 10px to the right of the first and at half its opacity.
 
 ```
           ┌──────┐
-  … 32,4M │▣▒░   │   ▣  next opponent, whole
-          │🏠    │   ▒  the one after, 50%
-          └──────┘   ░  and the one after that, 28%
+  … 32,4M │ ▣▒   │   ▣  next opponent, whole, at the badge's full 38px
+          │ 🏠   │   ▒  the one after, 50 %
+          └──────┘
 ```
 
-A single crest answered *who on Saturday*. The track answers *and then what*,
+A single crest answered *who on Saturday*. The track answers *and then who*,
 which between matchdays is the question the list is actually read for — and it
 answers it **without a reading of its own to switch into** and without taking a
 pixel from the row. The [Spielplan reading](#werte-oder-spielplan) is still
@@ -542,32 +539,34 @@ player across.
 
 | | Drawn | Width |
 | --- | ----- | ----- |
-| Leading crest | 34px | `34` |
-| Two behind it | 34px, `left: 7` / `14`, opacity `0.5` / `0.28` | `+14` |
+| Leading crest | 38px — the fixture badge's own `lg`, unchanged from the single crest | `38` |
+| The one behind | 38px, `left: 10`, opacity `0.5` | `+10` |
 | | | **48px** — exactly `w-14` minus its `px-1` |
 
-The 34px crest is four pixels under the fixture badge's own `lg`, and those
-four pixels are what buy the two shifts. Keeping the panel at `w-14` was worth
-them: every other column of the row is measured off it.
+**Two rather than three**, which it was for about an hour. Three fitted only by
+cutting the leading crest to 34px and the shift to 7, and the next opponent is
+still the fact the row is carrying — four pixels off it to glimpse a third club
+through a 7px sliver was the wrong trade. Two keeps the badge at full size and
+leaves the sliver wide enough to recognise.
 
 The crests are stacked **back to front** — `z-index` descending — so the
-leading one keeps its venue chip unobscured while each crest behind it shows
-its own chip in the sliver sticking out to the right.
+leading one keeps its venue chip unobscured while the one behind it shows its
+own chip in the sliver sticking out to the right.
 
-### Hold it for five
+### Tap it for five
 
-A press of [`LONG_PRESS_MS`](../../src/lib/useLongPress.ts) on the panel opens
-a layer over it with the **next five** opponents, drawn as the Spielplan
-reading's own crest-over-matchday-number columns — so what the hold reveals is
-a notation the reader has already learned somewhere else, not a new one.
+A tap on the panel opens a layer over it with the **next five** opponents,
+drawn as the Spielplan reading's own crest-over-matchday-number columns — so
+what it brings up is a notation the reader has already learned somewhere else,
+not a new one.
 
-The gesture is the one the pitch's own portraits already use on this screen
-(see [`useLineupDrag`](../../src/components/squad/useLineupDrag.ts), which
-shares the duration), and it costs the row no pixels and no second target: a tap still
-opens the [expected-points sheet](#erwartete-punkte), and in the
-[sale calculator](#sale-calculator) a tap still marks the player — the hold
-works there too, because *which clubs has he still got to play* is exactly what
-is being weighed up while deciding to sell him.
+**A tap, not a hold.** It was a 420 ms press for about an hour, on the
+reasoning that the panel's tap already belonged to the expected-points sheet.
+That sheet has since moved to the
+[match breakdown](player-detail.md#and-before-kick-off-where-the-guess-is-entered),
+which left the panel one meaning — and a control with one meaning should use
+the gesture nobody has to be told about. The hold, its travel threshold and its
+click-swallowing went with it.
 
 **Mechanics worth knowing:**
 
@@ -579,28 +578,31 @@ is being weighed up while deciding to sell him.
   and below where there is not. The panel is the row's last column; a centred
   layer would hang off a phone screen, and clamping it would leave it pointing
   at nothing.
-- It **cannot close on the release**: the finger that opened it is still down.
-  The next `pointerdown` anywhere closes it, as do Escape, a scroll and a
-  resize — the layer is anchored to a box that scrolling moves.
-- The layer takes **no pointer events**, so the dismissing tap lands on
-  whatever is underneath it; the `click` that follows is therefore **swallowed
-  in the capture phase**, or a tap meant to put the tooltip away would open the
-  player it happened to land on.
-- Travel past 8px cancels the hold. The one thing a list of rows does
-  constantly is scroll, and a scroll begins as a press that stays down.
-- `contextmenu` is suppressed on the panel — on Android a long press raises the
-  browser's own menu over the layer, on iOS the image callout.
+- It closes on the next `pointerdown` anywhere, on Escape, on a scroll and on a
+  resize — the layer is anchored to a box that scrolling moves. The listeners
+  go on in a `setTimeout`, so the tap that opened it cannot trip them on its
+  way out.
+- The layer takes **no pointer events**: it is a thing to read, not a thing to
+  use, and a transparent target floating over the rows would eat the next tap
+  meant for one of them. The dismissing tap therefore lands on whatever is
+  underneath it, so the `click` that follows is **swallowed in the capture
+  phase** — or a tap meant to put the tooltip away would open the player it
+  landed on. That swallow is also what makes a second tap on the panel *close*
+  the tooltip rather than re-open it.
 
-**The gesture is a pointer's, so it is not the only place the answer lives.**
-The two crests behind the leading one are `aria-hidden` as pictures — two more
-"Auswärtsspiel gegen FCB" in the middle of a row is noise — and read instead as
-one sentence after it (*"Danach: 13. Spieltag auswärts gegen FCB, …"*) covering
-all five.
+**The tap is a pointer's, so it is not the only place the answer lives.** The
+crest behind the leading one is `aria-hidden` as a picture — a second
+"Auswärtsspiel gegen FCB" in the middle of a row is noise — and reads instead
+as one sentence after it (*"Danach: 13. Spieltag auswärts gegen FCB, …"*)
+covering all five.
 
-**Where there is no track.** The [scenario](whatif.md)'s Kader is handed no
-schedule at all, so its panel is the single crest it always was, and the hold
-has nothing to open. Past the last matchday of the season the list runs short
-and the track simply draws fewer.
+**Where the panel is inert.** In the [sale calculator](#sale-calculator) the
+whole row is one button and a tap anywhere on it means "mark him for sale",
+this panel included. On the [scenario](whatif.md)'s Kader there is no schedule
+at all, so the panel is the single crest it always was. And past the last
+matchdays of a season, where there is nothing beyond the track to show, it goes
+back to being a picture rather than a button that opens two crests the reader
+can already see.
 
 ## The opponent is the next one, not the current matchday's
 
@@ -668,68 +670,76 @@ Kickbase, and no other manager sees either.
 
 ### Where it is entered
 
-The **fixture panel at the end of a row is the tap target**. It is already the
-only part of the row that is about the coming matchday rather than about the
-season or the market, so "what will he score on Saturday?" belongs on it — and
-a row carrying a portrait, two marks, a market value and its overnight change
-has no room for a control of its own.
-
-**The panel enters the figure; it no longer shows it.** The figure reads beside
-the lineup-probability glyph under the name, where it sits next to the other
-estimate about the same match, and the crest gets its full size back to say one
-thing: who, and where.
+**It is entered from the [match breakdown](player-detail.md#and-before-kick-off-where-the-guess-is-entered)**
+— the sheet that explains what a player did in one fixture, opened on a fixture
+that has not happened yet. Its body is then one line saying the match has not
+begun; its header carries a **⌖** and that is the way in.
 
 ```
-┌──┬────────┬──────────────────────┬───────┐
-│▐ │portrait│ Name          4,2 Mio│       │
-│  │        │ ◆ ⌖120         ↗ +80k│ crest │  ← tap the crest to enter it
-└──┴────────┴──────────────────────┴───────┘
+┌───────────────────────────────────────────┐
+│ [img] Musiala              – Punkte  ⌖  ✗ │  ← ⌖ opens the guess
+│       ✈ (BVB) · 12. Spieltag  ⌖120        │
+├───────────────────────────────────────────┤
+│        Das Spiel hat noch nicht begonnen.  │
+└───────────────────────────────────────────┘
 ```
 
-The sheet is
-[`ExpectedPointsDialog`](../../src/components/squad/ExpectedPointsDialog.tsx),
-addressed as **`#expected:<playerId>`** through
-[`useHashModal`](../../src/lib/useHashModal.ts) — so the back gesture closes it
-and a refresh under it puts it back. It passes that hook's test for a hash
-modal: its subject is a player, and a player is recoverable from an id. It is
-rendered by the page rather than by the tab, because switching to the pitch has
-to close it too.
+That is a move, and the reasoning is the subject. A guess is about **one player
+in one match**; this sheet already *is* one player in one match, already knows
+the matchday, and already prints the guess and the prediction beside whatever
+was really scored. The fixture crest on a Kader row, which used to carry the
+tap, is about the **schedule** — it now shows a
+[track of the next two opponents](#the-fixture-track--two-deep-five-on-a-tap)
+and a tap that brings up five, which is one meaning rather than two.
 
-**Three screens open the same sheet**, and the two that open it per *player*
-share one hook — the hash modal, the lookup and the dialog in
-[`useExpectedPointsSheet`](../../src/components/squad/ExpectedPointsSheet.tsx):
+The ⌖ is drawn **only before kick-off and only in the running season**:
+afterwards the question has started answering itself, and an archived season
+has no guess to file — guesses are keyed by matchday alone, so a 2019 matchday
+3 would be filed as this season's. It is lit accent when something is already
+stored and muted when the field would open empty, the same rule the event
+filter beside it follows — and it takes the same 36px square, which the two can
+share because a match with no actions in it has no filter.
 
-| Screen | How it is opened | Addressed as |
-| ------ | ---------------- | ------------ |
-| This page's Kader | The **fixture crest** at the end of the row | `#expected:<playerId>` |
-| A [rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The same crest, in the same place | `#expected:<playerId>` |
-| A player's [Leistung tab](player-detail.md#leistung) | A tap on **any fixture still to come** — the one screen that shows a player's whole run of them | `#expected:<matchday>` |
+**Where the sheet comes from.** Every row that can reach it is a
+[`PlayerMatchRow`](../../src/components/player/PlayerMatchRow.tsx) on the
+player's own page — the [Leistung tab](player-detail.md#leistung)'s whole
+season of fixtures and the [Details tab](player-detail.md)'s handful around
+now. Such a row is a button for a match he played *and* for one still to come;
+only a finished match he sat out has nothing behind it.
 
-The player page keys its hash by the **matchday** rather than the player, for
-the mirror of the reason the lists key theirs by the player: there, one
-matchday is fixed and the players vary; here, one player is fixed and the
-matchdays vary. The two never share a screen.
+| Screen | How it is opened |
+| ------ | ---------------- |
+| A player's [Leistung](player-detail.md#leistung) or Details tab | Tap **any fixture still to come** → breakdown sheet → **⌖** |
+| Live pitches and duel plates, before kick-off | Tap the plate → the same sheet → **⌖** |
+| A [rival's Kader](manager-detail.md#expected-points-on-somebody-elses-players) | The **target mark** at the end of the row, `#expected:<playerId>` — the one list with no match sheet of its own to reach |
 
 A [club's roster](team.md#expected-points-a-club-at-a-time) **shows** the
-figures and no longer enters them. It is a scouting list rather than a lineup,
-and a control at the end of thirty rows to file a guess against a matchday the
-page never names was the weakest of the three ways in; the player's own page
-does it better, with his fixtures in front of you.
+figures and does not enter them, for the reason it never did: it is a scouting
+list rather than a lineup, and the player's own page does it better with his
+fixtures in front of you.
 
-The caller supplies a `resolve(playerId)`, which is what lets the URL survive a
-refresh: the sheet reopens from an id alone against whatever the list has since
-re-fetched, and quietly opens nothing when the id names a player who has been
-sold out of it. What it hands back is an `ExpectedPointsSubject` — an id, a
-name, the fixture and whichever of the two season figures that payload has —
-deliberately **not** `SquadMember`, because a rival's Kader carries no first
-name and a club's roster carries no season total.
+The rival's Kader still goes through
+[`useExpectedPointsSheet`](../../src/components/squad/ExpectedPointsSheet.tsx),
+the hash modal addressed as **`#expected:<playerId>`** — so the back gesture
+closes it and a refresh under it puts it back. The breakdown's own ⌖ is plain
+`useState` instead: it is a dialog opened from inside a dialog, and a second
+hash under the first would have to be unwound in the right order to get back.
+
+That hook's caller supplies a `resolve(playerId)`, which is what lets the URL
+survive a refresh: the sheet reopens from an id alone against whatever the list
+has since re-fetched, and quietly opens nothing when the id names a player who
+has been sold out of it. What it hands back is an `ExpectedPointsSubject` — an
+id, a name, the fixture and whichever of the two season figures that payload
+has — deliberately **not** `SquadMember`, because a rival's Kader carries no
+first name and the breakdown sheet, opened off a pitch, knows neither season
+figure. The dialog drops the calibration line rather than inventing one.
 
 | Part | Why |
 | ---- | --- |
 | Match summary | The crest, spelled out — *Heimspiel gegen FCB*, the matchday number and the kick-off. The badge is wordless on a row; a dialog has the width to say it, and on the list that has no crest it is the only place the fixture is named. **It is a link to the opponent's [club page](team.md)** — *what am I guessing against* is the question this line raises and that page answers — with a chevron to say so, and it closes the sheet on the way out. A bye has nothing to link to and stays a plain line |
 | The field | Opens at the **prediction**, or at the guess already stored, or at **100** when there is neither. Text, not `type="number"`, so it can be cleared to retype; a leading minus survives, because Kickbase points genuinely go below zero |
 | Prognose panel | Under the field, orange and dashed like the chip: the model's figure, its `p20 – p80` band, *Startelf* and *Einsatz* as percentages — and **Übernehmen**, which puts the figure back in the field once it has been nudged off it. Always present: *wird geladen …* while the file is in flight, *keine Prognose* for a player the model has nothing for |
-| Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the one figure in the sheet that is a fact about the past, and what a guess is calibrated against. Only what the list knows: a club's roster has an average and no total, and the line shortens rather than printing a dash |
+| Season average | Under the field, `Ø 39 pro Spiel · 412 in dieser Saison` — the one figure in the sheet that is a fact about the past, and what a guess is calibrated against. Only what the caller knows: the player page hands both down through the breakdown sheet, a live pitch has neither, and the line shortens or goes rather than printing a dash |
 | `+50 +10 +5` / `−50 −10 −5` | The market's [`AmountSteps`](../../src/components/ui/AmountSteps.tsx) at `scale="points"` — the identical control, hold-to-repeat included, on its own list of steps |
 | **✗** on the field | Deletes the guess, exactly where the market's *withdraw* sits on the amount it takes back. Only there once something is stored, so it cannot be mistaken for "clear the field" — and what is left afterwards is the prediction, not an empty row |
 
@@ -760,7 +770,7 @@ afterwards moves it.
 | [Live view](#live-tab), [a rival's Aufstellung](manager-detail.md#aufstellung), the [duel pitch](duel-detail.md#layout) and its [ranking](duel-detail.md#the-ranking-tab) | For a player whose match **has not kicked off**: the figure takes the plate on grass — target glyph included, so it cannot be read as a score — and rides beside the kick-off time as a chip in a row. Gone the moment real points exist — see [the one figure a player gets](duel-detail.md#the-one-figure-a-player-gets) |
 | Lineup totals — [live header](#live-tab), [a rival's corner plate](manager-detail.md#aufstellung), both [duel corners](duel-detail.md#layout) | `⌖ 1.240`: `SUM(coalesce(real, own guess, prediction))` over the fielded eleven. Where an eleven is **heading**, next to what it has scored; absent once every match is settled |
 | [The lineup editor's pitch and bench](#lineup-tab) | On the plate under the portrait and on each bench card: glyph and figure, in the same two colours. On the plate it is the *Punkte* reading of [what stands under the name](#was-unter-dem-namen-steht) — it shared that line with the fixture crest until the three readings became a choice |
-| [The action breakdown](duel-detail.md#the-expected-points-in-the-header-of-the-breakdown) | **Both** figures in the header — the reader's guess *and* the model's prediction — beside the real total. The one screen where the two are worth separating rather than resolved |
+| [The action breakdown](duel-detail.md#the-expected-points-in-the-header-of-the-breakdown) | **Both** figures in the header — the reader's guess *and* the model's prediction — beside the real total. The one screen where the two are worth separating rather than resolved, and, before kick-off, [where the guess is entered](#where-it-is-entered) |
 
 A player with **neither** figure shows no chip at all — a bye, a player the
 model has no file for, a league outside the Bundesliga. In a Bundesliga league
@@ -848,8 +858,8 @@ as though the reader had decided it.
 Keyed by matchday first, because that is the question asked of it: *what did I
 put down this week*. The matchday number is the one
 [`useCurrentMatchday`](../../src/api/hooks/useMatchday.ts) reports — the same
-query the crest beside the guess comes from, so the two can never disagree
-about which match is meant.
+query every fixture crest on the page comes from, so the guess and the match
+it is filed against can never disagree about which match is meant.
 
 **Nothing is ever pruned.** Last week's guesses stay where they are once the
 matchday rolls over; a season of them costs a few hundred bytes and is the raw
@@ -1673,7 +1683,7 @@ when not match-fit, and their next fixture.
 **And what he is expected to score, on the same line as the fixture**: the
 crest, then the target glyph and the figure, accent green for the reader's own
 guess and orange for the model's prediction — the same figure the
-[row one tab away](#erwartete-punkte) carries on its crest. An eleven is chosen
+[row one tab away](#erwartete-punkte) carries under the name. An eleven is chosen
 against the alternatives and this is the pitch the choosing happens on, so the
 figure belongs here most of all. A plate line rather than a corner badge,
 because both corners of this portrait are taken (status mark, lineup

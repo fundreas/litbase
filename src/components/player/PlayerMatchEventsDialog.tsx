@@ -7,6 +7,7 @@ import {
   RefreshCcw,
   ThumbsDown,
   Timer,
+  Target,
   Trophy,
   X,
   type LucideIcon,
@@ -19,9 +20,10 @@ import {
   type PlayerMatchEvent,
 } from '@/api/hooks/usePlayerMatchEvents'
 import type { BreakdownFixture } from '@/api/hooks/usePlayerMatchEvents'
-import { fixtureState, matchOutcome } from '@/api/models'
+import { fixtureState, matchOutcome, type TeamFixture } from '@/api/models'
 import { Scoreline } from '@/components/player/PlayerMatchRow'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
+import { ExpectedPointsDialog } from '@/components/squad/ExpectedPointsDialog'
 import { usePointcastPrediction } from '@/components/squad/useExpectedPointsView'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
@@ -164,6 +166,26 @@ function awardOrder(event: PlayerMatchEvent): number {
  * printing it over a 2019 match would be a fabrication. `seasonId` is set only
  * for archived seasons, which makes it the gate.
  *
+ * ## And before kick-off, where the guess is *entered*
+ *
+ * A match that has not begun has no actions to explain, so the sheet's body is
+ * one line saying so. What it has instead is a **⌖ in the header**, which
+ * opens the [expected-points dialog](../squad/ExpectedPointsDialog.tsx) for
+ * this player on this matchday.
+ *
+ * That dialog used to be reached from the fixture crest at the end of a Kader
+ * row. The crest is about the *schedule* — it now carries a
+ * [track of the next two opponents](../squad/FixtureTrack.tsx) and a tap that
+ * brings up five — and a guess is about *one match*. This sheet already is one
+ * match, already knows the matchday, and already prints the guess and the
+ * model's prediction beside what was actually scored; putting the way in here
+ * is what makes those three figures one screen rather than three.
+ *
+ * It is drawn **only for the running season and only before kick-off**: a
+ * guess entered against a match already under way is a guess about a question
+ * that has started answering itself, and an archived season has no guess to
+ * file at all.
+ *
  * The ✗ sits beside the header rather than inside it, so the two targets never
  * overlap: one navigates, one closes.
  */
@@ -174,6 +196,8 @@ export function PlayerMatchEventsDialog({
   playerImage,
   leagueId,
   seasonId,
+  averagePoints,
+  totalPoints,
   to,
   matchTo,
   onClose,
@@ -189,6 +213,17 @@ export function PlayerMatchEventsDialog({
   leagueId: string | undefined
   /** The season the match belongs to. Omitted for the running one. */
   seasonId?: string
+  /**
+   * What he has averaged and totalled this season, where the caller knows it.
+   *
+   * Only ever used by the expected-points dialog below, which prints them as
+   * the line a guess is calibrated against. The pitches that open this sheet
+   * carry neither — they hold a matchday's players, not a season's — and the
+   * dialog drops the line rather than inventing one, exactly as it does for a
+   * club's roster.
+   */
+  averagePoints?: number
+  totalPoints?: number
   /**
    * Where the header goes: **his page**, or nothing.
    *
@@ -224,6 +259,9 @@ export function PlayerMatchEventsDialog({
   const expectedDay = seasonId === undefined ? match.day : undefined
   const ownExpected = useExpectedPoints(expectedDay)[playerId]
   const { prediction } = usePointcastPrediction(expectedDay, playerId)
+
+  /** Whether the expected-points dialog is up, over this sheet. */
+  const [isEditingExpected, setIsEditingExpected] = useState(false)
 
   /**
    * **On by default**, which is the unusual half of this and the deliberate
@@ -282,6 +320,29 @@ export function PlayerMatchEventsDialog({
       kickoff: match.kickoff ?? '',
     }) !== 'upcoming'
   const Venue = match.isHome ? House : PlaneTakeoff
+  /*
+   * The guess can be entered while the match is still to come, and only for
+   * the running season — `expectedDay` is already that gate.
+   */
+  const canEditExpected = expectedDay !== undefined && !hasKickedOff
+  /*
+   * The fixture as the expected-points dialog wants it, so its summary line
+   * can name the opponent and link to the club. Rebuilt rather than passed
+   * down a second prop: every caller already hands this sheet the same facts
+   * under {@link BreakdownFixture}'s names. Without an opponent id there is no
+   * club to link to, and the dialog draws the line without one.
+   */
+  const expectedFixture: TeamFixture | undefined =
+    match.opponentId === undefined
+      ? undefined
+      : {
+          matchId: match.matchId,
+          kickoff: match.kickoff ?? '',
+          isHome: match.isHome,
+          opponentId: match.opponentId,
+          opponentSymbol: match.opponentSymbol ?? match.opponentId,
+          opponentImage: match.opponentImage,
+        }
   /*
    * The breakdown's own total, not the row's. They are the same number for a
    * settled match — checked — and when they are not, the one the rows below
@@ -466,6 +527,18 @@ export function PlayerMatchEventsDialog({
                 would scroll away from the emptiness it caused, gone within a
                 flick of a hundred rows. Left of the ✗, so close keeps the
                 corner it has in every sheet in the app. */}
+            {/* Before kick-off, where the filter never is: a match with no
+                actions has nothing to thin. The two therefore never share the
+                header, and the ⌖ takes the same 36px square. */}
+            {canEditExpected && (
+              <ExpectedPointsButton
+                hasGuess={ownExpected !== undefined}
+                onOpen={() => {
+                  setIsEditingExpected(true)
+                }}
+              />
+            )}
+
             {canFilter && (
               <EventFilterToggle
                 isActive={onlyNotable}
@@ -552,7 +625,80 @@ export function PlayerMatchEventsDialog({
           )}
         </Dialog.Content>
       </Dialog.Portal>
+
+      {/* **Over this sheet, not instead of it.** The guess is about the match
+          whose header is still on screen behind it, and closing it puts the
+          reader back where the question was asked. Radix nests dialogs: the
+          inner one is the dismissable layer on top, so Escape and a tap
+          outside close it and leave this one standing.
+
+          `expectedDay` rather than `match.day` — the same gate that decides
+          the button exists, so the dialog cannot be mounted against an
+          archived season's matchday. */}
+      {isEditingExpected && expectedDay !== undefined && (
+        <ExpectedPointsDialog
+          player={{
+            id: playerId,
+            name: playerName,
+            averagePoints,
+            totalPoints,
+            fixture: expectedFixture,
+          }}
+          matchday={expectedDay}
+          onClose={() => {
+            setIsEditingExpected(false)
+          }}
+        />
+      )}
     </Dialog.Root>
+  )
+}
+
+/**
+ * **⌖ — enter what you expect**, as one glyph in the header.
+ *
+ * The same square and the same hover as the
+ * [filter toggle](#EventFilterToggle) it stands in for, because the two never
+ * appear together: the filter is for a match with a hundred actions in it and
+ * this is for one with none yet.
+ *
+ * **Lit when a guess is already filed**, muted when the field would open
+ * empty — the same rule the filter follows, and for the same reason: a header
+ * the reader is not looking at should still say whether anything is set. The
+ * accessible name says which, so the colour is never the only carrier.
+ *
+ * The glyph is the app's expected-points target, the one on every chip and
+ * plate that draws a figure that has not happened yet, so the button and the
+ * number it produces are visibly the same thing.
+ */
+function ExpectedPointsButton({
+  hasGuess,
+  onOpen,
+}: {
+  hasGuess: boolean
+  onOpen: () => void
+}) {
+  const label = hasGuess
+    ? 'Erwartete Punkte ändern'
+    : 'Erwartete Punkte eintragen'
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title={label}
+      aria-label={label}
+      aria-haspopup="dialog"
+      className={cn(
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
+        'hover:bg-surface-2',
+        hasGuess
+          ? 'text-accent hover:text-accent'
+          : 'text-muted hover:text-ink',
+      )}
+    >
+      <Target size={18} aria-hidden="true" />
+    </button>
   )
 }
 

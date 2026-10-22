@@ -200,6 +200,10 @@ export function PlayerDetailsTab({
           playerName={player.fullName}
           playerImage={player.image}
           leagueId={leagueId}
+          /* What the sheet's expected-points dialog calibrates a guess
+             against, for a fixture still to come. */
+          averagePoints={player.averagePoints}
+          totalPoints={player.totalPoints}
           /* `matchTo`, not `to`: this sheet was opened *on* his page, so the
              header's own link would lead to the page underneath it. The line
              about the fixture takes the target instead. */

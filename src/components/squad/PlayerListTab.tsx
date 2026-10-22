@@ -11,8 +11,8 @@ import {
 } from '@/api/models'
 import { ExpectedPointsBadge } from '@/components/squad/ExpectedPointsBadge'
 import { FixtureBadge } from '@/components/squad/FixtureBadge'
-import { FixtureTrack, TRACK_LENGTH } from '@/components/squad/FixtureTrack'
-import { useFixtureHold } from '@/components/squad/useFixtureHold'
+import { FixtureTrack } from '@/components/squad/FixtureTrack'
+import { useFixturePeek } from '@/components/squad/useFixturePeek'
 import { PlayerStatusBadge } from '@/components/squad/PlayerStatusBadge'
 import { StartProbabilityBadge } from '@/components/squad/StartProbabilityBadge'
 import type { CurrentMatchday } from '@/api/hooks/useMatchday'
@@ -87,7 +87,6 @@ export function PlayerListTab({
   forSale,
   onToggleForSale,
   saleValues,
-  onEditExpected,
   scenarioTo,
 }: {
   squad: SquadMember[]
@@ -138,19 +137,6 @@ export function PlayerListTab({
    * value — which is what the total does with him too.
    */
   saleValues?: ReadonlyMap<string, number>
-  /**
-   * Open the [expected-points sheet](./ExpectedPointsDialog.tsx) for a player.
-   *
-   * The page owns the sheet, not this tab: it is addressed by the URL hash,
-   * and the pitch has to be able to close it too.
-   *
-   * Optional, because one caller has no sheet to open — the
-   * [what-if page](../../pages/WhatIfPage.tsx) runs this list permanently in
-   * calculator mode, where a row has one meaning and it is not this one. The
-   * guesses already made still show there; they simply cannot be edited from
-   * a scenario.
-   */
-  onEditExpected?: (player: SquadMember) => void
   /**
    * Where the [what-if scenario](../../pages/WhatIfPage.tsx) lives, if this
    * list offers a way into one.
@@ -273,7 +259,6 @@ export function PlayerListTab({
                   showsFixtures={showsFixtures}
                   saleValue={saleValues?.get(player.id)}
                   expectedPoints={expected.entry(player.id)}
-                  onEditExpected={onEditExpected}
                 />
               ))}
             </ul>
@@ -375,7 +360,6 @@ function PlayerRow({
   showsFixtures,
   saleValue,
   expectedPoints,
-  onEditExpected,
 }: {
   player: SquadMember
   /** His club, for the watermark behind the row. */
@@ -421,8 +405,6 @@ function PlayerRow({
    * prediction standing in for one. `undefined` when neither exists.
    */
   expectedPoints: ExpectedPointsEntry | undefined
-  /** Absent where the row cannot open the sheet — see the tab's own prop. */
-  onEditExpected?: (player: SquadMember) => void
 }) {
   const isCalculating = isForSale !== undefined
 
@@ -517,7 +499,10 @@ function PlayerRow({
               same kind of statement about the same match — *will he play* and
               *what will he bring* — and reading them together is what a lineup
               decision actually needs. It used to live under the crest at the
-              end of the row; the crest kept the tap that enters it. */}
+              end of the row, which kept the tap that entered it — until that
+              tap moved to the
+              [match breakdown](../player/PlayerMatchEventsDialog.tsx) and the
+              crest was left to the schedule alone. */}
         {(startProbability !== undefined || expectedPoints !== undefined) && (
           <span className="mt-0.5 flex items-center gap-1.5">
             {startProbability !== undefined && (
@@ -613,24 +598,22 @@ function PlayerRow({
     </>
   )
 
-  /* Full-height fixture panel, matching the swap dialog's treatment — and the
-     row's second control.
+  /* Full-height fixture panel, matching the swap dialog's treatment.
 
-     **The crest is where the guess is entered.** It is already the only part
-     of the row that is about the coming matchday rather than about the season
-     or the market, so "what will he score on Saturday?" belongs on it rather
-     than behind a button of its own; a row this dense has no room for one.
-     The figure it enters now reads beside the probability badge up in the
-     row — the crest kept the tap and gave up the number, so this panel says
-     one thing (*who, and where next*) and says it at full size. */
+     **It is about the schedule, and only the schedule.** It used to be where
+     an expected figure was entered as well, on the reasoning that the crest
+     was the one part of the row about the coming matchday; that guess now
+     lives in the
+     [match breakdown](../player/PlayerMatchEventsDialog.tsx), beside the
+     actions it is a guess about, which leaves this panel one meaning and the
+     plainest gesture to carry it. */
   const panelClass =
     /* `w-14`, near enough the 58px the crest plus its old padding took, so
        the row's other columns keep the width they had — and exactly what the
-       [track](./FixtureTrack.tsx) is sized to fill. `select-none`, because a
-       hold on a phone otherwise starts selecting the row's text under it. */
-    'flex w-14 shrink-0 select-none flex-col items-center justify-center self-stretch border-l border-line bg-canvas/40 px-1'
+       [track](./FixtureTrack.tsx) is sized to fill. */
+    'flex w-14 shrink-0 flex-col items-center justify-center self-stretch border-l border-line bg-canvas/40 px-1'
 
-  /* The next three where the page knows them, the one next fixture where it
+  /* The next two where the page knows them, the one next fixture where it
      does not — the [scenario](../../pages/WhatIfPage.tsx) has no schedule, and
      a track of one is just the badge it always was. */
   const panelBody =
@@ -640,41 +623,17 @@ function PlayerRow({
       <FixtureBadge fixture={fixture} size="lg" />
     )
 
-  /* The hold, on every rendering of the panel below — including the inert one
-     in calculator mode, where the row is one big button and the handlers' job
-     is also to keep the hold's own click from reaching it. */
-  const hold = useFixtureHold({
+  /* The rest of the month, a tap behind the two the panel is showing. */
+  const peek = useFixturePeek({
     matchdays: nextMatchdays,
     teamId: player.teamId,
-    onTap:
-      onEditExpected === undefined
-        ? undefined
-        : () => {
-            onEditExpected(player)
-          },
   })
 
-  /* The hold has to be discoverable, and a tooltip on the thing it works on
-     is the only room this row has to say so. Absent where there is nothing
-     past the three on the track to reveal. */
-  const canHold = nextMatchdays.length > TRACK_LENGTH
-  const holdHint = 'gedrückt halten für die nächsten fünf Spiele'
-
-  /* In calculator mode it is not a control: the whole row is one button then,
-     HTML has no nested buttons, and a tap anywhere on the row means "mark him
-     for sale" — including here. The hold still works, because *which three
-     clubs does he still have to play* is exactly what is being weighed up.
-     Drawn in neither mode while the row is showing the fixture strip: its
-     first crests are this panel's. */
-  const fixturePanel = (
-    <span
-      className={panelClass}
-      title={canHold ? `Nächste Spiele · ${holdHint}` : undefined}
-      {...hold.handlers}
-    >
-      {panelBody}
-    </span>
-  )
+  /* Inert: in calculator mode, where the whole row is one button and a tap
+     anywhere on it means "mark him for sale" — including here; and wherever
+     there is nothing past the track to bring up. Drawn in neither mode while
+     the row is showing the fixture strip: its first crests are this panel's. */
+  const fixturePanel = <span className={panelClass}>{panelBody}</span>
 
   const shell = cn(
     // **No card of its own.** The rows sit flush in a divided list inside one
@@ -713,7 +672,6 @@ function PlayerRow({
           <span className={bodyClass}>{details}</span>
           {!showsFixtures && fixturePanel}
         </button>
-        {hold.layer}
       </li>
     )
   }
@@ -750,18 +708,16 @@ function PlayerRow({
         {details}
       </Link>
 
-      {showsFixtures ? null : onEditExpected === undefined ? (
+      {showsFixtures ? null : !peek.canPeek ? (
         fixturePanel
       ) : (
         <button
           type="button"
-          {...hold.handlers}
-          title={
-            canHold
-              ? `Erwartete Punkte eintragen · ${holdHint}`
-              : 'Erwartete Punkte eintragen'
-          }
-          aria-label={`Erwartete Punkte für ${player.lastName} eintragen`}
+          onClick={(event) => {
+            peek.open(event.currentTarget)
+          }}
+          title="Die nächsten fünf Spiele"
+          aria-label={`Die nächsten fünf Spiele von ${player.lastName}`}
           className={cn(
             panelClass,
             'cursor-pointer transition-colors hover:bg-surface-2',
@@ -772,7 +728,7 @@ function PlayerRow({
         </button>
       )}
 
-      {hold.layer}
+      {peek.layer}
     </li>
   )
 }
