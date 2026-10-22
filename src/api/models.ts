@@ -912,6 +912,28 @@ export function chicagoPointsOf(own: number, opponent: number): number {
   return own > opponent ? own - opponent : 0
 }
 
+/**
+ * **How a duel went, from the two matchday totals** — the one comparison the
+ * whole app reads a duel through.
+ *
+ * Never from `hhmp`. That field is the duel points Kickbase awarded, and
+ * reading 3/1/0 back out of it would be an inference about a scale the API
+ * never states — a league that scored duels differently would silently
+ * mislabel every row. Both managers' `mdp` are in the same payload, so the
+ * comparison is ground truth.
+ *
+ * It says nothing about *whether* a result may be claimed yet: a duel under
+ * way is level at `0` in the third minute, and `drawn` is the one thing that
+ * is not. Callers gate on the matchday being over —
+ * [`duelResultOf`](../api/hooks/useRanking.ts) for the current duel, the
+ * [form strip](./hooks/useDuelForm.ts) for the five behind it.
+ */
+export function duelResultFrom(own: number, opponent: number): DuelResult {
+  if (own > opponent) return 'won'
+  if (own < opponent) return 'lost'
+  return 'drawn'
+}
+
 /* -------------------------------------------------------------------------- */
 /* One matchday's rosters — duel detail, and the squad's live view             */
 /* -------------------------------------------------------------------------- */

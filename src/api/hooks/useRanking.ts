@@ -2,7 +2,12 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 
 import { get } from '@/api/client'
 import { endpoints } from '@/api/endpoints'
-import type { DuelResult, LeagueRanking, RankedManager } from '@/api/models'
+import {
+  duelResultFrom,
+  type DuelResult,
+  type LeagueRanking,
+  type RankedManager,
+} from '@/api/models'
 import { qk } from '@/api/queryKeys'
 import type { RankingResponse, RankingUser } from '@/api/types'
 
@@ -98,11 +103,9 @@ export function useRanking(
  * How a manager's current duel stands.
  *
  * Resolved by **comparing matchday points with the opponent** named in
- * `hhoui`, rather than by reading `hhmp` against an assumed scoring scale.
- * Both managers are in the same payload, so the comparison is ground truth
- * from data the API actually states; a 3/1/0 reading of `hhmp` would be an
- * inference about how Kickbase awards duel points, and a league that scored
- * them differently would silently mislabel every row.
+ * `hhoui`, through [`duelResultFrom`](../models.ts) — the same comparison the
+ * [form strip](./useDuelForm.ts) makes about the five matchdays behind this
+ * one, so one duel cannot be described two ways on one row.
  *
  * Returns `undefined` when there is no duel to judge — no opponent named, or
  * the opponent is not in this ranking.
@@ -115,7 +118,5 @@ export function duelResultOf(
   const opponent = byId.get(manager.duelOpponentId)
   if (opponent === undefined) return undefined
 
-  if (manager.matchdayPoints > opponent.matchdayPoints) return 'won'
-  if (manager.matchdayPoints < opponent.matchdayPoints) return 'lost'
-  return 'drawn'
+  return duelResultFrom(manager.matchdayPoints, opponent.matchdayPoints)
 }

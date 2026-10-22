@@ -10,12 +10,14 @@ import { useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 
 import { useLeagueChicagoPoints } from '@/api/hooks/useChicagoRanking'
+import { useLeagueDuelForm, type DuelFormEntry } from '@/api/hooks/useDuelForm'
 import { useSeasonSchedule } from '@/api/hooks/useMatchday'
 import { duelResultOf, useRanking } from '@/api/hooks/useRanking'
 import type { DuelResult, RankedManager } from '@/api/models'
 import { useAuth } from '@/auth/useAuth'
 import { PageHeading } from '@/components/PageHeading'
 import { BattleRankingTab } from '@/components/ranking/BattleRankingTab'
+import { DuelFormStrip } from '@/components/ranking/DuelFormStrip'
 import { DuelOutcomeLine } from '@/components/ranking/DuelOutcomeLine'
 import { ManagerAvatar } from '@/components/manager/ManagerAvatar'
 import { BottomTabBar, type BottomTab } from '@/components/ui/BottomTabBar'
@@ -92,19 +94,37 @@ export function RankingPage() {
   const isChicagoView =
     data?.isDuelMode === true && sortBy === 'chicago' && view === VIEWS.ranking
 
+  /** Is the season table on screen, for a league that plays duels? */
+  const isDuelTable = data?.isDuelMode === true && view === VIEWS.ranking
+
+  /*
+   * The season's calendar, which both things below are fanned out over. It is
+   * the same hour-cached entry the squad, matchday and club pages already
+   * read, so asking for it costs no request — but it is still gated, because
+   * what reads it is not.
+   */
+  const schedule = useSeasonSchedule(isDuelTable ? competitionId : undefined)
   /*
    * Chicago is the one table Kickbase does not send: it is every finished
-   * matchday's pairings, scored by their margin, which costs the competition's
-   * calendar plus one request per matchday — see
-   * [`useLeagueChicagoPoints`](../api/hooks/useChicagoRanking.ts). Both are
-   * handed `undefined` unless that table is the one actually on screen, which
-   * is what keeps a season of requests off the other two tables, off the
-   * battles view and off every league that plays no duels.
+   * matchday's pairings, scored by their margin, which costs one request per
+   * matchday — see
+   * [`useLeagueChicagoPoints`](../api/hooks/useChicagoRanking.ts). Handed
+   * `undefined` unless that table is the one actually on screen, which is what
+   * keeps a season of requests off the other two tables.
    */
-  const schedule = useSeasonSchedule(isChicagoView ? competitionId : undefined)
   const chicago = useLeagueChicagoPoints(
     leagueId,
     isChicagoView ? schedule.data?.matchdays : undefined,
+  )
+  /*
+   * The [form strips](../components/ranking/DuelFormStrip.tsx) are the same
+   * fan-out five matchdays deep, and they belong to **all three** duel tables:
+   * who is on a run is a fact about the manager, not about the sort. Five
+   * shared cache entries, which the duels page and every Duelle tab fill too.
+   */
+  const form = useLeagueDuelForm(
+    leagueId,
+    isDuelTable ? schedule.data?.matchdays : undefined,
   )
 
   const managers = useMemo(() => {
@@ -301,6 +321,7 @@ export function RankingPage() {
                     ? undefined
                     : byId.get(manager.duelOpponentId)?.name
                 }
+                duelForm={form.byManagerId.get(manager.id) ?? []}
               />
             ))}
           </ul>
@@ -393,6 +414,7 @@ function ManagerRow({
   chicagoPoints,
   duelResult,
   duelOpponentName,
+  duelForm,
 }: {
   manager: RankedManager
   leagueId: string
@@ -405,6 +427,8 @@ function ManagerRow({
   chicagoPoints: number
   duelResult: DuelResult | undefined
   duelOpponentName: string | undefined
+  /** The last five settled duels, newest first. Empty outside duel leagues. */
+  duelForm: DuelFormEntry[]
 }) {
   /*
    * The bold figure is what the table is sorted by and the muted one is a
@@ -478,10 +502,20 @@ function ManagerRow({
           <p className="nums truncate text-xs text-muted">
             {points(manager.matchdayPoints)} Pkt am Spieltag
           </p>
-          <DuelOutcomeLine
-            result={duelResult}
-            opponentName={duelOpponentName}
-          />
+          {/* The running duel on the left, the five behind it on the right —
+            one line, because they are one subject and the row has no height to
+            spare. The sentence truncates and the strip never does: five marks
+            are a fixed 68px, and an opponent's name is the thing on this row
+            that can afford to lose its last few letters. */}
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <DuelOutcomeLine
+                result={duelResult}
+                opponentName={duelOpponentName}
+              />
+            </div>
+            <DuelFormStrip form={duelForm} />
+          </div>
         </div>
 
         {/* Two figures stacked — see the note above where they are chosen. */}

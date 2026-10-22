@@ -36,11 +36,11 @@ two, and [Chicago](#chicago-mode).
   ┌────────────────────────────────────────────┐
   │ 1. (A)  robidfl                         9  │
   │         410 Pkt am Spieltag        612 Pkt │
-  │         ✓ Gewonnen vs. Danger              │
+  │         ✓ Gewonnen vs. Danger    ✓✗✓–✓     │  ← form strip
   ├────────────────────────────────────────────┤
   │ 2. (A)  Danger  du                      6  │  ← accent border
   │ ↗2      120 Pkt am Spieltag        588 Pkt │
-  │         ✗ Verloren vs. robidfl             │
+  │         ✗ Verloren vs. robidfl   ✗✓✗✗–     │
   └────────────────────────────────────────────┘
 ```
 
@@ -53,7 +53,8 @@ left, where it used to be a ring around the card it no longer has. The
 **Battles** tab is drawn the same way.
 
 The row is a name over **two subtitles**: what the manager actually scored this
-matchday, then how the duel that fed into went. Team value used to sit here but
+matchday, then how the duel that fed into went — with the
+[last five duels](#the-form-strip) on the right-hand end of that second line. Team value used to sit here but
 was displaced — it is a standing figure that says nothing about the current
 round. It was on the dashboard until that page became the
 [event feed](events.md); this table is now the only place it is shown.
@@ -152,11 +153,103 @@ on; the icon says how it went, so printing the duel points as well would be
 redundant.
 
 **The result is computed, not read off a scoring scale.** `hhoui` names the
-opponent and every manager is in the same payload, so
-`duelResultOf()` compares the two matchday totals directly. Checked that both
+opponent and every manager is in the same payload, so `duelResultOf()` compares
+the two matchday totals directly, through
+[`duelResultFrom`](../../src/api/models.ts) — one comparison, shared with the
+[form strip](#the-form-strip), so one duel cannot be described two ways on one
+row. Checked that both
 sides of a duel always agree (one `won` ↔ one `lost`, or both `drawn`), and
 that a missing or out-of-league opponent yields no icon rather than a wrong
 one.
+
+### The form strip
+
+**The five duels behind the current one**, newest first, fading as they recede
+— at the right-hand end of the same line that names the running duel.
+
+```
+   ✓ Gewonnen vs. Danger        ✓ ✗ ✓ – ✓
+                                ↑         ↑
+                          last week   five weeks ago
+                            opacity 1    opacity 0.26
+```
+
+The table already said how the *current* duel went, which answers *this week*
+and nothing beyond it. A league table's real question is who is on a run: a
+manager three points off the top who has lost four straight is a different
+story from one who has won four, and neither the placement nor the points
+column tells which. Until this existed that story lived only on each manager's
+own [Duelle tab](manager-detail.md), one visit at a time.
+
+**Newest on the left**, against football's oldest-first convention. The fade is
+what makes that the only readable direction: a strip brightening towards the
+right would have the eye start at the faintest mark and work towards the
+loudest, which is backwards for a fact about now. It is the same device the
+Kader row's [fixture track](squad.md#the-fixture-track--two-deep-five-on-a-tap)
+uses in the other direction of travel — there the future recedes to the right,
+here the past does.
+
+| Place in the strip | Opacity |
+| ------------------ | ------- |
+| Last duel | `1` |
+| One before | `0.74` |
+| Two before | `0.54` |
+| Three before | `0.38` |
+| Four before | `0.26` |
+
+Steep early and flat late: the difference between last week and the week before
+matters more than the difference between four weeks ago and five.
+
+**Shape carries it, not colour** — the same ✓ / – / ✗ marks from
+[`DUEL_RESULT`](../../src/components/ranking/duelResult.ts) that the outcome
+line spells out and a manager's season of duels draws, so a mark means one
+thing everywhere and the strip survives a reader who cannot separate the green
+from the red. The whole strip is **one** labelled `role="img"`, not five: five
+icons each announcing themselves would be five screen-reader stops on a row
+that has a name, a score and a placement to get through. Its label carries the
+matchday numbers — *Letzte Duelle: 34. gewonnen, 33. verloren, …* — which are
+the only thing that says which five these are and have nowhere to go on screen
+under 12px marks.
+
+**It is *up to* five, never five with blanks.** A manager whose opponent is
+missing from a matchday's payload — a bye, an odd-sized league, a week before
+they joined — had no duel, and no duel is not an outcome. A gap in the strip
+would have to mean something, so there is none; a short strip is the honest
+answer.
+
+**Only settled matchdays**, the same gate the record, the averages and every
+outcome mark in the app apply. A live matchday is a pair of part-scores and
+level at `0` in the third minute is not a draw — so the running duel stays the
+row's own wordless outcome line until the final whistle, and the strip is the
+five behind it.
+
+**All three tables get it.** Who is on a run is a fact about the manager, not
+about the sort, so the strip is drawn on the duel table, the points table and
+[Chicago](#chicago-mode) alike.
+
+#### What it costs
+
+**Five requests**, from
+[`useLeagueDuelForm`](../../src/api/hooks/useDuelForm.ts) — one per matchday,
+because `ranking?dayNumber=` is the only payload carrying a pairing and it
+carries exactly one matchday's. It is the cheap member of the family
+[Chicago](#chicago-mode) and a manager's season of duels belong to; a form
+guide is short by definition.
+
+They are the **same cache entries** the [duels page](duels.md), the
+[matchday page](matchday.md), every manager's Duelle tab and the Chicago table
+fill, through `rankingDayQueryOptions`. So the five are usually already in
+hand, and they leave those screens loaded in turn. The season calendar they are
+picked from is the same hour-cached entry the squad and club pages read, so it
+costs nothing of its own.
+
+The whole fan-out is **gated on the season table being on screen for a duel
+league** — a normal league, and the Battles tab, make none of it.
+
+Strips grow as matchdays land, and the map is rebuilt newest-first on every
+render, so a matchday arriving out of order slots into its place rather than
+appending to the end. There is no "still loading" line for it: a strip that is
+four marks long for a second reads as a strip, not as a bug.
 
 `hhmp` has since been confirmed to award **3 for a win and 0 for a loss** —
 across all five duels of a played matchday the manager with the higher `mdp`
@@ -265,7 +358,7 @@ inverted reading would be visible immediately rather than silent.
 | Name | `name`, with a `du` tag in accent colour when `id === user?.id` |
 | Admin | not here — the crown is on the [manager page](manager-detail.md#the-header)'s header, from `isAdmin` |
 | Subtitle 1 | Matchday Kickbase points (`mdp`) |
-| Subtitle 2 | Duel outcome + opponent name — omitted outside duel leagues |
+| Subtitle 2 | Duel outcome + opponent name on the left, the [form strip](#the-form-strip)'s five marks on the right — omitted outside duel leagues |
 | Points | the figure the table is sorted by, bold, right-aligned — see [the toggle](#the-sort-toggle) |
 | Change | `placementChange` (`ppc`) — not in [Chicago](#chicago-mode), where it would describe another table |
 
@@ -507,17 +600,21 @@ on its transfer rows and to decide whether the league plays duels. Arriving
 here from it is therefore free: the cache is already warm and the list renders
 instantly.
 
-The battles view adds two more, neither of them on the critical path, and the
-[Chicago](#chicago-mode) table two of its own:
+The battles view adds two more, neither of them on the critical path; a duel
+league's season table adds the [form strips](#the-form-strip)' five, and the
+[Chicago](#chicago-mode) table a season of its own:
 
 | Hook | Endpoint | staleTime |
 | ---- | -------- | --------- |
 | [`useLeagueDetails(leagueId)`](../../src/api/hooks/useLeague.ts) | `/overview?includeManagersAndBattles=true` | 10 min — the chips, shared with [Liga](league.md) and [Transfermarkt](market.md) |
 | [`useBattleRanking(leagueId, type)`](../../src/api/hooks/useBattleRanking.ts) | [`/battles/{type}/users`](../api/leagues.md#get-v4leaguesleagueidbattlestypeusers) | 5 min — one entry per battle |
 | [`useSeasonSchedule(competitionId)`](../../src/api/hooks/useMatchday.ts) | `/competitions/{id}/matchdays` | 1 h — which matchdays are over, shared with half the app |
-| [`useLeagueChicagoPoints(…)`](../../src/api/hooks/useChicagoRanking.ts) | `ranking?dayNumber=` × finished matchdays | 5 min each — the entries [Duels](duels.md) and the [manager page](manager-detail.md) fill |
+| [`useLeagueDuelForm(…)`](../../src/api/hooks/useDuelForm.ts) | `ranking?dayNumber=` × the **last five** finished matchdays | 5 min each — the same entries below, five of them |
+| [`useLeagueChicagoPoints(…)`](../../src/api/hooks/useChicagoRanking.ts) | `ranking?dayNumber=` × **every** finished matchday | 5 min each — the entries [Duels](duels.md) and the [manager page](manager-detail.md) fill |
 
-The last two are **off unless the Chicago toggle is active**.
+The schedule and the form strips are **off unless the season table is on screen
+for a duel league**; Chicago's season of requests is **off unless its toggle is
+active**, and its first five are the form's, already in hand.
 
 `useRanking` stays unconditional in both views: the battles view reads it for
 the [title stars](#row-anatomy-and-the-unit), and it is the cache entry half
