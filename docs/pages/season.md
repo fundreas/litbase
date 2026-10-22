@@ -231,27 +231,31 @@ Under each club's name, in both modes:
   #  ⬛  Klub                   Sp   Tore   Pkt
  ─────────────────────────────────────────────
   1  🔴  Bayern München          7   21:6    19
-         S S U S N · ⬛🏠
+         ✓ ✓ – ✓ ✗ · ⬛🏠
          ↑       ↑    ↑
       last week  five  next opponent, 20. Spieltag
       opacity 1  0.26
 ```
 
-**Form: the last five results, newest first**, as S / U / N in the app's own
-three colours — the compact cousin of the club page's
-[form card](team.md#form), with the same window, the same letters and the same
-direction, shrunk from 32px discs with scorelines under them to something that
+**Form: the last five results, newest first** — the compact cousin of the club
+page's [form card](team.md#form), with the same window and the same direction,
+shrunk from 32px lettered discs with scorelines under them to something that
 fits in a table row. A table position six matchdays old says nothing about who
 is climbing, which is the question a reader opens a table with; until this
 existed the answer was eighteen visits to eighteen club pages.
 
-It shares its fade with the standings'
-[duel form strip](ranking.md#the-form-strip) —
-[`FORM_DEPTH`](../../src/components/ui/formDepth.ts), one table for both, so a
-reader who learns the fade on one does not meet a second version of it on the
-other. The letters differ because the subjects do: a club's results are S/U/N
-in every printed Bundesliga table, while a manager's duel is won or lost
-against one named opponent and draws the ✓/–/✗ those screens already use.
+**The marks and the fade are the standings'
+[duel form strip](ranking.md#the-form-strip)'s** —
+[`RESULT_MARK`](../../src/components/ui/resultMark.ts) and
+[`FORM_DEPTH`](../../src/components/ui/formDepth.ts), one table each for both
+strips, so the two say the same thing the same way about two different
+competitions.
+
+It drew **S / U / N** for a day: what a printed Bundesliga table does, and what
+the form card still does at full size. At 10px beside a club name the letters
+were the weaker half of the pair — three glyphs that differ only as
+letterforms, against three that differ as *shapes* — and the shape is what
+survives the fade.
 
 **Then the next opponent**, as the same wordless
 [fixture badge](squad.md#the-opponent-is-the-next-one-not-the-current-matchdays)
@@ -262,9 +266,8 @@ season.
 
 **Why a second line and not two more columns.** The table already spends two
 thirds of a phone's width on six fixed columns, and the club name is the only
-`minmax(0,1fr)` there is. A 40px form column plus a 24px fixture column plus
-their gaps take 80px out of it — on a 360px screen that is `Mönchengladbach`
-cut to four letters and an ellipsis. The second line has the width to spare and
+`minmax(0,1fr)` there is. A 68px form column plus a 24px fixture column plus
+their gaps take over 100px out of it — on a 360px screen that is `Mön…`. The second line has the width to spare and
 costs 14px of row height, which a list that already scrolls can afford.
 
 The two sit together because they are the same subject from both sides: what

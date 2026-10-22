@@ -158,9 +158,11 @@ A letter **and** a colour, never colour alone, with the score underneath so the
 strip is not a row of verdicts with no evidence.
 
 The [league table](season.md#the-second-line-form-and-the-next-opponent) draws
-the same five under every club name — same letters, same window, same
-direction, shrunk to 10px with a fade over them and no scorelines. This card is
-the one that has room for the evidence and the links.
+the same five under every club name — same window, same direction, shrunk to
+12px marks with a fade over them and no scorelines. It uses the app's ✓ / – / ✗
+rather than these letters: at that size a shape reads where a letterform does
+not, and it is the notation the standings' duel strip already carries. This
+card is the one with room for the letters, the evidence and the links.
 
 ### Nächste Spiele — the fixture ticker
 
