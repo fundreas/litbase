@@ -35,6 +35,7 @@ import {
   OfferListingFacts,
 } from '@/components/market/OfferFields'
 import { LineupTab } from '@/components/squad/LineupTab'
+import { OptimiseDialog } from '@/components/squad/OptimiseDialog'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
 import { SquadLegendDialog } from '@/components/squad/SquadLegendDialog'
 import { SwapDialog } from '@/components/squad/SwapDialog'
@@ -119,6 +120,12 @@ type Tab = (typeof TABS)[keyof typeof TABS]
  * knowing which figures to feed in — the scenario's own sale-day prices, the
  * same expected points the rows and the pitch print, and the gap the bid and
  * the counted offers leave in the budget.
+ *
+ * It asks one thing before it runs: **who is not for sale**, in a
+ * [dialog](../components/squad/OptimiseDialog.tsx) of locks with the current
+ * eleven one tap away. That is not a confirmation step — it is the one input
+ * no payload carries, and without it the button's first answer is the last
+ * time anybody presses it.
  *
  * It is a **suggestion**, and the page treats it as one. Its summary sits
  * under the figure it moved, with a *Verwerfen* beside it that puts the
@@ -453,6 +460,19 @@ function WhatIfScenario({
    * pressed, which is the state the page spends most of its life in.
    */
   const [applied, setApplied] = useState<AppliedPlan | null>(null)
+  /** Open while the optimiser is asking who it may not sell. */
+  const [isOptimiseOpen, setIsOptimiseOpen] = useState(false)
+  /**
+   * **Who the optimiser may not sell**, by id — the manager's own reasons,
+   * which no payload carries. Empty to begin with, and kept between presses so
+   * that a second run does not re-ask a question already answered.
+   *
+   * Held here rather than inside the
+   * [dialog](../components/squad/OptimiseDialog.tsx) because the dialog
+   * unmounts its draft every time it closes, and because the summary under the
+   * budget counts these: a plan that looks timid should say why.
+   */
+  const [kept, setKept] = useState<ReadonlySet<string>>(() => new Set())
 
   const placeOffer = usePlaceOffer(leagueId)
   const withdrawOffer = useWithdrawOffer(leagueId)
@@ -683,7 +703,7 @@ function WhatIfScenario({
    * header. Any of those and the summary below would be quoting a total the
    * page no longer shows, so the two are compared and the summary simply goes.
    */
-  const planInputs = `${String(deficit)}|${saleDay ?? ''}`
+  const planInputs = `${String(deficit)}|${saleDay ?? ''}|${[...kept].sort().join(',')}`
 
   /**
    * **"Optimieren"** — the sales and the eleven, decided together.
@@ -696,10 +716,20 @@ function WhatIfScenario({
    *
    * The squad handed over is `full` — the target and the arrivals included,
    * because they can be fielded — with `isSellable` telling the optimiser
-   * which of them are actually the manager's to sell.
+   * which of them are actually the manager's to sell. A player the
+   * [dialog](../components/squad/OptimiseDialog.tsx) locked is handed over the
+   * same way a player the scenario does not own is: still fieldable, simply
+   * not for sale. His value therefore leaves the pool the gap is measured
+   * against, which is the honest reading of *I am not selling him* — and why
+   * locking enough of a squad can turn a fundable bid into a shortfall rather
+   * than into a sale nobody wanted.
    */
-  const optimise = () => {
-    const sellable = new Set(own.map((member) => member.id))
+  const optimise = (protectedIds: ReadonlySet<string>) => {
+    const sellable = new Set(
+      own
+        .filter((member) => !protectedIds.has(member.id))
+        .map((member) => member.id),
+    )
     const plan = planScenario({
       players: full.map((member) => ({
         id: member.id,
@@ -717,7 +747,8 @@ function WhatIfScenario({
 
     setApplied({
       plan,
-      inputs: planInputs,
+      keptCount: protectedIds.size,
+      inputs: `${String(deficit)}|${saleDay ?? ''}|${[...protectedIds].sort().join(',')}`,
       previous: { sold, lineup: editor.lineup },
     })
     setSold(new Set(plan.soldIds))
@@ -784,9 +815,12 @@ function WhatIfScenario({
           pendingCount={countedOffers.length}
           allowance={debtAllowance(teamValue)}
           maximumBid={maximumOffer(rules)}
-          onOptimise={optimise}
+          onOptimise={() => {
+            setIsOptimiseOpen(true)
+          }}
           /* Only while it still describes the page — see `isApplied`. */
           plan={isApplied && applied !== null ? applied.plan : undefined}
+          keptCount={applied?.keptCount ?? 0}
           onUndoPlan={undoPlan}
         />
       )}
@@ -951,6 +985,23 @@ function WhatIfScenario({
         isSquadList={tab === TABS.squad}
       />
 
+      {/* The optimiser's one question, asked before it is allowed to answer:
+          who is not for sale, whatever the arithmetic says. */}
+      <OptimiseDialog
+        open={isOptimiseOpen}
+        onOpenChange={setIsOptimiseOpen}
+        /* `own`, not `full`: the only players it could sell anyway, and the
+           only ones a lock would mean anything on. */
+        squad={own}
+        fieldedIds={new Set(editor.lineup.map((player) => player.id))}
+        kept={kept}
+        onConfirm={(next) => {
+          setKept(next)
+          optimise(next)
+          setIsOptimiseOpen(false)
+        }}
+      />
+
       {/* The editor's, not a view's: either squad tab can fill a position that
           is already full, and the dialog asks who makes way. */}
       <SwapDialog
@@ -974,6 +1025,8 @@ function WhatIfScenario({
  */
 interface AppliedPlan {
   plan: ScenarioPlan
+  /** How many players it was told to leave alone — the summary says so. */
+  keptCount: number
   /** The question it answered — see `planInputs`. */
   inputs: string
   previous: { sold: ReadonlySet<string>; lineup: SquadMember[] }
@@ -1477,6 +1530,7 @@ function ProjectedBudget({
   maximumBid,
   onOptimise,
   plan,
+  keptCount,
   onUndoPlan,
 }: {
   budget: number
@@ -1510,6 +1564,8 @@ function ProjectedBudget({
    * component never has to ask whether what it is quoting is still true.
    */
   plan: ScenarioPlan | undefined
+  /** How many players that plan was told to leave alone. */
+  keptCount: number
   onUndoPlan: () => void
 }) {
   const projected = budget + proceeds - (bid ?? 0) - pendingSpend
@@ -1664,7 +1720,9 @@ function ProjectedBudget({
           </p>
         )}
 
-        {plan !== undefined && <PlanSummary plan={plan} onUndo={onUndoPlan} />}
+        {plan !== undefined && (
+          <PlanSummary plan={plan} keptCount={keptCount} onUndo={onUndoPlan} />
+        )}
 
         {saleDays.length > 0 && (
           <SaleDayPicker
@@ -1694,9 +1752,12 @@ function ProjectedBudget({
  * built on the other, and a button that changes both belongs to neither. The
  * block is on screen for both of them.
  *
- * **It never asks.** Everything it touches is hypothetical and the undo beside
- * its own result puts the scenario back exactly, so a confirmation would be a
- * dialog in front of a reversible change to a page that is already imaginary.
+ * **It asks one thing first.** Not for confirmation — everything here is
+ * hypothetical and the undo beside its own result puts the scenario back
+ * exactly — but for the fact it cannot read anywhere: *who is not for sale*.
+ * The [dialog](../components/squad/OptimiseDialog.tsx) is where that is
+ * answered, and the press that closes it is the press that runs the optimiser,
+ * so it costs a tap rather than a step.
  *
  * Styled as the toolbar buttons across the app are — the height, the border,
  * the rounding of the [Kader's own row](../components/squad/PlayerListTab.tsx)
@@ -1717,7 +1778,7 @@ function OptimiseButton({
     <button
       type="button"
       onClick={onClick}
-      title="Verkäufe und Aufstellung automatisch wählen"
+      title="Verkäufe und Aufstellung automatisch wählen — fragt zuerst, wer bleiben soll"
       className={cn(
         'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2',
         'text-xs font-semibold transition-colors',
@@ -1755,9 +1816,11 @@ function OptimiseButton({
  */
 function PlanSummary({
   plan,
+  keptCount,
   onUndo,
 }: {
   plan: ScenarioPlan
+  keptCount: number
   onUndo: () => void
 }) {
   return (
@@ -1798,6 +1861,13 @@ function PlanSummary({
         </span>
       ) : (
         <span className="text-muted">ohne Verkauf</span>
+      )}
+
+      {/* What it was forbidden to touch. The reason a plan can look timid, or
+          fall short of a gap the squad could have covered, so it belongs
+          beside the result rather than only in the dialog that set it. */}
+      {keptCount > 0 && (
+        <span className="nums text-faint">{keptCount} geschützt</span>
       )}
 
       <button
