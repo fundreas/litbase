@@ -35,6 +35,26 @@ export interface LineupEditor {
    * ignores anything that is not a permutation of the current lineup.
    */
   reorder: (orderedIds: string[]) => void
+  /**
+   * **Field exactly these players**, in this order — the whole eleven at once.
+   *
+   * Unlike {@link reorder} this changes *who* is on the pitch, so it is the
+   * one entry point that is not a tap: the
+   * [scenario's optimiser](../../lib/optimizeScenario.ts) computes an eleven
+   * and hands it over whole, which eleven toggles could not do without walking
+   * through the swap dialog eleven times.
+   *
+   * Validated the same way the server's own seed is: positions re-checked
+   * against the formation rules, so a caller that gets it wrong produces a
+   * short pitch rather than an illegal one.
+   *
+   * It takes the **players**, not their ids, and that is the whole reason this
+   * signature is not {@link reorder}'s. The editor only knows the squad it was
+   * handed, and on the scenario page that squad is already missing whoever is
+   * marked for sale — so an eleven passed by id could not field a player the
+   * same press is about to un-mark. Passing him in resolves him.
+   */
+  replace: (players: readonly SquadMember[]) => void
   /** Set while the swap dialog is deciding who makes way. */
   incoming: SquadMember | null
   cancelSwap: () => void
@@ -244,6 +264,30 @@ export function useLineupEditor({
     [lineupIds],
   )
 
+  const replace = useCallback(
+    (players: readonly SquadMember[]) => {
+      const accepted: SquadMember[] = []
+      for (const player of players) {
+        if (accepted.some((other) => other.id === player.id)) continue
+        const counts = countPositions(accepted.map((other) => other.position))
+        if (!canAddPosition(counts, player.position)) continue
+        accepted.push(player)
+      }
+
+      const next = accepted.map((player) => player.id)
+      if (
+        next.every((id, index) => id === lineupIds[index]) &&
+        next.length === lineupIds.length
+      ) {
+        return
+      }
+
+      setIsDirty(true)
+      setLineupIds(next)
+    },
+    [lineupIds],
+  )
+
   const toggle = useCallback(
     (player: SquadMember) => {
       if (fieldedIds.has(player.id)) {
@@ -287,6 +331,7 @@ export function useLineupEditor({
     toggle,
     remove,
     reorder,
+    replace,
     incoming,
     cancelSwap,
     confirmSwap,

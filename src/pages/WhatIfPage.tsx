@@ -1,4 +1,11 @@
-import { Calculator, ChevronDown, Gavel, X } from 'lucide-react'
+import {
+  Calculator,
+  ChevronDown,
+  Gavel,
+  RotateCcw,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 
@@ -31,6 +38,7 @@ import { LineupTab } from '@/components/squad/LineupTab'
 import { PlayerListTab } from '@/components/squad/PlayerListTab'
 import { SquadLegendDialog } from '@/components/squad/SquadLegendDialog'
 import { SwapDialog } from '@/components/squad/SwapDialog'
+import { useExpectedPointsView } from '@/components/squad/useExpectedPointsView'
 import { useLineupEditor } from '@/components/squad/useLineupEditor'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -40,8 +48,11 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { useActiveLeague } from '@/league/useActiveLeague'
 import { cn } from '@/lib/cn'
-import { money, moneyDelta, moneyExact, weekdayDay } from '@/lib/format'
+import type { ExpectedPointsView } from '@/lib/expectedPoints'
+import { money, moneyDelta, moneyExact, points, weekdayDay } from '@/lib/format'
+import { emptySlotPenalty, formationLabel, LINEUP_SIZE } from '@/lib/lineup'
 import { checkOffer, debtAllowance, maximumOffer } from '@/lib/offerRules'
+import { planScenario, type ScenarioPlan } from '@/lib/optimizeScenario'
 
 /** The three views, sharing one scenario. */
 const TABS = { offer: 'offer', squad: 'squad', lineup: 'lineup' } as const
@@ -96,6 +107,25 @@ type Tab = (typeof TABS)[keyof typeof TABS]
  * page holds all three at once, because the answers move each other: a sale
  * raises the budget, and a purchase only earns its money if it changes the
  * eleven.
+ *
+ * ## …and the button that answers it for you
+ *
+ * Every control on this page asks *what if I did this?*. **Optimieren** —
+ * in the budget block, above the tabs — answers *what should I do?*: it marks
+ * the players to sell and lays out the eleven to field, in one press, with the
+ * two decided **together** because each constrains the other. The reasoning is
+ * [its own module](../lib/optimizeScenario.ts), which also explains why
+ * solving them in sequence gives the wrong answer; the page's share of it is
+ * knowing which figures to feed in — the scenario's own sale-day prices, the
+ * same expected points the rows and the pitch print, and the gap the bid and
+ * the counted offers leave in the budget.
+ *
+ * It is a **suggestion**, and the page treats it as one. Its summary sits
+ * under the figure it moved, with a *Verwerfen* beside it that puts the
+ * scenario back exactly; and the moment the manager disagrees with any of it —
+ * one tap on a Kader row, one drag on the pitch, one more digit in the bid —
+ * the summary goes, because a claim about an eleven that has since changed is
+ * worse than no claim at all.
  *
  * ## Nothing here happens, except the bid
  *
@@ -417,6 +447,12 @@ function WhatIfScenario({
    * spend one of those on closing a sheet instead of leaving the scenario.
    */
   const [isLegendOpen, setIsLegendOpen] = useState(false)
+  /**
+   * **What the optimiser last worked out**, and what the scenario looked like
+   * before it did — see {@link AppliedPlan}. `null` until the button is
+   * pressed, which is the state the page spends most of its life in.
+   */
+  const [applied, setApplied] = useState<AppliedPlan | null>(null)
 
   const placeOffer = usePlaceOffer(leagueId)
   const withdrawOffer = useWithdrawOffer(leagueId)
@@ -508,6 +544,10 @@ function WhatIfScenario({
   // still drawn on the Kader, marked.
   const startProbabilities = useStartProbabilities(leagueId, full)
   const statusReasons = useStatusReasons(leagueId, full)
+  /* What the optimiser maximises — the same figures the Kader prints on each
+     row and the pitch adds up, from the same cached file. The tabs ask for
+     this view themselves; asking a third time costs one more `useMemo`. */
+  const expected = useExpectedPointsView(day)
 
   /**
    * **Every sellable player's next five days**, so the scenario can be dated.
@@ -565,6 +605,8 @@ function WhatIfScenario({
   }
 
   const bid = listing === undefined ? 0 : Number(amount)
+  /** The bid as money: `0` in a sale scenario, and `0` for a half-typed one. */
+  const spend = Number.isFinite(bid) ? bid : 0
   /**
    * What the standing bids have already claimed.
    *
@@ -623,6 +665,97 @@ function WhatIfScenario({
     })
   }
 
+  /**
+   * **What the budget is short by**, before anything is sold — the gap the
+   * optimiser has to close.
+   *
+   * The same three terms the projection above is built from, minus the
+   * proceeds: the bid being typed, the standing bids the header is counting,
+   * and the budget they come out of. Negative when there is money spare, which
+   * is the case where the optimiser has only the eleven to think about.
+   */
+  const deficit = spend + pendingSpend - budget
+  /**
+   * **What the plan was worked out against.**
+   *
+   * A plan is an answer to a question, and the question moves: another digit
+   * in the bid field, a different sale day, one more switch flipped in the
+   * header. Any of those and the summary below would be quoting a total the
+   * page no longer shows, so the two are compared and the summary simply goes.
+   */
+  const planInputs = `${String(deficit)}|${saleDay ?? ''}`
+
+  /**
+   * **"Optimieren"** — the sales and the eleven, decided together.
+   *
+   * It writes to both pieces of scenario state at once, because that is what
+   * the answer *is*: a set of players marked for sale on the Kader tab, and
+   * the best eleven that can be fielded out of whoever is left, on the pitch
+   * tab. The arithmetic is [its own module](../lib/optimizeScenario.ts); this
+   * is the part that knows where the figures come from.
+   *
+   * The squad handed over is `full` — the target and the arrivals included,
+   * because they can be fielded — with `isSellable` telling the optimiser
+   * which of them are actually the manager's to sell.
+   */
+  const optimise = () => {
+    const sellable = new Set(own.map((member) => member.id))
+    const plan = planScenario({
+      players: full.map((member) => ({
+        id: member.id,
+        position: member.position,
+        points: expectedFor(member, expected),
+        /* The scenario's own price for him: the chosen day's forecast where
+           there is one, today's value where there is not — exactly what the
+           rows print and the total adds up. */
+        saleValue: saleValues.get(member.id) ?? member.marketValue,
+        valueChangeDay: member.marketValueChangeDay ?? 0,
+        isSellable: sellable.has(member.id),
+      })),
+      deficit,
+    })
+
+    setApplied({
+      plan,
+      inputs: planInputs,
+      previous: { sold, lineup: editor.lineup },
+    })
+    setSold(new Set(plan.soldIds))
+    /* Resolved out of `full` rather than handed over as ids: the eleven may
+       well contain a player the manager had marked for sale himself, and the
+       editor's own squad does not have him until this render is over. */
+    editor.replace(
+      plan.lineupIds
+        .map((id) => full.find((member) => member.id === id))
+        .filter((member): member is SquadMember => member !== undefined),
+    )
+  }
+
+  /** Put the scenario back the way the optimiser found it. */
+  const undoPlan = () => {
+    if (applied === null) return
+    setSold(applied.previous.sold)
+    editor.replace(applied.previous.lineup)
+    setApplied(null)
+  }
+
+  /**
+   * Is the plan still what is on screen?
+   *
+   * Derived rather than tracked: a tap on a Kader row or a drag on the pitch
+   * is the manager disagreeing with the optimiser, and the summary has no
+   * business still claiming the total afterwards. Comparing the two states is
+   * the whole check, and it needs no bookkeeping in the handlers that would
+   * have to be kept in step with every future one.
+   */
+  const isApplied =
+    applied !== null &&
+    applied.inputs === planInputs &&
+    applied.plan.soldIds.length === sold.size &&
+    applied.plan.soldIds.every((id) => sold.has(id)) &&
+    applied.plan.lineupIds.length === editor.lineup.length &&
+    applied.plan.lineupIds.every((id, index) => editor.lineup[index]?.id === id)
+
   return (
     <>
       {/* Everywhere but the pitch. The lineup view is the one that wants the
@@ -633,9 +766,7 @@ function WhatIfScenario({
           budget={budget}
           /* `undefined`, not `0`: there is no bid in a sale scenario, and a
              line reading "Gebot −0 €" would be inventing one. */
-          bid={
-            listing === undefined ? undefined : Number.isFinite(bid) ? bid : 0
-          }
+          bid={listing === undefined ? undefined : spend}
           proceeds={proceeds}
           proceedsToday={proceedsToday}
           soldCount={sold.size}
@@ -653,6 +784,10 @@ function WhatIfScenario({
           pendingCount={countedOffers.length}
           allowance={debtAllowance(teamValue)}
           maximumBid={maximumOffer(rules)}
+          onOptimise={optimise}
+          /* Only while it still describes the page — see `isApplied`. */
+          plan={isApplied && applied !== null ? applied.plan : undefined}
+          onUndoPlan={undoPlan}
         />
       )}
 
@@ -827,6 +962,47 @@ function WhatIfScenario({
       />
     </>
   )
+}
+
+/**
+ * **A plan the manager pressed the button for**, and the scenario it replaced.
+ *
+ * The previous state travels with it because the optimiser overwrites two
+ * things at once — who is marked for sale and who is on the pitch — and a
+ * single undo has to put both back. Rebuilding them from the squad would not
+ * do: the state it overwrote was the manager's own work, not the server's.
+ */
+interface AppliedPlan {
+  plan: ScenarioPlan
+  /** The question it answered — see `planInputs`. */
+  inputs: string
+  previous: { sold: ReadonlySet<string>; lineup: SquadMember[] }
+}
+
+/**
+ * **What a player is expected to score**, as the optimiser needs it: a number,
+ * always.
+ *
+ * The app's own figure wherever there is one — the manager's guess, or the
+ * [pointcast](../api/hooks/usePointcast.ts) prediction standing in for it. The
+ * fallback is where the thought is:
+ *
+ *  - A **fit** player with no prediction falls back to his season average,
+ *    which is the only other claim the squad payload makes about him. Treating
+ *    him as a nought would bench a perfectly good player for the sin of being
+ *    missing from a file.
+ *  - An **unavailable** one falls back to nothing, because his average is a
+ *    record of matchdays he was fit for and the coming one is not among them.
+ *    The prediction already discounts him where it exists; this is what stands
+ *    in for that discount where it does not.
+ */
+function expectedFor(
+  member: SquadMember,
+  expected: ExpectedPointsView,
+): number {
+  const entry = expected.entry(member.id)
+  if (entry !== undefined) return entry.value
+  return member.status === 0 ? member.averagePoints : 0
 }
 
 /**
@@ -1299,6 +1475,9 @@ function ProjectedBudget({
   pendingCount,
   allowance,
   maximumBid,
+  onOptimise,
+  plan,
+  onUndoPlan,
 }: {
   budget: number
   /** What would be spent, or `undefined` when nothing is being bought. */
@@ -1323,6 +1502,15 @@ function ProjectedBudget({
   allowance: number | undefined
   /** The most this listing could be bid, ceiling and other bids included. */
   maximumBid: number | undefined
+  /** Work the whole scenario out — see {@link OptimiseButton}. */
+  onOptimise: () => void
+  /**
+   * The plan last worked out, **while it still describes the page**. The page
+   * takes it away the moment the manager disagrees with any of it, so this
+   * component never has to ask whether what it is quoting is still true.
+   */
+  plan: ScenarioPlan | undefined
+  onUndoPlan: () => void
 }) {
   const projected = budget + proceeds - (bid ?? 0) - pendingSpend
   const isOverdrawn = projected < 0
@@ -1342,29 +1530,37 @@ function ProjectedBudget({
       )}
     >
       <div className="rounded-card border border-line bg-surface px-3 py-2.5">
-        <p className="text-[0.6875rem] tracking-wide text-faint uppercase">
-          {bid !== undefined
-            ? 'Budget nach dem Transfer'
-            : pendingSpend > 0
-              ? 'Budget nach den Transfers'
-              : 'Budget nach den Verkäufen'}
-        </p>
-        {/* `aria-live` so a screen reader hears the total change as players are
-          marked and the bid is typed — it updates somewhere other than where
-          the tap happened. */}
-        <p
-          aria-live="polite"
-          className={cn(
-            'nums mt-0.5 text-lg leading-tight font-bold',
-            isPastFloor
-              ? 'text-negative'
-              : isOverdrawn
-                ? 'text-warning'
-                : 'text-positive',
-          )}
-        >
-          {moneyExact(projected)}
-        </p>
+        {/* The figure and the button that moves it, on one line: the answer on
+            the left, the one control that can change it on the right. */}
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[0.6875rem] tracking-wide text-faint uppercase">
+              {bid !== undefined
+                ? 'Budget nach dem Transfer'
+                : pendingSpend > 0
+                  ? 'Budget nach den Transfers'
+                  : 'Budget nach den Verkäufen'}
+            </p>
+            {/* `aria-live` so a screen reader hears the total change as players
+              are marked and the bid is typed — it updates somewhere other than
+              where the tap happened. */}
+            <p
+              aria-live="polite"
+              className={cn(
+                'nums mt-0.5 text-lg leading-tight font-bold',
+                isPastFloor
+                  ? 'text-negative'
+                  : isOverdrawn
+                    ? 'text-warning'
+                    : 'text-positive',
+              )}
+            >
+              {moneyExact(projected)}
+            </p>
+          </div>
+
+          <OptimiseButton onClick={onOptimise} isApplied={plan !== undefined} />
+        </div>
         <p className="nums mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
           <span>Budget {money(budget)}</span>
           {/* A sale scenario with nothing marked yet has no working to show, and
@@ -1468,6 +1664,8 @@ function ProjectedBudget({
           </p>
         )}
 
+        {plan !== undefined && <PlanSummary plan={plan} onUndo={onUndoPlan} />}
+
         {saleDays.length > 0 && (
           <SaleDayPicker
             days={saleDays}
@@ -1476,6 +1674,145 @@ function ProjectedBudget({
           />
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * **"Optimieren"** — the whole scenario worked out at once.
+ *
+ * The page already answers *what if I did this?*; this is the button that
+ * answers *what should I do?*, and it is the only control here that writes to
+ * both halves of the scenario. One press marks the players to sell and lays
+ * out the eleven to field, and the two are decided together because they
+ * constrain each other — see
+ * [the optimiser](../lib/optimizeScenario.ts), which is where the reasoning
+ * lives.
+ *
+ * It sits in the budget block rather than on either tab for the same reason
+ * the block itself does: the sales are marked on one tab and the lineup is
+ * built on the other, and a button that changes both belongs to neither. The
+ * block is on screen for both of them.
+ *
+ * **It never asks.** Everything it touches is hypothetical and the undo beside
+ * its own result puts the scenario back exactly, so a confirmation would be a
+ * dialog in front of a reversible change to a page that is already imaginary.
+ *
+ * Styled as the toolbar buttons across the app are — the height, the border,
+ * the rounding of the [Kader's own row](../components/squad/PlayerListTab.tsx)
+ * — rather than as a primary {@link Button}: it is one control among the
+ * figures in a block, not the conclusion of the page. The accent arrives only
+ * once it has produced something, which is the one moment it is worth looking
+ * at twice.
+ */
+function OptimiseButton({
+  onClick,
+  isApplied,
+}: {
+  onClick: () => void
+  /** Whether its last answer is the one currently on screen. */
+  isApplied: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Verkäufe und Aufstellung automatisch wählen"
+      className={cn(
+        'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2',
+        'text-xs font-semibold transition-colors',
+        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+        isApplied
+          ? 'border-accent/40 bg-accent/10 text-accent'
+          : 'border-line bg-surface text-muted hover:border-accent/40 hover:bg-surface-2 hover:text-accent',
+      )}
+    >
+      <Sparkles size={14} aria-hidden="true" className="shrink-0" />
+      Optimieren
+    </button>
+  )
+}
+
+/**
+ * **What the optimiser did**, in one line under the figure it moved.
+ *
+ * Three claims, and the manager can check every one of them on the two tabs
+ * below: the shape and what it is expected to score, how many players went and
+ * for how much, and — only when there is one — what the eleven is still
+ * missing. A button that silently rearranged twenty rows and said nothing
+ * would be a button nobody pressed twice.
+ *
+ * **Without a sale it says so.** *Ohne Verkauf* is the most reassuring answer
+ * the button has: the budget was already clear and only the eleven moved. The
+ * opposite case — a gap no round of sales can close — is the one line here
+ * drawn in the negative colour, because nothing was sold and the figure above
+ * is still under water.
+ *
+ * The undo is part of the same strip rather than beside the button: it is an
+ * answer to *this* result, and it disappears with it the moment the manager
+ * starts editing by hand, which is the point at which "put it back" would mean
+ * something other than what it says.
+ */
+function PlanSummary({
+  plan,
+  onUndo,
+}: {
+  plan: ScenarioPlan
+  onUndo: () => void
+}) {
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line pt-1.5 text-xs">
+      <Sparkles size={13} aria-hidden="true" className="shrink-0 text-accent" />
+
+      <span className="nums font-semibold text-ink">
+        {formationLabel(plan.formation)}
+      </span>
+      <span className="nums text-accent">{points(plan.points)} Pkt.</span>
+
+      {/* A squad too small to fill the pitch, which Kickbase charges for by
+          the slot. Silent at zero, which is the normal case. */}
+      {plan.emptySlots > 0 && (
+        <span className="nums text-negative">
+          {plan.emptySlots === 1
+            ? '1 Platz'
+            : `${String(plan.emptySlots)} Plätze`}{' '}
+          leer −{points(emptySlotPenalty(LINEUP_SIZE - plan.emptySlots))} Pkt.
+        </span>
+      )}
+
+      <span aria-hidden="true" className="text-faint">
+        ·
+      </span>
+
+      {/* The one case the button cannot answer: the gap is bigger than the
+          whole squad. It replaces the sales rather than following them,
+          because there are none — saying by how much it failed is the only
+          useful thing left to say. */}
+      {plan.shortfall > 0 ? (
+        <span className="nums text-negative">
+          auch mit allen Verkäufen fehlen {money(plan.shortfall)}
+        </span>
+      ) : plan.soldIds.length > 0 ? (
+        <span className="nums text-positive">
+          {plan.soldIds.length} verkauft +{money(plan.proceeds)}
+        </span>
+      ) : (
+        <span className="text-muted">ohne Verkauf</span>
+      )}
+
+      <button
+        type="button"
+        onClick={onUndo}
+        title="Vorschlag verwerfen"
+        className={cn(
+          'ml-auto flex h-6 shrink-0 items-center gap-1 rounded-lg px-1.5',
+          'text-xs text-faint transition-colors hover:bg-surface-2 hover:text-ink',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
+        )}
+      >
+        <RotateCcw size={12} aria-hidden="true" className="shrink-0" />
+        Verwerfen
+      </button>
     </div>
   )
 }
