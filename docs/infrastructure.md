@@ -87,9 +87,12 @@ Vite inlines the value into the bundle, so every one of these is a
 and Vite loads it only for `npm run dev` and `npm run dev:host` — never for
 `vite build`. `npm run dev:live` runs in mode `live` and reads `.env.live`
 instead; a `.env.local` is read in every mode including a local build. All of
-them are gitignored by the `.env.*` pattern; the proxy URL is not public and
-stays out of the repository. [`.env.example`](../.env.example) is the committed
-template.
+them are gitignored by the `.env.*` pattern; the production proxy URL is not
+public and stays out of the repository.
+[`example.env-development`](../example.env-development) is the committed
+template to copy — it names the local proxy container,
+`http://localhost:3018/kb-api` — and [`.env.example`](../.env.example) the one
+for the remaining, optional variables.
 
 The proxy is [`openresty/nginx.conf`](../openresty/nginx.conf): OpenResty
 forwarding `/kb-api/*` to `api.kickbase.com` with the prefix stripped (and

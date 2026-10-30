@@ -29,18 +29,20 @@ npm run dev:host # same, reachable from your phone on the same Wi-Fi
 One setting is required: **the API base URL**, because the default,
 `https://api.kickbase.com`, no longer answers browsers (no CORS headers since
 autumn 2026). Point it at a proxy that forwards to Kickbase and does send them.
-For local development that is a `.env.development` file in the repo root:
+For local development that is a `.env.development` file in the repo root,
+copied from the committed template
+[example.env-development](example.env-development):
 
 ```bash
-# .env.development — gitignored, never checked in
-VITE_API_BASE_URL=https://your-proxy.example.com/kb-api
+cp example.env-development .env.development   # → VITE_API_BASE_URL=http://localhost:3018/kb-api
 ```
 
-Vite reads it for `npm run dev` and `npm run dev:host` only, never for a build.
+That points at the local proxy container below; swap in
+`https://<your-proxy>/kb-api` to go through the real one. Vite reads the file
+for `npm run dev` and `npm run dev:host` only, never for a build.
 (`npm run dev:live` reads `.env.live`; a `.env.local` applies to every mode.)
-Every `.env*` except [.env.example](.env.example), the committed template, is
-gitignored. The other variables there are optional and default to the live CDN
-and the two prediction APIs.
+Every `.env*` is gitignored except [.env.example](.env.example), the template
+for the remaining, optional variables — CDN and the two prediction APIs.
 
 ### The proxy itself
 
