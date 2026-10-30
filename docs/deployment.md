@@ -1,9 +1,18 @@
 # Building and deploying
 
-litbase has no backend of its own — the browser talks to `api.kickbase.com`
-directly — so a deployment is a folder of static files plus something that
-serves them. That something is nginx, packaged by the
-[`Dockerfile`](../Dockerfile) at the repo root.
+litbase has no backend of its own, so a deployment is a folder of static files
+plus something that serves them — GitHub Pages via
+[`deploy-pages.yml`](../.github/workflows/deploy-pages.yml), or nginx, packaged
+by the [`Dockerfile`](../Dockerfile) at the repo root.
+
+The one thing every deployment needs besides the files is **the URL of a
+CORS-enabled proxy in front of `api.kickbase.com`**, baked into the bundle as
+`VITE_API_BASE_URL`. Kickbase stopped sending CORS headers in autumn 2026, so a
+browser can no longer call it from a page it did not serve; a build left at the
+default cannot log in. The Pages workflow takes the URL from the repository
+secret of the same name, the image from a build arg, and local development
+from `.env.development` — see
+[Configuration](infrastructure.md#configuration).
 
 ## Build it
 
@@ -114,9 +123,11 @@ adding a `!` line for it.
 
 - **TLS belongs upstream** (ingress, reverse proxy, load balancer). The image
   speaks plain HTTP on 8080 and does not redirect.
-- **No API proxying is needed.** Kickbase reflects `Access-Control-Allow-Origin`
-  for any origin, so the browser calls it directly from whatever host serves
-  the app. There is no server-side hop to configure and no secret in the image.
+- **The API proxy is outside the image.** The bundle calls whatever
+  `VITE_API_BASE_URL` was at build time; that has to be a proxy sending CORS
+  headers, since Kickbase itself no longer does. nginx here does no forwarding
+  of its own, and there is no secret in the image — the proxy URL is a public
+  fact of the deployed bundle, not a credential.
 - **The app must be served from the domain root.** No `base` is set in
   [`vite.config.ts`](../vite.config.ts), so hosting it under a sub-path would
   need that plus a matching nginx `root`.

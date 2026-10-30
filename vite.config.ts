@@ -8,9 +8,11 @@ import { defineConfig, loadEnv } from 'vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
 
-  // The Kickbase API reflects CORS headers for any origin, so the browser can
-  // talk to it directly. The proxy is a fallback for the day that changes:
-  // set VITE_USE_DEV_PROXY=true and VITE_API_BASE_URL=/kb-api.
+  // Kickbase stopped sending CORS headers in autumn 2026, so the browser can
+  // no longer talk to the API directly. Development normally points
+  // VITE_API_BASE_URL (in the gitignored `.env.development`) at a CORS-enabled
+  // proxy of our own. This dev-server proxy is the alternative when none is
+  // at hand: set VITE_USE_DEV_PROXY=true and VITE_API_BASE_URL=/kb-api.
   const useDevProxy = env.VITE_USE_DEV_PROXY === 'true'
 
   // `npm run dev:live` is nothing more than `--mode live`, which the app reads

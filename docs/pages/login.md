@@ -43,9 +43,9 @@ drawer, because there is no league context yet.
 
   [        Anmelden           ]
 
-  Deine Zugangsdaten gehen direkt an
-  api.kickbase.com. litbase hat keinen
-  eigenen Server.
+  Deine Zugangsdaten gehen an Kickbase.
+  litbase reicht sie nur durch und speichert
+  sie nirgends außer in deinem Browser.
 ```
 
 ## Fields

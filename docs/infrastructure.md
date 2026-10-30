@@ -68,14 +68,32 @@ runs with no `.env` file at all.
 | `VITE_POINTCAST_BASE_URL` | `https://fundreas.github.io/litbase-pointcast` | [pointcast](pointcast.md) — expected points **and** the player rankings. Not Kickbase |
 | `VITE_USE_DEV_PROXY` | unset | Route API traffic through the Vite dev server |
 
-**The browser calls Kickbase directly.** The API reflects
-`Access-Control-Allow-Origin` for any origin and permits the `authorization`
-request header, so no proxy is needed. `VITE_USE_DEV_PROXY=true` together with
-`VITE_API_BASE_URL=/kb-api` switches to a dev-server proxy if that ever
-changes — the wiring is already in [`vite.config.ts`](../vite.config.ts).
+**The browser cannot call Kickbase directly any more.** The API reflected
+`Access-Control-Allow-Origin` for any origin until autumn 2026 and now sends
+no CORS headers at all, so `VITE_API_BASE_URL` has to point at a proxy that
+forwards to `api.kickbase.com` and does send them. The default is kept for
+tooling that is not a browser. The value is set differently per context:
 
-`.env` files are gitignored; [`.env.example`](../.env.example) is the committed
+| Context | Where the URL lives |
+| ------- | ------------------- |
+| `npm run dev` | `.env.development` in the repo root — **not checked in**, see below |
+| GitHub Pages deploy | The repository secret `VITE_API_BASE_URL`, read by [`deploy-pages.yml`](../.github/workflows/deploy-pages.yml) at build time |
+| Docker image | The `VITE_API_BASE_URL` build arg — see [Building and deploying](deployment.md) |
+
+Vite inlines the value into the bundle, so every one of these is a
+**build-time** setting; nothing at serve time can change it.
+
+`.env.development` holds one line, `VITE_API_BASE_URL=https://<your-proxy>`,
+and Vite loads it only for `npm run dev` and `npm run dev:host` — never for
+`vite build`. `npm run dev:live` runs in mode `live` and reads `.env.live`
+instead; a `.env.local` is read in every mode including a local build. All of
+them are gitignored by the `.env.*` pattern; the proxy URL is not public and
+stays out of the repository. [`.env.example`](../.env.example) is the committed
 template.
+
+The Vite dev-server proxy (`VITE_USE_DEV_PROXY=true` with
+`VITE_API_BASE_URL=/kb-api`, wired in [`vite.config.ts`](../vite.config.ts))
+remains as an alternative for development without a proxy of your own.
 
 ## Styling and design tokens
 

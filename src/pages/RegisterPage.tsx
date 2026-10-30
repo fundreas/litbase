@@ -176,8 +176,8 @@ export function RegisterPage() {
 
         <p className="mt-4 text-center text-xs leading-relaxed text-faint">
           Mit dem Erstellen des Kontos akzeptierst du die Nutzungsbedingungen
-          von Kickbase. Deine Daten gehen direkt an api.kickbase.com — litbase
-          hat keinen eigenen Server.
+          von Kickbase. Deine Daten gehen an Kickbase — litbase reicht sie nur
+          durch und speichert nichts davon.
         </p>
       </div>
     </div>

@@ -2,8 +2,9 @@
 
 A mobile-first single-page app on top of the Kickbase v4 API. React 19,
 TypeScript, react-router, TanStack Query, axios, Tailwind CSS v4 and Radix
-primitives. No backend of its own — the browser talks to `api.kickbase.com`
-directly.
+primitives. No backend of its own — the browser talks to the Kickbase API
+through a small CORS-enabled proxy, because Kickbase stopped sending CORS
+headers itself.
 
 ## Getting started
 
@@ -25,8 +26,31 @@ npm run dev:host # same, reachable from your phone on the same Wi-Fi
 | `npm run format`       | Prettier (sorts Tailwind classes)           |
 | `npm run check`        | typecheck + lint + format check             |
 
-Configuration is optional — see [.env.example](.env.example). The defaults point
-at the live API and CDN.
+One setting is required: **the API base URL**, because the default,
+`https://api.kickbase.com`, no longer answers browsers (no CORS headers since
+autumn 2026). Point it at a proxy that forwards to Kickbase and does send them.
+For local development that is a `.env.development` file in the repo root:
+
+```bash
+# .env.development — gitignored, never checked in
+VITE_API_BASE_URL=https://your-proxy.example.com
+```
+
+Vite reads it for `npm run dev` and `npm run dev:host` only, never for a build.
+(`npm run dev:live` reads `.env.live`; a `.env.local` applies to every mode.)
+Every `.env*` except [.env.example](.env.example), the committed template, is
+gitignored. The other variables there are optional and default to the live CDN
+and the two prediction APIs.
+
+## Deploying to GitHub Pages
+
+Pushing to the `github-pages` branch runs
+[deploy-pages.yml](.github/workflows/deploy-pages.yml), which builds and
+publishes to https://fundreas.github.io/litbase/. The proxy URL is baked into
+that build from the repository secret **`VITE_API_BASE_URL`** (Settings →
+Secrets and variables → Actions). Vite inlines it, so a changed secret takes
+effect on the next deploy, not before — and without the secret the deployed
+app cannot log in.
 
 ## Building and running the image
 

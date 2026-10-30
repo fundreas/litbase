@@ -57,7 +57,17 @@ jobs:
       # the `build` script, which is `tsc -b && vite build` — so the flag lands
       # on `vite build`. Change this if the repo is renamed, and drop it
       # entirely for a custom domain (those are served at the root).
+      #
+      # VITE_API_BASE_URL is where the browser sends its Kickbase calls. Since
+      # Kickbase stopped sending CORS headers (autumn 2026) that has to be a
+      # proxy that does, not api.kickbase.com itself. Vite inlines the value
+      # into the bundle at build time, so it is set here, as the repository
+      # secret VITE_API_BASE_URL (Settings → Secrets and variables → Actions),
+      # and nothing at serve time can change it. Left unset, src/lib/env.ts
+      # falls back to api.kickbase.com and the deployed app cannot log in.
       - run: npm run build -- --base=/litbase/
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
       # Pages has no rewrite rules, so a deep link like /litbase/leagues/1/squad
       # matches no file on disk. It serves 404.html for a miss, and this copy of
