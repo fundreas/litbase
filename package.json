@@ -9,6 +9,7 @@
     "dev:live": "vite --mode live",
     "dev:live:host": "vite --mode live --host",
     "build": "tsc -b && vite build",
+    "build:cf": "VITE_API_BASE_URL=/kb-api npm run build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "oxlint",
@@ -16,7 +17,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run lint && npm run format:check",
-    "ligainsider": "node scripts/ligainsider/build.mjs"
+    "ligainsider": "node scripts/ligainsider/build.mjs",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "npm run build:cf && wrangler deploy"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.2.6",
@@ -35,6 +38,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261030.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query-devtools": "^5.102.8",
     "@types/node": "^24.13.3",
@@ -46,7 +50,8 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "wrangler": "^4.156.0"
   },
   "description": "Kickbase companion SPA",
   "engines": {

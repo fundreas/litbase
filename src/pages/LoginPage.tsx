@@ -152,8 +152,8 @@ export function LoginPage() {
         </p>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-faint">
-          Deine Zugangsdaten gehen direkt an api.kickbase.com. litbase hat
-          keinen eigenen Server.
+          Deine Zugangsdaten gehen an Kickbase. litbase reicht sie nur durch und
+          speichert sie nirgends außer in deinem Browser.
         </p>
       </div>
     </div>

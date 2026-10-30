@@ -9,6 +9,8 @@ lerna-debug.log*
 
 node_modules
 dist
+# Wrangler's local state: dev-server cache, deploy metadata.
+.wrangler
 dist-ssr
 *.local
 

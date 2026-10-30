@@ -1,0 +1,65 @@
+# Build the SPA with the Worker proxy as its API base and publish both to
+# Cloudflare Workers.
+#
+# Runs on the `cloudflare` branch only, so this is a deploy you opt into by
+# pushing here. It is inert until two repository secrets exist
+# (Settings → Secrets and variables → Actions):
+#
+#   CLOUDFLARE_API_TOKEN   An API token from dash.cloudflare.com → My Profile →
+#                          API Tokens → Create Token → "Edit Cloudflare
+#                          Workers" template. The template's permissions are
+#                          more than this needs; the two that matter are
+#                          Account › Workers Scripts › Edit and
+#                          Account › Account Settings › Read.
+#   CLOUDFLARE_ACCOUNT_ID  Shown in the dashboard's URL and on the right of
+#                          the Workers & Pages overview page.
+#
+# The result is served at https://litbase.<account-subdomain>.workers.dev
+# (printed by the deploy step), or at the custom domain once one is attached
+# in the dashboard. See docs/deployment.md#cloudflare-workers.
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches: [cloudflare]
+  # Lets a deploy be re-run from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time. A Worker has a single live version, so a superseded
+# run has nothing left to publish.
+concurrency:
+  group: cloudflare
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # typecheck (app, vite config and the Worker) + lint + format:check. A
+      # deploy is a poor place to discover any of the three.
+      - run: npm run check
+
+      # `build` with VITE_API_BASE_URL=/kb-api, so the bundle calls the Worker
+      # on its own origin instead of api.kickbase.com. Served at the domain
+      # root, so no --base is needed here, unlike the Pages deploy.
+      - run: npm run build:cf
+
+      # Uploads dist/ as static assets and worker/index.ts as the Worker, as
+      # described by wrangler.jsonc.
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

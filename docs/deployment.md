@@ -1,9 +1,19 @@
 # Building and deploying
 
-litbase has no backend of its own — the browser talks to `api.kickbase.com`
-directly — so a deployment is a folder of static files plus something that
-serves them. That something is nginx, packaged by the
-[`Dockerfile`](../Dockerfile) at the repo root.
+litbase is a folder of static files plus **one** server-side hop: a
+pass-through proxy that forwards `/kb-api/*` to `api.kickbase.com`. The hop
+exists because Kickbase stopped sending CORS headers in autumn 2026, so a
+browser may no longer call the API from a page it did not serve. Nothing in it
+is litbase's — no database, no session, no secret; the bearer token travels in
+the `Authorization` header as before and the proxy only passes it on.
+
+Two deployments are described here:
+
+- **[Cloudflare Workers](#cloudflare-workers)** — the live one. The built
+  bundle as static assets, the proxy as a Worker on the same origin.
+- **[The nginx image](#build-the-image)** — the earlier container, kept
+  intact. It serves the bundle but **does not proxy**, so until it gains a
+  `proxy_pass` for `/kb-api` an image built from it cannot reach Kickbase.
 
 ## Build it
 
@@ -114,11 +124,117 @@ adding a `!` line for it.
 
 - **TLS belongs upstream** (ingress, reverse proxy, load balancer). The image
   speaks plain HTTP on 8080 and does not redirect.
-- **No API proxying is needed.** Kickbase reflects `Access-Control-Allow-Origin`
-  for any origin, so the browser calls it directly from whatever host serves
-  the app. There is no server-side hop to configure and no secret in the image.
+- **API proxying is needed, and this image does not do it.** Kickbase sends
+  no CORS headers, so the browser cannot call it directly from a page served
+  here. The bundle would have to be built with `VITE_API_BASE_URL=/kb-api` and
+  nginx would need a `location /kb-api/ { proxy_pass https://api.kickbase.com/; }`
+  mirroring [`worker/index.ts`](../worker/index.ts). Neither is wired up yet.
 - **The app must be served from the domain root.** No `base` is set in
   [`vite.config.ts`](../vite.config.ts), so hosting it under a sub-path would
   need that plus a matching nginx `root`.
 - `HEALTHCHECK` polls `/healthz` every 30s; orchestrators that do their own
   probing can point liveness and readiness at the same path.
+
+## Cloudflare Workers
+
+The live deployment. One Cloudflare project holds both halves — the static
+bundle and the proxy — and the browser sees a single origin, so CORS never
+comes up. It costs nothing: static-asset requests are unmetered, Worker
+invocations are free to a hundred thousand a day, and a Worker has no cold
+start to speak of.
+
+### The pieces
+
+| File | Does |
+| ---- | ---- |
+| [`worker/index.ts`](../worker/index.ts) | The proxy: forwards `/kb-api/*` to `https://api.kickbase.com/*`, status and body untouched |
+| [`wrangler.jsonc`](../wrangler.jsonc) | Names the Worker, points the asset layer at `dist/`, routes the prefix to the Worker first |
+| [`public/_headers`](../public/_headers) | Cache and security headers for the asset layer — the same policy as [`nginx.conf`](../nginx.conf) |
+| [`tsconfig.worker.json`](../tsconfig.worker.json) | Typechecks the Worker against the Workers runtime instead of the DOM; referenced from `tsconfig.json`, so `npm run check` covers it |
+| [`.github/workflows/deploy-cloudflare.yml`](../.github/workflows/deploy-cloudflare.yml) | Builds and deploys on every push to the `cloudflare` branch |
+
+### How a request travels
+
+1. The bundle is built with `VITE_API_BASE_URL=/kb-api` (`npm run build:cf`),
+   so the axios instance in [`src/api/client.ts`](../src/api/client.ts) has a
+   **relative** base URL. Nothing else in the app changes; see
+   [Configuration](infrastructure.md#configuration).
+2. The browser requests `/kb-api/v4/leagues/…` from its own origin. The asset
+   layer would normally answer first, but `run_worker_first` in
+   `wrangler.jsonc` hands that prefix to the Worker.
+3. The Worker strips the prefix, forwards the method, the body and exactly
+   four request headers — `authorization`, `content-type`, `accept`,
+   `accept-language` — and sets its own `user-agent`. An allowlist, so cookies
+   and Cloudflare's own headers never go upstream. `accept-language` is on it
+   because Kickbase localises prose by it (the injury reasons).
+4. Kickbase's status and body come back as they are — the app's 403-means-
+   dead-token handling depends on seeing the real code — under a rebuilt
+   header set: `content-type` from upstream plus `cache-control: no-store`.
+
+Every other path is a static file or, when no file matches, `index.html`
+with a real **200** (`not_found_handling: single-page-application`). That
+retires the GitHub Pages trick of copying the shell to `404.html`.
+
+### What keeps it from being a free proxy for everyone
+
+Not much, deliberately — the alternative is a login of litbase's own, which
+would be a backend. Two things:
+
+- The upstream host is a constant. The Worker reaches `api.kickbase.com` and
+  nothing else.
+- A request carrying an `Origin` header that is not the Worker's own origin
+  is answered **403**. Browsers send `Origin` on every cross-site request, so
+  another website cannot embed this proxy as its own. A request with no
+  `Origin` — curl, or the app's own same-origin GETs — passes. So a script
+  can still call Kickbase through it; what it gets is exactly what it would
+  get calling Kickbase directly, with a bearer token it already has.
+
+The one thing to keep an eye on: Kickbase sits behind Cloudflare too, and
+the proxy moves traffic from residential browser IPs to Cloudflare's own
+egress. If Kickbase ever challenges non-browser traffic, this is where it
+would show, as proxied calls failing while the official app works.
+
+### Build and run it locally
+
+```bash
+npm run build:cf     # dist/, with /kb-api as the API base
+npm run cf:dev       # the Worker + dist/ on http://localhost:8787, no login needed
+```
+
+`cf:dev` runs the real Workers runtime locally and needs no Cloudflare
+account, so the whole deployment can be exercised before one exists:
+
+```bash
+curl -i http://localhost:8787/kb-api/v4/competitions                       # 200, JSON from Kickbase
+curl -i -H 'Origin: https://evil.example' http://localhost:8787/kb-api/v4/competitions   # 403
+curl -i http://localhost:8787/leagues/1/squad                              # 200, index.html
+```
+
+Day-to-day development does not go through the Worker. `npm run dev` uses
+the Vite dev server's proxy for the same prefix — set
+`VITE_USE_DEV_PROXY=true` and `VITE_API_BASE_URL=/kb-api` in `.env.local` —
+which is the same hop in Node instead of workerd. Wrangler requires Node 22;
+`nvm use` picks it from [`.nvmrc`](../.nvmrc).
+
+### Deploying
+
+By hand, once `npx wrangler login` has been run on the machine:
+
+```bash
+npm run cf:deploy    # build:cf, then wrangler deploy
+```
+
+Or from GitHub: the workflow runs on every push to the `cloudflare` branch
+(and from the Actions tab) once two repository secrets exist. The comment
+header in [`deploy-cloudflare.yml`](../.github/workflows/deploy-cloudflare.yml)
+says where each comes from:
+
+| Secret | What it is |
+| ------ | ---------- |
+| `CLOUDFLARE_API_TOKEN` | An API token with *Workers Scripts: Edit* and *Account Settings: Read* |
+| `CLOUDFLARE_ACCOUNT_ID` | The account id from the dashboard |
+
+The deploy prints the `*.workers.dev` URL. A custom domain is attached in
+the dashboard under the Worker's settings and needs no change here — the app
+is served at the root either way, so no `--base` flag is involved, unlike
+the Pages deploy.

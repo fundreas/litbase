@@ -68,11 +68,18 @@ runs with no `.env` file at all.
 | `VITE_POINTCAST_BASE_URL` | `https://fundreas.github.io/litbase-pointcast` | [pointcast](pointcast.md) — expected points **and** the player rankings. Not Kickbase |
 | `VITE_USE_DEV_PROXY` | unset | Route API traffic through the Vite dev server |
 
-**The browser calls Kickbase directly.** The API reflects
-`Access-Control-Allow-Origin` for any origin and permits the `authorization`
-request header, so no proxy is needed. `VITE_USE_DEV_PROXY=true` together with
-`VITE_API_BASE_URL=/kb-api` switches to a dev-server proxy if that ever
-changes — the wiring is already in [`vite.config.ts`](../vite.config.ts).
+**The browser cannot call Kickbase directly any more.** The API sent
+`Access-Control-Allow-Origin` for any origin until autumn 2026 and now sends
+no CORS headers at all, so every call goes through a same-origin hop at
+`/kb-api`. In production that hop is the Cloudflare Worker in
+[`worker/index.ts`](../worker/index.ts), and the bundle is built with
+`VITE_API_BASE_URL=/kb-api` (`npm run build:cf`) — see
+[Building and deploying](deployment.md#cloudflare-workers). In development
+it is the Vite dev server's proxy for the same prefix: set
+`VITE_USE_DEV_PROXY=true` and `VITE_API_BASE_URL=/kb-api` in `.env.local`;
+the wiring is in [`vite.config.ts`](../vite.config.ts). The default of
+`https://api.kickbase.com` is kept for the one case where it still works —
+tooling that is not a browser.
 
 `.env` files are gitignored; [`.env.example`](../.env.example) is the committed
 template.
@@ -278,8 +285,9 @@ every screen. `@tanstack/react-query-devtools` is still a devDependency, so
 restoring it is a lazy import plus one dev-only element in
 [`App.tsx`](../src/App.tsx).
 
-Packaging `dist/` into an nginx image, and the cache headers that make the
-chunk split pay off, are in [Building and deploying](deployment.md).
+Deploying `dist/` — to Cloudflare Workers behind the API proxy, or into the
+nginx image — and the cache headers that make the chunk split pay off, are in
+[Building and deploying](deployment.md).
 
 ## Tooling and scripts
 
@@ -290,6 +298,7 @@ chunk split pay off, are in [Building and deploying](deployment.md).
 | `npm run dev:live` | Same, but **inside a matchday** — see [Development profiles](#development-profiles) |
 | `npm run dev:live:host` | The live profile, exposed on the local network |
 | `npm run build` | Typecheck, then production build to `dist/` |
+| `npm run build:cf` | The same, with `/kb-api` as the API base — for the [Cloudflare deploy](deployment.md#cloudflare-workers) |
 | `npm run preview` | Serve the production build |
 | `npm run typecheck` | `tsc -b` only |
 | `npm run lint` | oxlint |
@@ -298,6 +307,8 @@ chunk split pay off, are in [Building and deploying](deployment.md).
 | `npm run format:check` | Prettier check |
 | `npm run check` | typecheck + lint + format check |
 | `npm run ligainsider` | Rebuild the [ligainsider link table](ligainsider.md) in `public/` — after a transfer window |
+| `npm run cf:dev` | The Worker proxy and `dist/` on `localhost:8787`, in the real Workers runtime — no account needed |
+| `npm run cf:deploy` | `build:cf`, then `wrangler deploy` — needs `npx wrangler login` once |
 
 `@/*` resolves to `src/*`, aliased in both `vite.config.ts` and
 `tsconfig.app.json`.

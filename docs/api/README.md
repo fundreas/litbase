@@ -117,10 +117,15 @@ field marked **✗** should not be rendered at all.
 (see [`src/lib/env.ts`](../../src/lib/env.ts)). Every path below is relative to
 it, and every one begins `/v4/`.
 
-**CORS** The API reflects `Access-Control-Allow-Origin` for any origin, so a
-browser can call it directly with no proxy. The Vite dev proxy exists only as a
-fallback for the day that changes — see
-[vite.config.ts](../../vite.config.ts).
+**CORS** The API sends no CORS headers (it reflected
+`Access-Control-Allow-Origin` for any origin until autumn 2026), so a browser
+cannot call it directly from a page it did not serve. The app reaches it
+through a same-origin proxy at `/kb-api`: the Cloudflare Worker in
+[worker/index.ts](../../worker/index.ts) in production, the Vite dev proxy in
+development — see [Building and deploying](../deployment.md#cloudflare-workers).
+Everything in this reference is unaffected: the proxy passes paths, bodies,
+status codes and the `Authorization` header through unchanged. Tools that are
+not browsers (curl, scripts) still call `https://api.kickbase.com` directly.
 
 **Images** are not URLs. Payloads carry CDN-relative paths
 (`content/file/<hash>.png`, `user/<hash>.jpeg`, `league/<hash>.png`), which

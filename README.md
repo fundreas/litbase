@@ -2,8 +2,9 @@
 
 A mobile-first single-page app on top of the Kickbase v4 API. React 19,
 TypeScript, react-router, TanStack Query, axios, Tailwind CSS v4 and Radix
-primitives. No backend of its own — the browser talks to `api.kickbase.com`
-directly.
+primitives. No backend of its own beyond a pass-through proxy: Kickbase sends
+no CORS headers, so a small Cloudflare Worker on the app's origin forwards
+`/kb-api/*` to `api.kickbase.com` and nothing else.
 
 ## Getting started
 
@@ -19,6 +20,9 @@ npm run dev:host # same, reachable from your phone on the same Wi-Fi
 | `npm run dev`          | Vite dev server with HMR                    |
 | `npm run dev:host`     | Dev server exposed on the local network     |
 | `npm run build`        | Typecheck, then production build to `dist/` |
+| `npm run build:cf`     | The same, with the API at `/kb-api` (Cloudflare) |
+| `npm run cf:dev`       | Worker proxy + `dist/` on `localhost:8787`  |
+| `npm run cf:deploy`    | `build:cf`, then `wrangler deploy`          |
 | `npm run preview`      | Serve the production build locally          |
 | `npm run typecheck`    | `tsc -b` only                               |
 | `npm run lint`         | oxlint                                      |
@@ -28,7 +32,21 @@ npm run dev:host # same, reachable from your phone on the same Wi-Fi
 Configuration is optional — see [.env.example](.env.example). The defaults point
 at the live API and CDN.
 
+## Deploying
+
+The live deployment is **Cloudflare Workers**: the built bundle as static
+assets plus [worker/index.ts](worker/index.ts), the proxy that bridges
+`/kb-api/*` to Kickbase on the same origin. Pushing to the `cloudflare` branch
+deploys it once the two secrets named in
+[deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml) exist; by
+hand it is `npm run cf:deploy`. `npm run cf:dev` runs the whole thing locally
+with no account. [docs/deployment.md](docs/deployment.md#cloudflare-workers)
+has the details.
+
 ## Building and running the image
+
+The nginx image predates the proxy and does **not** forward `/kb-api` yet, so
+a container built from it serves the app but cannot reach Kickbase.
 
 ```bash
 npm run build                                 # → dist/, typechecked first

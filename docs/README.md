@@ -17,7 +17,7 @@ or jump straight to a screen in the [Pages](#pages) table.
 | [ligainsider](ligainsider.md) | The link table to ligainsider.de: how it is built, why it is a link and not the news |
 | [Routing and layout](routing-and-layout.md) | Route table, auth and league guards, the app shell, header and drawer |
 | [Authentication](authentication.md) | Login, token persistence, silent renewal, and why there is no refresh token |
-| [Building and deploying](deployment.md) | `npm run build`, the Docker image, and how nginx serves the SPA |
+| [Building and deploying](deployment.md) | `npm run build`, the Cloudflare Workers deploy with its Kickbase proxy, and the nginx image |
 
 ## Pages
 
@@ -126,7 +126,11 @@ npm run dev:host # reachable from a phone on the same Wi-Fi
 npm run check    # typecheck + lint + format check
 npm run build    # production build to dist/
 
-docker build -t litbase:latest .              # image: nginx + the bundle
+npm run build:cf # the same, with the API proxied at /kb-api — for Cloudflare
+npm run cf:dev   # Worker proxy + dist/ on http://localhost:8787, no account needed
+npm run cf:deploy
+
+docker build -t litbase:latest .              # image: nginx + the bundle (no proxy yet)
 docker run --rm -p 8080:8080 litbase:latest   # http://localhost:8080
 ```
 

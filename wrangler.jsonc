@@ -1,0 +1,23 @@
+// The Cloudflare deployment: the built SPA as static assets, plus the Worker
+// in `worker/index.ts` that bridges `/kb-api/*` to the Kickbase API. See
+// docs/deployment.md#cloudflare-workers.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "litbase",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  // Request logs and errors in the Cloudflare dashboard. Free, and the only
+  // way to see why a proxied call failed once it is deployed.
+  "observability": { "enabled": true },
+  "assets": {
+    // `npm run build:cf` writes here with VITE_API_BASE_URL=/kb-api baked in.
+    "directory": "./dist",
+    // A deep link like /leagues/42/squad matches no file. Serve index.html
+    // with a real 200 and let the router resolve it — the thing GitHub Pages
+    // could only approximate with a 404.html copy.
+    "not_found_handling": "single-page-application",
+    // Without this the asset layer answers first, and the SPA fallback would
+    // swallow every API call as "a route". The Worker sees only this prefix.
+    "run_worker_first": ["/kb-api/*"],
+  },
+}
