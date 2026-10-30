@@ -42,6 +42,25 @@ Every `.env*` except [.env.example](.env.example), the committed template, is
 gitignored. The other variables there are optional and default to the live CDN
 and the two prediction APIs.
 
+### The proxy itself
+
+[openresty/nginx.conf](openresty/nginx.conf) is that proxy: OpenResty
+forwarding everything to `api.kickbase.com`, answering the CORS preflight
+itself and stamping `Access-Control-Allow-Origin` on every response, Kickbase's
+401 and 403 included. The same file runs on the server and locally:
+
+```bash
+scripts/run-proxy            # http://localhost:3018 in the official OpenResty image
+scripts/run-proxy -d         # detached;  --stop ends it
+scripts/run-proxy --check    # nginx -t on the config, nothing started
+scripts/run-proxy --probe    # curl the running proxy the way a browser would
+```
+
+With `VITE_API_BASE_URL=http://localhost:3018` in `.env.development` the dev
+server talks to Kickbase through the local container, so a config change can
+be tried end to end before it goes near the server. The allowed origins are a
+`map` at the top of the config — the deployed app and the dev server's port.
+
 ## Deploying to GitHub Pages
 
 Pushing to the `github-pages` branch runs

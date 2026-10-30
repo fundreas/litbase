@@ -91,9 +91,20 @@ them are gitignored by the `.env.*` pattern; the proxy URL is not public and
 stays out of the repository. [`.env.example`](../.env.example) is the committed
 template.
 
+The proxy is [`openresty/nginx.conf`](../openresty/nginx.conf): OpenResty
+forwarding to `api.kickbase.com`, answering the CORS preflight itself (GET,
+POST, DELETE; the four request headers the axios instance sets) and adding
+`Access-Control-Allow-Origin` with `always`, so Kickbase's 401 and 403 reach
+the app rather than surfacing as a network error. The allowed origins are a
+`map` at the top of the file. [`scripts/run-proxy`](../scripts/run-proxy) runs
+the same config in the official OpenResty image on `localhost:3018`, with
+`--check` to validate it and `--probe` to curl it as a browser would — so
+`VITE_API_BASE_URL=http://localhost:3018` makes development go through a
+local copy of production's hop.
+
 The Vite dev-server proxy (`VITE_USE_DEV_PROXY=true` with
 `VITE_API_BASE_URL=/kb-api`, wired in [`vite.config.ts`](../vite.config.ts))
-remains as an alternative for development without a proxy of your own.
+remains as an alternative when no container is at hand.
 
 ## Styling and design tokens
 
@@ -316,6 +327,7 @@ chunk split pay off, are in [Building and deploying](deployment.md).
 | `npm run format:check` | Prettier check |
 | `npm run check` | typecheck + lint + format check |
 | `npm run ligainsider` | Rebuild the [ligainsider link table](ligainsider.md) in `public/` — after a transfer window |
+| `scripts/run-proxy` | The Kickbase CORS proxy from [`openresty/nginx.conf`](../openresty/nginx.conf) in a container on `localhost:3018`; `--check`, `--probe`, `-d`, `--stop` |
 
 `@/*` resolves to `src/*`, aliased in both `vite.config.ts` and
 `tsconfig.app.json`.

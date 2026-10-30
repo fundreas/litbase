@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# run-proxy — the Kickbase CORS proxy from openresty/nginx.conf, in a container.
+#
+#   scripts/run-proxy             start on http://localhost:3018, logs in the foreground, Ctrl-C stops
+#   scripts/run-proxy -d          start detached
+#   scripts/run-proxy --stop      stop a detached one
+#   scripts/run-proxy --check     only validate the config (nginx -t) and exit
+#   scripts/run-proxy --probe     curl the running proxy the way a browser would
+#   PROXY_PORT=9000 scripts/run-proxy    another host port
+#
+# The config is bind-mounted read-only over the image's nginx.conf, so an edit
+# to openresty/nginx.conf is picked up by the next start — no image build.
+# Point the app at it with VITE_API_BASE_URL=http://localhost:3018 in
+# .env.development, then `npm run dev`.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONF="$ROOT/openresty/nginx.conf"
+IMAGE="${PROXY_IMAGE:-openresty/openresty:1.27.1.2-alpine}"
+NAME="${PROXY_NAME:-litbase-proxy}"
+PORT="${PROXY_PORT:-3018}"
+
+# The image's config path. Mounting over it means the file is read exactly
+# as written, with none of the image's own conf.d includes in play.
+CONF_IN_IMAGE=/usr/local/openresty/nginx/conf/nginx.conf
+
+usage() { sed -n '2,13p' "$0"; }
+
+probe() {
+  local base="http://localhost:$PORT" origin="https://fundreas.github.io"
+  echo "== preflight: expect 204 with allow-origin, allow-methods, allow-headers"
+  curl -s -o /dev/null -D - -X OPTIONS "$base/v4/user/login" \
+    -H "Origin: $origin" \
+    -H "Access-Control-Request-Method: POST" \
+    -H "Access-Control-Request-Headers: authorization,content-type" \
+    | grep -i -E '^HTTP|^access-control|^vary' || true
+  echo
+  echo "== GET through to Kickbase: expect 200 with allow-origin"
+  curl -s -o /dev/null -D - "$base/v4/competitions" -H "Origin: $origin" \
+    | grep -i -E '^HTTP|^access-control|^content-type' || true
+  echo
+  echo "== bad login: expect Kickbase's own 401 — and still allow-origin"
+  curl -s -o /dev/null -D - -X POST "$base/v4/user/login" \
+    -H "Origin: $origin" -H "Content-Type: application/json" \
+    -d '{"em":"x@example.invalid","pass":"nope","loy":false,"rep":{}}' \
+    | grep -i -E '^HTTP|^access-control' || true
+  echo
+  echo "== unknown origin: expect an empty allow-origin (the browser then refuses)"
+  curl -s -o /dev/null -D - "$base/v4/competitions" -H "Origin: https://evil.example" \
+    | grep -i -E '^HTTP|^access-control' || true
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  --stop)
+    docker rm -f "$NAME" >/dev/null 2>&1 && echo "stopped $NAME" || echo "$NAME was not running"
+    exit 0 ;;
+  --check)
+    exec docker run --rm \
+      -v "$CONF:$CONF_IN_IMAGE:ro" \
+      "$IMAGE" openresty -t ;;
+  --probe) probe; exit 0 ;;
+  -d|"") ;;
+  *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+esac
+
+[[ -f "$CONF" ]] || { echo "no config at $CONF" >&2; exit 1; }
+
+# A leftover from an earlier detached run would make the port collide.
+docker rm -f "$NAME" >/dev/null 2>&1 || true
+
+DETACH=()
+[[ "${1:-}" == "-d" ]] && DETACH=(-d)
+
+echo "proxy on http://localhost:$PORT  →  https://api.kickbase.com   (config: openresty/nginx.conf)"
+exec docker run --rm "${DETACH[@]}" \
+  --name "$NAME" \
+  -p "$PORT:80" \
+  -v "$CONF:$CONF_IN_IMAGE:ro" \
+  "$IMAGE"
