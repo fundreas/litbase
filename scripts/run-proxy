@@ -10,8 +10,9 @@
 #
 # The config is bind-mounted read-only over the image's nginx.conf, so an edit
 # to openresty/nginx.conf is picked up by the next start — no image build.
-# Point the app at it with VITE_API_BASE_URL=http://localhost:3018 in
-# .env.development, then `npm run dev`.
+# Only /kb-api/* is forwarded to Kickbase, prefix stripped. Point the app at
+# it with VITE_API_BASE_URL=http://localhost:3018/kb-api in .env.development,
+# then `npm run dev`.
 
 set -euo pipefail
 
@@ -28,7 +29,7 @@ CONF_IN_IMAGE=/usr/local/openresty/nginx/conf/nginx.conf
 usage() { sed -n '2,13p' "$0"; }
 
 probe() {
-  local base="http://localhost:$PORT" origin="https://fundreas.github.io"
+  local base="http://localhost:$PORT/kb-api" origin="https://fundreas.github.io"
   echo "== preflight: expect 204 with allow-origin, allow-methods, allow-headers"
   curl -s -o /dev/null -D - -X OPTIONS "$base/v4/user/login" \
     -H "Origin: $origin" \
@@ -49,6 +50,9 @@ probe() {
   echo "== unknown origin: expect an empty allow-origin (the browser then refuses)"
   curl -s -o /dev/null -D - "$base/v4/competitions" -H "Origin: https://evil.example" \
     | grep -i -E '^HTTP|^access-control' || true
+  echo
+  echo "== outside the prefix: expect 404, nothing forwarded"
+  curl -s -o /dev/null -w '%{http_code}\n' "http://localhost:$PORT/v4/competitions"
 }
 
 case "${1:-}" in

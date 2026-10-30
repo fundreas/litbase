@@ -33,7 +33,7 @@ For local development that is a `.env.development` file in the repo root:
 
 ```bash
 # .env.development — gitignored, never checked in
-VITE_API_BASE_URL=https://your-proxy.example.com
+VITE_API_BASE_URL=https://your-proxy.example.com/kb-api
 ```
 
 Vite reads it for `npm run dev` and `npm run dev:host` only, never for a build.
@@ -45,9 +45,10 @@ and the two prediction APIs.
 ### The proxy itself
 
 [openresty/nginx.conf](openresty/nginx.conf) is that proxy: OpenResty
-forwarding everything to `api.kickbase.com`, answering the CORS preflight
-itself and stamping `Access-Control-Allow-Origin` on every response, Kickbase's
-401 and 403 included. The same file runs on the server and locally:
+forwarding `/kb-api/*` to `api.kickbase.com` with the prefix stripped,
+answering the CORS preflight itself and stamping `Access-Control-Allow-Origin`
+on every response, Kickbase's 401 and 403 included. Anything outside the prefix
+is a 404. The same file runs on the server and locally:
 
 ```bash
 scripts/run-proxy            # http://localhost:3018 in the official OpenResty image
@@ -56,7 +57,7 @@ scripts/run-proxy --check    # nginx -t on the config, nothing started
 scripts/run-proxy --probe    # curl the running proxy the way a browser would
 ```
 
-With `VITE_API_BASE_URL=http://localhost:3018` in `.env.development` the dev
+With `VITE_API_BASE_URL=http://localhost:3018/kb-api` in `.env.development` the dev
 server talks to Kickbase through the local container, so a config change can
 be tried end to end before it goes near the server. The allowed origins are a
 `map` at the top of the config — the deployed app and the dev server's port.

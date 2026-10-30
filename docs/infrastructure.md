@@ -83,7 +83,7 @@ tooling that is not a browser. The value is set differently per context:
 Vite inlines the value into the bundle, so every one of these is a
 **build-time** setting; nothing at serve time can change it.
 
-`.env.development` holds one line, `VITE_API_BASE_URL=https://<your-proxy>`,
+`.env.development` holds one line, `VITE_API_BASE_URL=https://<your-proxy>/kb-api`,
 and Vite loads it only for `npm run dev` and `npm run dev:host` — never for
 `vite build`. `npm run dev:live` runs in mode `live` and reads `.env.live`
 instead; a `.env.local` is read in every mode including a local build. All of
@@ -92,14 +92,15 @@ stays out of the repository. [`.env.example`](../.env.example) is the committed
 template.
 
 The proxy is [`openresty/nginx.conf`](../openresty/nginx.conf): OpenResty
-forwarding to `api.kickbase.com`, answering the CORS preflight itself (GET,
+forwarding `/kb-api/*` to `api.kickbase.com` with the prefix stripped (and
+nothing else — other paths are a 404), answering the CORS preflight itself (GET,
 POST, DELETE; the four request headers the axios instance sets) and adding
 `Access-Control-Allow-Origin` with `always`, so Kickbase's 401 and 403 reach
 the app rather than surfacing as a network error. The allowed origins are a
 `map` at the top of the file. [`scripts/run-proxy`](../scripts/run-proxy) runs
 the same config in the official OpenResty image on `localhost:3018`, with
 `--check` to validate it and `--probe` to curl it as a browser would — so
-`VITE_API_BASE_URL=http://localhost:3018` makes development go through a
+`VITE_API_BASE_URL=http://localhost:3018/kb-api` makes development go through a
 local copy of production's hop.
 
 The Vite dev-server proxy (`VITE_USE_DEV_PROXY=true` with
@@ -327,7 +328,7 @@ chunk split pay off, are in [Building and deploying](deployment.md).
 | `npm run format:check` | Prettier check |
 | `npm run check` | typecheck + lint + format check |
 | `npm run ligainsider` | Rebuild the [ligainsider link table](ligainsider.md) in `public/` — after a transfer window |
-| `scripts/run-proxy` | The Kickbase CORS proxy from [`openresty/nginx.conf`](../openresty/nginx.conf) in a container on `localhost:3018`; `--check`, `--probe`, `-d`, `--stop` |
+| `scripts/run-proxy` | The Kickbase CORS proxy from [`openresty/nginx.conf`](../openresty/nginx.conf) in a container on `localhost:3018/kb-api`; `--check`, `--probe`, `-d`, `--stop` |
 
 `@/*` resolves to `src/*`, aliased in both `vite.config.ts` and
 `tsconfig.app.json`.
